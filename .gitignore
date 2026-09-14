@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# Cloudflare Wrangler
+.wrangler/
+_worker.bundle
+_worker.js
+
+# Environment files
+.env*
+!.env.example
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Testing & reports
+test-results/
+playwright-report/
+
+# Media storage & temp
+.tempmediaStorage/
+.DS_Store
+Thumbs.db
