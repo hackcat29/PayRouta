@@ -6,8 +6,7 @@ import { PortalError } from "../portal/domain";
 import { assertAdapterConfiguration } from "../portal/provider-adapters";
 import { revalidateSelectedMethod } from "../portal/availability-service";
 import { fingerprint } from "../portal/registry";
-import { sandboxInstructions } from "./execution";
-import { persistentSimulator } from "../portal/simulator";
+import { sandboxInstructions, resolveExecutionAdapter } from "./execution";
 import { assetKey, minor, providerFact } from "./contracts";
 import { event, queue, Tx } from "./service";
 import { post, exception } from "./journal";
@@ -26,6 +25,15 @@ export async function applyFact(
       include: { intent: true },
     });
     const i = a.intent;
+    const integration = await tx.integration.findUniqueOrThrow({
+      where: { id: a.integrationId },
+    });
+    if (
+      integration.environment !== a.environment ||
+      integration.orgId !== a.providerOrgId
+    )
+      throw new PortalError("EXECUTION_INTEGRATION_SCOPE_MISMATCH", 409);
+    resolveExecutionAdapter(integration);
     if (a.providerReference && a.providerReference !== fact.reference) {
       await exception(tx, i.id, "REFERENCE_MISMATCH", fact, now);
       return;
@@ -197,6 +205,7 @@ export async function dispatch(attemptId: string, now = new Date()) {
   const route = await db.paymentRoute.findUniqueOrThrow({
     where: { id: a.routeId },
   });
+  let adapter;
   try {
     if (route.expiresAt <= now) throw new PortalError("QUOTE_EXPIRED");
     const current = await revalidateSelectedMethod(
@@ -211,6 +220,12 @@ export async function dispatch(attemptId: string, now = new Date()) {
     const integration = await db.integration.findUniqueOrThrow({
       where: { id: a.integrationId },
     });
+    if (
+      integration.environment !== a.environment ||
+      integration.orgId !== a.providerOrgId
+    )
+      throw new PortalError("EXECUTION_INTEGRATION_SCOPE_MISMATCH", 409);
+    adapter = resolveExecutionAdapter(integration);
     assertAdapterConfiguration(
       "simulator",
       "1",
@@ -251,7 +266,7 @@ export async function dispatch(attemptId: string, now = new Date()) {
   );
   let result;
   try {
-    result = await persistentSimulator.create(a, a.intent);
+    result = await adapter.create(a, a.intent);
   } catch {
     result = { state: "Unknown", reference: "" };
   }
@@ -372,7 +387,16 @@ export async function poll(attemptId: string, now = new Date()) {
     where: { id: attemptId },
     include: { intent: true },
   });
-  let fact = await persistentSimulator.status(a.key);
+  const integration = await db.integration.findUniqueOrThrow({
+    where: { id: a.integrationId },
+  });
+  if (
+    integration.environment !== a.environment ||
+    integration.orgId !== a.providerOrgId
+  )
+    throw new PortalError("EXECUTION_INTEGRATION_SCOPE_MISMATCH", 409);
+  const adapter = resolveExecutionAdapter(integration);
+  let fact = await adapter.status(a.key);
   if (!fact && a.state === "Dispatching") {
     // Simulator lookup is authoritative and create supports the same durable idempotency key.
     const route = await db.paymentRoute.findUniqueOrThrow({
@@ -402,8 +426,8 @@ export async function poll(attemptId: string, now = new Date()) {
       );
       return;
     }
-    await persistentSimulator.create(a, a.intent);
-    fact = await persistentSimulator.status(a.key);
+    await adapter.create(a, a.intent);
+    fact = await adapter.status(a.key);
   }
   if (fact)
     await applyFact(
@@ -664,6 +688,15 @@ export async function settle(attemptId: string, now = new Date()) {
     include: { intent: true },
   });
   if (a.state !== "Confirmed") throw new PortalError("PAYMENT_NOT_CONFIRMED");
+  const integration = await db.integration.findUniqueOrThrow({
+    where: { id: a.integrationId },
+  });
+  if (
+    integration.environment !== a.environment ||
+    integration.orgId !== a.providerOrgId
+  )
+    throw new PortalError("EXECUTION_INTEGRATION_SCOPE_MISMATCH", 409);
+  resolveExecutionAdapter(integration);
   const i = a.intent,
     route = await db.paymentRoute.findUniqueOrThrow({
       where: { id: a.routeId },

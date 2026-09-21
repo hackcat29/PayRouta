@@ -1,3 +1,6 @@
+import { liveScopeCommand } from "@/lib/merchant/live-scope";
+import { transitionRollout } from "@/lib/merchant/qualification";
+import { teamCommand } from "@/lib/merchant/team";
 import { saveApplication, operatorCommand } from "@/lib/merchant/onboarding";
 import { z } from "zod";
 import { configureWebhook, redeliver } from "@/lib/merchant/service";
@@ -52,6 +55,18 @@ export async function POST(request: Request) {
   return respond(async () => {
     csrf(request);
     const raw = JSON.parse(await rawBody(request));
+    if (
+      [
+        "propose-live-scope",
+        "approve-live-scope",
+        "revoke-live-scope",
+      ].includes(raw?.action)
+    )
+      return liveScopeCommand(raw, request.headers);
+    if (raw?.action === "rollout-transition")
+      return transitionRollout(raw, request.headers);
+    if (["merchant-invite", "merchant-role"].includes(raw?.action))
+      return teamCommand(raw, request.headers);
     if (["policy", "approve-risk", "review-application"].includes(raw?.action))
       return operatorCommand(raw, request.headers);
     const b = command.parse(raw);

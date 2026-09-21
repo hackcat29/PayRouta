@@ -143,72 +143,78 @@ export class HostedQualificationAdapter {
       callback.protocol !== "https:"
     )
       throw new ProviderBoundaryError("INVALID_CALLBACK");
-    const response =
-      this.provider === "paystack"
-        ? await this.transport(
-            "https://api.paystack.co/transaction/initialize",
-            this.config.secret,
-            {
-              reference: input.reference,
-              amount: minor(input.amount, 2).toString(),
-              currency: "NGN",
-              email: input.email,
-              channels: [input.method === "card" ? "card" : "bank_transfer"],
-              callback_url: input.callbackUrl,
-            },
-          )
-        : await this.transport(
-            "https://api.flutterwave.com/v3/payments",
-            this.config.secret,
-            {
-              tx_ref: input.reference,
-              amount: input.amount,
-              currency: "NGN",
-              customer: { email: input.email },
-              payment_options:
-                input.method === "card" ? "card" : "banktransfer",
-              redirect_url: input.callbackUrl,
-            },
-          );
-    if (response.status < 200 || response.status >= 300)
+    try {
+      const response =
+        this.provider === "paystack"
+          ? await this.transport(
+              "https://api.paystack.co/transaction/initialize",
+              this.config.secret,
+              {
+                reference: input.reference,
+                amount: minor(input.amount, 2).toString(),
+                currency: "NGN",
+                email: input.email,
+                channels: [input.method === "card" ? "card" : "bank_transfer"],
+                callback_url: input.callbackUrl,
+              },
+            )
+          : await this.transport(
+              "https://api.flutterwave.com/v3/payments",
+              this.config.secret,
+              {
+                tx_ref: input.reference,
+                amount: input.amount,
+                currency: "NGN",
+                customer: { email: input.email },
+                payment_options:
+                  input.method === "card" ? "card" : "banktransfer",
+                redirect_url: input.callbackUrl,
+              },
+            );
+      if (response.status < 200 || response.status >= 300)
+        throw new ProviderBoundaryError("INITIALIZATION_UNRESOLVED", true);
+      const envelope = z
+        .object({
+          status: z.union([z.boolean(), z.string()]),
+          data: z.record(z.string(), z.unknown()),
+        })
+        .parse(response.body);
+      if (envelope.status !== true && envelope.status !== "success")
+        throw new ProviderBoundaryError("INITIALIZATION_UNRESOLVED", true);
+      if (
+        this.provider === "paystack" &&
+        envelope.data.reference !== input.reference
+      )
+        throw new ProviderBoundaryError("REFERENCE_MISMATCH", true);
+      const url = new URL(
+        z
+          .url()
+          .parse(
+            this.provider === "paystack"
+              ? envelope.data.authorization_url
+              : envelope.data.link,
+          ),
+      );
+      if (
+        url.protocol !== "https:" ||
+        url.username ||
+        url.password ||
+        url.hostname !==
+          (this.provider === "paystack"
+            ? "checkout.paystack.com"
+            : "checkout.flutterwave.com")
+      )
+        throw new ProviderBoundaryError("UNTRUSTED_CUSTOMER_ACTION", true);
+      return {
+        state: "Requires action",
+        reference: input.reference,
+        action: { kind: "redirect", url: url.href, method: input.method },
+      };
+    } catch (error) {
+      if (error instanceof ProviderBoundaryError)
+        throw new ProviderBoundaryError(error.code, true);
       throw new ProviderBoundaryError("INITIALIZATION_UNRESOLVED", true);
-    const envelope = z
-      .object({
-        status: z.union([z.boolean(), z.string()]),
-        data: z.record(z.string(), z.unknown()),
-      })
-      .parse(response.body);
-    if (envelope.status !== true && envelope.status !== "success")
-      throw new ProviderBoundaryError("INITIALIZATION_UNRESOLVED", true);
-    if (
-      this.provider === "paystack" &&
-      envelope.data.reference !== input.reference
-    )
-      throw new ProviderBoundaryError("REFERENCE_MISMATCH", true);
-    const url = new URL(
-      z
-        .url()
-        .parse(
-          this.provider === "paystack"
-            ? envelope.data.authorization_url
-            : envelope.data.link,
-        ),
-    );
-    if (
-      url.protocol !== "https:" ||
-      url.username ||
-      url.password ||
-      url.hostname !==
-        (this.provider === "paystack"
-          ? "checkout.paystack.com"
-          : "checkout.flutterwave.com")
-    )
-      throw new ProviderBoundaryError("UNTRUSTED_CUSTOMER_ACTION", true);
-    return {
-      state: "Requires action",
-      reference: input.reference,
-      action: { kind: "redirect", url: url.href, method: input.method },
-    };
+    }
   }
   async status(raw: HostedInput) {
     const input = hostedInput.parse(raw);

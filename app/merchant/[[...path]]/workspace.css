@@ -51,7 +51,7 @@
 }
 .merchant-body nav a[aria-current] {
   background: #e7f5f3;
-  color: var(--teal);
+  color: #00685f;
   font-weight: 600;
 }
 .merchant-body article {
@@ -113,5 +113,31 @@
   }
   .merchant-workspace header form {
     width: 100%;
+  }
+}
+.merchant-workspace header form {
+  flex-wrap: nowrap;
+  align-items: center;
+}
+.merchant-workspace header select {
+  width: 160px;
+}
+.merchant-workspace header label {
+  white-space: nowrap;
+}
+.merchant-body td:nth-child(2) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  max-width: 280px;
+}
+.merchant-body section > form {
+  max-width: 720px;
+}
+.merchant-body section > form > label {
+  margin: 12px 0;
+}
+@media (max-width: 760px) {
+  .merchant-workspace header form {
+    flex-wrap: wrap;
   }
 }

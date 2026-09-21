@@ -1,5 +1,8 @@
+import { storedLiveScope } from "@/lib/merchant/live-scope";
+import { MerchantTeam, AcceptMerchantInvitation } from "./team";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { evaluateContext } from "@/lib/portal/availability-service";
 import { identity } from "@/lib/portal/access";
 import { merchantMember } from "@/lib/merchant/access";
 import { db } from "@/lib/portal/db";
@@ -7,6 +10,8 @@ import { intents, settlements } from "@/lib/merchant/service";
 import { PortalError, can } from "@/lib/portal/domain";
 import { ledger } from "@/lib/payments/ledger";
 import { Onboarding } from "./onboarding";
+import { MerchantEvidence } from "./evidence";
+import { applicationRequirements } from "@/lib/merchant/evidence";
 import { merchantMetrics } from "@/lib/merchant/metrics";
 import { WebhookControls } from "./webhooks";
 import { Keys } from "./keys";
@@ -17,6 +22,7 @@ const routes = {
   onboarding: "Onboarding",
   overview: "Overview",
   payments: "Payments",
+  "payment-methods": "Payment methods",
   settlements: "Settlements",
   reconciliation: "Reconciliation",
   analytics: "Analytics",
@@ -51,8 +57,14 @@ export default async function Page({
       redirect("/provider/sign-in");
     throw e;
   }
+  if (section === "team" && typeof query.invitation === "string")
+    return (
+      <div className="portal p-simple">
+        <AcceptMerchantInvitation token={query.invitation} />
+      </div>
+    );
   const memberships = await db.membership.findMany({
-    where: { userId: user.user.id },
+    where: { userId: user.user.id, merchantRole: { not: null } },
     include: { org: true },
   });
   const configs = await db.merchantConfig.findMany({
@@ -93,29 +105,76 @@ export default async function Page({
         </p>
       </section>
     );
-  else if (section === "onboarding")
-    content = can(membership.role, "configure") ? (
-      <Onboarding
-        orgId={orgId}
-        version={config.applicationVersion}
-        state={config.applicationState}
-        value={config.application as Record<string, unknown>}
-      />
-    ) : (
-      <p>Owner or admin access is required to submit an application.</p>
-    );
-  else if (section === "payments") {
+  else if (section === "onboarding") {
+    if (can(membership.role, "configure")) {
+      const application = config.application as {
+        country?: string;
+        methods?: string[];
+        requirementIds?: string[];
+      };
+      const requirements = await applicationRequirements(application);
+      const liveScope = storedLiveScope.safeParse(config.liveScope);
+      const evidence = await db.evidence.findMany({
+        where: {
+          orgId,
+          requirementId: { in: requirements.map((r) => r.id) },
+          deletedAt: null,
+        },
+        select: {
+          id: true,
+          filename: true,
+          scanStatus: true,
+          reviewStatus: true,
+        },
+        orderBy: { createdAt: "desc" },
+      });
+      content = (
+        <>
+          <Onboarding
+            orgId={orgId}
+            version={config.applicationVersion}
+            state={config.applicationState}
+            value={config.application as Record<string, unknown>}
+          />
+          <section>
+            <h2>Live scope review</h2>
+            {liveScope.success ? (
+              <p>
+                {liveScope.data.status} · {liveScope.data.input.merchantCountry}{" "}
+                · {liveScope.data.input.methods.join(", ")} · NGN · review due{" "}
+                {liveScope.data.input.nextReviewAt}. Real processing remains
+                unavailable pending provider qualification.
+              </p>
+            ) : (
+              <p>No live scope approved.</p>
+            )}
+          </section>
+          <MerchantEvidence
+            orgId={orgId}
+            country={application.country || config.country}
+            requirements={requirements}
+            evidence={evidence}
+          />
+        </>
+      );
+    } else
+      content = (
+        <p>Owner or admin access is required to submit an application.</p>
+      );
+  } else if (section === "payments") {
     const id = segments[1];
     const filters = new URLSearchParams();
-    for (const key of ["state", "reference", "cursor"])
+    for (const key of ["state", "reference", "cursor", "method", "from", "to"])
       if (typeof query[key] === "string")
         filters.set(key, query[key] as string);
     const result = await intents(scope, filters, id);
+    const exportTo = new Date();
+    const exportFrom = new Date(exportTo.getTime() - 30 * 86400000);
     if ("data" in result)
       content = (
         <section>
           <a
-            href={`/api/merchant/export?${new URLSearchParams({ orgId, environment: env, from: new Date(Date.now() - 30 * 86400000).toISOString(), to: new Date().toISOString() })}`}
+            href={`/api/merchant/export?${new URLSearchParams({ orgId, environment: env, from: exportFrom.toISOString(), to: exportTo.toISOString() })}`}
           >
             Export last 30 days (up to 1,000 payments)
           </a>
@@ -144,6 +203,38 @@ export default async function Page({
                   <option key={s}>{s}</option>
                 ))}
               </select>
+            </label>
+            <label>
+              Method
+              <select
+                name="method"
+                defaultValue={
+                  typeof query.method === "string" ? query.method : ""
+                }
+              >
+                <option value="">All</option>
+                {["bank-transfer", "card", "mobile-money", "stablecoin"].map(
+                  (m) => (
+                    <option key={m}>{m}</option>
+                  ),
+                )}
+              </select>
+            </label>
+            <label>
+              From (UTC)
+              <input
+                type="date"
+                name="from"
+                defaultValue={typeof query.from === "string" ? query.from : ""}
+              />
+            </label>
+            <label>
+              Before (UTC)
+              <input
+                type="date"
+                name="to"
+                defaultValue={typeof query.to === "string" ? query.to : ""}
+              />
             </label>
             <button>Filter</button>
           </form>
@@ -218,6 +309,64 @@ export default async function Page({
         </section>
       );
     }
+  } else if (section === "payment-methods") {
+    const intent =
+      typeof query.intentId === "string"
+        ? await db.paymentIntent.findFirst({
+            where: { ...scope, id: query.intentId },
+          })
+        : null;
+    let evaluation: Awaited<ReturnType<typeof evaluateContext>> | null = null;
+    let explanation =
+      "Choose an open payment intent to check its available methods.";
+    if (intent) {
+      try {
+        evaluation = await evaluateContext(orgId, intent.contextId);
+      } catch (error) {
+        if (error instanceof PortalError) explanation = error.message;
+        else throw error;
+      }
+    }
+    content = (
+      <section>
+        <form>
+          <input type="hidden" name="orgId" value={orgId} />
+          <input type="hidden" name="environment" value={env} />
+          <label>
+            Payment intent ID
+            <input
+              name="intentId"
+              required
+              defaultValue={
+                typeof query.intentId === "string" ? query.intentId : ""
+              }
+            />
+          </label>
+          <button>Check availability</button>
+        </form>
+        {evaluation ? (
+          <>
+            <p>
+              For {intent?.reference}. Evaluated {evaluation.evaluatedAt};
+              expires {evaluation.expiresAt}.
+            </p>
+            <ul>
+              {evaluation.methods.map((m) => (
+                <li key={m.method}>
+                  <strong>{m.label}</strong> — {m.explanation}
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : (
+          <p>{explanation}</p>
+        )}
+        <p>
+          Availability depends on this payment&apos;s amount, asset, method, and
+          transaction context. The customer chooses the method at checkout.
+        </p>
+      </section>
+    );
   } else if (section === "settlements") {
     const result = await settlements(
       scope,
@@ -415,33 +564,22 @@ export default async function Page({
   } else if (section === "team") {
     const team = can(membership.role, "team")
       ? await db.membership.findMany({
-          where: { orgId },
-          include: { user: { select: { name: true, email: true } } },
+          where: { orgId, merchantRole: { not: null } },
+          include: { user: { select: { name: true } } },
           take: 100,
         })
       : [];
-    content = (
-      <section>
-        <h2>Organization membership</h2>
-        {can(membership.role, "team") ? (
-          <>
-            <ul>
-              {team.map((m) => (
-                <li key={m.id}>
-                  {m.user.name} · {m.user.email} · {m.role}
-                </li>
-              ))}
-            </ul>
-            <p>
-              Membership and invitations use the existing organization team
-              controls.
-            </p>
-            <Link href="/provider/team">Open organization team management</Link>
-          </>
-        ) : (
-          <p>Owner or admin access is required.</p>
-        )}
-      </section>
+    content = can(membership.role, "team") ? (
+      <MerchantTeam
+        orgId={orgId}
+        members={team.map((m) => ({
+          id: m.id,
+          name: m.user.name,
+          role: m.merchantRole!,
+        }))}
+      />
+    ) : (
+      <p>Owner or admin access is required.</p>
     );
   } else if (section === "settings" || section === "security")
     content = (
@@ -499,13 +637,15 @@ export default async function Page({
         <strong>{env === "sandbox" ? "Sandbox" : "Live"}</strong>
         <form>
           <input type="hidden" name="orgId" value={orgId} />
-          <label>
-            Environment
-            <select name="environment" defaultValue={env}>
-              <option value="sandbox">Sandbox</option>
-              <option value="production">Live</option>
-            </select>
-          </label>
+          <label htmlFor="merchant-environment">Environment</label>
+          <select
+            id="merchant-environment"
+            name="environment"
+            defaultValue={env}
+          >
+            <option value="sandbox">Sandbox</option>
+            <option value="production">Live</option>
+          </select>
           <button>Switch</button>
         </form>
       </header>

@@ -1,7 +1,7 @@
 import { db } from "../portal/db";
 export const metricDictionary = {
   checkoutConversion:
-    "Distinct confirmed intents / distinct intents with a session created in the intent creation cohort. Current known state at reporting time; late confirmation changes the numerator.",
+    "Distinct confirmed intents / distinct intents in the intent creation cohort having at least one session. Current known state at reporting time; late confirmation changes the numerator.",
   methodSelection:
     "Distinct cohort intents with a selected method / distinct cohort intents with at least one checkout session.",
   attemptOutcomes:

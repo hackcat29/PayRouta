@@ -61,3 +61,39 @@ test("aggregate reservations and unknown assets fail closed", () => {
   );
   assert.throws(() => riskPolicySchema.parse({ verified: true }));
 });
+test("merchant role permissions do not inherit provider or unknown roles", async () => {
+  const { merchantCan } = await import("../lib/merchant/access");
+  assert.equal(merchantCan("Finance", "read"), true);
+  assert.equal(merchantCan("Finance", "configure"), false);
+  assert.equal(merchantCan("Developer", "integration"), true);
+  assert.equal(merchantCan("Developer", "team"), false);
+  assert.equal(merchantCan("Compliance", "read"), false);
+  assert.equal(merchantCan("Owner", "team"), true);
+  assert.equal(merchantCan("None", "read"), false);
+});
+
+test("merchant requirements are explicit and context-specific", async () => {
+  const { matchesMerchantRequirement: matches } =
+    await import("../lib/merchant/evidence");
+  const app = { country: "NG", methods: ["card"] };
+  assert.equal(matches({}, app), false);
+  assert.equal(
+    matches({ audience: "provider", countries: ["NG"] }, app),
+    false,
+  );
+  assert.equal(
+    matches(
+      { audience: "merchant", countries: ["NG"], methods: ["card"] },
+      app,
+    ),
+    true,
+  );
+  assert.equal(
+    matches({ audience: "merchant", countries: ["GH"] }, app),
+    false,
+  );
+  assert.equal(
+    matches({ audience: "merchant", methods: ["bank-transfer"] }, app),
+    false,
+  );
+});

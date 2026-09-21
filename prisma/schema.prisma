@@ -104,6 +104,7 @@ model Organization {
   credentials Credential[]
 }
 model Membership {
+  merchantRole String?
   id String @id @default(cuid())
   userId String
   orgId String
@@ -114,6 +115,7 @@ model Membership {
   @@index([userId])
 }
 model Invitation {
+  participation String @default("provider")
   id String @id @default(cuid())
   orgId String
   org Organization @relation(fields: [orgId], references: [id])

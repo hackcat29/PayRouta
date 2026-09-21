@@ -2,6 +2,8 @@ import Link from "next/link";
 import { internal } from "@/lib/portal/access";
 import { db } from "@/lib/portal/db";
 import { riskPolicySchema } from "@/lib/merchant/policy";
+import { QualificationForm } from "./qualification-form";
+import { storedLiveScope } from "@/lib/merchant/live-scope";
 import { OperatorAction } from "./controls";
 import "@/components/portal/portal.css";
 export const dynamic = "force-dynamic";
@@ -27,12 +29,16 @@ export default async function Page() {
     <div className="portal p-simple">
       <Link href="/ops">← Operations</Link>
       <h1>Merchant readiness and review</h1>
+      <Link href="/ops/coverage">Coverage qualification</Link>
       <p>
         Stopping new execution does not stop provider status checks, settlement
         tracking, or merchant notifications.
       </p>
       {merchants.map((m) => {
         const policy = riskPolicySchema.parse(m.riskPolicy);
+        const scope = storedLiveScope.safeParse(m.liveScope);
+        const nextReview = new Date();
+        nextReview.setUTCDate(nextReview.getUTCDate() + 30);
         return (
           <section key={m.orgId}>
             <h2>
@@ -75,6 +81,67 @@ export default async function Page() {
                   orgId: m.orgId,
                   version: m.applicationVersion,
                   state: "Changes requested",
+                }}
+              />
+            )}
+            <h3>Specified live scope</h3>
+            <p>
+              {scope.success
+                ? `${scope.data.status} · review due ${scope.data.input.nextReviewAt}`
+                : "No live scope proposed"}
+              . Scope approval does not activate execution.
+            </p>
+            {["Under review", "Approved"].includes(m.applicationState) && (
+              <details>
+                <summary>Propose or revise live scope</summary>
+                <QualificationForm
+                  label="Save proposed scope"
+                  command={{
+                    action: "propose-live-scope",
+                    orgId: m.orgId,
+                    applicationVersion: m.applicationVersion,
+                    expectedScopeVersion: scope.success
+                      ? scope.data.version
+                      : null,
+                  }}
+                  initial={
+                    scope.success
+                      ? scope.data.input
+                      : {
+                          environment: "production",
+                          merchantCountry: "NG",
+                          payerCountries: ["NG"],
+                          methods: ["bank-transfer"],
+                          asset: "fiat:NGN:",
+                          settlementAsset: "fiat:NGN:",
+                          maximumMinor: "10000",
+                          dailyMaximumMinor: "100000",
+                          profileIds: [],
+                          accounts: [],
+                          evidenceIds: [],
+                          nextReviewAt: nextReview.toISOString(),
+                        }
+                  }
+                />
+              </details>
+            )}
+            {scope.success && scope.data.status === "Proposed" && (
+              <OperatorAction
+                label="Approve specified scope"
+                command={{
+                  action: "approve-live-scope",
+                  orgId: m.orgId,
+                  version: scope.data.version,
+                }}
+              />
+            )}
+            {scope.success && scope.data.status !== "Revoked" && (
+              <OperatorAction
+                label="Revoke specified scope"
+                command={{
+                  action: "revoke-live-scope",
+                  orgId: m.orgId,
+                  version: scope.data.version,
                 }}
               />
             )}

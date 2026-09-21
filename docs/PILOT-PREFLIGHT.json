@@ -1,0 +1,132 @@
+{
+  "status": "Blocked",
+  "checkedAt": "2026-09-21T10:08:35.231Z",
+  "currency": "NGN",
+  "plannedPayments": 12,
+  "proposedTotalMinor": "150000",
+  "checks": [
+    {
+      "check": "merchant.production_configuration",
+      "passed": false
+    },
+    {
+      "check": "merchant.approved_scope",
+      "passed": false
+    },
+    {
+      "check": "merchant.current_account_profile_evidence",
+      "passed": false
+    },
+    {
+      "check": "transactions.within_reviewed_scope",
+      "passed": false
+    },
+    {
+      "check": "merchant.webhook_configured",
+      "passed": false
+    },
+    {
+      "check": "operator.privileged_mfa",
+      "passed": false
+    },
+    {
+      "check": "pilot.required_evidence",
+      "passed": false
+    },
+    {
+      "check": "budget.within_declared_cap",
+      "passed": true
+    },
+    {
+      "check": "references.unique",
+      "passed": true
+    },
+    {
+      "check": "provider.production_integrations",
+      "passed": false
+    },
+    {
+      "check": "integrity.no_unresolved_exceptions",
+      "passed": true
+    },
+    {
+      "check": "software.real_orchestrator_and_settlement_qualified",
+      "passed": false
+    }
+  ],
+  "transactions": [
+    {
+      "reference": "UNAPPROVED-PLANNING-01",
+      "integrationId": "REPLACE_WITH_PAYSTACK",
+      "method": "bank-transfer",
+      "amountMinor": "10000"
+    },
+    {
+      "reference": "UNAPPROVED-PLANNING-02",
+      "integrationId": "REPLACE_WITH_PAYSTACK",
+      "method": "bank-transfer",
+      "amountMinor": "10000"
+    },
+    {
+      "reference": "UNAPPROVED-PLANNING-03",
+      "integrationId": "REPLACE_WITH_PAYSTACK",
+      "method": "bank-transfer",
+      "amountMinor": "10000"
+    },
+    {
+      "reference": "UNAPPROVED-PLANNING-04",
+      "integrationId": "REPLACE_WITH_PAYSTACK",
+      "method": "bank-transfer",
+      "amountMinor": "10000"
+    },
+    {
+      "reference": "UNAPPROVED-PLANNING-05",
+      "integrationId": "REPLACE_WITH_FLUTTERWAVE",
+      "method": "bank-transfer",
+      "amountMinor": "10000"
+    },
+    {
+      "reference": "UNAPPROVED-PLANNING-06",
+      "integrationId": "REPLACE_WITH_FLUTTERWAVE",
+      "method": "bank-transfer",
+      "amountMinor": "10000"
+    },
+    {
+      "reference": "UNAPPROVED-PLANNING-07",
+      "integrationId": "REPLACE_WITH_FLUTTERWAVE",
+      "method": "bank-transfer",
+      "amountMinor": "10000"
+    },
+    {
+      "reference": "UNAPPROVED-PLANNING-08",
+      "integrationId": "REPLACE_WITH_FLUTTERWAVE",
+      "method": "bank-transfer",
+      "amountMinor": "10000"
+    },
+    {
+      "reference": "UNAPPROVED-PLANNING-09",
+      "integrationId": "REPLACE_WITH_PAYSTACK",
+      "method": "card",
+      "amountMinor": "10000"
+    },
+    {
+      "reference": "UNAPPROVED-PLANNING-10",
+      "integrationId": "REPLACE_WITH_PAYSTACK",
+      "method": "card",
+      "amountMinor": "10000"
+    },
+    {
+      "reference": "UNAPPROVED-PLANNING-11",
+      "integrationId": "REPLACE_WITH_PAYSTACK",
+      "method": "card",
+      "amountMinor": "10000"
+    },
+    {
+      "reference": "UNAPPROVED-PLANNING-12",
+      "integrationId": "REPLACE_WITH_PAYSTACK",
+      "method": "card",
+      "amountMinor": "10000"
+    }
+  ],
+  "financialActionsTaken": 0
+}

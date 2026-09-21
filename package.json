@@ -22,7 +22,12 @@
     "payments:seed": "tsx scripts/payment-fixtures.ts",
     "payments:receiver": "tsx scripts/payment-receiver.ts",
     "test:payments": "tsx --test tests/payments/database.test.ts",
-    "test:checkout": "playwright test --config playwright.payments.config.ts"
+    "test:checkout": "playwright test --config playwright.payments.config.ts",
+    "test:merchant": "tsx --test tests/merchant/database.test.ts",
+    "test:merchant-browser": "playwright test --config playwright.merchant.config.ts",
+    "sdk:build": "npm run build --prefix sdks/node",
+    "test:sdk-python": "PYTHONPATH=sdks/python python3 -m unittest discover -s sdks/python/tests",
+    "pilot:preflight": "tsx scripts/pilot-preflight.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1134.0",

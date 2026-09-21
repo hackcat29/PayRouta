@@ -39,6 +39,7 @@ export async function GET(request: Request) {
         reference: true,
         amount: true,
         asset: true,
+        precision: true,
         state: true,
         createdAt: true,
       },
@@ -48,12 +49,23 @@ export async function GET(request: Request) {
     if (rows.length > 1000)
       throw new PortalError("EXPORT_TOO_LARGE_NARROW_DATE_RANGE", 413);
     const csv = [
-      ["id", "reference", "amount", "asset", "state", "created_at"],
+      [
+        "id",
+        "reference",
+        "amount",
+        "asset",
+        "network",
+        "precision",
+        "state",
+        "created_at",
+      ],
       ...rows.map((r) => [
         r.id,
         r.reference,
         r.amount,
         (r.asset as { identifier: string }).identifier,
+        (r.asset as { network: string }).network,
+        String(r.precision),
         r.state,
         r.createdAt.toISOString(),
       ]),

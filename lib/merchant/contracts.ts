@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { assetSchema } from "../portal/domain";
 import { intentInput } from "../payments/contracts";
 export const environment = z.enum(["sandbox", "production"]);
 export const permission = z.enum([
@@ -25,6 +26,11 @@ export const pageInput = z
     cursor: z.string().max(400).optional(),
     state: z.string().max(40).optional(),
     reference: z.string().max(100).optional(),
+    method: z
+      .enum(["", "bank-transfer", "card", "mobile-money", "stablecoin"])
+      .optional(),
+    from: z.union([z.literal(""), z.iso.date(), z.iso.datetime()]).optional(),
+    to: z.union([z.literal(""), z.iso.date(), z.iso.datetime()]).optional(),
   })
   .strict();
 export const publicIntent = z.object({
@@ -32,7 +38,7 @@ export const publicIntent = z.object({
   environment,
   reference: z.string(),
   amount: z.string(),
-  asset: z.unknown(),
+  asset: assetSchema,
   precision: z.number().int(),
   state: z.string(),
   selectedMethod: z.string().nullable(),
@@ -65,6 +71,151 @@ export const webhookInput = z
     keyId: z.string().regex(/^[\w-]{1,40}$/),
   })
   .strict();
+const wirePayment = publicIntent.extend({
+  createdAt: z.iso.datetime(),
+  expiresAt: z.iso.datetime(),
+});
+const wireSettlement = z
+  .object({
+    id: z.string(),
+    environment,
+    asset: assetSchema,
+    gross: z.string(),
+    fee: z.string(),
+    net: z.string(),
+    amountUnit: z.literal("minor"),
+    state: z.string(),
+    reconciliation: z.string(),
+    createdAt: z.iso.datetime(),
+    allocations: z.array(
+      z.object({ intentId: z.string(), amount: z.string(), fee: z.string() }),
+    ),
+  })
+  .strict();
+const wireDelivery = z
+  .object({
+    id: z.string(),
+    intentId: z.string(),
+    type: z.string(),
+    version: z.number().int(),
+    createdAt: z.iso.datetime(),
+    delivery: z
+      .object({
+        eventId: z.string(),
+        state: z.string(),
+        attempts: z.number().int(),
+        updatedAt: z.iso.datetime(),
+      })
+      .nullable(),
+  })
+  .strict();
+const wirePage = (item: z.ZodType) =>
+  z.object({ data: z.array(item), nextCursor: z.string().nullable() }).strict();
+export function responseContract(
+  operation: string,
+  id?: string,
+  action?: string,
+): z.ZodType {
+  const list = operation.startsWith("GET ") && !id;
+  if (operation.endsWith("payment-intents") || operation.endsWith("payments"))
+    return list ? wirePage(wirePayment) : wirePayment;
+  if (operation === "GET settlements")
+    return list ? wirePage(wireSettlement) : wireSettlement;
+  if (operation === "GET webhook-deliveries")
+    return list ? wirePage(wireDelivery) : wireDelivery;
+  if (operation === "POST webhook-deliveries" && action === "redeliver")
+    return z
+      .object({ eventId: z.string(), state: z.literal("Pending") })
+      .strict();
+  if (operation === "GET available-methods")
+    return z
+      .object({
+        evaluationId: z.string(),
+        evaluatedAt: z.iso.datetime(),
+        expiresAt: z.iso.datetime(),
+        methods: z.array(
+          z
+            .object({
+              method: z.string(),
+              label: z.string(),
+              status: z.enum([
+                "AVAILABLE",
+                "ACTION_REQUIRED",
+                "TEMPORARILY_UNAVAILABLE",
+                "UNAVAILABLE",
+                "UNKNOWN",
+              ]),
+              explanation: z.string(),
+              action: z.string().optional(),
+            })
+            .strict(),
+        ),
+      })
+      .strict();
+  if (operation === "GET configuration")
+    return z
+      .object({
+        environment,
+        country: z.string(),
+        returnOrigin: z.string(),
+        applicationState: z.string(),
+        executionPaused: z.boolean(),
+        permittedMethods: z.array(z.string()),
+        limits: z.array(
+          z
+            .object({
+              asset: z.string(),
+              maximumMinor: z.string(),
+              dailyMaximumMinor: z.string(),
+            })
+            .strict(),
+        ),
+        liveScope: z
+          .object({
+            status: z.enum(["Proposed", "Approved", "Revoked"]),
+            reviewCurrent: z.boolean(),
+            merchantCountry: z.string(),
+            payerCountries: z.array(z.string()),
+            methods: z.array(z.string()),
+            asset: z.string(),
+            settlementAsset: z.string(),
+            maximumMinor: z.string(),
+            dailyMaximumMinor: z.string(),
+            nextReviewAt: z.iso.datetime(),
+          })
+          .strict()
+          .nullable(),
+        liveExecutionEnabled: z.literal(false),
+      })
+      .strict();
+  if (operation === "GET webhook-endpoint")
+    return z
+      .object({ webhookUrl: z.string().nullable(), webhookKeyId: z.string() })
+      .strict();
+  if (operation === "PUT webhook-endpoint")
+    return z.object({ url: z.string(), keyId: z.string() }).strict();
+  if (operation === "DELETE webhook-endpoint")
+    return z.object({ disabled: z.literal(true) }).strict();
+  if (operation === "GET checkout-sessions")
+    return z
+      .object({
+        id: z.string(),
+        intentId: z.string(),
+        expiresAt: z.iso.datetime(),
+        revokedAt: z.iso.datetime().nullable(),
+      })
+      .strict();
+  if (operation === "POST checkout-sessions")
+    return z
+      .object({
+        id: z.string(),
+        intentId: z.string(),
+        expiresAt: z.iso.datetime(),
+        checkoutPath: z.string(),
+      })
+      .strict();
+  throw new Error("UNDECLARED_API_RESPONSE");
+}
 export function openapi() {
   const paymentResponse = publicIntent.extend({
     createdAt: z.iso.datetime(),
@@ -199,6 +350,11 @@ export function openapi() {
     "application/json": { schema: z.toJSONSchema(schema) },
   });
   for (const route of routes) {
+    route.response = responseContract(
+      route.operation,
+      route.path.includes("{id}") ? "id" : undefined,
+      route.path.endsWith("/redeliver") ? "redeliver" : undefined,
+    );
     const parameters: unknown[] = [
       {
         in: "header",

@@ -1,4 +1,10 @@
-import { rolloutPermits } from "../merchant/rollout";
+import {
+  storedLiveScope,
+  validateScopeEvidence,
+  scopeReviewCurrent,
+} from "../merchant/live-scope";
+import { assetKey, minor } from "../payments/contracts";
+import { rolloutPermits, rolloutSchema } from "../merchant/rollout";
 import { assessEvidence } from "./evidence-policy";
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "../generated/prisma/client";
@@ -75,6 +81,33 @@ async function loadEvaluation(
   });
   if (profiles.length > 500)
     throw new PortalError("EVALUATION_BUDGET_EXCEEDED", 503);
+  const merchant =
+    context.environment === "production"
+      ? await tx.merchantConfig.findUnique({
+          where: { orgId: context.merchantId },
+        })
+      : null;
+  const liveScope = storedLiveScope.safeParse(merchant?.liveScope);
+  let liveScopeValid = context.environment === "sandbox";
+  if (
+    context.environment === "production" &&
+    merchant &&
+    liveScope.success &&
+    scopeReviewCurrent(merchant.liveScope, now)
+  ) {
+    try {
+      await validateScopeEvidence(
+        tx,
+        merchant.orgId,
+        liveScope.data.input,
+        merchant.application,
+        now,
+      );
+      liveScopeValid = true;
+    } catch (error) {
+      if (!(error instanceof PortalError)) throw error;
+    }
+  }
   const orgIds = [...new Set(profiles.map((p) => p.orgId))];
   const [activations, withdrawals, snapshots, observations] = await Promise.all(
     [
@@ -118,11 +151,17 @@ async function loadEvaluation(
         orgId: { in: orgIds },
         deletedAt: null,
         id: {
-          in: snapshots.flatMap((s) =>
-            (s.snapshot as unknown as SubmissionSnapshot).evidence.map(
-              (e) => e.id,
+          in: [
+            ...snapshots.flatMap((s) =>
+              (s.snapshot as unknown as SubmissionSnapshot).evidence.map(
+                (e) => e.id,
+              ),
             ),
-          ),
+            ...profiles.flatMap((p) => {
+              const r = rolloutSchema.safeParse(p.rollout);
+              return r.success ? r.data.evidenceIds : [];
+            }),
+          ],
         },
       },
     }),
@@ -150,18 +189,67 @@ async function loadEvaluation(
   const candidates: Candidate[] = profiles.map((p) => {
     const latest = activations.find((a) => a.orgId === p.orgId);
     const e = evidence.get(p.publicationKey);
+    const withinMerchantScope =
+      context.environment === "sandbox" ||
+      (liveScopeValid &&
+        liveScope.success &&
+        liveScope.data.input.profileIds.includes(p.id) &&
+        liveScope.data.input.merchantCountry === context.merchantCountry &&
+        context.payerCountry !== null &&
+        liveScope.data.input.payerCountries.some(
+          (country) => country === context.payerCountry,
+        ) &&
+        liveScope.data.input.methods.some((method) => method === p.method) &&
+        assetKey(context.input) === liveScope.data.input.asset &&
+        assetKey(context.settlement) === liveScope.data.input.settlementAsset &&
+        minor(context.amount, context.precision) <=
+          BigInt(liveScope.data.input.maximumMinor));
+    const rollout = rolloutSchema.safeParse(p.rollout);
+    const qualificationEvidenceCurrent = !rollout.success
+      ? Object.keys(p.rollout as object).length === 0
+      : rollout.data.evidenceIds.every((id) =>
+          evidenceRows.some(
+            (row) =>
+              row.id === id &&
+              row.orgId === p.orgId &&
+              row.scanStatus === "Clean" &&
+              row.reviewStatus === "Accepted" &&
+              row.retentionUntil > now &&
+              (!row.expiresAt || row.expiresAt > now),
+          ),
+        );
     // A pending replacement retains the live version; any newer withdrawal blocks immediately.
     return {
       ...p,
       definition: p.definition as unknown as CapabilityDefinition,
       active: !!latest && latest.action === "publish",
       restricted:
-        !rolloutPermits(p.rollout, context) ||
+        !withinMerchantScope ||
+        !rolloutPermits(p.rollout, context, now) ||
+        !qualificationEvidenceCurrent ||
         (withdrawals.find((a) => a.orgId === p.orgId)?.sequence ?? 0) >
-        p.revision,
+          p.revision,
       evidenceValid: !!e?.valid,
       fictional: e?.fictional ?? true,
-      evidenceExpiresAt: e?.expiresAt ?? now.getTime(),
+      evidenceExpiresAt: Math.min(
+        e?.expiresAt ?? now.getTime(),
+        rollout.success && rollout.data.nextReviewAt
+          ? new Date(rollout.data.nextReviewAt).getTime()
+          : Infinity,
+        ...(rollout.success
+          ? rollout.data.evidenceIds.map((id) => {
+              const row = evidenceRows.find(
+                (e) => e.id === id && e.orgId === p.orgId,
+              );
+              return row
+                ? Math.min(
+                    row.expiresAt?.getTime() ?? Infinity,
+                    row.retentionUntil.getTime(),
+                  )
+                : now.getTime();
+            })
+          : []),
+      ),
     };
   });
   return evaluateAvailability({

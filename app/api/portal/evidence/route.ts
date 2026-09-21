@@ -1,3 +1,5 @@
+import { merchantMember } from "@/lib/merchant/access";
+import { applicationRequirements } from "@/lib/merchant/evidence";
 import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { csrf, member, rateLimit } from "@/lib/portal/access";
@@ -9,7 +11,14 @@ export async function POST(request: Request) {
   try {
     csrf(request);
     const orgId = new URL(request.url).searchParams.get("org") || "";
-    const { session } = await member(orgId, "compliance", request.headers);
+    const audience =
+      new URL(request.url).searchParams.get("audience") || "provider";
+    if (!["provider", "merchant"].includes(audience))
+      throw new PortalError("INVALID_AUDIENCE");
+    const { session } =
+      audience === "merchant"
+        ? await merchantMember(orgId, "configure", request.headers)
+        : await member(orgId, "compliance", request.headers);
     await rateLimit(`upload:${session.user.id}`, 8);
     const declared = Number(request.headers.get("content-length"));
     if (!declared || declared > 6 * 1024 * 1024)
@@ -39,8 +48,21 @@ export async function POST(request: Request) {
       })
       .parse(Object.fromEntries(form));
     const requirementId = String(form.get("requirementId") || "");
-    const app = await db.application.findUniqueOrThrow({ where: { orgId } });
-    const requirements = await matchedRequirements(db, app.draft as Draft);
+    const requirements =
+      audience === "merchant"
+        ? await applicationRequirements(
+            (await db.merchantConfig.findUniqueOrThrow({ where: { orgId } }))
+              .application as {
+              country?: string;
+              methods?: string[];
+              requirementIds?: string[];
+            },
+          )
+        : await matchedRequirements(
+            db,
+            (await db.application.findUniqueOrThrow({ where: { orgId } }))
+              .draft as Draft,
+          );
     if (!requirements.some((r) => r.id === requirementId))
       throw new PortalError("Choose a current requirement");
     const expiry = String(form.get("expiryDate") || "");

@@ -93,6 +93,36 @@ test("merchant API: scopes, environments, public projection, idempotency, sessio
   assert.equal((await call("GET", "payments?limit=101")).status, 400);
   const page = await (await call("GET", "payments?limit=1")).json();
   assert.equal(page.data.length, 1);
+  assert.equal(
+    (await call("GET", "payments?from=2026-09-22&to=2026-09-21")).status,
+    400,
+  );
+  const future = await (
+    await call("GET", "payments?from=2099-01-01&to=2099-01-02")
+  ).json();
+  assert.equal(future.data.length, 0);
+  const telemetry = await import("../../lib/merchant/telemetry");
+  const metrics = await telemetry.operationalMetrics("sandbox");
+  assert.equal(metrics.unbalancedEntries, "0");
+  assert.equal(typeof metrics.inbox.pending, "number");
+  await db.merchantApiKey.update({
+    where: { id: keyId },
+    data: {
+      permissions: [
+        "payments:read",
+        "payments:write",
+        "settlements:read",
+        "configuration:read",
+      ],
+    },
+  });
+  const configured = await call("GET", "configuration");
+  assert.equal(configured.status, 200);
+  const configuration = await configured.json();
+  assert.equal(configuration.liveExecutionEnabled, false);
+  assert.ok(Array.isArray(configuration.permittedMethods));
+  assert.equal(configuration.webhookSecretRef, undefined);
+  assert.equal(configuration.providerAllowlist, undefined);
   const sessionKey = randomUUID();
   const s1 = await (
     await call(

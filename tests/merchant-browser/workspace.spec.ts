@@ -19,6 +19,14 @@ test("merchant workspace: auth, environment isolation, payment table and mobile 
     },
   });
   expect(verified.ok(), await verified.text()).toBeTruthy();
+  const stepUp = await page.request.post("/api/portal/command", {
+    headers: { Origin: origin },
+    data: {
+      action: "step-up",
+      code: await createOTP("payrouta-fictional-totp-secret").totp(),
+    },
+  });
+  expect(stepUp.ok(), await stepUp.text()).toBeTruthy();
   await page.goto("/merchant/overview?orgId=payment-demo-merchant");
   await expect(
     page.getByRole("heading", { name: "Overview", exact: true }),
@@ -55,8 +63,37 @@ test("merchant workspace: auth, environment isolation, payment table and mobile 
     path: "test-results/merchant-payments-mobile.png",
     fullPage: true,
   });
+  await page.getByRole("link", { name: "Onboarding", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Verification documents" }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Team", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Team", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "API keys", exact: true }).click();
+  await page.getByRole("button", { name: "Create key", exact: true }).click();
+  const secretInput = page.getByRole("textbox", {
+    name: "Copy this secret now. It will not be shown again.",
+  });
+  await expect(secretInput).toBeVisible();
+  const secret = await secretInput.inputValue();
+  await page.getByRole("button", { name: "Hide secret" }).click();
+  const row = page
+    .getByRole("listitem")
+    .filter({ hasText: secret.slice(0, 22) });
+  await row.getByRole("button", { name: "Revoke", exact: true }).click();
+  await expect(row).toContainText("Revoked");
+  const revoked = await page.request.get("/api/v1/payments", {
+    headers: {
+      Authorization: `Bearer ${secret}`,
+      "PayRouta-Environment": "sandbox",
+    },
+  });
+  expect(revoked.status()).toBe(401);
+  await page.getByLabel("Environment", { exact: true }).focus();
   await page.keyboard.press("Tab");
-  expect(await page.evaluate(() => document.activeElement?.tagName)).not.toBe(
-    "BODY",
-  );
+  await expect(
+    page.getByRole("button", { name: "Switch", exact: true }),
+  ).toBeFocused();
 });

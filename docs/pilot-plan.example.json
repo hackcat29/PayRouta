@@ -1,0 +1,88 @@
+{
+  "merchantId": "REPLACE_WITH_APPROVED_MERCHANT",
+  "operatorId": "REPLACE_WITH_NAMED_OPERATOR",
+  "participantConsentEvidence": [
+    "REPLACE_WITH_CONSENT_EVIDENCE"
+  ],
+  "settlementDestinationEvidence": "REPLACE_WITH_DESTINATION_EVIDENCE",
+  "approvalEvidence": "REPLACE_WITH_EXACT_BUDGET_APPROVAL",
+  "webhookEvidence": "REPLACE_WITH_WEBHOOK_QUALIFICATION",
+  "retentionEvidence": "REPLACE_WITH_RETENTION_EVIDENCE",
+  "refundRunbook": "docs/MERCHANT-OPERATIONS.md",
+  "budgetMinor": "150000",
+  "feeBudgetMinor": "30000",
+  "transactions": [
+    {
+      "reference": "UNAPPROVED-PLANNING-01",
+      "integrationId": "REPLACE_WITH_PAYSTACK",
+      "method": "bank-transfer",
+      "amountMinor": "10000"
+    },
+    {
+      "reference": "UNAPPROVED-PLANNING-02",
+      "integrationId": "REPLACE_WITH_PAYSTACK",
+      "method": "bank-transfer",
+      "amountMinor": "10000"
+    },
+    {
+      "reference": "UNAPPROVED-PLANNING-03",
+      "integrationId": "REPLACE_WITH_PAYSTACK",
+      "method": "bank-transfer",
+      "amountMinor": "10000"
+    },
+    {
+      "reference": "UNAPPROVED-PLANNING-04",
+      "integrationId": "REPLACE_WITH_PAYSTACK",
+      "method": "bank-transfer",
+      "amountMinor": "10000"
+    },
+    {
+      "reference": "UNAPPROVED-PLANNING-05",
+      "integrationId": "REPLACE_WITH_FLUTTERWAVE",
+      "method": "bank-transfer",
+      "amountMinor": "10000"
+    },
+    {
+      "reference": "UNAPPROVED-PLANNING-06",
+      "integrationId": "REPLACE_WITH_FLUTTERWAVE",
+      "method": "bank-transfer",
+      "amountMinor": "10000"
+    },
+    {
+      "reference": "UNAPPROVED-PLANNING-07",
+      "integrationId": "REPLACE_WITH_FLUTTERWAVE",
+      "method": "bank-transfer",
+      "amountMinor": "10000"
+    },
+    {
+      "reference": "UNAPPROVED-PLANNING-08",
+      "integrationId": "REPLACE_WITH_FLUTTERWAVE",
+      "method": "bank-transfer",
+      "amountMinor": "10000"
+    },
+    {
+      "reference": "UNAPPROVED-PLANNING-09",
+      "integrationId": "REPLACE_WITH_PAYSTACK",
+      "method": "card",
+      "amountMinor": "10000"
+    },
+    {
+      "reference": "UNAPPROVED-PLANNING-10",
+      "integrationId": "REPLACE_WITH_PAYSTACK",
+      "method": "card",
+      "amountMinor": "10000"
+    },
+    {
+      "reference": "UNAPPROVED-PLANNING-11",
+      "integrationId": "REPLACE_WITH_PAYSTACK",
+      "method": "card",
+      "amountMinor": "10000"
+    },
+    {
+      "reference": "UNAPPROVED-PLANNING-12",
+      "integrationId": "REPLACE_WITH_PAYSTACK",
+      "method": "card",
+      "amountMinor": "10000"
+    }
+  ]
+}

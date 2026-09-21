@@ -125,3 +125,42 @@ test("provider status errors remain unknown and are never safe fallback evidence
   );
   assert.equal((await adapter.status(input)).state, "Unknown");
 });
+test("malformed initialization is uncertain after external dispatch", async () => {
+  const { ProviderBoundaryError } =
+    await import("../lib/payments/providers/hosted");
+  const adapter = new HostedQualificationAdapter(
+    "paystack",
+    {
+      secret: "sk_test_fixture",
+      accountId: "123",
+      channelRestrictionVerified: true,
+    },
+    async () => ({ status: 200, body: { malformed: true } }),
+  );
+  await assert.rejects(
+    adapter.initialize(input),
+    (error: unknown) =>
+      error instanceof ProviderBoundaryError && error.uncertain,
+  );
+});
+
+test("unqualified real integrations cannot fall through to simulator execution", async () => {
+  const { resolveExecutionAdapter } = await import("../lib/payments/execution");
+  for (const adapter of ["paystack", "flutterwave-v3", "provider", "unknown"])
+    assert.throws(
+      () =>
+        resolveExecutionAdapter({
+          environment: "sandbox",
+          config: { adapter },
+        }),
+      /EXECUTION_ADAPTER_NOT_QUALIFIED/,
+    );
+  assert.throws(
+    () =>
+      resolveExecutionAdapter({
+        environment: "production",
+        config: { adapter: "simulator" },
+      }),
+    /SANDBOX_ONLY/,
+  );
+});

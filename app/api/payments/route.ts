@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { member, csrf, internal, rateLimit } from "@/lib/portal/access";
+import { merchantMember } from "@/lib/merchant/access";
+import { csrf, internal, rateLimit } from "@/lib/portal/access";
 import { createIntent, createSession, queue } from "@/lib/payments/service";
 import { db } from "@/lib/portal/db";
 import { atomic, json } from "@/lib/portal/service";
@@ -46,7 +47,7 @@ export async function POST(r: Request) {
     csrf(r);
     const b = schema.parse(JSON.parse(await rawBody(r)));
     if ("orgId" in b) {
-      const m = await member(
+      const m = await merchantMember(
         b.orgId,
         b.action === "webhook" ? "configure" : "integration",
         r.headers,
@@ -127,7 +128,7 @@ export async function GET(r: Request) {
   return respond(async () => {
     const url = new URL(r.url);
     const orgId = url.searchParams.get("orgId") || "";
-    await member(orgId, "read", r.headers);
+    await merchantMember(orgId, "read", r.headers);
     const id = url.searchParams.get("id") || "";
     return db.paymentIntent.findFirstOrThrow({
       where: { id, orgId },

@@ -1,5 +1,11 @@
+import {
+  liveScopeReasons,
+  storedLiveScope,
+  validateScopeEvidence,
+} from "./live-scope";
 import { z } from "zod";
 import { assetKey, minor } from "../payments/contracts";
+import { PortalError } from "../portal/domain";
 import { exception } from "../payments/journal";
 import type { Tx } from "../payments/service";
 import type { PaymentIntent } from "../generated/prisma/client";
@@ -104,6 +110,38 @@ export async function enforceRisk(
     dailyReserved: BigInt(aggregate._sum.amount?.toFixed(0) || "0"),
     alreadyReserved: !!prior,
   });
+  if (intent.environment === "production") {
+    const reasons = liveScopeReasons(
+      config.liveScope,
+      {
+        country: config.country,
+        method: intent.selectedMethod,
+        asset,
+        amount: minor(intent.amount, intent.precision),
+        dailyReserved: BigInt(aggregate._sum.amount?.toFixed(0) || "0"),
+        alreadyReserved: !!prior,
+      },
+      now,
+    );
+    const scope = storedLiveScope.safeParse(config.liveScope);
+    if (scope.success && scope.data.status === "Approved") {
+      try {
+        await validateScopeEvidence(
+          tx,
+          intent.orgId,
+          scope.data.input,
+          config.application,
+          now,
+        );
+      } catch (error) {
+        if (error instanceof PortalError)
+          reasons.push("LIVE_SCOPE_EVIDENCE_REVIEW_REQUIRED");
+        else throw error;
+      }
+    }
+    if (reasons.length)
+      outcome = { decision: "Deny", reasons: [...outcome.reasons, ...reasons] };
+  }
   if (outcome.decision === "Hold for review") {
     const approval = await tx.merchantRiskDecision.findFirst({
       where: {

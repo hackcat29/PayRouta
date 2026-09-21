@@ -77,3 +77,17 @@ export function sandboxInstructions(
     text: instructions[method] || "Fictional payment action.",
   };
 }
+
+// Resolve by immutable integration configuration. No default-to-simulator path:
+// unknown or unqualified adapters must never generate fictional financial facts.
+export function resolveExecutionAdapter(integration: {
+  environment: string;
+  config: unknown;
+}): ExecutionAdapter {
+  const config = integration.config as { adapter?: string } | null;
+  if (config?.adapter !== "simulator")
+    throw new PortalError("EXECUTION_ADAPTER_NOT_QUALIFIED", 409);
+  if (integration.environment !== "sandbox" || !localMode())
+    throw new PortalError("SANDBOX_ONLY", 409);
+  return persistentSimulator;
+}

@@ -1,3 +1,4 @@
+import { merchantMember } from "@/lib/merchant/access";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { db } from "@/lib/portal/db";
 import { csrf, identity, internal, member } from "@/lib/portal/access";
@@ -16,8 +17,14 @@ async function authorize(id: string, h: Headers) {
   const membership = await db.membership.findUnique({
     where: { orgId_userId: { orgId: evidence.orgId, userId: session.user.id } },
   });
-  if (membership) await member(evidence.orgId, "compliance", h);
-  else await internal(false, h);
+  const requirement = await db.requirement.findUnique({
+    where: { id: evidence.requirementId },
+  });
+  if (membership) {
+    if ((requirement?.scope as { audience?: string })?.audience === "merchant")
+      await merchantMember(evidence.orgId, "configure", h);
+    else await member(evidence.orgId, "compliance", h);
+  } else await internal(false, h);
   return { evidence, session };
 }
 export async function POST(

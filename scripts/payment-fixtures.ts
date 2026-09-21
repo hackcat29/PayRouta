@@ -23,8 +23,13 @@ export async function paymentFixtures() {
   if (user)
     await db.membership.upsert({
       where: { orgId_userId: { orgId: merchant, userId: user.id } },
-      create: { orgId: merchant, userId: user.id, role: "Owner" },
-      update: {},
+      create: {
+        orgId: merchant,
+        userId: user.id,
+        role: "Owner",
+        merchantRole: "Owner",
+      },
+      update: { merchantRole: "Owner" },
     });
   const ref = await secretManager.put("fictional-payment-webhook-secret-2026");
   await db.merchantConfig.upsert({

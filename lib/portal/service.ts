@@ -141,10 +141,26 @@ export async function command(raw: unknown, h: Headers) {
           "Invitation expired, already used, or belongs to another email",
           403,
         );
+      const existingMembership = await tx.membership.findUnique({
+        where: { orgId_userId: { orgId: invite.orgId, userId: who.user.id } },
+      });
       await tx.membership.upsert({
         where: { orgId_userId: { orgId: invite.orgId, userId: who.user.id } },
-        create: { orgId: invite.orgId, userId: who.user.id, role: invite.role },
-        update: {},
+        create: {
+          orgId: invite.orgId,
+          userId: who.user.id,
+          role: invite.participation === "merchant" ? "None" : invite.role,
+          merchantRole:
+            invite.participation === "merchant" ? invite.role : null,
+        },
+        update:
+          invite.participation === "merchant"
+            ? existingMembership?.merchantRole
+              ? {}
+              : { merchantRole: invite.role }
+            : existingMembership?.role === "None"
+              ? { role: invite.role }
+              : {},
       });
       await tx.invitation.update({
         where: { id: invite.id },
@@ -755,6 +771,11 @@ export async function command(raw: unknown, h: Headers) {
         );
       if (role)
         await tx.membership.update({ where: { id: m.id }, data: { role } });
+      else if (m.merchantRole)
+        await tx.membership.update({
+          where: { id: m.id },
+          data: { role: "None" },
+        });
       else await tx.membership.delete({ where: { id: m.id } });
       await audit(
         tx,
@@ -911,12 +932,14 @@ export async function matchedRequirements(tx: Tx, draft: Draft) {
   });
   return requirements.filter((r) => {
     const scope = r.scope as {
+      audience?: string;
       providerTypes?: string[];
       countries?: string[];
       methods?: string[];
       operations?: string[];
     };
     return (
+      scope.audience !== "merchant" &&
       (!scope.providerTypes?.length ||
         scope.providerTypes.includes(draft.company?.providerType || "")) &&
       (!scope.countries?.length ||
@@ -947,6 +970,7 @@ async function opsCommand(data: Record<string, unknown>, h: Headers) {
         templateId: id,
         name: str,
         scope: z.object({
+          audience: z.enum(["provider","merchant"]).default("provider"),
           providerTypes: z.array(
             z.enum([
               "PSP",

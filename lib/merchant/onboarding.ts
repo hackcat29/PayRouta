@@ -1,3 +1,4 @@
+import { merchantRequirements } from "./evidence";
 import { z } from "zod";
 import { merchantMember } from "./access";
 import { internal } from "../portal/access";
@@ -38,7 +39,10 @@ export async function saveApplication(
   headers: Headers,
 ) {
   const { session } = await merchantMember(orgId, "configure", headers);
-  const value = applicationSchema.parse(raw);
+  const value = submit
+    ? applicationSchema.parse(raw)
+    : applicationSchema.partial().parse(raw);
+  const requirements = submit ? await merchantRequirements(value) : [];
   return atomic(async (tx) => {
     const config = await tx.merchantConfig.findUniqueOrThrow({
       where: { orgId },
@@ -51,7 +55,10 @@ export async function saveApplication(
     const updated = await tx.merchantConfig.update({
       where: { orgId },
       data: {
-        application: json(value),
+        application: json({
+          ...value,
+          ...(submit ? { requirementIds: requirements.map((r) => r.id) } : {}),
+        }),
         applicationState: submit ? "Submitted" : config.applicationState,
         applicationVersion: { increment: 1 },
       },
@@ -62,7 +69,11 @@ export async function saveApplication(
       session.user.id,
       submit ? "merchant.application.submitted" : "merchant.application.saved",
       orgId,
-      { version: updated.applicationVersion },
+      {
+        version: updated.applicationVersion,
+        ...(submit ? { snapshot: updated.application } : {}),
+      },
+      true,
     );
     return {
       state: updated.applicationState,
@@ -132,6 +143,10 @@ export async function operatorCommand(raw: unknown, headers: Headers) {
         where: { orgId: b.orgId },
         data: {
           applicationState: b.state,
+          application: json({
+            ...(config.application as object),
+            reviewFeedback: b.reason,
+          }),
           applicationVersion: { increment: 1 },
         },
       });

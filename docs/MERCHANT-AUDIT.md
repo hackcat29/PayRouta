@@ -16,3 +16,5 @@ Inspection precedes changes. Existing uncommitted portal/payment work is preserv
 | Pilot/coverage | Simulator fixtures, published profiles | Partial; no real pilot evidence | Explicit qualification/preflight and stop gates |
 
 The existing MerchantConfig has one environment per organization. This stage must reject mismatched environment access rather than imply simultaneous live/sandbox configuration is supported. Production execution remains closed until real adapter and account qualification are implemented and verified.
+
+Implementation follow-up: see [verification report](MERCHANT-VERIFICATION.md) for current status, passing local checks and the distinction between remaining software work and external account/approval dependencies. The table above retains the original inspection findings.

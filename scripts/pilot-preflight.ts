@@ -1,4 +1,9 @@
 import "dotenv/config";
+import {
+  storedLiveScope,
+  scopeReviewCurrent,
+  validateScopeEvidence,
+} from "../lib/merchant/live-scope";
 import { readFile } from "node:fs/promises";
 import { z } from "zod";
 import { db } from "../lib/portal/db";
@@ -47,7 +52,43 @@ async function main() {
     "merchant.production_configuration",
     merchant?.environment === "production",
   );
-  add("merchant.approved_scope", merchant?.applicationState === "Approved");
+  const scope = storedLiveScope.safeParse(merchant?.liveScope);
+  add(
+    "merchant.approved_scope",
+    merchant?.applicationState === "Approved" &&
+      scopeReviewCurrent(merchant.liveScope),
+  );
+  let scopeEvidence = false;
+  if (merchant && scope.success && scopeReviewCurrent(merchant.liveScope)) {
+    try {
+      await validateScopeEvidence(
+        db,
+        merchant.orgId,
+        scope.data.input,
+        merchant.application,
+        new Date(),
+      );
+      scopeEvidence = true;
+    } catch {
+      scopeEvidence = false;
+    }
+  }
+  add("merchant.current_account_profile_evidence", scopeEvidence);
+  add(
+    "transactions.within_reviewed_scope",
+    scope.success &&
+      scopeReviewCurrent(merchant?.liveScope) &&
+      plan.transactions.every(
+        (t) =>
+          scope.data.input.accounts.some(
+            (a) => a.integrationId === t.integrationId,
+          ) &&
+          scope.data.input.methods.includes(t.method) &&
+          BigInt(t.amountMinor) <= BigInt(scope.data.input.maximumMinor),
+      ) &&
+      plan.transactions.reduce((n, t) => n + BigInt(t.amountMinor), 0n) <=
+        BigInt(scope.data.input.dailyMaximumMinor),
+  );
   add(
     "merchant.webhook_configured",
     !!merchant?.webhookUrl && !!merchant?.webhookSecretRef,
@@ -83,7 +124,7 @@ async function main() {
   const total =
     plan.transactions.reduce((n, t) => n + BigInt(t.amountMinor), 0n) +
     BigInt(plan.feeBudgetMinor);
-  add("budget.within_approved_cap", total <= BigInt(plan.budgetMinor));
+  add("budget.within_declared_cap", total <= BigInt(plan.budgetMinor));
   add(
     "references.unique",
     new Set(plan.transactions.map((t) => t.reference)).size ===

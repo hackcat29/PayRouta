@@ -1,8 +1,10 @@
+import { merchantConfiguration } from "@/lib/merchant/configuration";
 import { randomUUID } from "node:crypto";
 import { ZodError } from "zod";
 import { authenticate } from "@/lib/merchant/access";
 import {
   operations,
+  responseContract,
   openapi,
   publicIntent,
   sessionInput,
@@ -90,10 +92,7 @@ async function handle(
     } else if (operation === "GET settlements")
       response = await settlements(tenant, params, id);
     else if (operation === "GET configuration" && !id)
-      response = await db.merchantConfig.findUnique({
-        where: { orgId: actor.orgId },
-        select: { environment: true, country: true, returnOrigin: true },
-      });
+      response = await merchantConfiguration(actor.orgId, actor.environment);
     else if (operation === "GET webhook-endpoint" && !id)
       response = await db.merchantConfig.findUnique({
         where: { orgId: actor.orgId },
@@ -144,6 +143,12 @@ async function handle(
       if (id && !rows.length) throw new PortalError("NOT_FOUND", 404);
       response = id ? rows[0] : page(rows, p.limit);
     } else throw new PortalError("NOT_FOUND", 404);
+    const validated = responseContract(operation, id, action).safeParse(
+      JSON.parse(JSON.stringify(response)),
+    );
+    if (!validated.success)
+      throw new PortalError("INVALID_SERVICE_RESPONSE", 503);
+    response = validated.data;
   } catch (error) {
     status =
       error instanceof PortalError

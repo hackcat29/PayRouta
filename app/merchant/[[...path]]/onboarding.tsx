@@ -18,6 +18,9 @@ export function Onboarding({
   return (
     <section>
       <h2>{state}</h2>
+      {typeof value.reviewFeedback === "string" && (
+        <p>{value.reviewFeedback}</p>
+      )}
       <p>
         Describe the scope you want to process. Live access requires a separate
         review of your evidence, provider account arrangement, and limits.
@@ -28,6 +31,11 @@ export function Onboarding({
           setBusy(true);
           const form = new FormData(event.currentTarget);
           const text = (name: string) => String(form.get(name) || "").trim();
+          const submitting =
+            (
+              (event.nativeEvent as SubmitEvent)
+                .submitter as HTMLButtonElement | null
+            )?.value !== "draft";
           const input = {
             legalName: text("legalName"),
             tradingName: text("tradingName"),
@@ -53,8 +61,16 @@ export function Onboarding({
                 action: "application",
                 orgId,
                 version,
-                input,
-                submit: true,
+                input: submitting
+                  ? input
+                  : Object.fromEntries(
+                      Object.entries(input).filter(
+                        ([, value]) =>
+                          value !== "" &&
+                          (!Array.isArray(value) || value.some(Boolean)),
+                      ),
+                    ),
+                submit: submitting,
               }),
             });
             const body = await r.json();
@@ -134,7 +150,10 @@ export function Onboarding({
               ),
             )}
           </fieldset>
-          <button>Submit for review</button>
+          <button value="draft" formNoValidate>
+            Save draft
+          </button>
+          <button value="submit">Submit for review</button>
         </fieldset>
       </form>
       <p role="status">{message}</p>

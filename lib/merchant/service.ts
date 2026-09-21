@@ -11,6 +11,8 @@ import { z } from "zod";
 export type Scope = { orgId: string; environment: string };
 export function pagination(params: URLSearchParams) {
   const p = pageInput.parse(Object.fromEntries(params));
+  if (p.from && p.to && new Date(p.from) >= new Date(p.to))
+    throw new PortalError("INVALID_DATE_RANGE");
   let after: { createdAt: Date; id: string } | undefined;
   if (p.cursor) {
     try {
@@ -70,6 +72,15 @@ export async function intents(
       ...p.after,
       ...(p.state ? { state: p.state } : {}),
       ...(p.reference ? { reference: p.reference } : {}),
+      ...(p.method ? { selectedMethod: p.method } : {}),
+      ...(p.from || p.to
+        ? {
+            createdAt: {
+              ...(p.from ? { gte: new Date(p.from) } : {}),
+              ...(p.to ? { lt: new Date(p.to) } : {}),
+            },
+          }
+        : {}),
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: p.limit + 1,

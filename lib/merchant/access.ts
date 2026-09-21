@@ -1,19 +1,47 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { db } from "../portal/db";
-import { member, rateLimit, stepUp } from "../portal/access";
+import { identity, rateLimit, stepUp } from "../portal/access";
 import { atomic, audit, json } from "../portal/service";
 import { hash } from "../payments/contracts";
 import { PortalError } from "../portal/domain";
 import { environment, keyInput } from "./contracts";
+export const merchantRoles = [
+  "Owner",
+  "Admin",
+  "Developer",
+  "Finance",
+  "Analyst",
+] as const;
+export type MerchantPermission = "read" | "configure" | "integration" | "team";
+export function merchantCan(role: string, permission: MerchantPermission) {
+  if (!merchantRoles.includes(role as (typeof merchantRoles)[number]))
+    return false;
+  if (permission === "read") return true;
+  if (role === "Owner" || role === "Admin") return true;
+  return role === "Developer" && permission === "integration";
+}
 export async function merchantMember(
   orgId: string,
-  permission: "read" | "configure" = "read",
+  permission: MerchantPermission = "read",
   headers?: Headers,
 ) {
-  const actor = await member(orgId, permission, headers);
+  const session = await identity(headers);
+  const membership = await db.membership.findUnique({
+    where: { orgId_userId: { orgId, userId: session.user.id } },
+    include: { org: true },
+  });
+  if (
+    !membership?.merchantRole ||
+    !merchantCan(membership.merchantRole, permission)
+  )
+    throw new PortalError("MERCHANT_ACCESS_DENIED", 403);
   const config = await db.merchantConfig.findUnique({ where: { orgId } });
   if (!config) throw new PortalError("MERCHANT_NOT_CONFIGURED", 403);
-  return { ...actor, config };
+  return {
+    session,
+    membership: { ...membership, role: membership.merchantRole },
+    config,
+  };
 }
 export async function issueKey(orgId: string, raw: unknown, headers: Headers) {
   const { session, config } = await merchantMember(orgId, "configure", headers);
