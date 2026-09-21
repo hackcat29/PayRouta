@@ -49,7 +49,14 @@ jobs:
           username: ${{ secrets.CONTABO_USER }}
           key: ${{ secrets.CONTABO_SSH_KEY }}
           script: |
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             cd /opt/payrouta
-            docker compose down
-            docker compose build
-            docker compose up -d
+            npm ci
+            npx prisma generate
+            npm run build
+            # Copy static files to standalone dir as required by Next.js standalone mode
+            cp -r public .next/standalone/
+            cp -r .next/static .next/standalone/.next/
+            # Start or restart PM2 process
+            pm2 start .next/standalone/server.js --name "payrouta" || pm2 restart payrouta
