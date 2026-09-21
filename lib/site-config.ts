@@ -53,15 +53,6 @@ export const navigationGroups = [
       [paths.apiReference, "API Reference"],
     ],
   },
-  {
-    title: "Testing Portals",
-    links: [
-      ["/merchant", "Merchant Portal"],
-      ["/provider/sign-in", "Provider Login"],
-      ["/ops", "Operations Dashboard"],
-      ["/checkout/test_sess_123", "Checkout Demo"],
-    ] as any, // Typecast to bypass CanonicalPath strictness for these testing routes
-  },
 ] as const satisfies readonly {
   title: string;
   links: readonly (readonly [CanonicalPath, string])[];
