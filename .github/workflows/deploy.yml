@@ -54,6 +54,7 @@ jobs:
             cd /opt/payrouta
             npm ci
             npx prisma generate
+            npx prisma migrate deploy
             npm run build
             # Copy static files to standalone dir as required by Next.js standalone mode
             cp -r public .next/standalone/
