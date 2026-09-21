@@ -34,6 +34,7 @@ jobs:
         run: npm test
 
       - name: Deploy to Contabo VPS
+        if: ${{ secrets.CONTABO_SSH_KEY != '' }}
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.CONTABO_HOST }}
