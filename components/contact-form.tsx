@@ -25,15 +25,16 @@ export function ContactForm({
 }) {
   const searchParams = useSearchParams();
   const paramIntent = searchParams?.get("intent");
-  const [intent, setIntent] = useState<Intent>(
-    initialIntent ?? safeIntent(paramIntent),
-  );
-
-  useEffect(() => {
-    if (paramIntent) {
-      setIntent(safeIntent(paramIntent));
-    }
-  }, [paramIntent]);
+  const [selection, setSelection] = useState<{
+    param: string | null | undefined;
+    value: Intent;
+  } | null>(null);
+  const intent =
+    selection?.param === paramIntent
+      ? selection.value
+      : (initialIntent ?? safeIntent(paramIntent));
+  const setIntent = (value: Intent) =>
+    setSelection({ param: paramIntent, value });
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>(
     {},
   );

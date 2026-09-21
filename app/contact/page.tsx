@@ -3,6 +3,8 @@ import { webhookDestination } from "@/lib/enquiries/delivery";
 import { trustedOrigin } from "@/lib/site-config";
 import { Suspense } from "react";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Contact",
   description:

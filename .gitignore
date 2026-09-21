@@ -25,3 +25,11 @@ playwright-report/
 .tempmediaStorage/
 .DS_Store
 Thumbs.db
+
+.local/
+lib/generated/
+
+# Local SDK build products
+sdks/node/dist/
+__pycache__/
+*.egg-info/

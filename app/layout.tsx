@@ -4,9 +4,7 @@ import "@fontsource/inter/500.css";
 import "@fontsource/inter/600.css";
 import "@fontsource/inter/700.css";
 import "./globals.css";
-import { AnalyticsListener } from "@/components/analytics-listener";
-import { Navigation } from "@/components/navigation";
-import { Footer } from "@/components/shared";
+import { SiteChrome } from "@/components/site-chrome";
 import { trustedOrigin } from "@/lib/site-config";
 const origin = trustedOrigin();
 export const metadata: Metadata = {
@@ -41,10 +39,7 @@ export default function RootLayout({
         <a href="#main" className="skip-link">
           Skip to content
         </a>
-        <AnalyticsListener />
-        <Navigation />
-        <main id="main">{children}</main>
-        <Footer />
+        <SiteChrome>{children}</SiteChrome>
       </body>
     </html>
   );

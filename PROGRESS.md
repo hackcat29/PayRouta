@@ -22,3 +22,9 @@ External launch configuration remains: actual production origin and host; verifi
 - Simplified marketing headings and removed redundant eyebrows, badges, status dots, repeated section numbers and capability tags. Functional payment states and early-access notices retained.
 - Updated footer, internal links, static route generation, sitemap and canonical metadata. Documentation URLs unchanged; parent group routes return 404.
 - Verified: production build, typecheck, lint, 14 unit tests and 12 browser journeys pass. Reviewed mobile/desktop screenshots for every marketing page; no overflow at the six tested widths.
+
+## Provider onboarding portal — 17 September 2026
+
+Implemented the separate provider workspace and internal operations console in the existing application. Added PostgreSQL/Prisma migrations, Better Auth verified accounts and TOTP, organization roles/invitations, concurrent versioned drafts, immutable submissions, exact directional capabilities, configurable evidence requirements/private quarantine, separate credential purposes and an external-key local vault, durable sandbox/check/publication jobs, review/change history, activation/suspension records, a local registry, effective availability gates, scoped operational tables and audit/notification views.
+
+The local simulator is functional end-to-end. Production adapters remain explicitly unconfigured and fail closed. Setup, seeded accounts, role matrix, adapter contracts and launch checklist are in `docs/PROVIDER-PORTAL.md`; actual verification results are in `docs/PORTAL-VERIFICATION.md`.

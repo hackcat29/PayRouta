@@ -1,0 +1,716 @@
+generator client {
+  provider = "prisma-client"
+  moduleFormat = "cjs"
+  output = "../lib/generated/prisma"
+}
+datasource db {
+  provider = "postgresql"
+}
+model User {
+  id String @id
+  name String
+  email String @unique
+  emailVerified Boolean @default(false)
+  image String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  twoFactorEnabled Boolean @default(false)
+  internalRole String?
+  sessions Session[]
+  accounts Account[]
+  twoFactors TwoFactor[]
+  memberships Membership[]
+}
+model Session {
+  id String @id
+  expiresAt DateTime
+  token String @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+}
+model Account {
+  id String @id
+  accountId String
+  providerId String
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken String?
+  refreshToken String?
+  idToken String?
+  accessTokenExpiresAt DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope String?
+  password String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([userId])
+}
+model Verification {
+  id String @id
+  identifier String
+  value String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([identifier])
+}
+model TwoFactor {
+  id String @id
+  secret String
+  backupCodes String
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  verified Boolean @default(true)
+  failedVerificationCount Int @default(0)
+  lockedUntil DateTime?
+  @@index([userId])
+}
+model RateLimit {
+  id String @id @default(cuid())
+  key String @unique
+  count Int
+  lastRequest BigInt
+}
+model StepUp {
+  sessionId String @id
+  expiresAt DateTime
+}
+model Organization {
+  id String @id @default(cuid())
+  name String
+  fictional Boolean @default(false)
+  createdAt DateTime @default(now())
+  memberships Membership[]
+  invitations Invitation[]
+  application Application?
+  capabilities Capability[]
+  settlements SettlementConfig[]
+  integrations Integration[]
+  evidence Evidence[]
+  runs SandboxRun[]
+  activations Activation[]
+  jobs Job[]
+  availability Availability[]
+  transactions Transaction[]
+  settlementRecords Settlement[]
+  events IntegrationEvent[]
+  audit Audit[]
+  notifications Notification[]
+  credentials Credential[]
+}
+model Membership {
+  id String @id @default(cuid())
+  userId String
+  orgId String
+  role String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  @@unique([orgId, userId])
+  @@index([userId])
+}
+model Invitation {
+  id String @id @default(cuid())
+  orgId String
+  org Organization @relation(fields: [orgId], references: [id])
+  email String
+  role String
+  tokenHash String @unique
+  expiresAt DateTime
+  acceptedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([orgId, email])
+}
+model Application {
+  id String @id @default(cuid())
+  orgId String @unique
+  org Organization @relation(fields: [orgId], references: [id])
+  state String @default("Draft")
+  version Int @default(1)
+  draft Json @default("{}")
+  updatedAt DateTime @updatedAt
+  submissions Submission[]
+}
+model Submission {
+  id String @id @default(cuid())
+  applicationId String
+  application Application @relation(fields: [applicationId], references: [id])
+  version Int
+  snapshot Json
+  idempotencyKey String
+  createdAt DateTime @default(now())
+  reviews Review[]
+  changes ChangeRequest[]
+  activations Activation[]
+  @@unique([applicationId, version])
+  @@unique([applicationId, idempotencyKey])
+}
+model Review {
+  id String @id @default(cuid())
+  submissionId String
+  submission Submission @relation(fields: [submissionId], references: [id])
+  actorId String
+  kind String
+  decision String
+  reason String
+  internalNote String @default("")
+  createdAt DateTime @default(now())
+  @@index([submissionId])
+}
+model ChangeRequest {
+  id String @id @default(cuid())
+  submissionId String
+  submission Submission @relation(fields: [submissionId], references: [id])
+  section String
+  message String
+  response String?
+  respondedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([submissionId])
+}
+model Requirement {
+  id String @id @default(cuid())
+  templateId String
+  version Int
+  name String
+  scope Json
+  illustrative Boolean @default(true)
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  @@unique([templateId, version])
+}
+model Evidence {
+  id String @id @default(cuid())
+  orgId String
+  org Organization @relation(fields: [orgId], references: [id])
+  requirementId String
+  objectKey String @unique
+  filename String
+  mime String
+  size Int
+  sha256 String
+  metadata Json
+  scanStatus String @default("Pending scan")
+  reviewStatus String @default("Uploaded")
+  expiresAt DateTime?
+  retentionUntil DateTime
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([orgId, requirementId])
+}
+model Capability {
+  id String @id @default(cuid())
+  orgId String
+  org Organization @relation(fields: [orgId], references: [id])
+  capabilityId String
+  version Int
+  environment String
+  status String @default("Draft")
+  definition Json
+  createdAt DateTime @default(now())
+  @@unique([orgId, capabilityId, version, environment])
+  @@index([orgId, environment, status])
+}
+model SettlementConfig {
+  id String @id @default(cuid())
+  orgId String
+  org Organization @relation(fields: [orgId], references: [id])
+  version Int
+  definition Json
+  @@unique([orgId, version])
+}
+model Integration {
+  id String @id @default(cuid())
+  orgId String
+  org Organization @relation(fields: [orgId], references: [id])
+  environment String
+  version Int
+  config Json
+  createdAt DateTime @default(now())
+  @@unique([orgId, environment, version])
+}
+model Credential {
+  id String @id @default(cuid())
+  orgId String
+  org Organization @relation(fields: [orgId], references: [id])
+  environment String
+  kind String
+  label String
+  secretRef String?
+  verifier String?
+  backend String
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([orgId, environment])
+}
+model SandboxRun {
+  id String @id @default(cuid())
+  orgId String
+  org Organization @relation(fields: [orgId], references: [id])
+  environment String @default("sandbox")
+  adapter String
+  integrationVersion Int
+  scenario String
+  outcome String
+  idempotencyKey String
+  steps Json
+  createdAt DateTime @default(now())
+  finishedAt DateTime?
+  @@unique([orgId, idempotencyKey])
+}
+model Activation {
+  id String @id @default(cuid())
+  orgId String
+  org Organization @relation(fields: [orgId], references: [id])
+  submissionId String
+  submission Submission @relation(fields: [submissionId], references: [id])
+  environment String
+  state String
+  action String @default("publish")
+  reason String
+  actorId String
+  sequence Int
+  acknowledgedAt DateTime?
+  createdAt DateTime @default(now())
+  @@unique([orgId, environment, sequence])
+}
+model Job {
+  id String @id @default(cuid())
+  orgId String
+  org Organization @relation(fields: [orgId], references: [id])
+  kind String
+  key String @unique
+  payload Json
+  state String @default("Pending")
+  attempts Int @default(0)
+  availableAt DateTime @default(now())
+  lockedAt DateTime?
+  error String?
+  createdAt DateTime @default(now())
+  @@index([state, availableAt])
+}
+model RegistrySnapshot {
+  key String @id
+  orgId String
+  environment String
+  sequence Int
+  action String
+  snapshot Json
+  acknowledgedAt DateTime @default(now())
+  @@unique([orgId, environment, sequence])
+}
+model Availability {
+  integrationId String?
+  capabilityVersion Int?
+  observationType String?
+  trust String?
+  eventKey String? @unique
+  sequence Int?
+  observedAt DateTime?
+  value Json?
+  id String @id @default(cuid())
+  orgId String
+  org Organization @relation(fields: [orgId], references: [id])
+  capabilityId String
+  environment String
+  status String
+  source String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  @@index([orgId, environment, capabilityId])
+  @@index([integrationId, environment, observationType, capabilityId, observedAt])
+}
+model Transaction {
+  id String @id @default(cuid())
+  orgId String
+  org Organization @relation(fields: [orgId], references: [id])
+  environment String
+  reference String
+  method String
+  operation String
+  amount String
+  asset String
+  executionState String
+  latencyMs Int?
+  failureCategory String?
+  timeline Json
+  createdAt DateTime @default(now())
+  settlements Settlement[]
+  @@unique([orgId, environment, reference])
+  @@index([orgId, environment, createdAt])
+}
+model Settlement {
+  id String @id @default(cuid())
+  orgId String
+  org Organization @relation(fields: [orgId], references: [id])
+  transactionId String
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+  environment String
+  state String
+  reference String
+  amount String
+  asset String
+  createdAt DateTime @default(now())
+  completedAt DateTime?
+  @@index([orgId, environment, createdAt])
+}
+model IntegrationEvent {
+  id String @id @default(cuid())
+  orgId String
+  org Organization @relation(fields: [orgId], references: [id])
+  environment String
+  eventId String
+  type String
+  state String
+  summary String
+  createdAt DateTime @default(now())
+  @@unique([orgId, environment, eventId])
+}
+model Audit {
+  id String @id @default(cuid())
+  orgId String?
+  org Organization? @relation(fields: [orgId], references: [id])
+  actorId String
+  action String
+  target String
+  metadata Json @default("{}")
+  internal Boolean @default(false)
+  createdAt DateTime @default(now())
+  @@index([orgId, createdAt])
+}
+model Notification {
+  id String @id @default(cuid())
+  orgId String
+  org Organization @relation(fields: [orgId], references: [id])
+  message String
+  href String
+  readAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([orgId, createdAt])
+}
+
+// Current projection of the existing immutable RegistrySnapshot history.
+model RegistryHead {
+  orgId String
+  environment String
+  sequence Int
+  key String @unique
+  fingerprint String
+  action String
+  @@id([orgId, environment])
+}
+model PublishedProfile {
+  rollout Json @default("{}")
+  id String @id
+  orgId String
+  integrationId String
+  environment String
+  capabilityId String
+  capabilityVersion Int
+  submissionId String
+  publicationKey String
+  revision Int
+  method String
+  operation String
+  origin String
+  destination String
+  inputAsset String
+  inputNetwork String
+  current Boolean @default(true)
+  definition Json
+  @@index([environment, current, method, operation, inputAsset, inputNetwork])
+  @@index([orgId, environment, current])
+  @@index([publicationKey])
+}
+// Created by trusted internal services/operators, never from checkout claims.
+model AvailabilityContext {
+  id String @id @default(cuid())
+  orgId String
+  environment String
+  policyVersion String
+  context Json
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  @@index([orgId, environment])
+}
+model AvailabilityEvaluation {
+  id String @id
+  contextId String
+  orgId String
+  environment String
+  policyVersion String
+  contextFingerprint String
+  safe Json
+  trace Json
+  expiresAt DateTime
+  retentionUntil DateTime
+  createdAt DateTime @default(now())
+  @@index([orgId, environment, createdAt])
+  @@index([retentionUntil])
+}
+
+model MerchantConfig {
+  application Json @default("{}")
+  applicationState String @default("Draft")
+  applicationVersion Int @default(1)
+  riskPolicy Json @default("{}")
+  liveScope Json @default("{}")
+  providerAllowlist Json @default("[]")
+  orgId String @id
+  environment String @default("sandbox")
+  returnOrigin String
+  country String @default("NG")
+  policy String @default("balanced")
+  webhookUrl String?
+  webhookSecretRef String?
+  webhookKeyId String @default("v1")
+}
+model PaymentIntent {
+  pilotBatchId String?
+  id String @id @default(cuid())
+  orgId String
+  environment String
+  reference String
+  amount String
+  asset Json
+  precision Int
+  methods Json
+  settlement Json
+  returnUrl String
+  metadata Json
+  key String
+  fingerprint String
+  state String @default("Open")
+  version Int @default(1)
+  selectedMethod String?
+  contextId String
+  evaluationId String?
+  routeId String?
+  scenario String @default("success")
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  allocations SettlementAllocation[]
+  exceptions PaymentException[]
+  sessions CheckoutSession[]
+  attempts PaymentAttempt[]
+  @@unique([orgId, environment, key])
+  @@index([orgId, environment, createdAt])
+}
+model CheckoutSession {
+  requestKey String? @unique
+  tokenRef String?
+  @@unique([intentId, requestKey])
+  id String @id @default(cuid())
+  intentId String
+  intent PaymentIntent @relation(fields: [intentId], references: [id])
+  verifier String
+  expiresAt DateTime
+  revokedAt DateTime?
+}
+model PaymentRoute {
+  id String @id @default(cuid())
+  intentId String
+  method String
+  evaluationId String
+  policy String
+  policyVersion String
+  profileId String
+  snapshot Json
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+model PaymentAttempt {
+  id String @id @default(cuid())
+  intentId String
+  intent PaymentIntent @relation(fields: [intentId], references: [id])
+  number Int
+  profileId String
+  providerOrgId String
+  integrationId String
+  environment String
+  routeId String
+  key String @unique
+  fingerprint String
+  state String @default("Created")
+  providerReference String?
+  action Json?
+  dispatchedAt DateTime?
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  @@unique([intentId, number])
+  @@unique([integrationId, environment, providerReference])
+  @@index([providerOrgId, environment, state])
+}
+// Durable fictional provider state is deliberately separate from PayRouta attempts.
+model SimulatorPayment {
+  key String @id
+  reference String @unique
+  state String
+  amount String
+  asset Json
+  settlementState String @default("Pending")
+  createdAt DateTime @default(now())
+}
+model PaymentInbox {
+  id String @id @default(cuid())
+  integrationId String
+  environment String
+  eventId String
+  fingerprint String
+  payload Json
+  state String @default("Pending")
+  createdAt DateTime @default(now())
+  @@unique([integrationId, environment, eventId])
+}
+model MerchantEvent {
+  id String @id @default(cuid())
+  orgId String
+  environment String
+  intentId String
+  type String
+  version Int
+  payload Json
+  createdAt DateTime @default(now())
+  @@unique([intentId, type, version])
+}
+model MerchantDelivery {
+  id String @id @default(cuid())
+  eventId String @unique
+  state String @default("Pending")
+  attempts Int @default(0)
+  history Json @default("[]")
+  updatedAt DateTime @updatedAt
+}
+model PaymentSettlement {
+  id String @id @default(cuid())
+  providerOrgId String
+  integrationId String
+  environment String
+  reference String
+  asset Json
+  gross String
+  fee String
+  net String
+  state String
+  reconciliation String @default("Unverified")
+  evidence String
+  createdAt DateTime @default(now())
+  allocations SettlementAllocation[]
+  @@unique([integrationId, environment, reference])
+}
+model SettlementAllocation {
+  intent PaymentIntent @relation(fields: [intentId], references: [id])
+  fee String @default("0")
+  id String @id @default(cuid())
+  settlementId String
+  settlement PaymentSettlement @relation(fields: [settlementId], references: [id])
+  intentId String
+  amount String
+  @@unique([settlementId, intentId])
+}
+model JournalEntry {
+  postingTransaction BigInt @default(dbgenerated("txid_current()"))
+  id String @id @default(cuid())
+  orgId String
+  environment String
+  source String @unique
+  book String
+  asset String
+  purpose String
+  reversalOf String?
+  effectiveAt DateTime
+  createdAt DateTime @default(now())
+  postings JournalPosting[]
+}
+model JournalPosting {
+  id String @id @default(cuid())
+  entryId String
+  entry JournalEntry @relation(fields: [entryId], references: [id])
+  account String
+  debit Decimal @db.Decimal(50,0)
+  credit Decimal @db.Decimal(50,0)
+}
+model PaymentReconciliation {
+  id String @id @default(cuid())
+  intentId String
+  fingerprint String @unique
+  evidence Json
+  result String
+  createdAt DateTime @default(now())
+}
+model PaymentException {
+  intent PaymentIntent @relation(fields: [intentId], references: [id])
+  id String @id @default(cuid())
+  intentId String
+  code String
+  evidence Json
+  state String @default("Unresolved")
+  timeline Json @default("[]")
+  createdAt DateTime @default(now())
+  @@unique([intentId, code])
+}
+
+model PaymentReport {
+  id String @id @default(cuid())
+  integrationId String
+  environment String
+  fingerprint String
+  providerReportId String
+  coverageStart DateTime
+  coverageEnd DateTime
+  cursor Int @default(0)
+  state String @default("Pending")
+  rows Json
+  createdAt DateTime @default(now())
+  @@unique([integrationId, environment, fingerprint])
+}
+
+// Verifiers extend existing organization membership; never recoverable API secrets.
+model MerchantApiKey {
+  id String @id @default(cuid())
+  orgId String
+  environment String
+  prefix String
+  verifier String @unique
+  permissions Json
+  createdAt DateTime @default(now())
+  expiresAt DateTime?
+  revokedAt DateTime?
+  lastUsedAt DateTime?
+  @@index([orgId, environment, createdAt])
+}
+model MerchantRequest {
+  id String @id
+  orgId String
+  environment String
+  operation String
+  status Int
+  durationMs Int
+  createdAt DateTime @default(now())
+  @@index([orgId, environment, createdAt])
+}
+
+model MerchantRiskDecision {
+ id String @id @default(cuid())
+ intentId String
+ policyVersion String
+ decision String
+ reasons Json
+ expiresAt DateTime
+ createdAt DateTime @default(now())
+ @@index([intentId, createdAt])
+}
+model MerchantReservation {
+ intentId String @id
+ orgId String
+ environment String
+ asset String
+ day String
+ amount Decimal @db.Decimal(50,0)
+ createdAt DateTime @default(now())
+ @@index([orgId, environment, asset, day])
+}

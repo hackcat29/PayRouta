@@ -18,7 +18,9 @@ interface EventContext<Env, P extends string, Data> {
 
 const MAX_BYTES = 16000;
 
-export async function onRequestPost(context: EventContext<Env, any, any>): Promise<Response> {
+export async function onRequestPost(
+  context: EventContext<Env, string, Record<string, unknown>>,
+): Promise<Response> {
   const { request, env } = context;
   const json = (body: object, status: number) =>
     new Response(JSON.stringify(body), {
@@ -29,7 +31,9 @@ export async function onRequestPost(context: EventContext<Env, any, any>): Promi
       },
     });
 
-  if (request.headers.get("content-type")?.split(";")[0] !== "application/json") {
+  if (
+    request.headers.get("content-type")?.split(";")[0] !== "application/json"
+  ) {
     return json({ ok: false, message: "Use a JSON request." }, 415);
   }
 
@@ -50,7 +54,7 @@ export async function onRequestPost(context: EventContext<Env, any, any>): Promi
       return json({ ok: false, message: "Enquiry is too large." }, 413);
     }
     raw = JSON.parse(text);
-  } catch (e) {
+  } catch {
     return json(
       {
         ok: false,

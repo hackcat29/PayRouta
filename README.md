@@ -108,3 +108,13 @@ Final local verification completed on 2026-09-13: production build, TypeScript, 
 The old `/how-it-works`, `/payment-methods`, `/merchants`, `/providers`, and `/use-cases` URLs redirect directly to their new canonical destinations with HTTP 308. Query parameters are preserved. Payment Flow exposes `#payment-intent`, `#availability`, `#checkout`, `#provider-routing`, `#execution`, and `#settlement`; its section navigation uses those anchors. There were no named section anchors on the previous How It Works page to migrate.
 
 Marketing uses a shared catch-all route that resolves only configured canonical paths; unrecognized paths, including `/platform` and `/solutions`, return 404. Never add legacy routes to static generation or the sitemap. No public production origin has been invented.
+
+## Provider portal
+
+The provider workspace and internal review console are now part of this application. They require a Node server, PostgreSQL and a background worker; static export is no longer sufficient. See [Provider portal setup, accounts, security and adapter contracts](docs/PROVIDER-PORTAL.md).
+
+Start at `/provider/sign-in`. Internal reviewers use `/ops/applications` after MFA verification. Development records and registry publication are explicitly sandbox-only; production services remain fail-closed until their adapters are implemented and configured.
+
+### Customer payment sandbox
+
+The persistent checkout, worker, settlement, webhook, reconciliation and operational journal walkthrough is in [docs/PAYMENTS.md](docs/PAYMENTS.md). Run `npm run payments:seed`, the existing portal worker, and `npm run payments:receiver`; sign in and open `/provider/payments`. Operations inspection is at `/ops/payments`.
