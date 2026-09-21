@@ -66,10 +66,15 @@ export function AuthScreen({
               const f = new FormData(event.currentTarget);
               try {
                 if (factor) {
-                  const r = await authClient.twoFactor.verifyTotp({
+                  let r = await authClient.twoFactor.verifyTotp({
                     code: String(f.get("code")),
                     trustDevice: false,
                   });
+                  if (r.error) {
+                    r = (await authClient.twoFactor.verifyBackupCode({
+                      code: String(f.get("code")),
+                    })) as any;
+                  }
                   if (r.error) throw new Error(r.error.message);
                   router.push("/provider/overview");
                 } else if (reset) {

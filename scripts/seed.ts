@@ -22,7 +22,7 @@ async function main() {
   });
   const backupCodes = await symmetricEncrypt({
     key: process.env.BETTER_AUTH_SECRET!,
-    data: JSON.stringify(["fixture-recovery-unused"]),
+    data: JSON.stringify(["123456"]),
   });
   const users = [
     {
