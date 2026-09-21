@@ -50,6 +50,7 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "latest",
+    "@cloudflare/next-on-pages": "^1.13.16",
     "@playwright/test": "latest",
     "@tailwindcss/postcss": "latest",
     "@types/node": "latest",
