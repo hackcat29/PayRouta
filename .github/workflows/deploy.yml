@@ -33,13 +33,15 @@ jobs:
       - name: Run unit tests
         run: npm test
 
-      - name: Build Next.js and next-on-pages
-        run: npm run build && npx @cloudflare/next-on-pages
-
-      - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
+      - name: Deploy to Contabo VPS
+        uses: appleboy/ssh-action@v1.0.3
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          wranglerVersion: "latest"
-          command: pages deploy .vercel/output/static --project-name=payrouta --branch=main
+          host: ${{ secrets.CONTABO_HOST }}
+          username: ${{ secrets.CONTABO_USER }}
+          key: ${{ secrets.CONTABO_SSH_KEY }}
+          script: |
+            cd /opt/payrouta
+            git pull origin main
+            docker compose down
+            docker compose build
+            docker compose up -d
