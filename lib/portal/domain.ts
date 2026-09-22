@@ -401,7 +401,12 @@ export const settlementSchema = z
     "Minimum timing must not exceed maximum",
   );
 export const integrationSchema = z.object({
-  adapter: z.enum(["simulator", "provider"]),
+  adapter: z.enum(["simulator", "provider", "standard", "configurable"]),
+  // Three first-class integration modes. NATIVE is PayRouta-maintained;
+  // STANDARD providers implement the PayRouta Provider API; CONFIGURABLE maps
+  // an existing API declaratively.
+  mode: z.enum(["NATIVE", "STANDARD", "CONFIGURABLE"]).default("NATIVE"),
+  maintainedBy: z.enum(["PAYROUTA", "PROVIDER"]).default("PAYROUTA"),
   baseUrl: z.string().max(500),
   auth: z.enum(["bearer", "api-key", "mTLS"]),
   mappings: required,
@@ -435,29 +440,29 @@ export function checklist(draft: Draft, evidenceCount: number) {
     },
     {
       id: "coverage",
-      label: "Countries & coverage",
+      label: "Where you accept payments",
       complete: coverageSchema.safeParse(draft.coverage).success,
     },
     {
       id: "capabilities",
-      label: "Payment capabilities",
+      label: "Payment methods",
       complete:
         !!draft.capabilities?.length &&
         draft.capabilities.every((c) => capabilitySchema.safeParse(c).success),
     },
     {
       id: "settlement",
-      label: "Settlement configuration",
+      label: "How you get paid",
       complete: settlementSchema.safeParse(draft.settlement).success,
     },
     {
       id: "compliance",
-      label: "Requirements & evidence",
+      label: "Documents",
       complete: evidenceCount > 0,
     },
     {
       id: "integration",
-      label: "Technical integration",
+      label: "How to connect",
       complete: integrationSchema.safeParse(draft.integration).success,
     },
   ];

@@ -29,7 +29,21 @@ test("merchant workspace: auth, environment isolation, payment table and mobile 
   expect(stepUp.ok(), await stepUp.text()).toBeTruthy();
   await page.goto("/merchant/overview?orgId=payment-demo-merchant");
   await expect(
-    page.getByRole("heading", { name: "Overview", exact: true }),
+    page.getByRole("heading", { name: "Home", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("Payments received", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Recent payments", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("Operational journal totals")).toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: "Payment methods", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Developers", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Settings", exact: true }),
   ).toBeVisible();
   await page
     .getByLabel("Environment", { exact: true })
@@ -63,7 +77,61 @@ test("merchant workspace: auth, environment isolation, payment table and mobile 
     path: "test-results/merchant-payments-mobile.png",
     fullPage: true,
   });
-  await page.getByRole("link", { name: "Onboarding", exact: true }).click();
+  await page.getByRole("link", { name: "Business setup", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Your business", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByLabel("Legal name", { exact: true })
+    .fill("Fictional Test Merchant");
+  await page
+    .getByLabel("Search operating country", { exact: true })
+    .fill("Nigeria");
+  await page
+    .getByLabel("Operating country", { exact: true })
+    .selectOption("NG");
+  await page
+    .getByLabel("Business website", { exact: true })
+    .fill("https://merchant.example.test");
+  await page
+    .getByLabel("Business activity", { exact: true })
+    .fill("Neighborhood retail sales and local checkout totals.");
+  await page
+    .getByLabel("Business contact email", { exact: true })
+    .fill("business@example.test");
+  await page
+    .getByLabel("Technical contact email", { exact: true })
+    .fill("technical@example.test");
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "How customers pay", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("checkbox", { name: "Bank transfer", exact: true })
+    .check();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "How you get paid", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByLabel("Search settlement currencies", { exact: true })
+    .fill("NGN");
+  await page
+    .getByLabel("Settlement currencies", { exact: true })
+    .selectOption("NGN");
+  await page
+    .getByLabel("Search payer countries", { exact: true })
+    .fill("Nigeria");
+  await page
+    .getByLabel("Payer countries", { exact: true })
+    .selectOption("NG");
+  await page
+    .getByRole("radio", { name: "Under $10,000 per month", exact: true })
+    .check();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Verify your business", exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Verification documents" }),
   ).toBeVisible();

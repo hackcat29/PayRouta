@@ -41,17 +41,32 @@
 .merchant-body nav {
   padding: 28px 16px;
   background: white;
+}
+.merchant-nav {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
-.merchant-body nav a {
+.merchant-nav a {
+  display: block;
   padding: 10px 14px;
   border-radius: 6px;
 }
-.merchant-body nav a[aria-current] {
+.merchant-subnav {
+  margin: 6px 0 0;
+  padding: 0 0 0 12px;
+  list-style: none;
+  border-left: 2px solid #e8edef;
+}
+.merchant-body nav a[aria-current="page"] {
   background: #e7f5f3;
   color: #00685f;
+  font-weight: 600;
+}
+.merchant-nav .active-group > a:not([aria-current="page"]) {
   font-weight: 600;
 }
 .merchant-body article {
@@ -140,4 +155,82 @@
   .merchant-workspace header form {
     flex-wrap: wrap;
   }
+}
+.merchant-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.merchant-metrics > div {
+  padding: 20px;
+  background: #f5f9f9;
+  border: 1px solid #d7e0e4;
+  border-radius: 8px;
+}
+.merchant-metrics strong {
+  display: block;
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.merchant-metrics span {
+  color: #43555e;
+}
+.merchant-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 120px;
+  padding: 12px 0;
+}
+.merchant-chart > span {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  height: 100%;
+  background: #eef4f4;
+  border-radius: 4px;
+}
+.merchant-chart i {
+  display: block;
+  width: 100%;
+  background: #006e68;
+  border-radius: 4px 4px 0 0;
+  min-height: 2px;
+}
+@media (max-width: 760px) {
+  .merchant-metrics {
+    grid-template-columns: 1fr;
+  }
+}
+.merchant-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0;
+  padding: 0;
+  list-style: none;
+}
+.merchant-steps li {
+  padding: 8px 12px;
+  border: 1px solid #d7e0e4;
+  border-radius: 999px;
+  color: #43555e;
+  background: #f5f9f9;
+}
+.merchant-steps li.complete {
+  border-color: #00685f;
+  color: #00685f;
+}
+.merchant-steps li[aria-current="step"] {
+  background: #00685f;
+  border-color: #00685f;
+  color: white;
+  font-weight: 600;
+}
+.merchant-wizard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 24px;
 }

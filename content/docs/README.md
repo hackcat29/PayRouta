@@ -1,6 +1,6 @@
 # Overview
 
-PayRouta is a global payment availability and intelligent routing platform. A merchant describes payment requirements, the engine determines viable payment methods and initiation channels, and the customer chooses how to pay. Provider comparison and smart execution follow that selection.
+PayRouta checks which payment methods can work for a transaction. The customer chooses how to pay. PayRouta then compares eligible providers for that method and records the payment outcome.
 
 > [!NOTE]
 > **Early access notice**: PayRouta interfaces, schemas, and SDKs are provisional concepts and subject to refinement. Examples illustrate integration patterns, not a final published contract.

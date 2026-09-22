@@ -1,4 +1,8 @@
 import { enforceRisk } from "../merchant/policy";
+import {
+  blocksExecution,
+  evaluateTransactionCompliance,
+} from "../compliance/service";
 import { randomBytes, randomUUID } from "node:crypto";
 import { db } from "../portal/db";
 import { atomic, json } from "../portal/service";
@@ -60,6 +64,18 @@ export async function createIntent(
     assetKey(value.asset) !== assetKey(value.settlement)
   )
     throw new PortalError("SANDBOX_REQUIRES_POSITIVE_SAME_ASSET_PAYMENT");
+  // Transaction-level compliance eligibility runs before availability. A
+  // blocking decision prevents an intent from ever exposing payment methods.
+  const compliance = evaluateTransactionCompliance({
+    operation: "pay-in",
+    originCountry: config.country,
+    merchantCountry: config.country,
+    amount: value.amount,
+    asset: value.asset,
+    currency: value.asset.identifier,
+  });
+  if (blocksExecution(compliance.decision))
+    throw new PortalError(`COMPLIANCE_DECISION:${compliance.decision}`, 403);
   const requestHash = fingerprint(value);
   const existing = await db.paymentIntent.findUnique({
     where: {
@@ -109,7 +125,7 @@ export async function createIntent(
         throw new PortalError("IDEMPOTENCY_CONFLICT", 409);
       return prior;
     }
-    return tx.paymentIntent.create({
+    const created = await tx.paymentIntent.create({
       data: {
         orgId,
         environment: config.environment,
@@ -128,6 +144,23 @@ export async function createIntent(
         scenario: value.scenario,
       },
     });
+    await tx.complianceDecision.create({
+      data: {
+        intentId: created.id,
+        policyVersion: "compliance-v1",
+        decision: compliance.decision,
+        reasons: json(compliance.reasons),
+        context: json({
+          operation: "pay-in",
+          originCountry: config.country,
+          merchantCountry: config.country,
+          amount: value.amount,
+          asset: value.asset,
+        }),
+        expiresAt,
+      },
+    });
+    return created;
   });
 }
 export async function createSession(

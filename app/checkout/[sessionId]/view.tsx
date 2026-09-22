@@ -4,7 +4,7 @@ type Progress = {
   merchant: string;
   reference: string;
   amount: string;
-  asset: { identifier: string };
+  asset: { identifier: string; network?: string };
   state: string;
   attemptState?: string;
   attemptId?: string;
@@ -13,7 +13,12 @@ type Progress = {
   returnUrl: string;
   settlement: string[];
 };
-type Method = { method: string; status: string };
+type Method = {
+  method: string;
+  label?: string;
+  status: string;
+  explanation?: string;
+};
 export function Checkout({ id }: { id: string }) {
   const [data, setData] = useState<Progress>();
   const [options, setOptions] = useState<Method[]>([]);
@@ -98,6 +103,7 @@ export function Checkout({ id }: { id: string }) {
       setBusy(false);
     }
   }
+  const activeMethod = selected ?? data?.selectedMethod;
   const status =
     data?.state === "Confirmed"
       ? "Payment confirmed."
@@ -163,7 +169,7 @@ export function Checkout({ id }: { id: string }) {
         )}
         {data?.state === "Open" && (
           <fieldset disabled={busy} style={{ border: 0, padding: 0 }}>
-            <legend>Payment method</legend>
+            <legend>How would you like to pay?</legend>
             {options.map((m) => (
               <label
                 key={m.method}
@@ -188,14 +194,15 @@ export function Checkout({ id }: { id: string }) {
                     );
                   }}
                 />{" "}
-                {m.method.replaceAll("-", " ")}
+                {m.label?.trim() || m.method.replaceAll("-", " ")}
                 {m.status !== "AVAILABLE" && (
                   <span>
                     {" "}
                     —{" "}
-                    {m.status === "ACTION_REQUIRED"
-                      ? "Verification required"
-                      : "Currently unavailable"}
+                    {m.explanation?.trim() ||
+                      (m.status === "ACTION_REQUIRED"
+                        ? "Verification required"
+                        : "Currently unavailable")}
                   </span>
                 )}
               </label>
@@ -210,6 +217,31 @@ export function Checkout({ id }: { id: string }) {
                   payer fee. Quote valid until{" "}
                   {new Date(route.expiresAt).toLocaleTimeString()}.
                 </p>
+                {activeMethod === "bank-transfer" && (
+                  <p>
+                    Use the reference and exact amount PayRouta confirms next.
+                    A completed transfer is recognized automatically.
+                  </p>
+                )}
+                {activeMethod === "card" && (
+                  <p>
+                    Your bank may ask you to authorize this payment. You will
+                    not enter card details on this page.
+                  </p>
+                )}
+                {activeMethod === "mobile-money" && (
+                  <p>
+                    Approve the mobile-money request on your phone. This page
+                    updates automatically.
+                  </p>
+                )}
+                {activeMethod === "stablecoin" && (
+                  <p>
+                    Send exactly {data.amount} {data.asset.identifier}
+                    {data.asset.network ? ` on ${data.asset.network}` : ""}.
+                    This page follows on-chain confirmation.
+                  </p>
+                )}
                 <button
                   style={button}
                   onClick={() =>

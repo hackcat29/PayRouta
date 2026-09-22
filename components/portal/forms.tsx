@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useState, useId } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,6 +11,7 @@ import {
   fiat,
   providerTypes,
 } from "@/lib/portal/domain";
+import { knownRails } from "@/lib/providers/normalized";
 import { Field, JsonView, Panel } from "./ui";
 export type Execute = (data: Record<string, unknown>) => Promise<unknown>;
 export function CountrySelect({
@@ -85,6 +87,17 @@ export function CountryMany({
     </fieldset>
   );
 }
+const providerTypeLabels: Record<(typeof providerTypes)[number], string> = {
+  PSP: "Payment processor (PSP)",
+  Bank: "Bank or banking-services provider",
+  "Card acquirer": "Card acquirer",
+  "Mobile money operator": "Mobile-money operator",
+  "Mobile money aggregator": "Mobile-money aggregator",
+  "Stablecoin ramp": "Stablecoin on/off-ramp",
+  Exchange: "Crypto exchange",
+  "Payout provider": "Payout provider",
+  "Other infrastructure": "Other payment infrastructure",
+};
 export function CompanyForm({
   draft,
   version,
@@ -148,10 +161,12 @@ export function CompanyForm({
               value={currentCountry || ""}
               onChange={(v) => f.setValue("country", v)}
             />
-            <Field label="Provider type">
+            <Field label="What kind of payment service do you offer?">
               <select {...f.register("providerType")}>
                 {providerTypes.map((t) => (
-                  <option key={t}>{t}</option>
+                  <option key={t} value={t}>
+                    {providerTypeLabels[t]}
+                  </option>
                 ))}
               </select>
             </Field>
@@ -201,11 +216,12 @@ export function CoverageForm({
     ...draft.coverage,
   });
   return (
-    <Panel title="Coverage">
-      <p>
-        These lists describe your footprint. Each supported direction is
-        declared separately in a capability.
-      </p>
+      <Panel title="Where you accept payments">
+        <p>
+          Tell us where customers pay you and where your business receives
+          money. PayRouta turns those answers into the detailed payment
+          capabilities it checks before routing.
+        </p>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -221,11 +237,11 @@ export function CoverageForm({
           <div className="p-form-grid">
             {(
               [
-                ["payerOrigins", "Payer origins"],
-                ["merchantDestinations", "Merchant destinations"],
+                ["payerOrigins", "Customer countries"],
+                ["merchantDestinations", "Business countries"],
                 ["jurisdictions", "Operating jurisdictions"],
-                ["payIn", "Pay-in coverage"],
-                ["payout", "Payout coverage"],
+                ["payIn", "Where customers can pay you"],
+                ["payout", "Where you can send payouts"],
               ] as const
             ).map(([key, label]) => (
               <CountryMany
@@ -299,37 +315,37 @@ export function CapabilityForm({
         >
           <input {...f.register("capabilityId")} readOnly={!!value} />
         </Field>
-        <Field label="Payment family">
+        <Field label="What kind of payment is this?">
           <select {...f.register("family")}>
-            {[
-              "bank",
-              "card",
-              "mobile-money",
-              "stablecoin",
-              "crypto",
-              "local",
-            ].map((v) => (
-              <option key={v}>{v}</option>
-            ))}
+            <option value="bank">Bank payments</option>
+            <option value="card">Card payments</option>
+            <option value="mobile-money">Mobile money</option>
+            <option value="stablecoin">Stablecoins</option>
+            <option value="crypto">Crypto</option>
+            <option value="local">Local payment methods</option>
           </select>
         </Field>
-        <Field label="Specific rail or method">
+        <Field label="Specific rail or network">
           <input
             {...f.register("rail")}
-            placeholder="e.g. NIBSS bank transfer"
+            list="portal-rails"
+            placeholder="e.g. NIP, Visa, or Base"
           />
-        </Field>
-        <Field label="Operation">
-          <select {...f.register("operation")}>
-            {[
-              "pay-in",
-              "payout",
-              "conversion",
-              "authorization",
-              "settlement",
-            ].map((v) => (
-              <option key={v}>{v}</option>
+          <datalist id="portal-rails">
+            {knownRails.map((rail) => (
+              <option key={rail.id} value={rail.id}>
+                {rail.label}
+              </option>
             ))}
+          </datalist>
+        </Field>
+        <Field label="What can customers do through you?">
+          <select {...f.register("operation")}>
+            <option value="pay-in">Collect payments</option>
+            <option value="payout">Send payouts</option>
+            <option value="conversion">Convert funds</option>
+            <option value="authorization">Authorize card payments</option>
+            <option value="settlement">Settle funds</option>
           </select>
         </Field>
         <CountrySelect
@@ -595,11 +611,11 @@ export function CapabilityForm({
             <input {...f.register(key)} />
           </Field>
         ))}
-        <Field label="Availability reporting">
+        <Field label="How do you report payment status?">
           <select {...f.register("availability")}>
-            {["webhook", "poll", "manual"].map((v) => (
-              <option key={v}>{v}</option>
-            ))}
+            <option value="webhook">Webhooks</option>
+            <option value="poll">PayRouta checks your API</option>
+            <option value="manual">Manual updates</option>
           </select>
         </Field>
         <Field label="Environment">
@@ -653,11 +669,11 @@ export function SettlementForm({
   };
   const [value, setValue] = useState(defaults);
   return (
-    <Panel title="Settlement capabilities">
-      <p>
-        Describe supported settlement. Beneficiary collection is unconfigured;
-        do not enter bank credentials.
-      </p>
+      <Panel title="How you get paid">
+        <p>
+          Tell us which funds you can receive and where. Keep payment
+          credentials in the secure credentials area, not in these forms.
+        </p>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -794,15 +810,59 @@ export function SettlementForm({
             ))}
           </div>
           <CountryMany
-            label="Settlement countries"
+            label="Countries where you receive payments"
             value={value.countries}
             onChange={(countries) => setValue({ ...value, countries })}
           />
-          <button className="p-button">Save settlement capabilities</button>
+          <button className="p-button">Save payment settings</button>
         </fieldset>
       </form>
     </Panel>
   );
+}
+type ConnectionChoice = "standard" | "existing" | "simulator" | "native";
+const connectionSettings = {
+  standard: {
+    title: "Use the PayRouta Standard",
+    description:
+      "Implement the documented PayRouta API. No custom PayRouta code is needed.",
+    adapter: "standard",
+    mode: "STANDARD",
+    maintainedBy: "PROVIDER",
+  },
+  existing: {
+    title: "Map our existing API",
+    description:
+      "Describe a constrained connection to the API you already operate.",
+    adapter: "configurable",
+    mode: "CONFIGURABLE",
+    maintainedBy: "PROVIDER",
+  },
+  simulator: {
+    title: "Use the sandbox simulator",
+    description: "Use fictional results for development and certification.",
+    adapter: "simulator",
+    mode: "NATIVE",
+    maintainedBy: "PAYROUTA",
+  },
+  native: {
+    title: "Ask about a native integration",
+    description:
+      "PayRouta builds and maintains native integrations for selected providers.",
+    adapter: "simulator",
+    mode: "NATIVE",
+    maintainedBy: "PAYROUTA",
+  },
+} as const;
+function connectionForIntegration(
+  value?: Draft["integration"],
+): ConnectionChoice {
+  if (!value) return "simulator";
+  if (value.mode === "STANDARD" || value.adapter === "standard")
+    return "standard";
+  if (value.mode === "CONFIGURABLE" || value.adapter === "configurable")
+    return "existing";
+  return "simulator";
 }
 export function IntegrationForm({
   value,
@@ -820,6 +880,8 @@ export function IntegrationForm({
   const f = useForm({
     defaultValues: value || {
       adapter: "simulator",
+      mode: "NATIVE",
+      maintainedBy: "PAYROUTA",
       baseUrl: "",
       auth: "bearer",
       mappings: "bank.payin → /payments",
@@ -830,84 +892,168 @@ export function IntegrationForm({
       retries: 0,
     },
   });
+  const [connection, setConnection] = useState<ConnectionChoice>(() =>
+    connectionForIntegration(value),
+  );
+  const [advanced, setAdvanced] = useState(false);
+  const selected: ConnectionChoice = connection;
   return (
     <Panel
       title={`${environment === "sandbox" ? "Sandbox" : "Production"} connection`}
     >
-      <form
-        onSubmit={f.handleSubmit((value) =>
-          execute({
-            action: "save-section",
-            section: "integration",
-            environment,
-            version,
-            value,
-          }),
-        )}
-      >
-        <fieldset disabled={disabled}>
-          <div className="p-form-grid">
-            <Field label="Adapter">
-              <select {...f.register("adapter")}>
-                <option value="simulator">
-                  Local simulator — fictional results
-                </option>
-                <option value="provider">Provider endpoint</option>
-              </select>
-            </Field>
-            <Field label="API base URL">
-              <input
-                {...f.register("baseUrl")}
-                placeholder="https://api.provider.example"
-              />
-            </Field>
-            <Field label="Authentication">
-              <select {...f.register("auth")}>
-                {["bearer", "api-key", "mTLS"].map((v) => (
-                  <option key={v}>{v}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Health endpoint path">
-              <input {...f.register("healthPath")} />
-            </Field>
-            <Field label="Capability endpoint mappings">
-              <textarea {...f.register("mappings")} />
-            </Field>
-            <Field label="Events">
-              <select {...f.register("events")}>
-                <option value="webhook">Webhook</option>
-                <option value="poll">Polling</option>
-              </select>
-            </Field>
-            <Field label="Webhook verification">
-              <select {...f.register("signing")}>
-                <option>HMAC-SHA256</option>
-              </select>
-            </Field>
-            <Field label="Request timeout (ms)">
-              <input
-                type="number"
-                min={500}
-                max={15000}
-                {...f.register("timeoutMs", { valueAsNumber: true })}
-              />
-            </Field>
-            <Field
-              label="Safe read retries"
-              hint="Execution is never blindly retried after an uncertain outcome."
-            >
-              <input
-                type="number"
-                min={0}
-                max={2}
-                {...f.register("retries", { valueAsNumber: true })}
-              />
-            </Field>
-          </div>
-          <button className="p-button">Save {environment} connection</button>
-        </fieldset>
-      </form>
+      <fieldset>
+        <legend>How would you like to connect?</legend>
+        {(Object.keys(connectionSettings) as ConnectionChoice[]).map((key) => (
+          <label key={key} className="p-check">
+            <input
+              type="radio"
+              name={`${environment}-connection`}
+              checked={selected === key}
+              onChange={() => setConnection(key)}
+            />
+            <span>
+              <strong>{connectionSettings[key].title}</strong>
+              <br />
+              <small>{connectionSettings[key].description}</small>
+            </span>
+          </label>
+        ))}
+      </fieldset>
+      {selected === "native" ? (
+        <p>
+          Tell us about your payment methods, countries, and API through a{" "}
+          <Link href="/contact?intent=provider">provider enquiry</Link>. Sandbox
+          testing still uses the simulator.
+        </p>
+      ) : (
+        <form
+          onSubmit={f.handleSubmit((formValue) => {
+            const selected = connection as ConnectionChoice;
+            return execute({
+              action: "save-section",
+              section: "integration",
+              environment,
+              version,
+              value: {
+                ...formValue,
+                adapter: connectionSettings[selected].adapter,
+                mode: connectionSettings[selected].mode,
+                maintainedBy: connectionSettings[selected].maintainedBy,
+                ...(selected === "standard"
+                  ? {
+                      mappings:
+                        "Uses the PayRouta Standard payment, status, refund, payout, and health endpoints.",
+                    }
+                  : {}),
+              },
+            });
+          })}
+        >
+          <fieldset disabled={disabled}>
+            {(connection as ConnectionChoice) === "standard" && (
+              <p>
+                Read the{" "}
+                <Link href="/docs/provider-integration">
+                  Provider API documentation
+                </Link>
+                , store API secrets separately under API credentials, then
+                certify the sandbox connection under Sandbox tests.
+              </p>
+            )}
+            <div className="p-form-grid">
+              {(connection as ConnectionChoice) !== "simulator" && (
+                <Field label="API base URL">
+                  <input
+                    {...f.register("baseUrl")}
+                    placeholder="https://api.provider.example"
+                    required={(connection as ConnectionChoice) !== "simulator"}
+                  />
+                </Field>
+              )}
+              {(connection as ConnectionChoice) !== "simulator" && (
+                <Field label="Authentication">
+                  <select {...f.register("auth")}>
+                    {["bearer", "api-key", "mTLS"].map((v) => (
+                      <option key={v}>{v}</option>
+                    ))}
+                  </select>
+                </Field>
+              )}
+              <Field label="Health endpoint path">
+                <input
+                  {...f.register("healthPath")}
+                  list={`${environment}-health-paths`}
+                />
+                <datalist id={`${environment}-health-paths`}>
+                  {["/health", "/status", "/v1/health"].map((path) => (
+                    <option key={path} value={path} />
+                  ))}
+                </datalist>
+              </Field>
+              {(connection as ConnectionChoice) === "existing" && (
+                <label className="p-check">
+                  <input
+                    type="checkbox"
+                    checked={advanced}
+                    onChange={(event) => setAdvanced(event.target.checked)}
+                  />
+                  Show advanced endpoint note
+                </label>
+              )}
+              {((connection as ConnectionChoice) !== "existing" || advanced) && (
+                <Field
+                  label={
+                    (connection as ConnectionChoice) === "existing"
+                      ? "Constrained endpoint note"
+                      : "Connection note"
+                  }
+                  hint={
+                    connection === "existing"
+                      ? "Describe endpoints and status handling. Do not paste secrets, code, or account data."
+                      : undefined
+                  }
+                >
+                  <textarea
+                    {...f.register("mappings")}
+                    readOnly={connection === "standard"}
+                  />
+                </Field>
+              )}
+              <Field label="Events">
+                <select {...f.register("events")}>
+                  <option value="webhook">Webhook</option>
+                  <option value="poll">Polling</option>
+                </select>
+              </Field>
+              <Field label="Webhook verification">
+                <select {...f.register("signing")}>
+                  <option>HMAC-SHA256</option>
+                </select>
+              </Field>
+              <Field label="Request timeout (ms)">
+                <input
+                  type="number"
+                  min={500}
+                  max={15000}
+                  {...f.register("timeoutMs", { valueAsNumber: true })}
+                />
+              </Field>
+              <Field
+                label="Safe read retries"
+                hint="Execution is never blindly retried after an uncertain outcome."
+              >
+                <input
+                  type="number"
+                  min={0}
+                  max={2}
+                  {...f.register("retries", { valueAsNumber: true })}
+                />
+              </Field>
+            </div>
+            <button className="p-button">Save {environment} connection</button>
+          </fieldset>
+        </form>
+      )}
     </Panel>
   );
 }

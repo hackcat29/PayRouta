@@ -66,17 +66,21 @@ export function AuthScreen({
               const f = new FormData(event.currentTarget);
               try {
                 if (factor) {
-                  let r = await authClient.twoFactor.verifyTotp({
+                  const totp = await authClient.twoFactor.verifyTotp({
                     code: String(f.get("code")),
                     trustDevice: false,
                   });
-                  if (r.error) {
-                    r = (await authClient.twoFactor.verifyBackupCode({
-                      code: String(f.get("code")),
-                    })) as any;
+                  if (!totp.error) {
+                    router.push("/provider/overview");
+                  } else {
+                    const backup =
+                      await authClient.twoFactor.verifyBackupCode({
+                        code: String(f.get("code")),
+                      });
+                    if (backup.error)
+                      throw new Error(backup.error.message);
+                    router.push("/provider/overview");
                   }
-                  if (r.error) throw new Error(r.error.message);
-                  router.push("/provider/overview");
                 } else if (reset) {
                   const r = await authClient.requestPasswordReset({
                     email,

@@ -171,6 +171,8 @@ async function main() {
   };
   const integration = {
     adapter: "simulator" as const,
+    mode: "NATIVE" as const,
+    maintainedBy: "PAYROUTA" as const,
     baseUrl: "",
     auth: "bearer" as const,
     mappings: "bank.payin → /payments",

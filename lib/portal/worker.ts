@@ -6,6 +6,11 @@ import { scanner, localMode, storage } from "./adapters";
 import { checkEndpoint } from "./ssrf";
 import { Draft, PortalError } from "./domain";
 import { publishActivation } from "./registry";
+import {
+  certifyAndPersist,
+  deriveCapabilitySummary,
+  simulatorTarget,
+} from "../providers/certification/service";
 export interface RegistryAdapter {
   publish(input: {
     key: string;
@@ -45,6 +50,28 @@ export async function workOnce(jobKey?: string) {
     const p = candidate.payload as Record<string, string>;
     if (candidate.kind.startsWith("payment-")) {
       await paymentJob(candidate.kind, p);
+    } else if (candidate.kind === "certification") {
+      const integration = await db.integration.findUniqueOrThrow({
+        where: { id: p.integrationId },
+      });
+      const config = integration.config as { adapter?: string; mode?: string };
+      // Only the sandbox simulator is certifiable without a live provider.
+      if (
+        config.adapter !== "simulator" ||
+        p.environment !== "sandbox" ||
+        !localMode()
+      )
+        throw new PortalError(
+          "CERTIFICATION_TARGET_NOT_QUALIFIED: a live provider is required",
+        );
+      await certifyAndPersist({
+        orgId: candidate.orgId,
+        environment: p.environment,
+        integrationId: p.integrationId,
+        capabilityId: p.capabilityId ?? undefined,
+        target: simulatorTarget(),
+        capability: deriveCapabilitySummary(config),
+      });
     } else if (candidate.kind === "sandbox") {
       const run = await db.sandboxRun.findUniqueOrThrow({
         where: { id: p.runId },

@@ -209,7 +209,7 @@ test("reduced motion, 200% text, filter and screenshots", async ({ page }) => {
   await page
     .getByRole("button", { name: "Digital assets", exact: true })
     .click();
-  await expect(page.locator(".method-detail")).toHaveCount(3);
+  await expect(page.locator(".method-detail")).toHaveCount(2);
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
     for (const route of [
@@ -351,7 +351,7 @@ test("marketing editorial review screenshots", async ({ page }) => {
       });
       const copy = await page.locator("main").innerText();
       expect(copy).not.toMatch(
-        /revolutionary|game-changing|next-generation|cutting-edge|seamless|frictionless|unlock|empower|supercharge|leverage|future-proof|enterprise-grade/i,
+        /revolutionary|game-changing|next-generation|cutting-edge|seamless|frictionless|unlock|empower|supercharge|leverage|future-proof|enterprise-grade|intelligent|AI-powered/i,
       );
       await expect(
         page.locator(

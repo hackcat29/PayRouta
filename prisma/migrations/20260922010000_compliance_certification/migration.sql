@@ -1,0 +1,4 @@
+CREATE TABLE "ComplianceDecision" ("id" TEXT PRIMARY KEY, "intentId" TEXT NOT NULL REFERENCES "PaymentIntent"("id"), "policyVersion" TEXT NOT NULL, "decision" TEXT NOT NULL, "reasons" JSONB NOT NULL, "context" JSONB NOT NULL, "expiresAt" TIMESTAMP(3) NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE INDEX "ComplianceDecision_intentId_createdAt_idx" ON "ComplianceDecision"("intentId","createdAt");
+CREATE TABLE "ProviderCertification" ("id" TEXT PRIMARY KEY, "orgId" TEXT NOT NULL REFERENCES "Organization"("id"), "environment" TEXT NOT NULL, "integrationId" TEXT NOT NULL, "capabilityId" TEXT, "status" TEXT NOT NULL, "scenarios" JSONB NOT NULL, "passed" INTEGER NOT NULL, "failed" INTEGER NOT NULL, "humanFailures" JSONB NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE INDEX "ProviderCertification_orgId_environment_createdAt_idx" ON "ProviderCertification"("orgId","environment","createdAt");

@@ -232,11 +232,11 @@ export function ContactForm({
         )}
         {intent === "provider" && (
           <>
-            {field("providerType", "Provider type", {
+            {field("providerType", "What kind of payment service do you offer?", {
               optional: true,
               max: 120,
             })}
-            {field("capabilities", "Payment capabilities", {
+            {field("capabilities", "What payments can you process?", {
               optional: true,
               area: true,
               max: 1000,

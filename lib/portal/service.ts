@@ -321,7 +321,12 @@ export async function command(raw: unknown, h: Headers) {
     body.value = validateDraftSection(body.section, body.value);
     if (body.section === "integration") {
       const parsed = integrationSchema.parse(body.value);
-      if (parsed.adapter === "provider") await validateEndpoint(parsed.baseUrl);
+      if (
+        parsed.adapter === "provider" ||
+        parsed.mode === "STANDARD" ||
+        parsed.mode === "CONFIGURABLE"
+      )
+        await validateEndpoint(parsed.baseUrl);
       if (body.environment === "production" && parsed.adapter === "simulator")
         throw new PortalError("Simulator cannot be configured for production");
       body.value = parsed;
@@ -601,7 +606,9 @@ export async function command(raw: unknown, h: Headers) {
     });
     if (
       !config ||
-      (config.config as { adapter: string }).adapter !== "provider"
+      !["provider", "standard", "configurable"].includes(
+        (config.config as { adapter: string }).adapter,
+      )
     )
       throw new PortalError("Configure a provider endpoint first");
     const key = z.string().uuid().parse(data.key);

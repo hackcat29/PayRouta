@@ -59,5 +59,11 @@ jobs:
             # Copy static files to standalone dir as required by Next.js standalone mode
             cp -r public .next/standalone/
             cp -r .next/static .next/standalone/.next/
+
+            # Export environment variables from .env to the current shell
+            if [ -f .env ]; then
+              export $(grep -v '^#' .env | xargs)
+            fi
+
             # Start or restart PM2 process
-            pm2 start .next/standalone/server.js --name "payrouta" || pm2 restart payrouta
+            PORT=3051 pm2 start .next/standalone/server.js --name "payrouta" || PORT=3051 pm2 restart payrouta --update-env

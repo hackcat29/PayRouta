@@ -26,10 +26,15 @@ test("checkout: explicit selection, action, refresh, settlement, signed notifica
   });
   const s = await createSession(orgId, i.id);
   await page.goto(s.checkoutPath);
-  const radio = page.getByRole("radio", { name: "bank transfer" });
+  const radio = page.getByRole("radio", { name: "Bank transfer" });
   await expect(radio).toBeEnabled();
   await expect(radio).not.toBeChecked();
   await radio.check();
+  await expect(
+    page.getByText("A completed transfer is recognized automatically.", {
+      exact: false,
+    }),
+  ).toBeVisible();
   await page
     .getByRole("button", { name: "Confirm payment", exact: true })
     .click();
@@ -183,7 +188,7 @@ test("checkout: definite failure recovers safely and client cannot replace invoi
     401,
   );
   await page.goto(s.checkoutPath);
-  const radio = page.getByRole("radio", { name: "bank transfer" });
+  const radio = page.getByRole("radio", { name: "Bank transfer" });
   await radio.check();
   await page
     .getByRole("button", { name: "Confirm payment", exact: true })

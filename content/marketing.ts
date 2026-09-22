@@ -1,57 +1,49 @@
 export const pages = {
   "provider-routing": {
     title: "Provider Routing",
-    headline: "Route each payment through the best provider.",
+    headline: "Use the right provider for the payment in front of you.",
     intro:
-      "PayRouta finds eligible providers for the payment method your customer chose, then routes the transaction based on your fee and speed preferences.",
+      "After a customer selects an available payment method, PayRouta compares only eligible providers for that method and uses an available route.",
     sections: [
       [
-        "Check eligibility before comparing providers",
-        "Match the customer’s payment method against provider capabilities, currencies, limits, compliance requirements, and current operating status. A lower price does not make an ineligible provider suitable.",
+        "Compare providers after customer choice",
+        "Customers decide how to pay first. Providers are never treated as interchangeable across different payment methods.",
       ],
       [
-        "Compare providers within the selected method",
-        "For instant bank payments (like iDEAL in Europe, FedNow in the US, Pix in Brazil, or NIP in Nigeria), compare domestic banking providers. For card payments, compare domestic and global acquirers (Visa, Mastercard, Verve, Cartes Bancaires, JCB). For digital wallets (like Apple Pay, Google Pay, OPay, PalmPay, or Alipay), route to supported wallet gateways. For crypto platforms (like Binance Pay), route through supported exchange APIs. For Real-World Assets (like Ondo USDY or tokenized commodities), route through supported asset providers. The customer’s payment choice stays fixed.",
+        "Check eligibility before comparing cost",
+        "Each route must satisfy corridor, asset, amount, compliance, certification, credential, health, and operational checks. Ineligible providers are excluded before any comparison.",
       ],
       [
-        "Apply your routing preference",
-        "Rank providers by lowest fee, fastest settlement, or highest reliability. PayRouta compares providers only within the chosen method, without treating different payment methods as interchangeable.",
+        "Balance cost with reliability",
+        "PayRouta considers fees, confirmation speed, capacity, success history, and merchant policy. A lower fee does not rescue an ineligible route.",
       ],
       [
-        "Backup routes before charging",
-        "If a primary provider is unavailable before a payment begins, PayRouta checks for another provider that supports the same method. If none is available, the customer is asked to choose another way to pay.",
+        "Keep a backup within the same method",
+        "If the first provider cannot start the selected payment method, PayRouta can try another eligible provider for that same method.",
       ],
       [
-        "Check payment status before retrying",
-        "A network timeout after submitting does not mean a payment failed. PayRouta verifies the authoritative status with the provider before allowing any retry, preventing accidental double charges.",
+        "Recheck status before retrying",
+        "A timeout is not a rejection. PayRouta rechecks the provider-side status before deciding whether another request is safe.",
       ],
     ],
   },
   settlement: {
     title: "Settlement",
-    headline: "Settlement is flexible — get paid in any available method you prefer.",
+    headline: "Confirmation and settlement are separate facts.",
     intro:
-      "Settlement is not fixed. How a customer pays and what a merchant receives are independent choices. You can accept payments in any local method worldwide and settle in any available method you prefer—whether local bank accounts, multi-currency balances, digital wallets, stablecoins, crypto exchange accounts, or Real-World Assets (RWAs).",
+      "A customer payment can be confirmed before the merchant receives funds. PayRouta records each state separately and reconciles provider settlement evidence.",
     sections: [
       [
-        "Settlement is not fixed",
-        "You are never locked into a single settlement method or restricted to what the customer paid with. Choose to be settled in any supported method available to your business: instant bank transfers, local clearing (ACH, SEPA), multi-currency accounts, stablecoins, crypto apps (like Binance Pay), or Real-World Assets (RWAs) like Ondo USDY and tokenized commodities.",
+        "Track confirmation separately from payment to the merchant",
+        "Confirmation means the payer’s value was accepted. Settlement means the merchant allocation was completed by the provider.",
       ],
       [
-        "Cross-border currency conversion",
-        "Convert between currencies and assets (like USD, EUR, BRL, INR, and stablecoins) where licensed providers and liquidity exist. Conversion in one direction does not guarantee support for the reverse.",
+        "Use the settlement path supported by the provider",
+        "PayRouta does not invent exchange rates or move customer funds itself. Provider settlement evidence determines the final merchant record.",
       ],
       [
-        "Payment confirmed vs. settlement complete",
-        "A customer's payment is often confirmed immediately, while your settlement clears based on local banking hours, exchange rules, or blockchain confirmations. PayRouta keeps these two states clear.",
-      ],
-      [
-        "Crypto exchange balances",
-        "When customers pay using crypto apps or exchange balances, funds can settle instantly between accounts without network transfer fees, with options for auto-conversion to bank deposits.",
-      ],
-      [
-        "Clear reconciliation",
-        "Every transaction links payment confirmation, fees, and final settlement to a single reference, giving you a clear view of your revenue across all payment methods.",
+        "Reconcile every allocation",
+        "Payments, fees, settlement references, journal entries, and provider reports are checked against one another. Mismatches become exceptions instead of silent balances.",
       ],
     ],
   },
@@ -59,103 +51,103 @@ export const pages = {
     title: "Payment Flow",
     headline: "From customer checkout to merchant settlement.",
     intro:
-      "Create a payment intent. PayRouta checks which methods can work, the customer chooses how to pay, the transaction routes through an eligible provider, and funds settle to your account.",
+      "Create an intent, show only methods that can work, let the customer choose, use an eligible provider, and reconcile settlement.",
     sections: [
       [
         "Create a payment intent",
-        "Set the invoice amount, currency, accepted payment methods (such as cards, bank transfers, digital wallets, crypto apps, or cash vouchers), and your settlement preference.",
+        "State the amount, asset, accepted methods, settlement asset, and return destination.",
       ],
       [
-        "Check what’s available",
-        "PayRouta evaluates the customer’s country, currency, transaction size, and provider operating status to show only viable payment options.",
+        "Check eligible methods",
+        "PayRouta checks transaction classification, compliance, certification, availability, cost, health, and merchant policy.",
       ],
       [
         "Let the customer choose",
-        "Customers pick the payment method they know and trust — whether that is iDEAL in the Netherlands, FedNow in the US, Pix in Brazil, PayNow in Singapore, Apple Pay, OPay or PalmPay in Nigeria, a domestic card scheme, or a crypto app.",
+        "Customers see only methods available for that transaction and choose the approach they trust.",
       ],
       [
-        "Route to an eligible provider",
-        "Compare providers that support the customer's chosen method, picking the one that best fits your priorities for cost, speed, or reliability.",
+        "Use an eligible provider",
+        "PayRouta locks an eligible route for the selected method instead of exposing provider mechanics at checkout.",
       ],
       [
-        "Coordinate execution",
-        "The selected provider processes the payment. If it becomes unavailable before starting, PayRouta can switch to a backup provider for that same method.",
+        "Execute carefully",
+        "Dispatch is idempotent, uncertain states are rechecked, and retries never assume that an unknown payment failed.",
       ],
       [
-        "Track settlement",
-        "Follow the payment from customer confirmation through to final settlement in any preferred available method—including your bank account, digital wallet, stablecoin balance, or Real-World Asset (RWA).",
+        "Confirm and track settlement",
+        "Normalize provider outcomes, record confirmation, process settlement evidence, and reconcile exceptions.",
       ],
     ],
   },
   merchants: {
     title: "For Merchants",
-    headline: "Every way your customers pay. One integration.",
+    headline: "Accept more payments. Lose fewer customers.",
     intro:
-      "Stop juggling dozens of separate payment gateways. Let your customers pay with their preferred local methods and receive funds in your chosen currency.",
+      "PayRouta connects your business to multiple payment providers and uses an available route when a customer pays. Integrate once and show customers the methods they already trust.",
     sections: [
       [
-        "One integration for all 10 payment categories",
-        "Accept instant bank transfers (such as iDEAL, FedNow, PayNow, Pix, and NIP), digital wallets (Apple Pay, Google Pay, OPay, PalmPay, Alipay), debit and credit cards (Visa, Mastercard, Verve, CB, JCB, RuPay), direct debits (ACH, SEPA, Bacs), cash vouchers (OXXO, Konbini, Boleto), buy now pay later installments (Klarna, Affirm, Tabby), mobile money (M-Pesa, MTN MoMo), stablecoins (USDC, USDT, EURC), crypto apps (Binance Pay), and Real-World Assets (RWAs like Ondo USDY) through one integration.",
+        "Integrate once",
+        "Payment intents, checkout sessions, webhooks, settlements, and reconciliation use one merchant interface.",
       ],
       [
-        "Higher checkout conversion",
-        "When customers see the payment methods and currencies they use every day, they finish checkout instead of dropping off due to declined foreign cards.",
+        "Show only methods that can work",
+        "A customer never sees a payment method that failed eligibility, certification, compliance, or operational checks for that transaction.",
       ],
       [
-        "Lower processing costs",
-        "Route domestic payments through local bank systems and low-cost clearing networks rather than paying high international credit card fees.",
+        "Let the customer stay in control",
+        "The selected method remains fixed while PayRouta handles provider comparison and same-method backup.",
       ],
       [
-        "Settlement in your preferred method",
-        "Settlement is not fixed. Choose to receive funds in any available method you prefer—local bank accounts, multi-currency balances, stablecoins, crypto exchange balances, or Real-World Assets (RWAs) like Ondo USDY and tokenized commodities.",
+        "Follow money without provider jargon",
+        "Merchants see payment status, settlement status, exceptions, and recent activity—not routing internals.",
       ],
     ],
   },
   providers: {
     title: "For Providers",
-    headline: "Connect your payment services to global businesses.",
+    headline: "Tell us what you process. Certification decides what can route.",
     intro:
-      "Whether you process instant bank transfers, digital wallets, cards, direct debits, cash vouchers, installments, mobile money, stablecoins, crypto apps, or Real-World Assets (RWAs), connect your services to merchants on PayRouta.",
+      "Providers can register independently, declare payment methods and coverage, connect a sandbox integration, pass certification, and request review. Declaration alone never enables production routing.",
     sections: [
       [
-        "Declare supported methods and corridors",
-        "Publish your payment methods, supported countries, currencies, transaction limits, and settlement windows so PayRouta can route eligible transactions to you.",
+        "Declare methods, countries, currencies, and operations",
+        "Plain-language answers become structured capabilities for collection, payout, conversion, authorization, and settlement.",
       ],
       [
-        "Crypto exchange checkouts",
-        "Connect exchange payment services (like Binance Pay or Coinbase Commerce) so your users can spend account balances at global merchants.",
+        "Choose a connection",
+        "Use the PayRouta Standard, map an existing API declaratively, or ask about a native PayRouta-built integration.",
       ],
       [
-        "Real-World Asset (RWA) integration",
-        "Connect tokenized Real-World Assets (including Ondo USDY, tokenized commodities, and debt instruments) so customers can pay with them or merchants can settle in them.",
+        "Test and certify the integration",
+        "Certification checks payment creation, status lookup, idempotency, webhooks, cancellation, refunds, payouts, settlement, and reports for the capabilities you declared.",
       ],
       [
-        "Real-time availability and health",
-        "Share real-time status, processing speed, and liquidity conditions so PayRouta routes transactions reliably.",
+        "Stay eligible through monitoring",
+        "Approved capabilities still need current compliance evidence, valid credentials, acceptable health, and operational availability.",
       ],
     ],
   },
   developers: {
     title: "Developers",
-    headline: "One clean API for global payments.",
+    headline: "A predictable payment workflow.",
     intro:
-      "Build once to accept instant bank transfers, digital wallets, cards, direct debits, cash vouchers, installments, mobile money, stablecoins, crypto apps, and Real-World Assets (RWAs) with simple, predictable interfaces.",
+      "Create intents, display evaluated methods, handle normalized outcomes, and reconcile settlement with signed events and idempotent requests.",
     sections: [
       [
         "Start with a payment intent",
-        "Specify what’s owed, accepted payment methods, and where you want funds settled in one straightforward API call.",
+        "Specify what is owed, which methods may be offered, and which settlement asset is expected.",
       ],
       [
-        "Discover available methods dynamically",
-        "Ask PayRouta which payment methods can serve a customer based on their location and cart total, without maintaining complex country-by-country logic.",
+        "Display evaluated methods",
+        "Checkout receives only methods that can serve the transaction. Customers choose from that evaluated list.",
       ],
       [
-        "Reliable webhooks and idempotency",
-        "Receive signed webhook events for payment confirmation and settlement completion, with built-in protection against duplicate notifications.",
+        "Handle normalized payment states",
+        "Providers return different statuses and errors. PayRouta normalizes confirmation, pending, action-required, rejected, and unknown states.",
       ],
       [
-        "Honest status and safe retries",
-        "Clear status codes, automatic pre-charge failover, and status verification endpoints make it easy to build reliable checkout flows.",
+        "Reconcile signed updates",
+        "Verify webhook signatures, deduplicate events, recheck uncertain outcomes, and match settlement allocations.",
       ],
     ],
   },
@@ -163,258 +155,192 @@ export const pages = {
     title: "Pricing",
     headline: "Straightforward pricing shaped around your business.",
     intro:
-      "Pricing depends on the payment methods you need, your target countries, transaction volume, and settlement preferences across all 10 payment categories—from domestic instant bank rails and digital wallets to cards, direct debit, cash vouchers, installments, mobile money, stablecoins, crypto apps, and RWAs.",
+      "Discuss payment methods, countries, volume, provider arrangements, and settlement requirements before a pilot. There is no public fee schedule yet.",
     sections: [
       [
         "Corridors and methods",
-        "Save on processing fees by using low-cost domestic bank transfers (such as SEPA in Europe, FedNow in the US, Interac in Canada, or Pix in Brazil) instead of expensive cross-border card networks.",
+        "Costs depend on the payment methods and provider arrangements that can serve each route.",
       ],
       [
-        "Crypto and direct payments",
-        "Cut transaction fees further with direct crypto payments and low-cost stablecoins.",
+        "Settlement and conversion",
+        "Settlement timing, provider fees, and any regulated conversion path are confirmed commercially.",
       ],
       [
-        "Real-World Asset (RWA) settlement",
-        "Settle into supported tokenized Real-World Assets (such as yield-earning notes or commodities) to hold value in tokenized assets.",
+        "What to include",
+        "Share methods, corridors, expected volume, settlement needs, and support requirements. Never send account credentials or customer financial data.",
       ],
     ],
   },
   about: {
     title: "About",
-    headline: "Connecting the world’s payment systems.",
+    headline: "A payment network ordinary businesses can use.",
     intro:
-      "PayRouta is building a universal payment network: enabling any merchant in any country to accept payments from anywhere in the world, using any payment method.",
+      "PayRouta hides provider complexity from merchants and customers while retaining explicit eligibility, availability, execution, settlement, and reconciliation controls.",
     sections: [
       [
-        "Unifying fragmented payment systems",
-        "Payments grew around local banking habits, national rules, and regional apps. PayRouta connects these systems into one clean experience for businesses and their customers.",
+        "Customer choice",
+        "Customers decide how to pay. Routing respects that decision.",
       ],
       [
-        "Every payment method in one place",
-        "From instant bank transfers across every continent (including iDEAL, FedNow, Interac, Pix, UPI, PayNow, and NIP), domestic card schemes (Visa, Mastercard, Verve, Cartes Bancaires, JCB, UnionPay), and digital wallets (Apple Pay, Google Pay, OPay, PalmPay, Alipay, Cash App) to direct debit & wire transfers, cash vouchers (OXXO, Konbini, Boleto), buy now pay later & installments (Klarna, Affirm, Tabby), mobile money (M-Pesa, MTN MoMo), stablecoins, crypto apps, and Real-World Assets (RWAs), PayRouta lets you support them all through one integration.",
+        "Explicit eligibility",
+        "Compliance, certification, credentials, health, and operational checks decide which methods and routes are available.",
       ],
       [
-        "Routing without custody",
-        "PayRouta coordinates routing and transaction status. It does not hold customer deposits or act as a bank. Regulated payment providers, banks, and licensed partners handle the funds.",
+        "No custody claims",
+        "PayRouta coordinates routing and transaction status. Regulated providers handle the movement and settlement of funds.",
       ],
     ],
   },
   "payment-methods": {
     title: "Payment Methods",
-    headline: "Every way your customers pay. Anywhere in the world.",
+    headline: "One schema for familiar payment categories.",
     intro:
-      "Instant bank transfers, digital wallets, debit & credit cards, direct debit & wire transfers, cash vouchers, installments & BNPL, mobile money, stablecoins, crypto apps & exchanges, and Real-World Assets (RWAs) — all supported through PayRouta.",
+      "PayRouta normalizes payment methods, providers, rails, and execution adapters. The methods shown at checkout still depend on certified providers and the payment context.",
     sections: [],
   },
   "use-cases": {
     title: "Use Cases",
     headline: "One payment layer. Real business scenarios.",
     intro:
-      "See how availability, customer choice, and provider routing work across global commerce. These examples illustrate how the platform handles different payment needs.",
+      "These examples explain how availability, customer choice, provider comparison, execution, and reconciliation fit together.",
     sections: [],
   },
 } as const;
 export type PageSlug = keyof typeof pages;
 export const methodContent = [
   {
-    name: "Instant bank transfers",
+    name: "Bank transfers",
     group: "Instant & A2A",
     icon: "Zap",
-    examples:
-      "iDEAL (Europe) · FedNow / RTP (US) · Interac (Canada) · Pix (Brazil) · UPI (India) · PayNow (Singapore) · NIP & Bank USSD (Nigeria) · Blik (Poland)",
-    copy: "Real-time account-to-account bank transfers across Europe, North America, Latin America, Asia, and Africa. Customers authorize directly in their banking app, scan a QR code, or dial offline Bank USSD shortcodes, moving funds directly from their account in seconds.",
+    examples: "Domestic instant rails · Bank-authorized transfers",
+    copy: "Customers move money directly from a bank account and authorize the payment through their own banking flow.",
     consideration:
-      "Requires an eligible local banking provider or aggregator in that country.",
+      "Only certified bank-transfer providers and corridors can serve a given transaction.",
   },
   {
-    name: "Digital wallets",
-    group: "Instant & A2A",
-    icon: "Wallet",
-    examples:
-      "Apple Pay · Google Pay · PayPal · Cash App · OPay (Nigeria) · PalmPay (Nigeria) · Alipay & WeChat Pay (China) · PayPay (Japan) · GCash · Mercado Pago",
-    copy: "One-tap checkout from phones, browsers, and mobile apps. Customers pay using stored cards, linked bank accounts, or wallet balances (such as Apple Pay, Google Pay, PayPal, Cash App, OPay, PalmPay, and Alipay).",
-    consideration:
-      "Availability depends on the customer’s device, regional wallet support, and account rules.",
-  },
-  {
-    name: "Debit & credit cards",
+    name: "Cards",
     group: "Traditional",
     icon: "CreditCard",
-    examples: "Visa · Mastercard · Amex · Cartes Bancaires (France) · UnionPay (China) · JCB (Japan) · RuPay (India) · Elo (Brazil) · Verve (Africa)",
-    copy: "International and domestic card networks across online e-commerce and in-person Point-of-Sale (POS) terminals or SoftPOS (Tap-to-Phone). Local card schemes often have much higher approval rates than cross-border cards.",
+    examples: "Global and domestic card networks",
+    copy: "Customers pay by card and complete whatever authorization their issuer or wallet requires.",
     consideration:
-      "Provider comparison happens after the customer chooses card payment.",
-  },
-  {
-    name: "Direct debit & wire",
-    group: "Traditional",
-    icon: "Landmark",
-    examples: "ACH Direct Debit (US) · SEPA Direct Debit (Europe) · Bacs (UK) · Pre-Authorized Debits (Canada) · Fedwire · SWIFT",
-    copy: "Traditional bank payments and recurring bank debits for subscriptions, recurring bills, and large invoices. Unlike instant transfers, these clear through standard banking batch windows over 1 to 3 business days.",
-    consideration:
-      "Clearing times follow domestic banking cutoffs and processing windows.",
-  },
-  {
-    name: "Cash vouchers",
-    group: "Local methods",
-    icon: "Receipt",
-    examples:
-      "OXXO (Mexico) · Boleto (Brazil) · Konbini (Japan) · Paysafecard (Europe) · Moniepoint & Baxi POS Agents (Nigeria) · PayNearMe (US)",
-    copy: "Customers generate a barcode online or visit neighborhood agency banking counters and POS agent terminals to pay with physical cash.",
-    consideration:
-      "Payment confirms only after the customer physically hands over cash at a local store or POS agent counter.",
-  },
-  {
-    name: "Installments & BNPL",
-    group: "Local methods",
-    icon: "CalendarClock",
-    examples: "Klarna (Europe) · Affirm (US) · Afterpay (Australia/US) · Local card installments (Brazil, Mexico, Argentina)",
-    copy: "Split payments and pay-later options. The merchant gets paid upfront, while the financing provider handles customer installments.",
-    consideration:
-      "Eligibility depends on the customer’s credit check and order size.",
+      "Provider comparison happens only after the customer selects cards.",
   },
   {
     name: "Mobile money",
     group: "Local methods",
     icon: "Smartphone",
-    examples: "M-Pesa · MTN MoMo · Airtel Money · Telco USSD (*334#, *671#) · Phone bill charging",
-    copy: "Customers pay using phone balances or mobile carrier accounts via SIM Toolkit (STK Push) or offline USSD shortcodes, widely used across Africa and parts of Asia.",
+    examples: "Carrier wallets · Phone-balance payments",
+    copy: "Customers approve a payment using a mobile-money account or phone prompt.",
     consideration:
-      "Depends on local telecom network uptime and phone account limits.",
+      "Limits and prompts depend on the mobile-money provider and account.",
+  },
+  {
+    name: "Digital wallets",
+    group: "Instant & A2A",
+    icon: "Wallet",
+    examples: "Browser and app wallets",
+    copy: "Customers check out with a stored wallet balance, linked card, or linked bank account.",
+    consideration:
+      "Wallet support depends on the customer’s device and the provider’s checkout rules.",
+  },
+  {
+    name: "Direct debit",
+    group: "Traditional",
+    icon: "Landmark",
+    examples: "Recurring bank debits",
+    copy: "Customers authorize a merchant-initiated debit for a subscription or invoice.",
+    consideration:
+      "Clearing and return rules follow the domestic banking system.",
+  },
+  {
+    name: "Cash vouchers",
+    group: "Local methods",
+    icon: "Receipt",
+    examples: "Retail-generated payment codes",
+    copy: "Customers receive a voucher or barcode and complete payment through the designated retail process.",
+    consideration:
+      "The payment is confirmed only when the voucher process completes.",
+  },
+  {
+    name: "Installments",
+    group: "Local methods",
+    icon: "CalendarClock",
+    examples: "Pay-later and installment plans",
+    copy: "Customers split a purchase into scheduled payments handled by the financing provider.",
+    consideration:
+      "Eligibility depends on the financing provider’s approval rules.",
   },
   {
     name: "Stablecoins",
     group: "Digital assets",
     icon: "Coins",
-    examples: "Circle USDC (Avalanche · Base · Solana · Ethereum · Polygon · Arbitrum) · EURC",
-    copy: "Fast, low-cost digital dollar transfers with Circle USDC across supported blockchains (including Avalanche, Base, Solana, and Ethereum). Settle directly in USDC or convert to local bank currency.",
+    examples: "USDC on Base",
+    copy: "Customers send an exact stablecoin payment to an observed on-chain address.",
     consideration:
-      "Requires matching the supported blockchain network and exchange compliance checks.",
+      "Asset, network, amount precision, confirmations, and wallet screening can all affect eligibility.",
   },
   {
-    name: "Crypto apps & exchanges",
+    name: "Crypto apps",
     group: "Digital assets",
     icon: "QrCode",
-    examples: "Binance Pay · Coinbase Commerce · Gate Pay · OKX Pay",
-    copy: "Lets customers pay directly using balances they already keep on crypto platforms and exchanges, like Binance Pay or Coinbase Commerce.",
+    examples: "Exchange-held balances",
+    copy: "Customers pay from an existing crypto-app balance through that app’s checkout flow.",
     consideration:
-      "Uses the exchange’s merchant checkout service and account rules.",
+      "Conversion and settlement remain regulated provider operations.",
   },
   {
-    name: "Real-World Assets (RWAs)",
-    group: "Digital assets",
-    icon: "TrendingUp",
-    examples: "Ondo USDY · Paxos Gold (PAXG) · Franklin Templeton BENJI · Tokenized T-Bills",
-    copy: "Enables customers to pay using supported tokenized real-world assets—including treasury notes, yield assets, and tokenized commodities—while allowing merchants to settle in them or convert to bank currency.",
+    name: "Other local methods",
+    group: "Local methods",
+    icon: "Network",
+    examples: "Market-specific payment flows",
+    copy: "Customers use the payment process established by a local provider.",
     consideration:
-      "Requires provider and network support for the specific tokenized asset.",
+      "These methods appear only when a certified provider can serve them.",
   },
 ];
 export const useCases = [
   {
-    title: "Local payments for an online merchant",
-    need: "Customers want familiar payment options at checkout.",
-    choice: "The customer selects an available local bank payment.",
+    title: "Same-method backup",
+    need: "A provider cannot start the customer’s selected method.",
+    choice: "The customer’s choice stays unchanged.",
     route:
-      "Compare eligible bank-payment providers for that invoice and context.",
+      "PayRouta checks another eligible provider for the same payment method before checkout concludes.",
     outcome:
-      "The merchant follows payment confirmation and local-currency settlement separately.",
-    benefit:
-      "A shared integration normalizes provider differences and status updates.",
+      "The payment continues through the backup route, or the customer selects another method.",
+    benefit: "Fewer failed checkouts without changing what the customer chose.",
   },
   {
-    title: "Digital wallets and super-apps across regions",
-    need: "An international merchant wants high conversion through mobile wallets and local super-apps.",
-    choice:
-      "Customers choose their everyday digital wallet—such as Apple Pay or Google Pay in the US and Europe, OPay or PalmPay in Nigeria, Alipay or WeChat Pay in China, or Mercado Pago in Latin America.",
-    route:
-      "Routes directly through the recognized wallet gateway or local wallet aggregator for that region.",
-    outcome:
-      "The payment confirms immediately via one biometric tap or QR code scan.",
-    benefit:
-      "Lets shoppers check out with the mobile wallet apps they already use daily, without typing card numbers.",
+    title: "Mobile checkout in one tap",
+    need: "A customer wants a familiar mobile payment method.",
+    choice: "The customer selects an available mobile method.",
+    route: "An eligible provider executes that method.",
+    outcome: "The checkout updates from the normalized payment state.",
+    benefit: "Customers do not need to understand provider plumbing.",
   },
   {
-    title: "Stablecoin pay-in, local currency settlement",
-    need: "A customer wants to pay with USDC while a merchant prefers local bank currency.",
-    choice:
-      "The customer selects USDC if the asset, network, and conversion path are available.",
-    route:
-      "Connects customer pay-in, currency conversion, and local bank payout.",
-    outcome:
-      "The merchant receives local currency in their bank account.",
-    benefit: "Pay-in and settlement currencies are handled independently.",
+    title: "Direct stablecoin payment",
+    need: "A customer wants to pay on-chain.",
+    choice: "The customer selects stablecoin when asset and network are eligible.",
+    route: "PayRouta observes the transaction and waits for finality.",
+    outcome: "The payment becomes confirmed only after chain rules are met.",
+    benefit: "Blockchain observation stays inside the same payment lifecycle.",
   },
   {
-    title: "Automatic backup providers",
-    need: "A merchant wants alternatives when a provider cannot process a payment.",
-    choice:
-      "The customer chose bank transfer and that choice stays fixed.",
-    route:
-      "Before charging, an unavailable provider is skipped and another bank-transfer provider is used.",
-    outcome:
-      "If none is available, the customer is asked to choose another method. Unfinished charges are verified first.",
-    benefit:
-      "Built-in backups reduce failed checkouts without changing how the customer pays.",
+    title: "Settlement tracked separately",
+    need: "A merchant needs clear payout records.",
+    choice: "The customer pays through any eligible method.",
+    route: "Settlement allocations are tied to provider evidence.",
+    outcome: "Confirmation and settlement remain separate, reconcilable facts.",
+    benefit: "Finance teams can investigate mismatches as exceptions.",
   },
   {
-    title: "Instant account-to-account payments worldwide",
-    need: "An online merchant wants to accept domestic bank payments across North America, Europe, Asia, and Latin America (such as iDEAL in the Netherlands, FedNow in the US, Interac in Canada, or Pix in Brazil) without foreign card declines.",
-    choice:
-      "The customer selects their domestic bank method and confirms the payment in their banking app or via instant QR code.",
-    route:
-      "Routes through an eligible domestic bank rail or clearing partner in that jurisdiction.",
+    title: "Provider certification",
+    need: "A new provider wants production traffic.",
+    choice: "The provider declares methods, coverage, and operations.",
+    route: "Automated certification tests only the declared capabilities.",
     outcome:
-      "The payment confirms in seconds with direct bank clearing, settling into local currency, USD, or EUR.",
-    benefit:
-      "Accept dominant domestic bank payment methods across every continent without establishing separate foreign bank entities.",
-  },
-  {
-    title: "Accepting crypto from apps and exchanges",
-    need: "A digital service wants to let users pay from their balances on crypto exchanges.",
-    choice:
-      "The customer selects a supported crypto app (like Binance Pay or Coinbase Commerce) and confirms on their phone.",
-    route:
-      "Verifies the transfer directly with the exchange checkout service.",
-    outcome:
-      "Payment is confirmed immediately; the merchant can receive local bank currency or stablecoins.",
-    benefit:
-      "Allows customers to spend exchange balances without paying blockchain network fees.",
-  },
-  {
-    title: "Paying and settling with Real-World Assets (RWAs)",
-    need: "A business wants to accept tokenized Real-World Assets from buyers and choose whether to hold them or convert to cash.",
-    choice:
-      "The customer pays using a supported RWA (such as Ondo USDY or tokenized gold).",
-    route:
-      "Verifies the tokenized asset transfer on-chain and applies merchant settlement preferences.",
-    outcome:
-      "The merchant is settled in their preferred available method—whether the asset directly, local bank currency, or stablecoins.",
-    benefit:
-      "Accepts payments from tokenized real-world assets without managing custom smart contracts.",
-  },
-  {
-    title: "Cash vouchers at local stores",
-    need: "An online store wants to reach customers who prefer paying with cash.",
-    choice:
-      "The customer gets a barcode for OXXO in Mexico, Boleto in Brazil, or a Konbini store in Japan.",
-    route:
-      "Tracks the pending voucher with regional retail payment networks.",
-    outcome:
-      "When the customer pays at a nearby convenience store, the order is automatically marked paid.",
-    benefit:
-      "Reaches shoppers who prefer paying in cash at local stores.",
-  },
-  {
-    title: "Installments and local cards",
-    need: "A retailer wants to increase sales by offering split monthly payments.",
-    choice:
-      "The customer chooses monthly installments via a local card (like RuPay or Parcelamento) or Klarna.",
-    route:
-      "Routes through local installment-capable card providers.",
-    outcome:
-      "The merchant gets paid in full upfront; the provider collects customer installments.",
-    benefit:
-      "Makes larger purchases more affordable for customers without merchant credit risk.",
+      "Approved capabilities can route when all production gates remain satisfied.",
+    benefit: "The network can grow without a custom deployment for every provider.",
   },
 ];

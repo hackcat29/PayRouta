@@ -78,8 +78,55 @@ const fixtureAdapter: ProviderAdapter = {
     return { status: "Available" };
   },
 };
+// Connectivity observation for external integrations. Health and availability
+// are a reachability check only; the normalized result is bounded and never
+// asserts business availability on its own.
+async function connectivityObserve(
+  input: { config: unknown; credentialRef?: string },
+  deps: AdapterDependencies,
+  signal: AbortSignal,
+  path: string,
+) {
+  const config = input.config as { baseUrl?: string };
+  const baseUrl = config.baseUrl;
+  if (!baseUrl) throw { code: "INVALID_CONFIGURATION" };
+  const url = new URL(path, baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`).toString();
+  const token = input.credentialRef
+    ? await deps.credentials.get(input.credentialRef)
+    : undefined;
+  const result = await deps.http(url, token, signal);
+  return {
+    status: result.status >= 200 && result.status < 300
+      ? "Available"
+      : "Unavailable",
+  };
+}
+function externalAdapter(
+  id: "standard" | "configurable",
+  mode: "STANDARD" | "CONFIGURABLE",
+): ProviderAdapter {
+  return {
+    id,
+    version: "1",
+    environments: ["sandbox", "production"],
+    operations: ["health", "availability"],
+    validate: (config) => {
+      const c = config as { adapter?: string; mode?: string };
+      return c.adapter === id || c.mode === mode;
+    },
+    async observe(operation, input, deps, signal) {
+      if (operation === "health" || operation === "availability")
+        return connectivityObserve(input, deps, signal, "/health");
+      throw { code: "UNSUPPORTED_OPERATION" };
+    },
+  };
+}
 // Explicit code registration only. Never import a module from a manifest.
-const trustedAdapters: readonly ProviderAdapter[] = [fixtureAdapter];
+const trustedAdapters: readonly ProviderAdapter[] = [
+  fixtureAdapter,
+  externalAdapter("standard", "STANDARD"),
+  externalAdapter("configurable", "CONFIGURABLE"),
+];
 export function resolveProviderAdapter(
   id: string,
   version: string,

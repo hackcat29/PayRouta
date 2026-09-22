@@ -1,6 +1,6 @@
 # API Reference
 
-The PayRouta REST API allows merchants to programmatically generate payment intents, query real-time method availability, initiate intelligent provider routing, and track decoupled settlements.
+The PayRouta REST API allows merchants to programmatically generate payment intents, query real-time method availability, select an eligible provider, and track decoupled settlements.
 
 > [!NOTE]
 > All requests must be made over **HTTPS**. Responses are returned in **JSON** format with standard HTTP status codes.
@@ -211,4 +211,4 @@ Retrieves the merchant settlement lifecycle and payout confirmation.
 
 The local Node application implements protected availability through the existing `POST /api/portal/command` namespace. `evaluate-availability` accepts `orgId` and `contextId`, checks membership, and evaluates a persisted trusted context. It does not accept caller-defined merchant permissions or verification claims. `availability-explanation` returns only the checkout-safe view. Internal context authoring, observations, registry inspection and reconciliation require Operations admin and fresh MFA.
 
-See [Provider backend contracts and operations](PROVIDER-BACKEND.md) for exact schemas, status/reason semantics, expiry, production prerequisites and the runnable fictional integration scenario. This is not an implementation of the future public merchant payment-intent API or execution SDK described elsewhere in these product docs.
+See [Provider integration concepts](/docs/provider-integration) for the public integration workflow. The backend control-plane details in this repository are internal implementation notes, not a published production route.

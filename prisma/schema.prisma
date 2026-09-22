@@ -716,3 +716,31 @@ model MerchantReservation {
  createdAt DateTime @default(now())
  @@index([orgId, environment, asset, day])
 }
+// Transaction-level compliance eligibility, evaluated before availability.
+model ComplianceDecision {
+ id String @id @default(cuid())
+ intentId String
+ policyVersion String
+ decision String
+ reasons Json
+ context Json
+ expiresAt DateTime
+ createdAt DateTime @default(now())
+ @@index([intentId, createdAt])
+}
+// Persisted provider certification results. Only certified, approved
+// capabilities ever become production-routable.
+model ProviderCertification {
+ id String @id @default(cuid())
+ orgId String
+ environment String
+ integrationId String
+ capabilityId String?
+ status String
+ scenarios Json
+ passed Int
+ failed Int
+ humanFailures Json
+ createdAt DateTime @default(now())
+ @@index([orgId, environment, createdAt])
+}

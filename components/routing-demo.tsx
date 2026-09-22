@@ -203,7 +203,7 @@ export function RoutingDemo() {
         </div>
 
         <div className="demo-stage-label">
-          <span>02</span> Intelligent routing
+          <span>02</span> Available routes
         </div>
 
         {!s.method ? (

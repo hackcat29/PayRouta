@@ -396,7 +396,7 @@ export async function poll(attemptId: string, now = new Date()) {
   )
     throw new PortalError("EXECUTION_INTEGRATION_SCOPE_MISMATCH", 409);
   const adapter = resolveExecutionAdapter(integration);
-  let fact = await adapter.status(a.key);
+  let fact = await adapter.status(a);
   if (!fact && a.state === "Dispatching") {
     // Simulator lookup is authoritative and create supports the same durable idempotency key.
     const route = await db.paymentRoute.findUniqueOrThrow({
@@ -427,7 +427,7 @@ export async function poll(attemptId: string, now = new Date()) {
       return;
     }
     await adapter.create(a, a.intent);
-    fact = await adapter.status(a.key);
+    fact = await adapter.status(a);
   }
   if (fact)
     await applyFact(
@@ -435,8 +435,8 @@ export async function poll(attemptId: string, now = new Date()) {
       {
         reference: fact.reference,
         state: fact.state,
-        amount: fact.amount,
-        asset: fact.asset,
+        amount: fact.amount || a.intent.amount,
+        asset: fact.asset ?? a.intent.asset,
       },
       now,
     );

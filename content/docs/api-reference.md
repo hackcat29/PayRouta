@@ -1,6 +1,6 @@
 # API Reference
 
-The PayRouta REST API allows merchants to programmatically generate payment intents, query real-time method availability, initiate intelligent provider routing, and track decoupled settlements.
+The PayRouta REST API allows merchants to programmatically generate payment intents, query real-time method availability, select an eligible provider, and track decoupled settlements.
 
 > [!NOTE]
 > All requests must be made over **HTTPS**. Responses are returned in **JSON** format with standard HTTP status codes.

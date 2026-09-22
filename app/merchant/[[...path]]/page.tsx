@@ -8,7 +8,6 @@ import { merchantMember } from "@/lib/merchant/access";
 import { db } from "@/lib/portal/db";
 import { intents, settlements } from "@/lib/merchant/service";
 import { PortalError, can } from "@/lib/portal/domain";
-import { ledger } from "@/lib/payments/ledger";
 import { Onboarding } from "./onboarding";
 import { MerchantEvidence } from "./evidence";
 import { applicationRequirements } from "@/lib/merchant/evidence";
@@ -18,21 +17,58 @@ import { Keys } from "./keys";
 import "@/components/portal/portal.css";
 import "./workspace.css";
 export const dynamic = "force-dynamic";
-const routes = {
-  onboarding: "Onboarding",
-  overview: "Overview",
+const routeTitles = {
+  onboarding: "Business setup",
+  overview: "Home",
   payments: "Payments",
   "payment-methods": "Payment methods",
   settlements: "Settlements",
-  reconciliation: "Reconciliation",
+  reconciliation: "Payment issues",
   analytics: "Analytics",
   "developers/api-keys": "API keys",
   "developers/webhooks": "Webhook deliveries",
   "developers/logs": "API requests",
   settings: "Settings",
-  security: "Security",
+  security: "Session & security",
   team: "Team",
-};
+} as const;
+type MerchantRoute = keyof typeof routeTitles;
+const primaryNav: {
+  label: string;
+  path: MerchantRoute;
+  children?: { label: string; path: MerchantRoute }[];
+}[] = [
+  { label: "Home", path: "overview" },
+  {
+    label: "Payments",
+    path: "payments",
+    children: [
+      { label: "Transactions", path: "payments" },
+      { label: "Settlements", path: "settlements" },
+      { label: "Payment issues", path: "reconciliation" },
+      { label: "Analytics", path: "analytics" },
+    ],
+  },
+  { label: "Payment methods", path: "payment-methods" },
+  {
+    label: "Developers",
+    path: "developers/api-keys",
+    children: [
+      { label: "API keys", path: "developers/api-keys" },
+      { label: "Webhook deliveries", path: "developers/webhooks" },
+      { label: "API requests", path: "developers/logs" },
+    ],
+  },
+  {
+    label: "Settings",
+    path: "settings",
+    children: [
+      { label: "Business setup", path: "onboarding" },
+      { label: "Team", path: "team" },
+      { label: "Session & security", path: "security" },
+    ],
+  },
+];
 export default async function Page({
   params,
   searchParams,
@@ -45,7 +81,7 @@ export default async function Page({
   const section =
     segments[0] === "developers" ? segments.slice(0, 2).join("/") : segments[0];
   if (
-    !(section in routes) ||
+    !(section in routeTitles) ||
     segments.length > (section.startsWith("developers") ? 2 : 2)
   )
     notFound();
@@ -135,6 +171,15 @@ export default async function Page({
             version={config.applicationVersion}
             state={config.applicationState}
             value={config.application as Record<string, unknown>}
+            requirements={requirements.map((requirement) => requirement.name)}
+            evidencePanel={
+              <MerchantEvidence
+                orgId={orgId}
+                country={application.country || config.country}
+                requirements={requirements}
+                evidence={evidence}
+              />
+            }
           />
           <section>
             <h2>Live scope review</h2>
@@ -149,12 +194,6 @@ export default async function Page({
               <p>No live scope approved.</p>
             )}
           </section>
-          <MerchantEvidence
-            orgId={orgId}
-            country={application.country || config.country}
-            requirements={requirements}
-            evidence={evidence}
-          />
         </>
       );
     } else
@@ -594,39 +633,104 @@ export default async function Page({
       </section>
     );
   else {
-    const balances = await ledger(orgId, env);
-    const count = await db.paymentIntent.count({ where: scope });
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 86400000);
+    const [count, confirmed, attention, recent, recentConfirmed] =
+      await Promise.all([
+        db.paymentIntent.count({ where: scope }),
+        db.paymentIntent.count({ where: { ...scope, state: "Confirmed" } }),
+        db.paymentException.count({
+          where: { intent: scope, state: "Unresolved" },
+        }),
+        db.paymentIntent.findMany({
+          where: scope,
+          orderBy: { createdAt: "desc" },
+          take: 8,
+        }),
+        db.paymentIntent.findMany({
+          where: {
+            ...scope,
+            state: "Confirmed",
+            createdAt: { gte: weekAgo },
+          },
+          select: { createdAt: true },
+        }),
+      ]);
+    const successRate =
+      count === 0 ? null : Math.round((confirmed / count) * 100);
+    const byDay = Array.from({ length: 7 }, (_, i) => {
+      const day = new Date(now.getTime() - (6 - i) * 86400000)
+        .toISOString()
+        .slice(0, 10);
+      return {
+        day,
+        count: recentConfirmed.filter(
+          (p) => p.createdAt.toISOString().slice(0, 10) === day,
+        ).length,
+      };
+    });
+    const maxDay = Math.max(1, ...byDay.map((d) => d.count));
     content = (
       <section>
-        <h2>{env === "sandbox" ? "Sandbox progress" : "Payment overview"}</h2>
-        <p>{count} payment intents in this environment.</p>
-        <h3>Operational journal totals</h3>
-        <p>
-          Exact minor units, grouped by original asset and account. These are
-          provider-held payment records, not a withdrawable PayRouta balance.
-        </p>
+        <p>How payments are moving in this environment.</p>
+        <div className="merchant-metrics">
+          <div>
+            <strong>{confirmed}</strong>
+            <span>Payments received</span>
+          </div>
+          <div>
+            <strong>
+              {successRate === null ? "—" : `${successRate}%`}
+            </strong>
+            <span>Success rate</span>
+          </div>
+          <div>
+            <strong>{attention}</strong>
+            <span>Payments needing attention</span>
+          </div>
+        </div>
+        <h2>Last 7 days</h2>
+        <div
+          className="merchant-chart"
+          role="img"
+          aria-label="Confirmed payments over the last 7 days"
+        >
+          {byDay.map((d) => (
+            <span key={d.day} title={`${d.day}: ${d.count}`}>
+              <i style={{ height: `${(d.count / maxDay) * 100}%` }} />
+            </span>
+          ))}
+        </div>
+        <h2>Recent payments</h2>
         <div className="p-table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Asset</th>
-                <th>Account</th>
-                <th>Net debit (minor units)</th>
+                <th>Reference</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Created (UTC)</th>
               </tr>
             </thead>
             <tbody>
-              {balances.map((b) => (
-                <tr key={`${b.book}:${b.asset}:${b.account}`}>
-                  <td>{b.asset}</td>
-                  <td>{b.account}</td>
-                  <td>{b.balance}</td>
+              {recent.map((p) => (
+                <tr key={p.id}>
+                  <td>
+                    <Link href={href(`payments/${p.id}`)}>{p.reference}</Link>
+                  </td>
+                  <td>
+                    {p.amount} {(p.asset as { identifier: string }).identifier}
+                  </td>
+                  <td>
+                    {p.state === "Confirmed" ? "Payment confirmed" : p.state}
+                  </td>
+                  <td>{p.createdAt.toISOString()}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        {!balances.length && <p>No posted financial records yet.</p>}
-        <p>PayRouta revenue: Not configured.</p>
+        {!recent.length && <p>No payments yet in this environment.</p>}
       </section>
     );
   }
@@ -651,18 +755,49 @@ export default async function Page({
       </header>
       <div className="merchant-body">
         <nav aria-label="Merchant workspace">
-          {Object.entries(routes).map(([path, label]) => (
-            <Link
-              key={path}
-              href={href(path)}
-              aria-current={section === path ? "page" : undefined}
-            >
-              {label}
-            </Link>
-          ))}
+          <ul className="merchant-nav">
+            {primaryNav.map((item) => {
+              const active =
+                section === item.path ||
+                item.children?.some((child) => child.path === section);
+              return (
+                <li key={item.path} className={active ? "active-group" : undefined}>
+                  <Link
+                    href={href(item.path)}
+                    aria-current={
+                      section === item.path &&
+                      !item.children?.some(
+                        (child) => child.path === section,
+                      )
+                        ? "page"
+                        : undefined
+                    }
+                  >
+                    {item.label}
+                  </Link>
+                  {item.children && (
+                    <ul className="merchant-subnav">
+                      {item.children.map((child) => (
+                        <li key={child.path}>
+                          <Link
+                            href={href(child.path)}
+                            aria-current={
+                              section === child.path ? "page" : undefined
+                            }
+                          >
+                            {child.label}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
         </nav>
         <article>
-          <h1>{routes[section as keyof typeof routes]}</h1>
+          <h1>{routeTitles[section as keyof typeof routeTitles]}</h1>
           {content}
         </article>
       </div>

@@ -1,7 +1,10 @@
 import { db } from "../portal/db";
-import { localMode } from "../portal/adapters";
+import { localMode, secretManager } from "../portal/adapters";
 import { PortalError } from "../portal/domain";
 import { json } from "../portal/service";
+import { providerRequest } from "../providers/adapters/http";
+import { standardExecutionAdapter } from "../providers/standard/adapter";
+import { configurableExecutionAdapter } from "../providers/adapters/configurable";
 import type { PaymentAttempt, PaymentIntent } from "../generated/prisma/client";
 export interface ExecutionAdapter {
   operations: readonly string[];
@@ -9,7 +12,10 @@ export interface ExecutionAdapter {
     attempt: PaymentAttempt,
     intent: PaymentIntent,
   ): Promise<{ state: string; reference: string }>;
-  status(key: string): Promise<{
+  // Keyed by the attempt so each adapter resolves the provider-side identifier
+  // it needs (a durable PayRouta key for the simulator, a provider payment id
+  // for an external integration).
+  status(attempt: PaymentAttempt): Promise<{
     state: string;
     reference: string;
     amount: string;
@@ -48,8 +54,8 @@ export const persistentSimulator: ExecutionAdapter = {
       return { state: "Unknown", reference: record.reference };
     return { state: record.state, reference: record.reference };
   },
-  async status(key) {
-    return db.simulatorPayment.findUnique({ where: { key } });
+  async status(attempt) {
+    return db.simulatorPayment.findUnique({ where: { key: attempt.key } });
   },
 };
 
@@ -84,10 +90,25 @@ export function resolveExecutionAdapter(integration: {
   environment: string;
   config: unknown;
 }): ExecutionAdapter {
-  const config = integration.config as { adapter?: string } | null;
-  if (config?.adapter !== "simulator")
-    throw new PortalError("EXECUTION_ADAPTER_NOT_QUALIFIED", 409);
-  if (integration.environment !== "sandbox" || !localMode())
-    throw new PortalError("SANDBOX_ONLY", 409);
-  return persistentSimulator;
+  const config = (integration.config ?? {}) as {
+    adapter?: string;
+    mode?: string;
+  };
+  if (config.adapter === "simulator") {
+    if (integration.environment !== "sandbox" || !localMode())
+      throw new PortalError("SANDBOX_ONLY", 409);
+    return persistentSimulator;
+  }
+  if (config.mode === "STANDARD")
+    return standardExecutionAdapter(config, {
+      http: providerRequest,
+      credentials: secretManager,
+      clock: () => new Date(),
+    });
+  if (config.mode === "CONFIGURABLE")
+    return configurableExecutionAdapter(config, {
+      http: providerRequest,
+      credentials: secretManager,
+    });
+  throw new PortalError("EXECUTION_ADAPTER_NOT_QUALIFIED", 409);
 }

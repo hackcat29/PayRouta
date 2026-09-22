@@ -511,6 +511,19 @@ test("all provider routes, desktop/mobile screenshots, empty production and acce
       }
     }
   }
+  await page.goto("/provider/onboarding/integration?org=harbor");
+  await expect(
+    page.getByText("How would you like to connect?", { exact: true }),
+  ).toBeVisible();
+  for (const name of [
+    "Use the PayRouta Standard",
+    "Map our existing API",
+    "Ask about a native integration",
+  ]) {
+    await expect(
+      page.getByRole("radio", { name: new RegExp(name) }),
+    ).toBeVisible();
+  }
   await page.goto("/provider/onboarding?org=harbor");
   const a11y = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21aa"])

@@ -1,17 +1,4 @@
-import {
-  Globe2,
-  Landmark,
-  Smartphone,
-  CreditCard,
-  Coins,
-  Route,
-  Wallet,
-  Zap,
-  Receipt,
-  CalendarClock,
-  QrCode,
-  TrendingUp,
-} from "lucide-react";
+
 import { ButtonLink, ClosingCTA, TextLink, Flow } from "@/components/shared";
 import { RoutingDemo } from "@/components/routing-demo";
 import { MerchantIntegrationVisual } from "@/components/merchant-integration-visual";
@@ -21,16 +8,16 @@ export const metadata = {
   alternates: trustedOrigin() ? { canonical: "/" } : undefined,
 };
 const methods = [
-  ["Instant bank transfers (iDEAL, FedNow, Pix, UPI, NIP)", Zap],
-  ["Digital wallets (Apple Pay, Google Pay, PayPal, OPay, PalmPay, Alipay)", Wallet],
-  ["Cards & domestic schemes (Visa, Mastercard, Verve, CB, JCB, RuPay)", CreditCard],
-  ["Direct debit & wire transfers (ACH, SEPA, Bacs, Wire)", Landmark],
-  ["Cash vouchers (OXXO, Konbini, Paysafecard, Boleto)", Receipt],
-  ["Buy now, pay later & installments (Klarna, Affirm, Tabby)", CalendarClock],
-  ["Mobile money & phone bills (M-Pesa, MTN MoMo, Airtel)", Smartphone],
-  ["Stablecoins (Circle USDC on Avalanche, Base, Solana)", Coins],
-  ["Crypto apps & exchanges (Binance Pay, Coinbase)", QrCode],
-  ["Real-World Assets (RWAs) (Ondo, Paxos Gold, T-Bills)", TrendingUp],
+  "Instant bank transfers (iDEAL, FedNow, Pix, UPI, NIP)",
+  "Digital wallets (Apple Pay, Google Pay, PayPal, OPay, PalmPay, Alipay)",
+  "Cards & domestic schemes (Visa, Mastercard, Verve, CB, JCB, RuPay)",
+  "Direct debit & wire transfers (ACH, SEPA, Bacs, Wire)",
+  "Cash vouchers (OXXO, Konbini, Paysafecard, Boleto)",
+  "Buy now, pay later & installments (Klarna, Affirm, Tabby)",
+  "Mobile money & phone bills (M-Pesa, MTN MoMo, Airtel)",
+  "Stablecoins (Circle USDC on Avalanche, Base, Solana)",
+  "Crypto apps & exchanges (Binance Pay, Coinbase)",
+  "Real-World Assets (RWAs) (Ondo, Paxos Gold, T-Bills)",
 ] as const;
 const faq = [
   [
@@ -90,16 +77,14 @@ export default function Home() {
           <div className="hero-copy">
             <p className="early-access">Early access · In development</p>
             <h1>
-              Any merchant. Any country.
+              Accept more payments.
               <br />
-              <span>Every way</span> your customers pay.
+              <span>Lose fewer customers.</span>
             </h1>
             <p>
-              Connect instant bank transfers, digital wallets, cards, direct debits,
-              cash vouchers, installments, mobile money, stablecoins, crypto apps,
-              and Real-World Assets (RWAs) through one integration. Show customers
-              the methods available to them, then route their chosen method through
-              an eligible provider.
+              PayRouta connects your business to multiple payment providers and
+              uses an available route when a customer pays. Integrate once; your
+              customers pay with the methods they already know and trust.
             </p>
             <div className="actions">
               <ButtonLink href="/contact?intent=merchant">
@@ -174,9 +159,8 @@ export default function Home() {
             </div>
           </div>
           <div className="method-grid">
-            {methods.map(([name, Icon]) => (
+            {methods.map((name) => (
               <div key={name}>
-                <Icon size={27} />
                 <h3>{name}</h3>
               </div>
             ))}
@@ -241,46 +225,36 @@ export default function Home() {
           <div className="usecase-grid">
             {[
               [
-                Globe2,
                 "Domestic bank transfers worldwide",
                 "Accept leading domestic bank transfers—from iDEAL in Europe and FedNow in the US to Pix in Brazil, PayNow in Singapore, and NIP in Nigeria—with instant confirmation and direct bank clearing.",
               ],
               [
-                Wallet,
                 "Digital wallets & super-apps",
                 "Let customers check out with one tap using Apple Pay, Google Pay, OPay and PalmPay in Nigeria, Alipay and WeChat Pay in China, or Mercado Pago in Latin America.",
               ],
               [
-                QrCode,
                 "Crypto app checkouts",
                 "Let customers pay directly from accounts on supported exchanges and crypto apps like Binance Pay.",
               ],
               [
-                TrendingUp,
                 "Real-World Asset (RWA) payments",
                 "Accept payments in supported tokenized assets like Ondo USDY or tokenized gold, with settlement in any available method you prefer.",
               ],
               [
-                Receipt,
                 "Cash vouchers at retail stores",
                 "Serve buyers who prefer paying cash at convenience stores using barcodes like OXXO, Konbini, Boleto, and Fawry.",
               ],
               [
-                Route,
                 "Automatic backup providers",
                 "If a payment provider is unavailable before checkout starts, switch to another provider for that same payment method.",
               ],
-            ].map(([Icon, title, copy]) => {
-              const I = Icon as typeof Globe2;
-              return (
-                <article key={String(title)}>
-                  <I />
-                  <h3>{String(title)}</h3>
-                  <p>{String(copy)}</p>
-                  <TextLink href={paths.useCases}>Explore scenario</TextLink>
-                </article>
-              );
-            })}
+            ].map(([title, copy]) => (
+              <article key={title}>
+                <h3>{title}</h3>
+                <p>{copy}</p>
+                <TextLink href={paths.useCases}>Explore scenario</TextLink>
+              </article>
+            ))}
           </div>
         </div>
       </section>
