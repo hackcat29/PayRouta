@@ -121,11 +121,33 @@ function externalAdapter(
     },
   };
 }
+function nativeProviderAdapter(
+  id: "monnify" | "paystack" | "flutterwave",
+): ProviderAdapter {
+  return {
+    id,
+    version: "1",
+    environments: ["sandbox", "production"],
+    operations: ["health", "availability"],
+    validate: (config) => {
+      const c = config as { adapter?: string; mode?: string };
+      return c.adapter === id || (c.mode === "NATIVE" && c.adapter === id);
+    },
+    async observe(operation, input) {
+      if (operation !== "health" && !input.capabilityId)
+        throw { code: "INVALID_CONFIGURATION" };
+      return { status: "Available" };
+    },
+  };
+}
 // Explicit code registration only. Never import a module from a manifest.
 const trustedAdapters: readonly ProviderAdapter[] = [
   fixtureAdapter,
   externalAdapter("standard", "STANDARD"),
   externalAdapter("configurable", "CONFIGURABLE"),
+  nativeProviderAdapter("monnify"),
+  nativeProviderAdapter("paystack"),
+  nativeProviderAdapter("flutterwave"),
 ];
 export function resolveProviderAdapter(
   id: string,

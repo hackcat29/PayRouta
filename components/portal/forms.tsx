@@ -88,14 +88,25 @@ export function CountryMany({
   );
 }
 const providerTypeLabels: Record<(typeof providerTypes)[number], string> = {
+  "Payment processor / PSP": "Payment processor / PSP",
+  "Bank / BaaS provider": "Bank / BaaS provider",
+  "Card acquirer": "Card acquirer",
+  "Bank-transfer provider": "Bank-transfer provider",
+  "Mobile-money provider": "Mobile-money provider",
+  "Digital-wallet provider": "Digital-wallet provider",
+  "Payout provider": "Payout provider",
+  "Crypto payment provider": "Crypto payment provider",
+  "Stablecoin / on-ramp / off-ramp provider": "Stablecoin / on-ramp / off-ramp provider",
+  "BNPL provider": "BNPL provider",
+  "Cash / voucher provider": "Cash / voucher provider",
+  "FX / conversion provider": "FX / conversion provider",
+  "Other payment service": "Other payment service",
   PSP: "Payment processor (PSP)",
   Bank: "Bank or banking-services provider",
-  "Card acquirer": "Card acquirer",
   "Mobile money operator": "Mobile-money operator",
   "Mobile money aggregator": "Mobile-money aggregator",
   "Stablecoin ramp": "Stablecoin on/off-ramp",
   Exchange: "Crypto exchange",
-  "Payout provider": "Payout provider",
   "Other infrastructure": "Other payment infrastructure",
 };
 export function CompanyForm({

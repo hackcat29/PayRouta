@@ -226,8 +226,10 @@ export async function dispatch(attemptId: string, now = new Date()) {
     )
       throw new PortalError("EXECUTION_INTEGRATION_SCOPE_MISMATCH", 409);
     adapter = resolveExecutionAdapter(integration);
+    const adapterId =
+      ((integration.config as { adapter?: string })?.adapter) || "simulator";
     assertAdapterConfiguration(
-      "simulator",
+      adapterId,
       "1",
       a.environment,
       integration.config,

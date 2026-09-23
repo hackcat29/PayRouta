@@ -11,10 +11,52 @@ const supportedMethods = [
   "stablecoin",
 ] as const;
 type SupportedMethod = (typeof supportedMethods)[number];
+
+export const businessTypes = [
+  "Registered company (LLC, PLC, Corp)",
+  "Sole proprietorship / Trader",
+  "Freelancer / Individual starter",
+  "Partnership",
+  "Non-profit / NGO",
+] as const;
+
+export const industries = [
+  "E-commerce & Retail",
+  "Software & SaaS",
+  "Digital Goods & Subscriptions",
+  "Financial Technology",
+  "Professional Services",
+  "Education & EdTech",
+  "Logistics & Travel",
+  "Healthcare",
+  "Other",
+] as const;
+
+export const popularBanks = [
+  { code: "044", name: "Access Bank" },
+  { code: "023", name: "Citibank" },
+  { code: "050", name: "Ecobank Nigeria" },
+  { code: "070", name: "Fidelity Bank" },
+  { code: "011", name: "First Bank of Nigeria" },
+  { code: "214", name: "First City Monument Bank (FCMB)" },
+  { code: "058", name: "Guaranty Trust Bank (GTBank)" },
+  { code: "101", name: "Providus Bank" },
+  { code: "221", name: "Stanbic IBTC Bank" },
+  { code: "068", name: "Standard Chartered Bank" },
+  { code: "232", name: "Sterling Bank" },
+  { code: "032", name: "Union Bank of Nigeria" },
+  { code: "033", name: "United Bank for Africa (UBA)" },
+  { code: "035", name: "Wema Bank" },
+  { code: "057", name: "Zenith Bank" },
+  { code: "999", name: "International / Wire bank account" },
+];
+
 type ApplicationValues = {
   legalName: string;
   tradingName: string;
   country: string;
+  businessType: string;
+  industry: string;
   website: string;
   activity: string;
   businessContact: string;
@@ -23,6 +65,9 @@ type ApplicationValues = {
   volumeRange: string;
   settlementCurrencies: string[];
   payerMarkets: string[];
+  settlementBank: string;
+  settlementAccount: string;
+  settlementAccountName: string;
 };
 const volumeOptions = [
   "Under $10,000 per month",
@@ -76,6 +121,8 @@ function initialForm(value: Record<string, unknown>): ApplicationValues {
     legalName: String(value.legalName || ""),
     tradingName: String(value.tradingName || ""),
     country: String(value.country || ""),
+    businessType: String(value.businessType || ""),
+    industry: String(value.industry || ""),
     website: String(value.website || ""),
     activity: String(value.activity || ""),
     businessContact: String(value.businessContact || ""),
@@ -84,6 +131,9 @@ function initialForm(value: Record<string, unknown>): ApplicationValues {
     volumeRange: String(value.volumeRange || ""),
     settlementCurrencies: toStringArray(value.settlementCurrencies),
     payerMarkets: toStringArray(value.payerMarkets),
+    settlementBank: String(value.settlementBank || ""),
+    settlementAccount: String(value.settlementAccount || ""),
+    settlementAccountName: String(value.settlementAccountName || ""),
   };
 }
 function validEmail(value: string) {
@@ -402,6 +452,26 @@ export function Onboarding({
             value={form.country}
             onChange={(next) => update("country", next)}
           />
+          <SearchableSelect
+            id="merchant-business-type"
+            label="Business type"
+            options={businessTypes.map((type) => ({
+              value: type,
+              label: type,
+            }))}
+            value={form.businessType}
+            onChange={(next) => update("businessType", next)}
+          />
+          <SearchableSelect
+            id="merchant-industry"
+            label="Industry / Category"
+            options={industries.map((ind) => ({
+              value: ind,
+              label: ind,
+            }))}
+            value={form.industry}
+            onChange={(next) => update("industry", next)}
+          />
           <label htmlFor="merchant-website">
             Business website
             <input
@@ -486,6 +556,34 @@ export function Onboarding({
             selected={form.settlementCurrencies}
             onChange={(next) => update("settlementCurrencies", next)}
           />
+          <SearchableSelect
+            id="merchant-settlement-bank"
+            label="Settlement bank"
+            options={popularBanks.map((bank) => ({
+              value: bank.code,
+              label: bank.name,
+            }))}
+            value={form.settlementBank}
+            onChange={(next) => update("settlementBank", next)}
+          />
+          <label htmlFor="merchant-settlement-account">
+            Account number / IBAN
+            <input
+              id="merchant-settlement-account"
+              placeholder="e.g. 0123456789"
+              value={form.settlementAccount}
+              onChange={(event) => update("settlementAccount", event.target.value)}
+            />
+          </label>
+          <label htmlFor="merchant-settlement-name">
+            Account beneficiary name
+            <input
+              id="merchant-settlement-name"
+              placeholder="Legal beneficiary name"
+              value={form.settlementAccountName}
+              onChange={(event) => update("settlementAccountName", event.target.value)}
+            />
+          </label>
           <SearchableMultiSelect
             id="merchant-payer-markets"
             label="Payer countries"
@@ -574,12 +672,32 @@ export function Onboarding({
           </dd>
           <dt>Operating country</dt>
           <dd>{countryName}</dd>
+          {form.businessType && (
+            <>
+              <dt>Business type</dt>
+              <dd>{form.businessType}</dd>
+            </>
+          )}
+          {form.industry && (
+            <>
+              <dt>Industry</dt>
+              <dd>{form.industry}</dd>
+            </>
+          )}
           <dt>Website</dt>
           <dd>{form.website || "Not set"}</dd>
           <dt>Payment methods</dt>
           <dd>{methodLabels}</dd>
           <dt>Settlement currencies</dt>
           <dd>{form.settlementCurrencies.join(", ") || "Not set"}</dd>
+          {form.settlementAccount && (
+            <>
+              <dt>Settlement account</dt>
+              <dd>
+                {popularBanks.find((b) => b.code === form.settlementBank)?.name || form.settlementBank} — {form.settlementAccount} ({form.settlementAccountName || "Beneficiary"})
+              </dd>
+            </>
+          )}
           <dt>Payer countries</dt>
           <dd>{form.payerMarkets.join(", ") || "Not set"}</dd>
           <dt>Expected volume</dt>

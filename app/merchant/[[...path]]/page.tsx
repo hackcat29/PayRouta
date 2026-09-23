@@ -20,7 +20,8 @@ export const dynamic = "force-dynamic";
 const routeTitles = {
   onboarding: "Business setup",
   overview: "Home",
-  payments: "Payments",
+  payments: "Transactions",
+  customers: "Customers",
   "payment-methods": "Payment methods",
   settlements: "Settlements",
   reconciliation: "Payment issues",
@@ -44,6 +45,7 @@ const primaryNav: {
     path: "payments",
     children: [
       { label: "Transactions", path: "payments" },
+      { label: "Customers", path: "customers" },
       { label: "Settlements", path: "settlements" },
       { label: "Payment issues", path: "reconciliation" },
       { label: "Analytics", path: "analytics" },
@@ -348,6 +350,55 @@ export default async function Page({
         </section>
       );
     }
+  } else if (section === "customers") {
+    const intentsList = await db.paymentIntent.findMany({
+      where: scope,
+      select: { reference: true, amount: true, asset: true, state: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    });
+    const customersMap = new Map<string, { count: number; total: number; lastSeen: Date }>();
+    for (const item of intentsList) {
+      const key = item.reference.split("-")[0] || item.reference;
+      const prev = customersMap.get(key) || { count: 0, total: 0, lastSeen: item.createdAt };
+      customersMap.set(key, {
+        count: prev.count + 1,
+        total: prev.total + Number(item.amount),
+        lastSeen: item.createdAt > prev.lastSeen ? item.createdAt : prev.lastSeen,
+      });
+    }
+    const customerRows = Array.from(customersMap.entries()).map(([id, info]) => ({
+      id,
+      ...info,
+    }));
+    content = (
+      <section>
+        <p>Customer payment history and customer volume in this environment.</p>
+        <div className="p-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Customer identifier</th>
+                <th>Payments</th>
+                <th>Total volume</th>
+                <th>Last activity</th>
+              </tr>
+            </thead>
+            <tbody>
+              {customerRows.map((c) => (
+                <tr key={c.id}>
+                  <td><strong>{c.id}</strong></td>
+                  <td>{c.count}</td>
+                  <td>{c.total.toFixed(2)}</td>
+                  <td>{c.lastSeen.toISOString().slice(0, 10)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {!customerRows.length && <p>No customer transactions yet.</p>}
+      </section>
+    );
   } else if (section === "payment-methods") {
     const intent =
       typeof query.intentId === "string"
@@ -683,6 +734,10 @@ export default async function Page({
               {successRate === null ? "—" : `${successRate}%`}
             </strong>
             <span>Success rate</span>
+          </div>
+          <div>
+            <strong>{confirmed > 0 ? "Pending next cycle" : "None pending"}</strong>
+            <span>Next / pending settlement</span>
           </div>
           <div>
             <strong>{attention}</strong>

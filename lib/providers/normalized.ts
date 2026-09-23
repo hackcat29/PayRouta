@@ -119,3 +119,115 @@ export function familyOf(method: string): PaymentFamily | undefined {
 export function labelOf(method: string): string {
   return isPaymentMethod(method) ? paymentMethodLabels[method] : method;
 }
+
+// Normalized PaymentMethod model
+export interface PaymentMethod {
+  id: PaymentMethodId;
+  label: string;
+  family: PaymentFamily;
+  description?: string;
+}
+
+// Normalized Provider model
+export interface Provider {
+  id: string;
+  orgId: string;
+  name: string;
+  category: string;
+  integrationMode: IntegrationMode;
+  status: "active" | "suspended" | "pending";
+  createdAt: Date;
+}
+
+// Normalized ProviderCapability model
+export interface ProviderCapability extends NormalizedCapability {
+  id: string;
+  providerId: string;
+  lifecycleState: string;
+  certified: boolean;
+  approved: boolean;
+}
+
+// Normalized ProviderIntegration model
+export interface ProviderIntegration {
+  id: string;
+  providerId: string;
+  mode: IntegrationMode;
+  environment: "sandbox" | "production";
+  baseUrl?: string;
+  authType: "bearer" | "api-key" | "hmac" | "oauth2";
+  credentialRef?: string;
+  webhookSecretRef?: string;
+  healthEndpoint?: string;
+  timeoutMs: number;
+  retries: number;
+}
+
+// Normalized ExecutionAdapter contract
+export interface ExecutionAdapter {
+  operations: readonly string[];
+  create(
+    attempt: { id: string; key: string; environment: string; providerReference?: string | null },
+    intent: { reference: string; amount: string; asset: unknown; selectedMethod?: string | null; metadata?: unknown },
+  ): Promise<{ state: string; reference: string }>;
+  status(attempt: { id: string; key: string; providerReference?: string | null }): Promise<{
+    state: string;
+    reference: string;
+    amount: string;
+    asset: unknown;
+  } | null>;
+  cancel?(attempt: { id: string; providerReference?: string | null }): Promise<{ state: string }>;
+  payout?(input: { reference: string; amount: string; asset: unknown; destination: unknown }): Promise<{ state: string; reference: string }>;
+  verifyWebhook?(input: unknown): Promise<boolean>;
+}
+
+// Normalized ProviderConnection model
+export interface ProviderConnection {
+  id: string;
+  providerId: string;
+  environment: "sandbox" | "production";
+  health: "Available" | "Unavailable" | "Degraded" | "Maintenance";
+  lastCheckedAt?: Date;
+  latencyMs?: number;
+}
+
+// Normalized ProviderCertification model
+export interface ProviderCertification {
+  id: string;
+  providerId: string;
+  capabilityId: string;
+  status: "CERTIFIED" | "CERTIFICATION_FAILED" | "TESTING";
+  passedScenarios: string[];
+  failedScenarios: string[];
+  certifiedAt?: Date;
+}
+
+// Normalized ProviderHealth model
+export interface ProviderHealth {
+  status: "Available" | "Unavailable" | "Degraded" | "Maintenance";
+  latencyMs: number;
+  errorRate: number;
+  checkedAt: Date;
+}
+
+// Normalized ProviderEconomics model
+export interface ProviderEconomics {
+  providerId: string;
+  method: PaymentMethodId;
+  fixedFeeMinor: string;
+  percentageBps: number;
+  currency: string;
+  minAmountMinor?: string;
+  maxAmountMinor?: string;
+}
+
+// Normalized ProviderPerformance model
+export interface ProviderPerformance {
+  providerId: string;
+  method: PaymentMethodId;
+  successRate: number;
+  avgLatencyMs: number;
+  totalAttempts: number;
+  fallbackCount: number;
+  periodDays: number;
+}

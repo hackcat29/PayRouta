@@ -84,6 +84,10 @@ export function sandboxInstructions(
   };
 }
 
+import { monnifyExecutionAdapter } from "../providers/adapters/native/monnify";
+import { paystackExecutionAdapter } from "../providers/adapters/native/paystack";
+import { flutterwaveExecutionAdapter } from "../providers/adapters/native/flutterwave";
+
 // Resolve by immutable integration configuration. No default-to-simulator path:
 // unknown or unqualified adapters must never generate fictional financial facts.
 export function resolveExecutionAdapter(integration: {
@@ -110,5 +114,23 @@ export function resolveExecutionAdapter(integration: {
       http: providerRequest,
       credentials: secretManager,
     });
+  if (config.mode === "NATIVE") {
+    if (config.adapter === "monnify")
+      return monnifyExecutionAdapter(config, {
+        http: providerRequest,
+        credentials: secretManager,
+        clock: () => new Date(),
+      });
+    if (config.adapter === "paystack")
+      return paystackExecutionAdapter(config, {
+        http: providerRequest,
+        credentials: secretManager,
+      });
+    if (config.adapter === "flutterwave")
+      return flutterwaveExecutionAdapter(config, {
+        http: providerRequest,
+        credentials: secretManager,
+      });
+  }
   throw new PortalError("EXECUTION_ADAPTER_NOT_QUALIFIED", 409);
 }

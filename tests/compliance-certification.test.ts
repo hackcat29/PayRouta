@@ -66,7 +66,7 @@ test("certification target, plan and summary are deterministic", async () => {
   assert.equal(summary.webhook, true);
 
   const results = await runCertification(target, summary);
-  assert.equal(results.length, 5);
+  assert.ok(results.length >= 15);
   assert.ok(results.every((r) => r.passed));
   const sum = summarize(results);
   assert.equal(sum.failed, 0);

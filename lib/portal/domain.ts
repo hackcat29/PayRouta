@@ -54,14 +54,25 @@ export class PortalError extends Error {
 }
 export const environments = ["sandbox", "production"] as const;
 export const providerTypes = [
+  "Payment processor / PSP",
+  "Bank / BaaS provider",
+  "Card acquirer",
+  "Bank-transfer provider",
+  "Mobile-money provider",
+  "Digital-wallet provider",
+  "Payout provider",
+  "Crypto payment provider",
+  "Stablecoin / on-ramp / off-ramp provider",
+  "BNPL provider",
+  "Cash / voucher provider",
+  "FX / conversion provider",
+  "Other payment service",
   "PSP",
   "Bank",
-  "Card acquirer",
   "Mobile money operator",
   "Mobile money aggregator",
   "Stablecoin ramp",
   "Exchange",
-  "Payout provider",
   "Other infrastructure",
 ] as const;
 export const countries = referenceData.countries;
@@ -131,16 +142,24 @@ export const assetSchema = z
         path: ["network"],
       });
   });
+import { paymentMethodIds } from "../providers/normalized";
+
 export const methodRails = {
   "bank-transfer": { family: "bank", rail: "ng-nibss" },
   card: { family: "card", rail: "card-network" },
   "mobile-money": { family: "mobile-money", rail: "mobile-money-network" },
+  "digital-wallet": { family: "wallet", rail: "card-network" },
+  ussd: { family: "local", rail: "ng-nibss" },
+  "direct-debit": { family: "bank", rail: "ng-nibss" },
+  bnpl: { family: "local", rail: "card-network" },
+  "cash-voucher": { family: "local", rail: "cash-network" },
   stablecoin: { family: "stablecoin", rail: "onchain" },
+  "crypto-app": { family: "crypto", rail: "onchain" },
 } as const;
 export const fulfillmentSchema = z
   .object({
     profileId: z.string().regex(/^[a-z][a-z0-9_-]{2,60}$/),
-    method: z.enum(["bank-transfer", "card", "mobile-money", "stablecoin"]),
+    method: z.enum(paymentMethodIds),
     integrationId: z.string().min(1).max(100),
     adapterVersion: z.literal("1"),
     inputPrecision: z.number().int().min(0).max(18),
@@ -256,7 +275,13 @@ export const capabilitySchema = z
         "bank-transfer": ["pay-in", "payout", "settlement"],
         card: ["pay-in", "authorization", "settlement"],
         "mobile-money": ["pay-in", "payout", "settlement"],
+        "digital-wallet": ["pay-in", "authorization", "settlement"],
+        ussd: ["pay-in", "settlement"],
+        "direct-debit": ["pay-in", "payout", "settlement"],
+        bnpl: ["pay-in", "authorization", "settlement"],
+        "cash-voucher": ["pay-in", "settlement"],
         stablecoin: ["pay-in", "payout", "conversion", "settlement"],
+        "crypto-app": ["pay-in", "conversion", "settlement"],
       };
       if (!operations[f.method].includes(v.operation))
         issue("METHOD_OPERATION_INVALID", "operation");

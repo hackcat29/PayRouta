@@ -11,6 +11,8 @@ import {
   fiatPrecision,
 } from "./domain";
 
+import { paymentMethodIds, labelOf } from "../providers/normalized";
+
 const country = z.string().refine((v) => countries.some((c) => c.id === v));
 export const trustedContextSchema = z
   .object({
@@ -23,9 +25,9 @@ export const trustedContextSchema = z
     payerCountry: country.nullable(),
     merchantCountry: country,
     methods: z
-      .array(z.enum(["bank-transfer", "card", "mobile-money", "stablecoin"]))
+      .array(z.enum(paymentMethodIds))
       .min(1)
-      .max(4),
+      .max(10),
     operation: z.enum([
       "pay-in",
       "payout",
@@ -38,8 +40,8 @@ export const trustedContextSchema = z
     verificationAction: z.boolean(),
     providerAllowlist: z.array(z.string().min(1).max(100)).max(100).optional(),
     blockedMethods: z
-      .array(z.enum(["bank-transfer", "card", "mobile-money", "stablecoin"]))
-      .max(4),
+      .array(z.enum(paymentMethodIds))
+      .max(10),
     policyVersion: z.string().min(1).max(100),
     validUntil: z.iso.datetime(),
   })
@@ -369,19 +371,13 @@ export function evaluateAvailability(input: {
     UNAVAILABLE: "This method cannot serve this payment.",
     UNKNOWN: "Availability could not be confirmed.",
   };
-  const labels = {
-    "bank-transfer": "Bank transfer",
-    card: "Card",
-    "mobile-money": "Mobile money",
-    stablecoin: "Stablecoin",
-  };
   const methods = ctx.methods.map((method) => {
     const status = aggregateStatuses(
       decisions.filter((d) => d.method === method).map((d) => d.status),
     );
     return {
       method,
-      label: labels[method],
+      label: labelOf(method),
       status,
       explanation: messages[status],
       ...(status === "ACTION_REQUIRED"
