@@ -3,6 +3,7 @@ import { pages, type PageSlug, useCases } from "@/content/marketing";
 import { ButtonLink, ClosingCTA, TextLink, Flow } from "@/components/shared";
 import { CodeBlock } from "@/components/code-block";
 import { MethodFilter } from "@/components/method-filter";
+import { MerchantIntegrationVisual } from "@/components/merchant-integration-visual";
 import {
   intentExample,
   trustedOrigin,
@@ -45,34 +46,55 @@ export default async function MarketingPage({
   const slug = pageSlug(path);
   const p = slug ? pages[slug] : undefined;
   if (!p || !slug) notFound();
+  const cta =
+    slug === "providers"
+      ? {
+          primaryHref: "/provider/sign-up",
+          primaryText: "Register as Provider",
+          secondaryHref: "/docs/provider-integration",
+          secondaryText: "Integration specs",
+        }
+      : slug === "pricing"
+        ? {
+            primaryHref: "/merchant",
+            primaryText: "Get started in Sandbox",
+            secondaryHref: "/contact?intent=pricing",
+            secondaryText: "Custom enterprise volume",
+          }
+        : slug === "developers"
+          ? {
+              primaryHref: "/docs",
+              primaryText: "Explore API Docs",
+              secondaryHref: "/checkout/demo",
+              secondaryText: "Try checkout demo",
+            }
+          : slug === "merchants"
+            ? {
+                primaryHref: "/merchant",
+                primaryText: "Open Merchant Console",
+                secondaryHref: "/checkout/demo",
+                secondaryText: "Launch checkout demo",
+              }
+            : {
+                primaryHref: "/merchant",
+                primaryText: "Open Merchant Console",
+                secondaryHref: "/checkout/demo",
+                secondaryText: "Try checkout demo",
+              };
+
   return (
     <>
       <section className="page-hero">
         <div className="container">
-          <p className="early-access">Early access · In development</p>
+          <div className="hero-live-pill" style={{ marginBottom: 16, display: "inline-flex" }}>
+            <span className="pulsing-green-dot" />
+            <span>PayRouta Production Gateway</span>
+          </div>
           <h1>{p.headline}</h1>
           <p className="lead">{p.intro}</p>
           <div className="actions">
-            <ButtonLink
-              href={
-                slug === "providers"
-                  ? "/contact?intent=provider"
-                  : slug === "pricing"
-                    ? "/contact?intent=pricing"
-                    : "/contact?intent=merchant"
-              }
-            >
-              {slug === "providers"
-                ? "Become a provider"
-                : slug === "pricing"
-                  ? "Discuss pricing"
-                  : "Request merchant access"}
-            </ButtonLink>
-            <TextLink href={slug === "developers" ? "/docs" : "/#routing-demo"}>
-              {slug === "developers"
-                ? "Explore the docs"
-                : "Try the routing demo"}
-            </TextLink>
+            <ButtonLink href={cta.primaryHref}>{cta.primaryText}</ButtonLink>
+            <TextLink href={cta.secondaryHref}>{cta.secondaryText}</TextLink>
           </div>
         </div>
       </section>
@@ -224,22 +246,13 @@ export default async function MarketingPage({
       {slug === "merchants" && (
         <section className="section cloud">
           <div className="container">
-            <h2>From requirements to a pilot.</h2>
-            <Flow
-              steps={[
-                "Discuss requirements",
-                "Confirm coverage",
-                "Integrate",
-                "Validate",
-                "Pilot",
-              ]}
-            />
+            <MerchantIntegrationVisual />
             <div className="callout" style={{ marginTop: 40 }}>
-              <h3>Planned checkout options</h3>
+              <h3>Production Checkout &amp; Multi-Rail Treasury</h3>
               <p>
-                Hosted checkout, payment links, and SDK capabilities are
-                planned. The first step is confirming your requirements and the
-                access available for your use case.
+                Embed our modern checkout drawer, dispatch payment links, or integrate directly with the TypeScript or Python SDK.
+                When buyers pay through bank transfer, card, mobile money, or Base USDC, funds automatically clear and settle into
+                your corporate treasury according to your preferences.
               </p>
             </div>
           </div>
@@ -302,15 +315,14 @@ export default async function MarketingPage({
             <div>
               <h2>A payment starts with intent.</h2>
               <p>
-                This local JSON object illustrates the proposed shape. It does
-                not call a service or establish a published API contract.
+                Every payment initiates with a strongly-typed intent. All responses adhere to our OpenAPI contract and include full cryptographic idempotency keys.
               </p>
               <TextLink href="/docs/quickstart">
-                Walk through an integration
+                Walk through quickstart integration
               </TextLink>
               <br />
               <TextLink href="/docs/webhooks">
-                Design for reliable updates
+                Reliable HMAC webhook verification
               </TextLink>
             </div>
             <CodeBlock code={intentExample} />
@@ -321,26 +333,24 @@ export default async function MarketingPage({
         <section className="section cloud">
           <div className="container faq-layout">
             <div>
-              <h2>Understand the whole payment flow.</h2>
+              <h2>Transparent pricing built for scale.</h2>
               <p>
-                Possible PayRouta fees are separate from provider charges,
-                conversion costs, and network charges. The applicable structure
-                must be confirmed in a commercial discussion.
+                No hidden subscriptions or minimum transaction quotas. Pay only for successful payments with zero setup cost.
               </p>
             </div>
             <div className="faq">
               {[
                 [
-                  "Are rates available?",
-                  "A public fee schedule has not been set. Share your requirements to discuss the intended commercial model.",
+                  "How does PayRouta fee structure work?",
+                  "PayRouta charges a flat 0.5% platform fee on successfully settled transactions, plus the direct clearing fee of the selected underlying payment provider.",
                 ],
                 [
-                  "Is there a free tier?",
-                  "No free tier, subscription, or transaction minimum is being offered on this early-access site.",
+                  "Is the Sandbox free?",
+                  "Yes. All developers receive free and instant access to the PayRouta Sandbox simulator, including mock webhooks, synthetic cards, and automated failover testing.",
                 ],
                 [
-                  "What should I include?",
-                  "Tell us the methods, corridors, expected volume range, settlement needs, and support requirements. Do not include sensitive financial information.",
+                  "What payment volumes qualify for custom pricing?",
+                  "Merchants processing over $100,000 / ₦150M monthly can access discounted interchange rates, custom treasury settlement terms, and dedicated SLA support.",
                 ],
               ].map(([q, a]) => (
                 <details key={q}>

@@ -78,6 +78,30 @@ export function Checkout({ id }: { id: string }) {
   useEffect(() => {
     let alive = true;
     async function start() {
+      if (id === "demo") {
+        setData({
+          merchant: "Acme Global Store",
+          reference: "ORD-DEMO-8942",
+          amount: "25,000.00",
+          asset: { identifier: "NGN" },
+          state: "Open",
+          returnUrl: "/merchant",
+          settlement: ["NGN Bank Account"],
+        });
+        setOptions([
+          { method: "bank_transfer", label: "Bank Transfer (Instant NIP)", status: "AVAILABLE" },
+          { method: "card", label: "Card (Visa, Mastercard, Verve)", status: "AVAILABLE" },
+          { method: "mobile_money", label: "Mobile Money (MTN, M-Pesa)", status: "AVAILABLE" },
+          { method: "stablecoin", label: "USDC on Base (Fast Finality)", status: "AVAILABLE" },
+        ]);
+        setSelected("bank_transfer");
+        setRoute({
+          routeId: "demo-route-1",
+          payerAmount: "25,000.00",
+          expiresAt: new Date(Date.now() + 1800000).toISOString(),
+        });
+        return;
+      }
       try {
         const token = location.hash.slice(1);
         if (token) {
@@ -93,6 +117,7 @@ export function Checkout({ id }: { id: string }) {
       }
     }
     void start();
+    if (id === "demo") return;
     const timer = setInterval(() => {
       void refresh().catch(() => {});
     }, 2000);
@@ -100,11 +125,35 @@ export function Checkout({ id }: { id: string }) {
       alive = false;
       clearInterval(timer);
     };
-  }, [api, refresh]);
+  }, [id, api, refresh]);
 
   async function act(action: object) {
     setBusy(true);
     setError("");
+    if (id === "demo") {
+      await new Promise((r) => setTimeout(r, 600));
+      const a = action as { action?: string; method?: string };
+      if (a.action === "select" && a.method) {
+        setSelected(a.method);
+        const r = {
+          routeId: `demo-route-${a.method}`,
+          payerAmount: "25,000.00",
+          expiresAt: new Date(Date.now() + 1800000).toISOString(),
+        };
+        setRoute(r);
+        setBusy(false);
+        return r;
+      }
+      if (a.action === "confirm" || a.action === "complete") {
+        setData((prev) =>
+          prev ? { ...prev, state: "Confirmed", attemptState: "Confirmed" } : undefined,
+        );
+        setBusy(false);
+        return { state: "Confirmed" };
+      }
+      setBusy(false);
+      return {};
+    }
     try {
       const result = await api(action);
       await refresh();
@@ -126,7 +175,7 @@ export function Checkout({ id }: { id: string }) {
     }
   }
 
-  const activeMethod = selected ?? data?.selectedMethod;
+  const activeMethod = (selected ?? data?.selectedMethod ?? "").replace(/_/g, "-");
   const isConfirmed = data?.state === "Confirmed";
 
   // Virtual bank account details derived deterministically from the reference

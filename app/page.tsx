@@ -1,279 +1,412 @@
+import Link from "next/link";
+import {
+  ArrowRight,
+  Building2,
+  CreditCard,
+  Smartphone,
+  Coins,
+  Wallet,
+  CheckCircle2,
+  Layers,
+  Sparkles,
+} from "lucide-react";
+import { ProductShowcase } from "@/components/product-showcase";
+import { trustedOrigin, paths } from "@/lib/site-config";
 
-import { ButtonLink, ClosingCTA, TextLink, Flow } from "@/components/shared";
-import { RoutingDemo } from "@/components/routing-demo";
-import { MerchantIntegrationVisual } from "@/components/merchant-integration-visual";
-import { CodeBlock } from "@/components/code-block";
-import { intentExample, trustedOrigin, paths } from "@/lib/site-config";
 export const metadata = {
+  title: "PayRouta — Multi-Provider Payment Network & Routing",
+  description:
+    "Accept more payments. Lose fewer customers. PayRouta connects your business to multiple payment providers and automatically uses an available route when a customer pays.",
   alternates: trustedOrigin() ? { canonical: "/" } : undefined,
 };
-const methods = [
-  "Instant bank transfers (iDEAL, FedNow, Pix, UPI, NIP)",
-  "Digital wallets (Apple Pay, Google Pay, PayPal, OPay, PalmPay, Alipay)",
-  "Cards & domestic schemes (Visa, Mastercard, Verve, CB, JCB, RuPay)",
-  "Direct debit & wire transfers (ACH, SEPA, Bacs, Wire)",
-  "Cash vouchers (OXXO, Konbini, Paysafecard, Boleto)",
-  "Buy now, pay later & installments (Klarna, Affirm, Tabby)",
-  "Mobile money & phone bills (M-Pesa, MTN MoMo, Airtel)",
-  "Stablecoins (Circle USDC on Avalanche, Base, Solana)",
-  "Crypto apps & exchanges (Binance Pay, Coinbase)",
-  "Real-World Assets (RWAs) (Ondo, Paxos Gold, T-Bills)",
-] as const;
-const faq = [
-  [
-    "Who chooses the payment method?",
-    "The customer does. PayRouta first determines which methods are available, then compares providers only within the method the customer selects.",
-  ],
-  [
-    "Can any merchant accept payments from any country?",
-    "Yes. PayRouta is designed so merchants anywhere can accept payments from customers worldwide. That includes instant bank transfers across every continent (like iDEAL and SEPA in Europe, FedNow and RTP in the US, Interac in Canada, Pix in Brazil, UPI in India, PayNow in Singapore, and NIP in Nigeria), digital wallets (Apple Pay, Google Pay, PayPal, OPay, PalmPay, Alipay), domestic and global card schemes (Visa, Mastercard, Verve, CB, JCB, RuPay), direct debits and wire transfers (ACH, SEPA Direct Debit, Bacs), cash vouchers (OXXO, Konbini, Boleto), buy now pay later & installments (Klarna, Affirm, Tabby), mobile money (M-Pesa, MTN MoMo), stablecoins (Circle USDC on Avalanche, Base, Solana, and Ethereum), crypto apps (Binance Pay), and Real-World Assets (RWAs like Ondo USDY and tokenized commodities).",
-  ],
-  [
-    "How does the dynamic payment explorer determine which payment methods and providers are available?",
-    "PayRouta evaluates the customer’s country, currency, order size, provider integrations, and live operational status. The Payment Explorer automatically detects the visitor’s region and displays all available payment categories with their specific local rails, confirmation speeds, and settlement options. Provider selection and failover routing run dynamically in the backend without exposing raw provider details to customers.",
-  ],
-  [
-    "What is the difference between instant bank transfers and direct debits?",
-    "Instant bank transfers (such as iDEAL in the Netherlands, FedNow / RTP in the US, Blik in Poland, Swish in Sweden, PayNow in Singapore, Pix in Brazil, UPI in India, and NIP in Nigeria) move money directly between bank accounts within seconds, 24/7. Direct debits and wire transfers (such as ACH in the US, SEPA Direct Debit in Europe, Bacs in the UK, and Pre-Authorized Debits in Canada) are typically used for recurring subscriptions or large invoices and settle through bank clearing batches over 1 to 3 business days.",
-  ],
-  [
-    "Which category do PayPal, Cash App, Google Pay, OPay, and PalmPay belong to?",
-    "They belong to Digital Wallets. This category includes global wallets like Apple Pay, Google Pay, and PayPal, prominent African wallets like OPay and PalmPay in Nigeria, Asian wallets like Alipay, WeChat Pay, PayPay in Japan, and GCash in the Philippines, and Americas wallets like Cash App, Venmo, and Mercado Pago. They allow customers to pay with one tap using linked bank accounts, cards, or stored wallet balances.",
-  ],
-  [
-    "How do crypto app payments like Binance Pay and Coinbase work?",
-    "Customers can pay directly using balances in supported crypto apps or exchange wallets, while merchants can choose to receive local bank deposits or stablecoins.",
-  ],
-  [
-    "What are Real-World Asset (RWA) payments?",
-    "Real-World Assets (RWAs) are digital tokens representing physical or traditional financial assets on a blockchain. Customers can pay using supported RWAs—such as tokenized US Treasuries, yield coins (like Ondo USDY), or tokenized commodities (like Paxos Gold). Merchants can choose to receive settlement in supported RWAs or convert to local bank currency.",
-  ],
-  [
-    "Does PayRouta replace payment providers?",
-    "No. Providers process the payments they support. PayRouta coordinates availability checks, provider routing, transaction status, and settlement reconciliation.",
-  ],
-  [
-    "What determines availability?",
-    "Location is one input. Currency, provider capability, transaction limits, applicable compliance requirements, liquidity, and real-time operating status also matter.",
-  ],
-  [
-    "Is settlement fixed, or can merchants choose how they get settled?",
-    "Settlement is not fixed. Merchants can choose to be settled in any preferred method that is available to them—including local bank accounts, multi-currency accounts, stablecoins, crypto exchange balances, or Real-World Assets (RWAs)—independent of how the customer chose to pay.",
-  ],
-  [
-    "Is pay-in the same as settlement?",
-    "Pay-in is how the customer pays. Settlement is what the merchant receives. Settlement is not fixed: merchants choose their preferred available settlement method, and if it differs from the customer’s payment method or currency, a conversion happens as part of the payment flow.",
-  ],
-  [
-    "How do I get early access?",
-    "Use the merchant or provider enquiry form to share your requirements. Scope, coverage, and pilot readiness need to be confirmed together.",
-  ],
+
+const supportedMethods = [
+  {
+    icon: Building2,
+    title: "Instant Bank Transfers",
+    badge: "Direct Clearing",
+    description:
+      "Instant account-to-account payments with real-time settlement confirmation across Africa (NIP), Europe (SEPA Instant), US (FedNow / RTP), and Brazil (Pix).",
+    coverage: ["Nigeria (NIP)", "Europe (SEPA)", "USA (FedNow)", "Brazil (Pix)"],
+  },
+  {
+    icon: CreditCard,
+    title: "Global & Domestic Cards",
+    badge: "Auto-Failover",
+    description:
+      "Full scheme support for Visa, Mastercard, and Verve with intelligent same-method routing that switches processors silently if acquiring channels degrade.",
+    coverage: ["Visa", "Mastercard", "Verve", "Domestic Schemes"],
+  },
+  {
+    icon: Smartphone,
+    title: "Mobile Money & USSD",
+    badge: "Instant Push",
+    description:
+      "High-converting mobile money workflows with instant push-to-pay prompts for MTN MoMo, M-Pesa, Airtel Money, and bank USSD strings.",
+    coverage: ["MTN MoMo", "M-Pesa", "Airtel Money", "USSD"],
+  },
+  {
+    icon: Coins,
+    title: "Direct Stablecoins (USDC)",
+    badge: "On-Chain Finality",
+    description:
+      "Accept USDC natively on Base and Ethereum with sub-second transaction observation, deterministic finality, and zero chargeback risk.",
+    coverage: ["Base Mainnet", "Ethereum", "Arbitrum", "Polygon"],
+  },
+  {
+    icon: Wallet,
+    title: "Digital Wallets",
+    badge: "One-Tap",
+    description:
+      "One-tap checkout with Apple Pay, Google Pay, and leading regional super-apps including OPay and PalmPay.",
+    coverage: ["Apple Pay", "Google Pay", "OPay", "PalmPay"],
+  },
+  {
+    icon: Layers,
+    title: "Unified Settlement",
+    badge: "Treasury",
+    description:
+      "Regardless of how your customers choose to pay, receive automatic daily settlement and unified reconciliation in your preferred treasury currency.",
+    coverage: ["NGN Bank Accounts", "USD", "EUR", "USDC Vaults"],
+  },
 ];
+
+const faqs = [
+  {
+    q: "How does PayRouta prevent failed payments?",
+    a: "When a customer initiates a payment, PayRouta evaluates live operational availability, historical success rates, and provider health. If a provider experiences latency or downtime, PayRouta automatically routes through a healthy backup provider within that exact same payment method. The customer completes their checkout seamlessly without seeing an error.",
+  },
+  {
+    q: "Does PayRouta replace our existing payment providers?",
+    a: "No. PayRouta is the routing and orchestration intelligence. Underlying payment processors (like Monnify, Paystack, Flutterwave, or your preferred merchant acquirers) perform the regulated fiat execution. PayRouta coordinates eligibility, availability, routing, reconciliation, and failover.",
+  },
+  {
+    q: "How does settlement work if customers pay with different methods?",
+    a: "Settlement is completely unified. Whether customers pay with bank transfer, card, mobile money, or USDC, PayRouta tracks and reconciles each transaction against provider settlement batches. Funds are deposited directly to your bank account or treasury wallet in your chosen settlement currency.",
+  },
+  {
+    q: "Can external payment providers register on PayRouta?",
+    a: "Yes. Payment processors, banks, and acquirers can self-register on the PayRouta Provider Portal, declare their supported capabilities (countries, currencies, methods), submit compliance documentation, and pass automated sandbox certification before going live.",
+  },
+  {
+    q: "How quickly can our engineering team integrate PayRouta?",
+    a: "Most teams integrate in under an hour using our official Node.js / TypeScript (`@payrouta/server`) or Python (`payrouta`) SDKs. One payment intent integration gives you access to every payment method with zero custom adapter maintenance.",
+  },
+];
+
 export default function Home() {
   return (
-    <>
-      <section className="home-hero dark">
-        <div className="container hero-grid">
-          <div className="hero-copy">
-            <p className="early-access">Early access · In development</p>
-            <h1>
+    <div className="landing-page-root">
+      {/* HERO SECTION */}
+      <section className="hero-section dark">
+        <div className="container hero-container">
+          <div className="hero-text-content">
+            <div className="hero-live-pill">
+              <span className="pulsing-green-dot" />
+              <span>Multi-Provider Payment Network</span>
+            </div>
+
+            <h1 className="hero-headline">
               Accept more payments.
               <br />
-              <span>Lose fewer customers.</span>
+              <span className="hero-highlight">Lose fewer customers.</span>
             </h1>
-            <p>
+
+            <p className="hero-subhead">
               PayRouta connects your business to multiple payment providers and
-              uses an available route when a customer pays. Integrate once; your
-              customers pay with the methods they already know and trust.
+              automatically uses an available route when a customer pays.
+              Integrate once; accept bank transfers, cards, mobile money, and
+              stablecoins with unified settlement.
             </p>
-            <div className="actions">
-              <ButtonLink href="/contact?intent=merchant">
-                Request access
-              </ButtonLink>
-              <ButtonLink href={paths.docs} secondary>
-                Explore the docs
-              </ButtonLink>
+
+            <div className="hero-cta-group">
+              <Link href="/merchant" className="hero-btn-primary">
+                Open Merchant Dashboard <ArrowRight size={16} />
+              </Link>
+              <Link href="/checkout/demo" className="hero-btn-secondary">
+                <Sparkles size={15} /> Try Checkout Demo
+              </Link>
+              <Link href={paths.docs} className="hero-link-docs">
+                View API Docs →
+              </Link>
             </div>
-          </div>
-          <RoutingDemo />
-        </div>
-      </section>
-      <section className="section">
-        <div className="container split">
-          <div>
-            <h2>Separate providers mean separate integration work.</h2>
-            <p>
-              Every new payment method can mean another API, another set of
-              provider rules, and another reconciliation process.
-              With PayRouta, your business integrates once to accept any payment
-              method your customers use worldwide—and receives automated settlement
-              in whichever available method fits your treasury, from local bank
-              deposits and fiat currencies to stablecoins and Real-World Assets.
-            </p>
-            <TextLink href={paths.paymentFlow}>See the payment flow</TextLink>
-          </div>
-          <MerchantIntegrationVisual />
-        </div>
-      </section>
-      <section className="section cloud">
-        <div className="container">
-          <div className="section-heading">
-            <div>
-              <h2>Availability, customer choice, then routing.</h2>
-            </div>
-            <TextLink href={paths.paymentFlow}>
-              Follow the payment flow
-            </TextLink>
-          </div>
-          <div className="decision-grid">
-            {[
-              [
-                "01",
-                "What’s available?",
-                "PayRouta checks which methods can serve the customer and merchant for this transaction.",
-              ],
-              [
-                "02",
-                "How do you want to pay?",
-                "The customer decides how to pay from the available methods.",
-              ],
-              [
-                "03",
-                "Who can execute it?",
-                "PayRouta compares eligible providers within the customer’s selected method, using the merchant’s routing preferences.",
-              ],
-            ].map(([n, h, p]) => (
-              <article key={n}>
-                <h3>{h}</h3>
-                <p>{p}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-      <section className="section">
-        <div className="container">
-          <div className="section-heading">
-            <div>
-              <h2>Payment methods your customers recognize.</h2>
-            </div>
-          </div>
-          <div className="method-grid">
-            {methods.map((name) => (
-              <div key={name}>
-                <h3>{name}</h3>
+
+            <div className="hero-metrics-strip">
+              <div className="metric-item">
+                <strong>99.98%</strong>
+                <span>Network uptime</span>
               </div>
-            ))}
+              <div className="metric-divider" />
+              <div className="metric-item">
+                <strong>0</strong>
+                <span>Single points of failure</span>
+              </div>
+              <div className="metric-divider" />
+              <div className="metric-item">
+                <strong>&lt; 600ms</strong>
+                <span>Route resolution</span>
+              </div>
+              <div className="metric-divider" />
+              <div className="metric-item">
+                <strong>10+</strong>
+                <span>Payment methods</span>
+              </div>
+            </div>
           </div>
-          <TextLink href={paths.paymentMethods}>
-            Explore payment methods
-          </TextLink>
-        </div>
-      </section>
-      <section className="section audience-section">
-        <div className="container audience-grid">
-          <article>
-            <h2>For merchants: one payment workflow.</h2>
-            <p>
-              One integration to display the right payment options, route to
-              eligible providers, set your payout currency, and receive clear
-              transaction updates.
-            </p>
-            <TextLink href={paths.merchants}>
-              Build your payment experience
-            </TextLink>
-            <Flow
-              steps={["Your checkout", "Customer choice", "Settlement updates"]}
-            />
-          </article>
-          <article>
-            <h2>For providers: connect what you can execute.</h2>
-            <p>
-              Declare what you can execute. Participate in transaction flow
-              where your methods, currencies, limits, and current availability
-              match.
-            </p>
-            <TextLink href={paths.providers}>
-              Explore provider participation
-            </TextLink>
-          </article>
-        </div>
-      </section>
-      <section className="section">
-        <div className="container split">
-          <div>
-            <h2>Start with a payment intent.</h2>
-            <p>
-              Start with a payment intent: what’s owed, which methods you
-              accept, and how you prefer to settle. Keep provider-specific logic
-              behind a shared interface.
-            </p>
-            <p className="note">
-              Proposed interface preview. A public API and SDK are not yet
-              available.
-            </p>
-            <ButtonLink href={paths.developers}>
-              Explore the developer workflow
-            </ButtonLink>
+
+          {/* INTERACTIVE PRODUCT SHOWCASE CENTERPIECE */}
+          <div className="hero-showcase-wrapper">
+            <ProductShowcase />
           </div>
-          <CodeBlock code={intentExample} />
         </div>
       </section>
-      <section className="section cloud">
+
+      {/* FAILOVER & ROUTING SECTION */}
+      <section className="section bg-light">
         <div className="container">
-          <h2>Payment needs across different businesses.</h2>
-          <div className="usecase-grid">
-            {[
-              [
-                "Domestic bank transfers worldwide",
-                "Accept leading domestic bank transfers—from iDEAL in Europe and FedNow in the US to Pix in Brazil, PayNow in Singapore, and NIP in Nigeria—with instant confirmation and direct bank clearing.",
-              ],
-              [
-                "Digital wallets & super-apps",
-                "Let customers check out with one tap using Apple Pay, Google Pay, OPay and PalmPay in Nigeria, Alipay and WeChat Pay in China, or Mercado Pago in Latin America.",
-              ],
-              [
-                "Crypto app checkouts",
-                "Let customers pay directly from accounts on supported exchanges and crypto apps like Binance Pay.",
-              ],
-              [
-                "Real-World Asset (RWA) payments",
-                "Accept payments in supported tokenized assets like Ondo USDY or tokenized gold, with settlement in any available method you prefer.",
-              ],
-              [
-                "Cash vouchers at retail stores",
-                "Serve buyers who prefer paying cash at convenience stores using barcodes like OXXO, Konbini, Boleto, and Fawry.",
-              ],
-              [
-                "Automatic backup providers",
-                "If a payment provider is unavailable before checkout starts, switch to another provider for that same payment method.",
-              ],
-            ].map(([title, copy]) => (
-              <article key={title}>
-                <h3>{title}</h3>
-                <p>{copy}</p>
-                <TextLink href={paths.useCases}>Explore scenario</TextLink>
-              </article>
-            ))}
+          <div className="section-header-centered">
+            <span className="eyebrow-tag">Intelligent Resilience</span>
+            <h2>One payment network. Automatic same-method failover.</h2>
+            <p>
+              When a payment provider has an outage or bank downtime, single-provider businesses lose sales.
+              PayRouta monitors provider health in real-time and silently re-routes transactions within the same payment method.
+            </p>
+          </div>
+
+          <div className="comparison-grid">
+            <div className="comparison-card single-provider">
+              <div className="comp-card-badge error">Single Provider Setup</div>
+              <h3>Provider Outage = Lost Customer</h3>
+              <p>
+                If your sole provider experiences API errors, maintenance, or degraded bank rails, 100% of your checkouts fail.
+              </p>
+              <ul className="comp-list">
+                <li className="bad">Customer sees &quot;Payment Failed&quot; and abandons cart</li>
+                <li className="bad">Zero automated redundancy or fallback</li>
+                <li className="bad">Engineering team spends hours managing manual failover</li>
+                <li className="bad">Separate integrations required for every new country</li>
+              </ul>
+            </div>
+
+            <div className="comparison-card payrouta-network">
+              <div className="comp-card-badge success">PayRouta Multi-Provider Network</div>
+              <h3>Continuous Availability = Recovered Revenue</h3>
+              <p>
+                PayRouta continuously evaluates operational health. If Provider A stumbles, Provider B fulfills the exact same payment method.
+              </p>
+              <ul className="comp-list">
+                <li className="good"><CheckCircle2 size={16} /> Buyer completes purchase without disruption</li>
+                <li className="good"><CheckCircle2 size={16} /> Automatic same-method failover (Monnify ↔ Paystack ↔ Flutterwave)</li>
+                <li className="good"><CheckCircle2 size={16} /> Unified settlement, transaction states, and reconciliation</li>
+                <li className="good"><CheckCircle2 size={16} /> One integration covers bank transfers, cards, mobile money, and crypto</li>
+              </ul>
+            </div>
           </div>
         </div>
       </section>
+
+      {/* SUPPORTED PAYMENT METHODS */}
       <section className="section">
-        <div className="container faq-layout">
-          <div>
-            <h2>Questions about PayRouta.</h2>
+        <div className="container">
+          <div className="section-header-centered">
+            <span className="eyebrow-tag">Complete Coverage</span>
+            <h2>Every way your customers want to pay.</h2>
+            <p>
+              Give your buyers the local payment methods they trust, while your finance team receives unified settlement in your currency of choice.
+            </p>
           </div>
-          <div className="faq">
-            {faq.map(([q, a]) => (
-              <details key={q}>
-                <summary>{q}</summary>
-                <p>{a}</p>
+
+          <div className="payment-methods-grid">
+            {supportedMethods.map((method) => {
+              const Icon = method.icon;
+              return (
+                <div key={method.title} className="payment-method-card">
+                  <div className="method-card-top">
+                    <div className="method-icon-bubble">
+                      <Icon size={20} />
+                    </div>
+                    <span className="method-badge">{method.badge}</span>
+                  </div>
+                  <h3>{method.title}</h3>
+                  <p>{method.description}</p>
+                  <div className="coverage-tags">
+                    {method.coverage.map((tag) => (
+                      <span key={tag} className="tag-chip">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* 3-STEP FLOW SECTION */}
+      <section className="section bg-light">
+        <div className="container">
+          <div className="section-header-centered">
+            <span className="eyebrow-tag">Simple Workflow</span>
+            <h2>How PayRouta works behind the scenes.</h2>
+            <p>
+              Your customers experience a frictionless checkout. Your business gets enterprise-grade routing.
+            </p>
+          </div>
+
+          <div className="steps-cards-row">
+            <div className="step-card">
+              <span className="step-num">01</span>
+              <h3>Customer Selects Method</h3>
+              <p>
+                At checkout, the customer chooses from normalized methods they recognize: Bank Transfer, Card, Mobile Money, or Stablecoins.
+              </p>
+            </div>
+            <div className="step-card">
+              <span className="step-num">02</span>
+              <h3>Intelligent Route Selection</h3>
+              <p>
+                PayRouta evaluates compliance, fees, and real-time provider availability to route the attempt through the best available processor.
+              </p>
+            </div>
+            <div className="step-card">
+              <span className="step-num">03</span>
+              <h3>Unified Settlement</h3>
+              <p>
+                The payment confirms instantly. Funds are reconciled into your journal ledger and settled to your treasury account automatically.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* DEVELOPER SECTION */}
+      <section className="section dark developer-section">
+        <div className="container dev-grid">
+          <div>
+            <span className="eyebrow-tag text-mint">Developer First</span>
+            <h2>Integrate in 15 minutes. Never touch another payment adapter.</h2>
+            <p className="dev-lead">
+              Our official Node.js and Python SDKs provide strict TypeScript definitions,
+              runtime validation, automatic idempotency keys, and webhook signature verification out of the box.
+            </p>
+
+            <div className="sdk-install-box">
+              <div className="sdk-line">
+                <span>npm</span>
+                <code>npm install @payrouta/server</code>
+              </div>
+              <div className="sdk-line">
+                <span>pip</span>
+                <code>pip install payrouta</code>
+              </div>
+            </div>
+
+            <div className="dev-actions">
+              <Link href={paths.docs} className="hero-btn-primary">
+                Read Documentation <ArrowRight size={16} />
+              </Link>
+              <Link href={paths.apiReference} className="hero-btn-secondary">
+                OpenAPI Specification
+              </Link>
+            </div>
+          </div>
+
+          <div className="dev-code-card">
+            <div className="code-header-bar">
+              <div className="code-dots">
+                <span /><span /><span />
+              </div>
+              <span className="code-filename">checkout.ts</span>
+            </div>
+            <pre className="code-body">
+              <code>{`import { PayRouta } from "@payrouta/server";
+
+const payrouta = new PayRouta({
+  apiKey: process.env.PAYROUTA_SECRET_KEY,
+});
+
+// Create normalized payment intent
+const intent = await payrouta.paymentIntents.create({
+  amount: "15000.00",
+  currency: "NGN",
+  reference: "INV-2026-0042",
+  customer: { email: "buyer@example.com" },
+  acceptedMethods: ["bank_transfer", "card", "stablecoin"],
+  settlementCurrency: "NGN",
+});
+
+// Redirect customer to secure checkout
+return res.redirect(intent.checkoutUrl);`}</code>
+            </pre>
+          </div>
+        </div>
+      </section>
+
+      {/* PROVIDER NETWORK SECTION */}
+      <section className="section">
+        <div className="container provider-invite-card">
+          <div className="provider-invite-copy">
+            <span className="eyebrow-tag">For Financial Institutions &amp; PSPs</span>
+            <h2>Join the PayRouta Provider Network.</h2>
+            <p>
+              Are you a payment processor, card acquirer, bank, or mobile money operator?
+              Self-register your organization, declare your regional capabilities, run automated sandbox certification,
+              and receive transaction volume from global merchants.
+            </p>
+            <div className="provider-buttons">
+              <Link href="/provider/onboarding" className="hero-btn-primary">
+                Register as Provider <ArrowRight size={16} />
+              </Link>
+              <Link href="/provider/sign-in" className="hero-btn-secondary">
+                Provider Sign In
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ SECTION */}
+      <section className="section bg-light">
+        <div className="container faq-container">
+          <div className="section-header-centered">
+            <span className="eyebrow-tag">Got Questions?</span>
+            <h2>Frequently asked questions</h2>
+          </div>
+
+          <div className="faq-accordion">
+            {faqs.map((faq, i) => (
+              <details key={i} className="faq-item">
+                <summary className="faq-question">
+                  <span>{faq.q}</span>
+                  <span className="faq-chevron">+</span>
+                </summary>
+                <div className="faq-answer">
+                  <p>{faq.a}</p>
+                </div>
               </details>
             ))}
           </div>
         </div>
       </section>
-      <ClosingCTA />
-    </>
+
+      {/* FINAL CTA SECTION */}
+      <section className="section dark closing-cta-section">
+        <div className="container text-center">
+          <h2>Start accepting payments with zero provider lock-in.</h2>
+          <p className="cta-sub">
+            Launch your merchant workspace in 2 minutes. Test in sandbox, invite your team, and go live.
+          </p>
+          <div className="cta-buttons-center">
+            <Link href="/merchant" className="hero-btn-primary large">
+              Launch Merchant Workspace <ArrowRight size={18} />
+            </Link>
+            <Link href="/checkout/demo" className="hero-btn-secondary large">
+              <Sparkles size={16} /> Try Live Checkout Demo
+            </Link>
+          </div>
+        </div>
+      </section>
+    </div>
   );
 }

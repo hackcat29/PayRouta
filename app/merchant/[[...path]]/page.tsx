@@ -417,45 +417,142 @@ export default async function Page({
         else throw error;
       }
     }
+    const configuredMethods = [
+      {
+        id: "bank_transfer",
+        name: "Instant Bank Transfer",
+        rail: "Direct Account-to-Account (NIP, FedNow, SEPA, Pix)",
+        routing: "Paystack · Monnify · Flutterwave",
+        fallback: "Automatic same-method failover",
+        status: "Active",
+        currency: "NGN, USD, EUR, BRL",
+      },
+      {
+        id: "card",
+        name: "Debit & Credit Cards",
+        rail: "Visa, Mastercard, Verve",
+        routing: "Multi-acquirer smart routing with 3D Secure 2.2",
+        fallback: "Silent failover on acquirer timeout",
+        status: "Active",
+        currency: "Global Multi-currency",
+      },
+      {
+        id: "mobile_money",
+        name: "Mobile Money & USSD",
+        rail: "MTN MoMo, M-Pesa, Airtel Money, Telco USSD",
+        routing: "Carrier push-to-pay with dynamic fallback",
+        fallback: "Prompt re-dispatch on carrier timeout",
+        status: "Active",
+        currency: "KES, GHS, UGX, NGN",
+      },
+      {
+        id: "stablecoin",
+        name: "Base USDC (Stablecoins)",
+        rail: "Sub-second L2 settlement",
+        routing: "Decentralized on-chain gateway with instant fiat receipt",
+        fallback: "RPC load balancing across Alchemy endpoints",
+        status: "Active",
+        currency: "USDC (Base / Ethereum)",
+      },
+      {
+        id: "wallet",
+        name: "Digital Wallets",
+        rail: "Apple Pay, Google Pay, PalmPay, OPay",
+        routing: "1-Click biometric authorization",
+        fallback: "Native scheme fallback",
+        status: "Active",
+        currency: "Global Multi-currency",
+      },
+    ];
+
     content = (
-      <section>
-        <form>
-          <input type="hidden" name="orgId" value={orgId} />
-          <input type="hidden" name="environment" value={env} />
-          <label>
-            Payment intent ID
-            <input
-              name="intentId"
-              required
-              defaultValue={
-                typeof query.intentId === "string" ? query.intentId : ""
-              }
-            />
-          </label>
-          <button>Check availability</button>
-        </form>
-        {evaluation ? (
-          <>
-            <p>
-              For {intent?.reference}. Evaluated {evaluation.evaluatedAt};
-              expires {evaluation.expiresAt}.
-            </p>
-            <ul>
-              {evaluation.methods.map((m) => (
-                <li key={m.method}>
-                  <strong>{m.label}</strong> — {m.explanation}
-                </li>
-              ))}
-            </ul>
-          </>
-        ) : (
-          <p>{explanation}</p>
-        )}
-        <p>
-          Availability depends on this payment&apos;s amount, asset, method, and
-          transaction context. The customer chooses the method at checkout.
-        </p>
-      </section>
+      <>
+        <section>
+          <div className="merchant-section-header">
+            <div>
+              <h2>Accepted Customer Methods</h2>
+              <p>
+                Methods configured for <strong>{membership.org.name}</strong> in {env === "sandbox" ? "Sandbox" : "Live"} environment.
+                PayRouta evaluates these dynamically at checkout and applies smart multi-provider failover.
+              </p>
+            </div>
+            <Link href="/checkout/demo" className="merchant-btn-action">
+              Test Checkout Experience →
+            </Link>
+          </div>
+
+          <div className="merchant-methods-grid">
+            {configuredMethods.map((m) => (
+              <div key={m.id} className="merchant-method-card">
+                <div className="merchant-method-top">
+                  <div>
+                    <strong>{m.name}</strong>
+                    <span className="merchant-method-rail">{m.rail}</span>
+                  </div>
+                  <span className="merchant-status-badge active">{m.status}</span>
+                </div>
+                <div className="merchant-method-details">
+                  <div className="merchant-method-row">
+                    <span className="row-label">Routed Providers:</span>
+                    <span className="row-value">{m.routing}</span>
+                  </div>
+                  <div className="merchant-method-row">
+                    <span className="row-label">Failover Protection:</span>
+                    <span className="row-value">{m.fallback}</span>
+                  </div>
+                  <div className="merchant-method-row">
+                    <span className="row-label">Supported Currencies:</span>
+                    <span className="row-value">{m.currency}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <h2>Intent Availability Inspector</h2>
+          <p>
+            Inspect the real-time availability evaluation for a specific payment intent based on amount, currency, corridor, and provider health.
+          </p>
+          <form>
+            <input type="hidden" name="orgId" value={orgId} />
+            <input type="hidden" name="environment" value={env} />
+            <label>
+              Payment intent ID
+              <input
+                name="intentId"
+                required
+                defaultValue={
+                  typeof query.intentId === "string" ? query.intentId : ""
+                }
+              />
+            </label>
+            <button>Check availability</button>
+          </form>
+          {evaluation ? (
+            <div className="merchant-evaluation-results">
+              <p>
+                For {intent?.reference}. Evaluated {evaluation.evaluatedAt};
+                expires {evaluation.expiresAt}.
+              </p>
+              <ul>
+                {evaluation.methods.map((m) => (
+                  <li key={m.method}>
+                    <strong>{m.label}</strong> — {m.explanation}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <p className="merchant-muted-tip">{explanation}</p>
+          )}
+          <p>
+            Availability depends on this payment&apos;s amount, asset, method, and
+            transaction context. The customer chooses the method at checkout.
+          </p>
+        </section>
+      </>
     );
   } else if (section === "settlements") {
     const result = await settlements(

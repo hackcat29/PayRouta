@@ -40,18 +40,18 @@ export function ClosingCTA() {
     <section className="closing">
       <div className="container split">
         <div>
-          <h2>Discuss your payment requirements.</h2>
+          <h2>Ready to upgrade your payment routing?</h2>
           <p>
-            Tell us which methods your customers need and how you want to
-            receive settlement.
+            Connect your business to multiple providers, reduce card and bank transfer drop-offs,
+            and reconcile treasury automatically.
           </p>
         </div>
         <div className="actions">
-          <ButtonLink href="/contact?intent=merchant">
-            Request access
+          <ButtonLink href="/merchant">
+            Open Merchant Console
           </ButtonLink>
-          <ButtonLink href="/contact?intent=provider" secondary>
-            Become a provider
+          <ButtonLink href="/checkout/demo" secondary>
+            Try Checkout Demo
           </ButtonLink>
         </div>
       </div>
@@ -67,7 +67,7 @@ export function Footer() {
             <BrandLogo reverse />
           </Link>
           <p>The universal payment routing network.</p>
-          <p className="early-access">Early access · In development</p>
+          <p className="footer-tagline">Multi-provider automated failover &amp; unified settlement.</p>
         </div>
         <div>
           <h3>Explore PayRouta</h3>

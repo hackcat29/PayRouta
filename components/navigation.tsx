@@ -2,17 +2,20 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRef, useState } from "react";
-import { ArrowUpRight, ChevronDown, Menu, X } from "lucide-react";
+import { ArrowUpRight, ChevronDown, Menu, X, Sparkles } from "lucide-react";
 import { BrandLogo } from "./brand-logo";
 import { navigationGroups, paths } from "@/lib/site-config";
+
 export function Navigation() {
   const path = usePathname();
   return <Nav key={path} dark={path === "/"} />;
 }
+
 function Nav({ dark }: { dark: boolean }) {
   const [open, setOpen] = useState<string | null>(null);
   const [mobile, setMobile] = useState(false);
   const root = useRef<HTMLElement>(null);
+
   return (
     <header
       ref={root}
@@ -72,21 +75,42 @@ function Nav({ dark }: { dark: boolean }) {
                       {label}
                     </Link>
                   ))}
+                  {g.title === "Solutions" && (
+                    <>
+                      <Link href="/merchant" className="dropdown-highlight">
+                        Merchant Dashboard
+                      </Link>
+                      <Link href="/provider" className="dropdown-highlight">
+                        Provider Portal
+                      </Link>
+                    </>
+                  )}
                 </div>
               )}
             </div>
           ))}
+
+          <Link className="demo-nav-link" href="/checkout/demo">
+            <Sparkles size={13} className="text-teal" /> Live Checkout Demo
+          </Link>
+
           <Link className="pricing-nav" href={paths.pricing}>
             Pricing
           </Link>
-          <Link className="utility-contact" href={paths.contact}>
-            Contact
+
+          <Link className="utility-contact" href={paths.docs}>
+            Docs
           </Link>
+
+          <Link className="sign-in-nav" href="/provider/sign-in">
+            Sign In
+          </Link>
+
           <Link
             className={`button ${dark ? "mint" : ""}`}
-            href="/contact?intent=merchant"
+            href="/merchant"
           >
-            Request access <ArrowUpRight size={16} />
+            Open Dashboard <ArrowUpRight size={16} />
           </Link>
         </nav>
       </div>
