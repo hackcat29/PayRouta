@@ -65,21 +65,21 @@ export default async function MarketingPage({
           ? {
               primaryHref: "/docs",
               primaryText: "Explore API Docs",
-              secondaryHref: "/checkout/demo",
-              secondaryText: "Try checkout demo",
+              secondaryHref: "/docs/quickstart",
+              secondaryText: "Quickstart guide",
             }
           : slug === "merchants"
             ? {
                 primaryHref: "/merchant",
                 primaryText: "Open Merchant Console",
-                secondaryHref: "/checkout/demo",
-                secondaryText: "Launch checkout demo",
+                secondaryHref: "/docs",
+                secondaryText: "Explore documentation",
               }
             : {
                 primaryHref: "/merchant",
                 primaryText: "Open Merchant Console",
-                secondaryHref: "/checkout/demo",
-                secondaryText: "Try checkout demo",
+                secondaryHref: "/docs",
+                secondaryText: "Explore documentation",
               };
 
   return (

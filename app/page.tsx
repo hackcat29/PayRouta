@@ -7,8 +7,7 @@ import {
   Coins,
   Wallet,
   CheckCircle2,
-  Layers,
-  Sparkles,
+  Landmark,
 } from "lucide-react";
 import { ProductShowcase } from "@/components/product-showcase";
 import { trustedOrigin, paths } from "@/lib/site-config";
@@ -62,12 +61,12 @@ const supportedMethods = [
     coverage: ["Apple Pay", "Google Pay", "OPay", "PalmPay"],
   },
   {
-    icon: Layers,
-    title: "Unified Settlement",
-    badge: "Treasury",
+    icon: Landmark,
+    title: "Direct Debit & Mandates",
+    badge: "Recurring A2A",
     description:
-      "Regardless of how your customers choose to pay, receive automatic daily settlement and unified reconciliation in your preferred treasury currency.",
-    coverage: ["NGN Bank Accounts", "USD", "EUR", "USDC Vaults"],
+      "Automated recurring bank debits and mandates for subscription billing, SaaS invoices, and installments with localized clearing and return handling.",
+    coverage: ["SEPA Direct Debit", "Bacs Direct Debit", "ACH Pull", "NIBSS Mandates"],
   },
 ];
 
@@ -121,35 +120,32 @@ export default function Home() {
 
             <div className="hero-cta-group">
               <Link href="/merchant" className="hero-btn-primary">
-                Open Merchant Dashboard <ArrowRight size={16} />
+                Open Merchant Console <ArrowRight size={16} />
               </Link>
-              <Link href="/checkout/demo" className="hero-btn-secondary">
-                <Sparkles size={15} /> Try Checkout Demo
-              </Link>
-              <Link href={paths.docs} className="hero-link-docs">
+              <Link href={paths.docs} className="hero-btn-secondary">
                 View API Docs →
               </Link>
             </div>
 
             <div className="hero-metrics-strip">
               <div className="metric-item">
+                <strong>40+</strong>
+                <span>Countries supported</span>
+              </div>
+              <div className="metric-divider" />
+              <div className="metric-item">
+                <strong>50+</strong>
+                <span>Local payment methods</span>
+              </div>
+              <div className="metric-divider" />
+              <div className="metric-item">
                 <strong>99.98%</strong>
-                <span>Network uptime</span>
+                <span>Route availability</span>
               </div>
               <div className="metric-divider" />
               <div className="metric-item">
                 <strong>0</strong>
                 <span>Single points of failure</span>
-              </div>
-              <div className="metric-divider" />
-              <div className="metric-item">
-                <strong>&lt; 600ms</strong>
-                <span>Route resolution</span>
-              </div>
-              <div className="metric-divider" />
-              <div className="metric-item">
-                <strong>10+</strong>
-                <span>Payment methods</span>
               </div>
             </div>
           </div>
@@ -209,10 +205,12 @@ export default function Home() {
       <section className="section">
         <div className="container">
           <div className="section-header-centered">
-            <span className="eyebrow-tag">Complete Coverage</span>
-            <h2>Every way your customers want to pay.</h2>
+            <span className="eyebrow-tag">Global Corridors &amp; Rails</span>
+            <h2>50+ local payment methods across 40+ countries.</h2>
             <p>
-              Give your buyers the local payment methods they trust, while your finance team receives unified settlement in your currency of choice.
+              Your customers choose the local <strong>payment method</strong> they trust in their currency.
+              Behind the scenes, PayRouta routes across multiple certified <strong>payment providers</strong>
+              (acquirers, processors, and bank gateways) for each method—ensuring instant same-method redundancy.
             </p>
           </div>
 
@@ -401,8 +399,8 @@ return res.redirect(intent.checkoutUrl);`}</code>
             <Link href="/merchant" className="hero-btn-primary large">
               Launch Merchant Workspace <ArrowRight size={18} />
             </Link>
-            <Link href="/checkout/demo" className="hero-btn-secondary large">
-              <Sparkles size={16} /> Try Live Checkout Demo
+            <Link href={paths.docs} className="hero-btn-secondary large">
+              Explore API Documentation →
             </Link>
           </div>
         </div>

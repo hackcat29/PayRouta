@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRef, useState } from "react";
-import { ArrowUpRight, ChevronDown, Menu, X, Sparkles } from "lucide-react";
+import { ArrowUpRight, ChevronDown, Menu, X } from "lucide-react";
 import { BrandLogo } from "./brand-logo";
 import { navigationGroups, paths } from "@/lib/site-config";
 
@@ -75,24 +75,10 @@ function Nav({ dark }: { dark: boolean }) {
                       {label}
                     </Link>
                   ))}
-                  {g.title === "Solutions" && (
-                    <>
-                      <Link href="/merchant" className="dropdown-highlight">
-                        Merchant Dashboard
-                      </Link>
-                      <Link href="/provider" className="dropdown-highlight">
-                        Provider Portal
-                      </Link>
-                    </>
-                  )}
                 </div>
               )}
             </div>
           ))}
-
-          <Link className="demo-nav-link" href="/checkout/demo">
-            <Sparkles size={13} className="text-teal" /> Live Checkout Demo
-          </Link>
 
           <Link className="pricing-nav" href={paths.pricing}>
             Pricing

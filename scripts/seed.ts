@@ -22,7 +22,7 @@ async function main() {
   });
   const backupCodes = await symmetricEncrypt({
     key: process.env.BETTER_AUTH_SECRET!,
-    data: JSON.stringify(["123456"]),
+    data: JSON.stringify(["123456", "fixture-recovery-unused"]),
   });
   const users = [
     {
@@ -124,7 +124,11 @@ async function main() {
         backupCodes,
         verified: true,
       },
-      update: {},
+      update: {
+        secret,
+        backupCodes,
+        verified: true,
+      },
     });
     await db.membership.upsert({
       where: { orgId_userId: { orgId: u.orgId, userId: u.id } },

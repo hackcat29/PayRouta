@@ -53,7 +53,9 @@ export function AuthScreen({
           </h1>
           <p>
             {factor
-              ? "Enter the six-digit code from your authenticator."
+              ? local
+                ? "Enter 123456 for instant local demo access, or run npm run portal:code for live TOTP."
+                : "Enter the six-digit code from your authenticator."
               : signUp
                 ? "Start with your business email. You’ll create your organization after verification."
                 : "Sign in to manage your organization."}
@@ -127,12 +129,20 @@ export function AuthScreen({
             }}
           >
             {factor ? (
-              <Field label="Authenticator code">
+              <Field
+                label="Authenticator code"
+                hint={
+                  local
+                    ? "Local fixture: enter 123456 or run `npm run portal:code`"
+                    : undefined
+                }
+              >
                 <input
                   name="code"
                   autoComplete="one-time-code"
                   inputMode="numeric"
                   pattern="[0-9]{6}"
+                  placeholder={local ? "123456" : "000000"}
                   required
                 />
               </Field>

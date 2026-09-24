@@ -268,10 +268,7 @@ print("Checkout URL:", intent.checkout_url)`;
             )}
           </div>
           <div className="checkout-footer-note">
-            <span>Customer never sees provider hops or failovers. They just see a successful checkout.</span>
-            <Link href="/checkout/demo" className="demo-link">
-              Open Fullscreen Checkout Demo →
-            </Link>
+            <span>Customer never sees provider hops or failovers. They experience a single uninterrupted payment flow.</span>
           </div>
         </div>
       )}

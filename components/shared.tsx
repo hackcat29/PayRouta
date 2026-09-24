@@ -50,8 +50,8 @@ export function ClosingCTA() {
           <ButtonLink href="/merchant">
             Open Merchant Console
           </ButtonLink>
-          <ButtonLink href="/checkout/demo" secondary>
-            Try Checkout Demo
+          <ButtonLink href="/docs" secondary>
+            Explore API Documentation
           </ButtonLink>
         </div>
       </div>
