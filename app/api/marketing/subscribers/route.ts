@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/portal/db";
+import type { Prisma } from "@/lib/generated/prisma/client";
 
 export async function GET(req: NextRequest) {
   try {
@@ -8,7 +9,7 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get("status");
     const query = searchParams.get("q");
 
-    const where: Record<string, any> = {};
+    const where: Prisma.MarketingSubscriberWhereInput = {};
     if (role && role !== "all") where.role = role;
     if (status && status !== "all") where.status = status;
     if (query) {

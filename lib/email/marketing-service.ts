@@ -1,4 +1,5 @@
 import { db } from "@/lib/portal/db";
+import type { Prisma } from "@/lib/generated/prisma/client";
 import {
   sendEmail,
   sendBatchEmails,
@@ -10,7 +11,6 @@ import {
   renderDripRoutingTipsEmail,
   renderDripSettlementEmail,
   renderMarketingBroadcastEmail,
-  renderMonthlyDigestEmail,
   stripHtmlToText,
 } from "./templates";
 
@@ -80,7 +80,7 @@ export class MarketingService {
           source: input.source || "landing_page",
           topics: selectedTopics,
           status: "active",
-          metadata: (input.metadata as any) || {},
+          metadata: (input.metadata ?? {}) as Prisma.InputJsonObject,
         },
       });
     } else {
@@ -140,7 +140,7 @@ export class MarketingService {
     // Render Welcome (Day 0)
     const emailData = renderWelcomeEmail({
       name: subscriber.name || undefined,
-      role: subscriber.role as any,
+      role: subscriber.role as "merchant" | "developer" | "provider" | "subscriber",
       siteUrl: this.siteUrl,
       preferencesUrl,
       unsubscribeUrl,
@@ -451,7 +451,7 @@ export class MarketingService {
     });
 
     // Build subscriber query based on audience filter
-    const audienceFilter: Record<string, any> = {
+    const audienceFilter: Prisma.MarketingSubscriberWhereInput = {
       status: "active",
     };
 

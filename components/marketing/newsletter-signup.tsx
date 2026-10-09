@@ -203,7 +203,7 @@ export function NewsletterSignup({
               <button
                 key={r.id}
                 type="button"
-                onClick={() => setRole(r.id as any)}
+                onClick={() => setRole(r.id as typeof role)}
                 style={{
                   padding: "4px 10px",
                   fontSize: "12px",

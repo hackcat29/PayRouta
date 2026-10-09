@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, use } from "react";
+import React, { useCallback, useEffect, useState, use } from "react";
 import Link from "next/link";
 import { BrandLogo } from "@/components/brand-logo";
 import {
@@ -29,20 +29,49 @@ export default function PreferencesPage({
   const token = resolvedParams.token;
   const initialAction = resolvedParams.action;
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(token));
   const [data, setData] = useState<PreferenceData | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const error = token
+    ? fetchError
+    : "No preference token provided. Please use the link from your email.";
   const [topics, setTopics] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [isUnsubscribed, setIsUnsubscribed] = useState(false);
 
-  useEffect(() => {
-    if (!token) {
-      setError("No preference token provided. Please use the link from your email.");
+  const handleUnsubscribeAll = useCallback(async (targetToken = token) => {
+    if (!targetToken) return;
+
+    setSaving(true);
+    setFeedback(null);
+
+    try {
+      const res = await fetch("/api/marketing/preferences", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token: targetToken,
+          unsubscribeAll: true,
+        }),
+      });
+
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || "Unsubscribe failed");
+
+      setIsUnsubscribed(true);
+      setTopics([]);
+      setFeedback("You have been unsubscribed from all PayRouta marketing emails.");
+    } catch (err: unknown) {
+      setFeedback(err instanceof Error ? err.message : "Error unsubscribing");
+    } finally {
+      setSaving(false);
       setLoading(false);
-      return;
     }
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
 
     fetch(`/api/marketing/preferences?token=${encodeURIComponent(token)}`)
       .then(async (res) => {
@@ -65,10 +94,10 @@ export default function PreferencesPage({
         }
       })
       .catch((err) => {
-        setError(err.message);
+        setFetchError(err.message);
         setLoading(false);
       });
-  }, [token, initialAction]);
+  }, [token, initialAction, handleUnsubscribeAll]);
 
   const handleToggleTopic = (topicId: string) => {
     setTopics((prev) =>
@@ -105,36 +134,6 @@ export default function PreferencesPage({
       setFeedback(err instanceof Error ? err.message : "Error saving");
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleUnsubscribeAll = async (targetToken = token) => {
-    if (!targetToken) return;
-
-    setSaving(true);
-    setFeedback(null);
-
-    try {
-      const res = await fetch("/api/marketing/preferences", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          token: targetToken,
-          unsubscribeAll: true,
-        }),
-      });
-
-      const resData = await res.json();
-      if (!res.ok) throw new Error(resData.error || "Unsubscribe failed");
-
-      setIsUnsubscribed(true);
-      setTopics([]);
-      setFeedback("You have been unsubscribed from all PayRouta marketing emails.");
-    } catch (err: unknown) {
-      setFeedback(err instanceof Error ? err.message : "Error unsubscribing");
-    } finally {
-      setSaving(false);
-      setLoading(false);
     }
   };
 

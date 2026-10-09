@@ -4,8 +4,6 @@ import React, { useState, useEffect } from "react";
 import {
   PaperPlaneTilt,
   Users,
-  ChartLineUp,
-  EnvelopeSimple,
   Clock,
   CheckCircle,
   WarningCircle,
@@ -19,19 +17,48 @@ import {
   ListChecks,
 } from "@phosphor-icons/react";
 
+interface CampaignRow {
+  id: string;
+  subject: string;
+  status: string;
+  createdAt: string;
+  recipientCount: number;
+  openCount: number;
+  clickCount: number;
+}
+
+interface LogRow {
+  id: string;
+  email: string;
+  type: string;
+  status: string;
+  templateId: string | null;
+  resendEmailId: string | null;
+  createdAt: string;
+}
+
+interface SubscriberRow {
+  id: string;
+  email: string;
+  name: string | null;
+  role: string;
+  status: string;
+  topics: unknown;
+  createdAt: string;
+}
+
 interface AnalyticsData {
   subscribers: { total: number; active: number; unsubscribed: number };
   campaigns: { total: number; sent: number };
   engagement: { totalSent: number; openRate: string; clickRate: string; bounceRate: string };
   resendStatus: { configured: boolean; mode: string };
-  recentCampaigns: any[];
-  recentLogs: any[];
+  recentCampaigns: CampaignRow[];
+  recentLogs: LogRow[];
 }
 
 export function MarketingDashboard() {
   const [tab, setTab] = useState<"broadcasts" | "subscribers" | "drips" | "activity">("broadcasts");
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
-  const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Broadcast Composer State
@@ -54,7 +81,7 @@ export function MarketingDashboard() {
   const [launching, setLaunching] = useState(false);
 
   // Subscribers Directory State
-  const [subscribers, setSubscribers] = useState<any[]>([]);
+  const [subscribers, setSubscribers] = useState<SubscriberRow[]>([]);
   const [subLoading, setSubLoading] = useState(false);
   const [subQuery, setSubQuery] = useState("");
   const [subRole, setSubRole] = useState("all");
@@ -75,8 +102,6 @@ export function MarketingDashboard() {
       }
     } catch (e) {
       console.error(e);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -100,13 +125,44 @@ export function MarketingDashboard() {
   };
 
   useEffect(() => {
-    fetchAnalytics();
+    let cancelled = false;
+    fetch("/api/marketing/stats")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data) setAnalytics(data);
+      })
+      .catch(console.error);
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
-    if (tab === "subscribers") {
-      fetchSubscribers();
-    }
+    if (tab !== "subscribers") return;
+    let cancelled = false;
+    const params = new URLSearchParams();
+    if (subRole !== "all") params.set("role", subRole);
+    // Query-text searches are triggered explicitly through fetchSubscribers().
+    if (subQuery) params.set("q", subQuery);
+    // Defer so the loading flag is not set synchronously inside the effect body.
+    Promise.resolve()
+      .then(() => {
+        if (!cancelled) setSubLoading(true);
+        return fetch(`/api/marketing/subscribers?${params.toString()}`);
+      })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data) setSubscribers(data.subscribers || []);
+      })
+      .catch(console.error)
+      .finally(() => {
+        if (!cancelled) setSubLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // subQuery is intentionally omitted: typing must not refetch on every keystroke.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, subRole]);
 
   const handleSendTest = async () => {
@@ -407,7 +463,7 @@ export function MarketingDashboard() {
           return (
             <button
               key={t.id}
-              onClick={() => setTab(t.id as any)}
+              onClick={() => setTab(t.id as typeof tab)}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -510,7 +566,7 @@ export function MarketingDashboard() {
                   </label>
                   <select
                     value={campAudience}
-                    onChange={(e) => setCampAudience(e.target.value as any)}
+                    onChange={(e) => setCampAudience(e.target.value as typeof campAudience)}
                     style={{
                       width: "100%",
                       padding: "9px 12px",
@@ -685,7 +741,7 @@ export function MarketingDashboard() {
               <p style={{ color: "#64748B", fontSize: "13px" }}>No campaigns launched yet.</p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                {analytics?.recentCampaigns.map((camp: any) => (
+                {analytics?.recentCampaigns.map((camp) => (
                   <div
                     key={camp.id}
                     style={{
@@ -779,7 +835,7 @@ export function MarketingDashboard() {
             />
             <select
               value={newSubRole}
-              onChange={(e) => setNewSubRole(e.target.value as any)}
+              onChange={(e) => setNewSubRole(e.target.value as typeof newSubRole)}
               style={{
                 padding: "8px 12px",
                 background: "#0B0F19",
@@ -1021,7 +1077,7 @@ export function MarketingDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {analytics?.recentLogs.map((log: any) => {
+                  {analytics?.recentLogs.map((log) => {
                     const statusColor =
                       log.status === "opened"
                         ? "#10B981"

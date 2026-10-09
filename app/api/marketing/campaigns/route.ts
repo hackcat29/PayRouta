@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { MarketingService } from "@/lib/email/marketing-service";
 import { db } from "@/lib/portal/db";
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const campaigns = await db.marketingCampaign.findMany({
       orderBy: { createdAt: "desc" },

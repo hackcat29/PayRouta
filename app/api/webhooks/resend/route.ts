@@ -4,7 +4,7 @@ import { MarketingService } from "@/lib/email/marketing-service";
 export async function POST(req: NextRequest) {
   try {
     const rawBody = await req.text();
-    let event: any;
+    let event: Parameters<typeof MarketingService.handleResendWebhookEvent>[0];
     try {
       event = JSON.parse(rawBody);
     } catch {
