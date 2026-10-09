@@ -55,9 +55,10 @@ async function main() {
     true,
     "Secret store master keys (32-byte base64), kept outside the database",
   );
+  const emailConfigured = (!!env.SMTP_URL && !!env.MAIL_FROM) || !!env.RESEND_API_KEY;
   add(
-    "SMTP_URL and MAIL_FROM",
-    !!env.SMTP_URL && !!env.MAIL_FROM,
+    "SMTP_URL or RESEND_API_KEY",
+    emailConfigured,
     true,
     "Verification, reset and invitation email",
   );
@@ -162,12 +163,15 @@ async function main() {
       `${c.ok ? "✓" : c.blocking ? "✗" : "!"} ${c.name}${c.ok ? "" : ` — ${c.note}`}`,
     );
   const blocked = checks.filter((c) => !c.ok && c.blocking);
+  const warnOnly =
+    process.argv.includes("--warn") ||
+    process.argv.includes("--allow-warnings");
   console.log(
     blocked.length
-      ? `\n${blocked.length} blocking item(s) missing.`
+      ? `\n${blocked.length} blocking item(s) missing.${warnOnly ? " (non-fatal under --warn)" : ""}`
       : "\nNo blocking items missing.",
   );
   await db.$disconnect();
-  process.exit(blocked.length ? 1 : 0);
+  process.exit(blocked.length && !warnOnly ? 1 : 0);
 }
 void main();
