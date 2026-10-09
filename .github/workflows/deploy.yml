@@ -86,9 +86,10 @@ jobs:
           envs: SHA
           script_stop: true
           script: |
-            set -euo pipefail
+            # Load nvm before enabling strict mode: nvm.sh is not safe under set -eu.
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+            set -euo pipefail
             ROOT=/opt/payrouta
             REL="$ROOT/releases/$SHA"
             PREV="$(readlink -f "$ROOT/current" || true)"
