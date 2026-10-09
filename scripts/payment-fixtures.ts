@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { randomBytes } from "node:crypto";
 import { db } from "../lib/portal/db";
 import { localMode, secretManager } from "../lib/portal/adapters";
 import { json } from "../lib/portal/service";
@@ -16,7 +17,12 @@ export async function paymentFixtures() {
   const merchant = "payment-demo-merchant";
   await db.organization.upsert({
     where: { id: merchant },
-    create: { id: merchant, name: "Fictional Market", fictional: true },
+    create: {
+      id: merchant,
+      name: "Fictional Market",
+      fictional: true,
+      application: { create: {} },
+    },
     update: {},
   });
   const user = await db.user.findUnique({ where: { id: "dev-owner" } });
@@ -58,6 +64,15 @@ export async function paymentFixtures() {
       ],
     },
   });
+  await seedSandboxProviders(ref);
+  return merchant;
+}
+
+// Five fictional simulator providers (bank ×2, card, mobile money,
+// stablecoin) published to the sandbox registry. Used locally and, with
+// HOSTED_SANDBOX=enabled, on a deployed sandbox.
+export async function seedSandboxProviders(ref?: string) {
+  ref ??= await secretManager.put(randomBytes(32).toString("hex"));
   for (let n = 0; n < 5; n++) {
     const orgId = `payment-demo-provider-${n}`;
     await db.organization.upsert({
@@ -174,7 +189,6 @@ export async function paymentFixtures() {
       });
   }
   await refreshObservations();
-  return merchant;
 }
 if (process.argv[1]?.endsWith("payment-fixtures.ts"))
   paymentFixtures()

@@ -1,0 +1,54 @@
+# Mercado Pago
+
+> **Implementation status:** Provider code path: mercado-pago. Not live-qualified by code alone. Merchant account enablement, credentials and sandbox qualification are required. See [current coverage](provider-coverage.md).
+
+**Category**: [Digital Wallets](providers/digital-wallets/README.md)  
+**Provider**: MercadoLibre, Inc.  
+**Method ID**: `digital-wallet`  
+**Integration Mode**: `STANDARD` / `CONFIGURABLE`
+
+Mercado Pago is the undisputed financial services leader across Latin America, processing over 100 million active wallet users across Brazil, Mexico, Argentina, Colombia, Chile, and Peru.
+
+---
+
+## Technical Specifications
+
+- **Corridors**: Brazil (`BRL`), Mexico (`MXN`), Argentina (`ARS`), Colombia (`COP`), Chile (`CLP`), Peru (`PEN`).
+- **Payment Modalities**:
+  - **Stored Wallet Balance**: Customers pay from their existing Mercado Pago wallet balance with zero drop-off.
+  - **Linked Cards & Installments**: Payer can split transactions into interest-free installments (Parcelamento / Meses sin intereses).
+  - **Pix Hybrid**: Direct link to Central Bank of Brazil Pix rail within the Mercado Pago app.
+- **Webhook Handling**: Secure HMAC verification of payment events with idempotent deduplication.
+
+---
+
+## Direct Merchant Contracting
+
+Merchants retain their own direct Mercado Pago developer credentials (`Access Token`, `Public Key`), managing chargeback defense and receiving automated local currency payouts into their registered corporate accounts.
+
+---
+
+## Payment Intent Example
+
+```json
+{
+  "amount": "450.00",
+  "currency": "BRL",
+  "payer_context": {
+    "country": "BR"
+  },
+  "accepted_methods": [
+    "digital-wallet",
+    "bank-transfer"
+  ],
+  "metadata": {
+    "preferred_wallet": "mercado-pago"
+  }
+}
+```
+
+---
+
+## Failover Within Latin America
+
+If Mercado Pago reports an acquiring switch timeout, PayRouta fails over to **PicPay** or direct **Pix** in Brazil, or **OXXO Pay** / SPEI in Mexico.

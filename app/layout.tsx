@@ -4,17 +4,25 @@ import "@fontsource/inter/500.css";
 import "@fontsource/inter/600.css";
 import "@fontsource/inter/700.css";
 import "./globals.css";
+import "./marketing.css";
+import { Archivo, JetBrains_Mono } from "next/font/google";
 import { SiteChrome } from "@/components/site-chrome";
 import { trustedOrigin } from "@/lib/site-config";
 const origin = trustedOrigin();
+const archivo = Archivo({
+  subsets: ["latin"],
+  axes: ["wdth"],
+  variable: "--font-archivo",
+});
+const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jb-mono" });
 export const metadata: Metadata = {
   metadataBase: origin ? new URL(origin) : undefined,
   title: {
-    default: "PayRouta — Universal Payment Routing",
-    template: "%s | PayRouta",
+    default: "PayRouta — Every way your customers pay, one application",
+    template: "%s · PayRouta",
   },
   description:
-    "One integration. Every way your customers pay. Explore the payment availability and routing network in development.",
+    "Apply once to PayRouta and accept cards, bank transfers, mobile money and stablecoins through regulated processing partners, with same-method failover and payouts on your schedule. Stablecoins go straight to your wallet.",
   robots: { index: !!origin, follow: !!origin },
   icons: { icon: "/brand/favicon.svg" },
   ...(origin
@@ -34,7 +42,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html
+      lang="en"
+      className={`${archivo.variable} ${mono.variable}`}
+    >
       <body>
         <a href="#main" className="skip-link">
           Skip to content

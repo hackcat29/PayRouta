@@ -59,17 +59,23 @@ async function limitedJson(request: Request) {
       const { value, done } = await reader.read();
       if (done) break;
       size += value.length;
-      if (size > 65536) {
+      if (size > 262144) {
         await reader.cancel();
         throw new PortalError("Request too large", 413);
       }
       chunks.push(value);
     }
+    let body;
     try {
-      return JSON.parse(Buffer.concat(chunks).toString());
+      body = JSON.parse(Buffer.concat(chunks).toString());
     } catch {
       throw new PortalError("Invalid JSON request", 400);
     }
+    // An explicit review can name up to 200 deployment/account pairs.
+    // Ordinary portal commands retain their original 64 KiB limit.
+    if (size > 65536 && (!body || body.action !== "propose-live-scope"))
+      throw new PortalError("Request too large", 413);
+    return body;
   } finally {
     clearTimeout(timeout);
   }

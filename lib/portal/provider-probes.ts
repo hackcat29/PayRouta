@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { localMode, secretManager } from "./adapters";
+import { sandboxSimulation, secretManager } from "./adapters";
 import {
   assertAdapterConfiguration,
   observeProvider,
@@ -35,7 +35,7 @@ export async function refreshObservations(now = new Date()) {
       const config = integration.config as { adapter: string };
       if (
         config.adapter === "simulator" &&
-        (!localMode() ||
+        (!sandboxSimulation() ||
           !integration.org.fictional ||
           p.environment !== "sandbox")
       )

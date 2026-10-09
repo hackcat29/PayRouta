@@ -1,4 +1,4 @@
-import { Checkout } from "./view";
+import { CheckoutRouter } from "./router";
 export const metadata = {
   title: "Secure checkout | PayRouta",
   robots: { index: false, follow: false },
@@ -10,5 +10,5 @@ export default async function Page({
   params: Promise<{ sessionId: string }>;
 }) {
   const { sessionId } = await params;
-  return <Checkout id={sessionId} />;
+  return <CheckoutRouter id={sessionId} />;
 }

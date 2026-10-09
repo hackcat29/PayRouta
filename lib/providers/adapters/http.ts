@@ -51,7 +51,9 @@ export async function providerRequest(
   if (body !== null) {
     if (Buffer.byteLength(body, "utf8") > 65536)
       throw new PortalError("Provider request body exceeds 64 KiB");
-    headers["Content-Type"] = "application/json";
+    // Form-encoded providers (e.g. Stripe) declare their own content type.
+    if (!Object.keys(headers).some((k) => k.toLowerCase() === "content-type"))
+      headers["Content-Type"] = "application/json";
     headers["Content-Length"] = String(Buffer.byteLength(body, "utf8"));
   }
   return new Promise<ProviderHttpResponse>((resolve, reject) => {
@@ -61,6 +63,8 @@ export async function providerRequest(
         method: options.method,
         signal: options.signal,
         headers,
+        // A single validated address is pinned; do not ask lookup for an array.
+        family: address.family,
         servername: url.hostname,
         lookup: (_host, _opts, cb) => cb(null, address.address, address.family),
         timeout: timeoutMs,

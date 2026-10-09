@@ -1,3 +1,5 @@
+Object.assign(process.env,{ NODE_ENV: "test" });
+process.env.PAYMENT_TEST_LEGACY_METHODS = "enabled";
 import "dotenv/config";
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";

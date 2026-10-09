@@ -1,69 +1,122 @@
-name: Deploy to Contabo VPS
+name: Verify and deploy
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+  pull_request:
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
-  deploy:
-    name: Build & Deploy
+  verify:
+    name: Typecheck, lint, test, build
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      deployments: write
-
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: payrouta
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: payrouta
+        ports: ["55432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U payrouta" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      # Isolated, fictional CI environment only.
+      DATABASE_URL: postgresql://payrouta@127.0.0.1:55432/payrouta
+      BETTER_AUTH_URL: http://127.0.0.1:3000
+      BETTER_AUTH_SECRET: ci-only-secret-not-used-anywhere-else-0123456789
+      PORTAL_MODE: local
+      LOCAL_DATA_DIR: .local/portal
+      LOCAL_VAULT_KEY_FILE: /tmp/payrouta-ci-vault.key
+      EVIDENCE_RETENTION_DAYS: "90"
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: "npm"
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: head -c 32 /dev/urandom > /tmp/payrouta-ci-vault.key && chmod 600 /tmp/payrouta-ci-vault.key
+      - run: npx prisma generate
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npx prisma migrate deploy
+      - run: npm run db:seed
+      - run: npm test
+      - run: npm run test:payments
+      - run: npm run test:merchant
+      - run: npm run test:partners
+      - run: npm run build
 
-      - name: Install dependencies
-        run: npm install
-
-      - name: Generate Prisma client
-        run: npx prisma generate
-
-      - name: Run unit tests
-        run: npm test
-
-      - name: Copy files to Contabo VPS
-        uses: appleboy/scp-action@master
+  deploy:
+    name: Deploy to server
+    needs: verify
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      # Only tracked files are shipped: no node_modules, .git or local data.
+      - run: git archive --format=tar.gz -o release.tgz HEAD
+      - name: Upload release
+        uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.CONTABO_HOST }}
           username: ${{ secrets.CONTABO_USER }}
           key: ${{ secrets.CONTABO_SSH_KEY }}
-          source: "."
-          target: "/opt/payrouta"
-
-      - name: Deploy on Contabo VPS
+          source: release.tgz
+          target: /opt/payrouta/incoming
+      - name: Build, migrate, preflight and switch
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          SHA: ${{ github.sha }}
         with:
           host: ${{ secrets.CONTABO_HOST }}
           username: ${{ secrets.CONTABO_USER }}
           key: ${{ secrets.CONTABO_SSH_KEY }}
+          envs: SHA
+          script_stop: true
           script: |
+            set -euo pipefail
             export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            cd /opt/payrouta
+            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+            ROOT=/opt/payrouta
+            REL="$ROOT/releases/$SHA"
+            PREV="$(readlink -f "$ROOT/current" || true)"
+            mkdir -p "$REL"
+            tar -xzf "$ROOT/incoming/release.tgz" -C "$REL"
+            ln -sfn "$ROOT/.env" "$REL/.env"
+            cd "$REL"
             npm ci
             npx prisma generate
             npx prisma migrate deploy
             npm run build
-            # Copy static files to standalone dir as required by Next.js standalone mode
             cp -r public .next/standalone/
             cp -r .next/static .next/standalone/.next/
-
-            # Export environment variables from .env to the current shell
-            if [ -f .env ]; then
-              export $(grep -v '^#' .env | xargs)
+            npm run preflight:production
+            ln -sfn "$REL" "$ROOT/current"
+            pm2 startOrReload "$REL/ecosystem.config.cjs" --update-env
+            ok=0
+            for i in $(seq 1 20); do
+              if curl -fsS http://127.0.0.1:3051/api/health >/dev/null; then ok=1; break; fi
+              sleep 3
+            done
+            if [ "$ok" != 1 ]; then
+              echo "Health check failed; rolling back to $PREV"
+              if [ -n "$PREV" ]; then
+                ln -sfn "$PREV" "$ROOT/current"
+                pm2 startOrReload "$PREV/ecosystem.config.cjs" --update-env
+              fi
+              exit 1
             fi
-
-            # Start or restart PM2 process
-            PORT=3051 pm2 start .next/standalone/server.js --name "payrouta" || PORT=3051 pm2 restart payrouta --update-env
+            pm2 save
+            ls -1dt "$ROOT"/releases/* | tail -n +6 | xargs -r rm -rf

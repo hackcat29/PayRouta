@@ -20,25 +20,31 @@ import { validateEndpoint } from "./ssrf";
 export const json = (value: unknown) =>
   JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 type Tx = Prisma.TransactionClient;
+// Serializable transactions abort on conflicting concurrent access (SQLSTATE
+// 40001). Retry with jittered exponential backoff so that conflicting work
+// interleaves instead of colliding again; after the last attempt report a
+// retryable 409 rather than a raw driver error.
+const ATTEMPTS = 5;
 export async function atomic<T>(work: (tx: Tx) => Promise<T>): Promise<T> {
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < ATTEMPTS; i++) {
     try {
       return await db.$transaction(work, {
         isolationLevel: "Serializable",
         timeout: 15000,
       });
     } catch (error) {
-      if (
-        ((error instanceof Prisma.PrismaClientKnownRequestError &&
+      const conflict =
+        (error instanceof Prisma.PrismaClientKnownRequestError &&
           error.code === "P2034") ||
-          (error instanceof Error &&
-            error.name === "DriverAdapterError" &&
-            (error as Error & { cause?: { originalCode?: string } }).cause
-              ?.originalCode === "40001")) &&
-        i < 2
-      )
-        continue;
-      throw error;
+        (error instanceof Error &&
+          error.name === "DriverAdapterError" &&
+          (error as Error & { cause?: { originalCode?: string } }).cause
+            ?.originalCode === "40001");
+      if (!conflict) throw error;
+      if (i === ATTEMPTS - 1) break;
+      await new Promise((r) =>
+        setTimeout(r, 10 * 2 ** i + Math.floor(Math.random() * 25 * 2 ** i)),
+      );
     }
   }
   throw new PortalError("Concurrent update; reload and retry", 409);

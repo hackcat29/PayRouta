@@ -1,4 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
+import { fiatMoney, fiatAsset, amountField, metadata, redirect, httpsUrl } from "./common";
 import { z } from "zod";
 import { PortalError } from "../../../portal/domain";
 import type { ProviderHttpOptions } from "../http";
@@ -9,9 +10,9 @@ export const flutterwaveConfigSchema = z
     adapter: z.literal("flutterwave").default("flutterwave"),
     mode: z.literal("NATIVE").default("NATIVE"),
     maintainedBy: z.literal("PAYROUTA").default("PAYROUTA"),
-    baseUrl: z
-      .string()
-      .default("https://api.flutterwave.com"),
+    baseUrl: z.literal("https://api.flutterwave.com").default("https://api.flutterwave.com"),
+    returnUrl: httpsUrl.optional(),
+    paymentOptionsControlled: z.boolean().default(false),
     secretKeyRef: z.string().max(100).optional(),
     webhookSecretRef: z.string().max(100).optional(),
     timeoutMs: z.number().int().min(500).max(15000).default(8000),
@@ -79,21 +80,28 @@ export function flutterwaveExecutionAdapter(
       "verify-event",
     ],
     async create(attempt, intent) {
-      let paymentOptions = "card,banktransfer,mobilemoney";
-      if (intent.selectedMethod === "card") paymentOptions = "card";
-      else if (intent.selectedMethod === "bank-transfer") paymentOptions = "banktransfer,account";
-      else if (intent.selectedMethod === "mobile-money")
-        paymentOptions = "mobilemoneyghana,mobilemoneyfranco,mobilemoneyuganda,mobilemoneyrwanda,mobilemoneyzambia";
+      await getSecret();
+      const money = fiatMoney(intent), m = metadata(intent);
+      if (!c.returnUrl || !z.email().safeParse(m.payer_email).success || !c.paymentOptionsControlled)
+        throw new PortalError("PROVIDER_CUSTOMER_DETAILS_REQUIRED", 409);
+      const mobile: Record<string, string> = { KES: "mpesa", GHS: "mobilemoneyghana", UGX: "mobilemoneyuganda", RWF: "mobilemoneyrwanda", ZMW: "mobilemoneyzambia", TZS: "mobilemoneytanzania", XAF: "mobilemoneyfranco", XOF: "mobilemoneyfranco" };
+      const paymentOptions = intent.selectedMethod === "card" ? "card"
+        : intent.selectedMethod === "bank-transfer" && money.currency === "NGN" ? "banktransfer"
+        : intent.selectedMethod === "ussd" && money.currency === "NGN" ? "ussd"
+        : intent.selectedMethod === "mobile-money" ? mobile[money.currency] : undefined;
+      if (!paymentOptions) throw new PortalError("PROVIDER_METHOD_UNAVAILABLE", 409);
+      const key = await getSecret();
+      if ((/TEST/i.test(key)) !== (attempt.environment === "sandbox"))
+        throw new PortalError("PROVIDER_ENVIRONMENT_MISMATCH", 409);
 
       const payload = {
         tx_ref: attempt.key,
         amount: intent.amount,
-        currency: "NGN",
-        redirect_url: "https://payrouta.internal/checkout/callback",
+        currency: money.currency,
+        redirect_url: c.returnUrl,
         payment_options: paymentOptions,
         customer: {
-          email: "customer@payrouta.internal",
-          name: "PayRouta Customer",
+          email: m.payer_email,
         },
       };
 
@@ -103,8 +111,9 @@ export function flutterwaveExecutionAdapter(
       }
 
       return {
-        state: "Pending",
+        state: "Requires action",
         reference: attempt.key,
+        action: redirect("Flutterwave", res.data.link, ["checkout.flutterwave.com", "ravemodal-dev.herokuapp.com"]),
       };
     },
     async status(attempt) {
@@ -126,13 +135,13 @@ export function flutterwaveExecutionAdapter(
 
       return {
         state,
-        reference: String(res.data.id || ref),
-        amount: String(res.data.amount || "0"),
-        asset: { kind: "fiat", identifier: res.data.currency || "NGN", network: "" },
+        reference: String(res.data.tx_ref || ref),
+        amount: amountField(res.data.amount),
+        asset: fiatAsset(String(res.data.currency ?? "")),
       };
     },
     async cancel() {
-      return { state: "Rejected" };
+      throw new PortalError("UNSUPPORTED_OPERATION", 409);
     },
     async payout(input) {
       const res = await call(

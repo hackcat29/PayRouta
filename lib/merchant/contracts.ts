@@ -1,4 +1,6 @@
+import { cryptoCheckoutInput } from "../payments/crypto-contracts";
 import { z } from "zod";
+import { supportedPaymentMethodIds } from "../providers/normalized";
 import { assetSchema } from "../portal/domain";
 import { intentInput } from "../payments/contracts";
 export const environment = z.enum(["sandbox", "production"]);
@@ -26,9 +28,7 @@ export const pageInput = z
     cursor: z.string().max(400).optional(),
     state: z.string().max(40).optional(),
     reference: z.string().max(100).optional(),
-    method: z
-      .enum(["", "bank-transfer", "card", "mobile-money", "stablecoin"])
-      .optional(),
+    method: z.enum(["", ...supportedPaymentMethodIds]).optional(),
     from: z.union([z.literal(""), z.iso.date(), z.iso.datetime()]).optional(),
     to: z.union([z.literal(""), z.iso.date(), z.iso.datetime()]).optional(),
   })
@@ -46,6 +46,7 @@ export const publicIntent = z.object({
   expiresAt: z.coerce.date(),
 });
 export const operations = {
+  "POST crypto-checkouts": "payments:write",
   "GET payment-intents": "payments:read",
   "POST payment-intents": "payments:write",
   "GET payments": "payments:read",
@@ -61,6 +62,7 @@ export const operations = {
   "POST webhook-deliveries": "webhooks:write",
 } as const;
 export const requestSchemas = {
+  "POST crypto-checkouts": cryptoCheckoutInput,
   "POST payment-intents": intentInput,
   "POST checkout-sessions": sessionInput,
 };
@@ -139,6 +141,7 @@ export function responseContract(
               method: z.string(),
               label: z.string(),
               status: z.enum([
+                "COMING_SOON",
                 "AVAILABLE",
                 "ACTION_REQUIRED",
                 "TEMPORARILY_UNAVAILABLE",
@@ -178,6 +181,15 @@ export function responseContract(
             payerCountries: z.array(z.string()),
             methods: z.array(z.string()),
             asset: z.string(),
+            additionalAssets: z.array(
+              z
+                .object({
+                  asset: z.string(),
+                  maximumMinor: z.string(),
+                  dailyMaximumMinor: z.string(),
+                })
+                .strict(),
+            ),
             settlementAsset: z.string(),
             maximumMinor: z.string(),
             dailyMaximumMinor: z.string(),
@@ -185,7 +197,43 @@ export function responseContract(
           })
           .strict()
           .nullable(),
-        liveExecutionEnabled: z.literal(false),
+        comingSoonMethods: z.array(
+          z
+            .object({
+              method: z.string(),
+              label: z.string(),
+              status: z.literal("COMING_SOON"),
+              explanation: z.string(),
+            })
+            .strict(),
+        ),
+        stablecoinAssets: z.array(
+          z
+            .object({
+              network: z.string(),
+              identifier: z.string(),
+              symbol: z.string(),
+              decimals: z.number().int(),
+              configured: z.boolean(),
+              executionEnabled: z.boolean(),
+              reason: z.string().nullable(),
+            })
+            .strict(),
+        ),
+        cryptoAssets: z.array(
+          z
+            .object({
+              network: z.string(),
+              identifier: z.string(),
+              symbol: z.string(),
+              decimals: z.number().int(),
+              configured: z.boolean(),
+              executionEnabled: z.boolean(),
+              reason: z.string().nullable(),
+            })
+            .strict(),
+        ),
+        liveExecutionEnabled: z.boolean(),
       })
       .strict();
   if (operation === "GET webhook-endpoint")
@@ -205,7 +253,10 @@ export function responseContract(
         revokedAt: z.iso.datetime().nullable(),
       })
       .strict();
-  if (operation === "POST checkout-sessions")
+  if (
+    operation === "POST checkout-sessions" ||
+    operation === "POST crypto-checkouts"
+  )
     return z
       .object({
         id: z.string(),
@@ -233,6 +284,14 @@ export function openapi() {
     idempotency?: boolean;
     created?: boolean;
   }[] = [
+    {
+      method: "post",
+      path: "/crypto-checkouts",
+      operation: "POST crypto-checkouts",
+      body: cryptoCheckoutInput,
+      idempotency: true,
+      created: true,
+    },
     {
       method: "get",
       path: "/payment-intents",

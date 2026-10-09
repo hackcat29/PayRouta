@@ -12,10 +12,11 @@ export async function workspaceData(
   const session = await identity();
   const memberships = await db.membership.findMany({
     where: { userId: session.user.id },
-    include: { org: true },
+    include: { org: { include: { application: true } } },
     orderBy: { org: { name: "asc" } },
   });
-  const selected = orgId || memberships[0]?.orgId;
+  const providerOrg = memberships.find((m) => m.org.application)?.orgId;
+  const selected = orgId || providerOrg || memberships[0]?.orgId;
   const me = {
     id: session.user.id,
     name: session.user.name,
@@ -62,27 +63,54 @@ export async function workspaceData(
     metrics,
     capabilities,
   ] = await Promise.all([
-    db.application.findUniqueOrThrow({
-      where: { orgId: selected },
-      include: {
-        submissions: {
-          orderBy: { version: "desc" },
-          include: {
-            changes: true,
-            reviews: {
-              where: { kind: { not: "note" } },
-              select: {
-                id: true,
-                kind: true,
-                decision: true,
-                reason: true,
-                createdAt: true,
+    db.application
+      .findUnique({
+        where: { orgId: selected },
+        include: {
+          submissions: {
+            orderBy: { version: "desc" },
+            include: {
+              changes: true,
+              reviews: {
+                where: { kind: { not: "note" } },
+                select: {
+                  id: true,
+                  kind: true,
+                  decision: true,
+                  reason: true,
+                  createdAt: true,
+                },
               },
             },
           },
         },
-      },
-    }),
+      })
+      .then(async (app) => {
+        if (app) return app;
+        return db.application.upsert({
+          where: { orgId: selected },
+          create: { orgId: selected },
+          update: {},
+          include: {
+            submissions: {
+              orderBy: { version: "desc" },
+              include: {
+                changes: true,
+                reviews: {
+                  where: { kind: { not: "note" } },
+                  select: {
+                    id: true,
+                    kind: true,
+                    decision: true,
+                    reason: true,
+                    createdAt: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+      }),
     accessEvidence
       ? db.evidence.findMany({
           where: { orgId: selected, deletedAt: null },

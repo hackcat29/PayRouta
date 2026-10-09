@@ -1,111 +1,43 @@
-# Settlement & Treasury Management
+# Settlement
 
-Pay-in describes how the customer pays. Settlement describes how and where the merchant receives funds.
+Your providers settle to you directly, into the destination you configured in your own account with each provider. PayRouta never receives, holds or forwards your funds. What PayRouta does is **track and reconcile** settlement across all your providers in one place.
 
-> [!NOTE]
-> **Settlement is never fixed**: Merchants choose their preferred settlement method across any available rail, completely independent of how the customer paid. A business is never locked into the customer's currency or payment mechanism.
+## Confirmation versus settlement
 
----
+These are separate facts:
 
-## Flexible merchant settlement options
+| Fact | Meaning | Event |
+| --- | --- | --- |
+| Confirmation | The provider accepted the customer's funds | `payment.confirmed` |
+| Settlement | The provider reported paying your share to you | `settlement.completed` |
 
-Merchants can configure default settlement preferences by operating currency, legal entity, or transaction size:
+Fulfil orders on confirmation. Settlement timing follows each provider's own schedule, which may be daily or weekly, and differs between methods.
 
-```mermaid
-graph TD
-    subgraph PayIns["Customer Pay-ins (Any Rail)"]
-        P1["Local Bank (Pix, UPI, NIP)"]
-        P2["Digital Wallets (Apple Pay, OPay)"]
-        P3["Cards & Domestic Schemes"]
-        P4["Mobile Money (M-Pesa, MoMo)"]
-        P5["Cash Vouchers & POS"]
-    end
+## Reconciliation
 
-    subgraph Engine["PayRouta Routing Engine"]
-        Route["In-Flight Currency & Rail Conversion"]
-    end
+PayRouta matches:
 
-    subgraph Settlements["Merchant Settlement (Your Choice)"]
-        S1["Corporate Bank Accounts (Domestic Fiat)"]
-        S2["Multi-Currency Treasury (USD, EUR, GBP)"]
-        S3["Circle USDC Stablecoins (Avalanche, Base, Solana)"]
-        S4["Crypto Exchange Balances (Binance Pay)"]
-        S5["Real-World Assets (Ondo USDY Yield Notes)"]
-    end
+- each confirmed payment
+- the provider's settlement report
+- the fee the provider actually deducted
+- the allocation of each settlement to individual payments
 
-    P1 --> Route
-    P2 --> Route
-    P3 --> Route
-    P4 --> Route
-    P5 --> Route
+Matching is by exact reference, never by amount or date alone. These differences become **exceptions**, which PayRouta raises instead of adjusting silently:
 
-    Route --> S1
-    Route --> S2
-    Route --> S3
-    Route --> S4
-    Route --> S5
-```
+- missing payments
+- conflicting outcomes
+- amount or currency differences
+- fee mismatches
+- partial or unallocated settlements
+- funds that arrive after an intent expired
+- outcomes still unknown after five minutes
 
-### 1. Corporate domestic bank accounts
-Settle directly into domestic commercial bank accounts via local instant and batch clearing rails:
-* **Rails**: FedNow / ACH (US), Pix (Brazil), Faster Payments (UK), SEPA (Eurozone), NIP (Nigeria).
-* **Benefits**: Funds land directly in operating bank accounts with domestic reconciliation references.
+Exceptions appear in the dashboard under **Payment issues** and are sent as `settlement.exception` events.
 
-### 2. Multi-currency treasury balances
-Retain received customer payments in their original currencies without forced foreign exchange conversion:
-* **Supported Currencies**: USD, EUR, GBP, NGN, BRL, JPY, SGD.
-* **Benefits**: Avoid unnecessary FX spreads and hedge against local currency volatility.
+## Settlement API
 
-### 3. Stablecoins (Circle USDC)
-Disburse settled funds directly into enterprise crypto custody wallets:
-* **Supported Blockchains**: Avalanche (C-Chain), Base, Solana, Ethereum, Polygon PoS, Arbitrum One.
-* **Benefits**: Near-instant finality, round-the-clock weekend clearing, and lower cross-border settlement fees.
+`GET /settlements` lists settlements that include your payments. Amounts are integer strings in minor units; `gross`, `fee` and `net` cover only your allocations. `reconciliation` reports whether the provider's figures matched.
 
-### 4. Crypto exchange balances
-Credit funds instantly into business exchange accounts such as **Binance Pay**:
-* **Benefits**: Zero on-chain gas fees, immediate trading availability, and off-chain internal book transfers.
+## Records
 
-### 5. Real-World Assets (RWAs) & yield notes
-Automatically allocate settled proceeds into tokenized cash equivalents and government treasury securities:
-* **Supported Assets**: **Ondo Finance USDY** (yield-bearing short-term US Treasury note), **Franklin Templeton BENJI**, **Paxos Gold (PAXG)**.
-* **Benefits**: Idle operating cash automatically accrues daily yield backed by high-quality US government debt.
-
----
-
-## The two-phase settlement lifecycle
-
-PayRouta strictly decouples order confirmation from physical settlement clearing:
-
-| Phase | Event Name | Business Meaning | Recommended Merchant Action |
-| :--- | :--- | :--- | :--- |
-| **Phase 1: Confirmation** | `payment.confirmed` | Buyer has authorized payment; funds are irrevocably cleared. | **Fulfill order immediately.** Ship goods, provision digital access, or credit user accounts. |
-| **Phase 2: Settlement** | `settlement.completed` | Funds have transferred to the merchant's chosen payout bank or treasury wallet. | **Reconcile ledger balance.** Financial accounts receive final fund movement. |
-
-> [!WARNING]
-> Do not withhold order fulfillment because settlement is pending. Traditional bank batches (e.g., ACH, Bacs) take 1 to 2 business days to clear, while payment confirmation occurs in real time.
-
----
-
-## Multi-entity and split settlements
-
-Enterprise merchants can configure split routing rules:
-* **Regional Entities**: Route EUR payments to European subsidiaries and USD payments to US entities.
-* **Treasury Diversification**: Automatically allocate 70% to local operating accounts and 30% to yield-bearing Circle USDC or Ondo USDY.
-* **Marketplace Payouts**: Deduct platform processing commissions and route the remainder to third-party seller accounts.
-
----
-
-## Reconciliation and reporting
-
-Every transaction generates unified reconciliation identifiers:
-* `payment_id`: Tracks the customer's payment initiation and authorization.
-* `settlement_id`: Tracks the payout batch, exchange rate (if conversion occurred), and destination reference.
-* `reconciliation_code`: An immutable identifier linking bank statement narrative or blockchain transaction hash (`tx_hash`) back to the original order.
-
----
-
-## Next steps
-
-* Review event schemas in [Webhooks & Events](webhooks.md).
-* See endpoint parameters in [API Reference](api-reference.md).
-* Learn about edge cases in [Errors & Recovery](errors.md).
+PayRouta keeps an operational journal of what each provider reported for your payments. It is a record of your providers' activity, **not** a balance held by PayRouta.

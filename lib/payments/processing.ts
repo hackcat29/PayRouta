@@ -1,15 +1,25 @@
+import { isDepositAdapter } from "../blockchain/deposit-config";
+import { assertLaunchMethod } from "./launch";
+import { accrueFee } from "./billing";
+import { simulatedIntegration } from "../providers/adapters/native/registry";
 import { enforceRisk } from "../merchant/policy";
 import { randomUUID } from "node:crypto";
 import { db } from "../portal/db";
 import { atomic, json } from "../portal/service";
 import { PortalError } from "../portal/domain";
 import { assertAdapterConfiguration } from "../portal/provider-adapters";
-import { revalidateSelectedMethod } from "../portal/availability-service";
+import {
+  attemptTarget,
+  isMerchantAccountProfile,
+  revalidateRoute,
+} from "./partner-routes";
+import { isPlatformProfile } from "../treasury/routes";
 import { fingerprint } from "../portal/registry";
 import { sandboxInstructions, resolveExecutionAdapter } from "./execution";
 import { assetKey, minor, providerFact } from "./contracts";
 import { event, queue, Tx } from "./service";
 import { post, exception } from "./journal";
+import { recordPlatformPayment } from "../treasury/funds";
 export async function applyFact(
   attemptId: string,
   value: unknown,
@@ -34,6 +44,29 @@ export async function applyFact(
     )
       throw new PortalError("EXECUTION_INTEGRATION_SCOPE_MISMATCH", 409);
     resolveExecutionAdapter(integration);
+    if (
+      fact.state === "Confirmed" &&
+      isDepositAdapter((integration.config as { adapter?: string }).adapter)
+    ) {
+      const binding = await tx.depositBinding.findUnique({
+        where: { attemptId: a.id },
+      });
+      const claim = await tx.depositClaim.findUnique({
+        where: { attemptId: a.id },
+      });
+      const asset = fact.asset;
+      if (
+        !binding ||
+        !claim ||
+        binding.integrationId !== integration.id ||
+        binding.environment !== a.environment ||
+        binding.network !== asset.network ||
+        binding.identifier !== asset.identifier ||
+        minor(claim.amount, binding.precision) !==
+          minor(fact.amount, i.precision)
+      )
+        throw new PortalError("DEPOSIT_FINALIZED_EVIDENCE_REQUIRED", 409);
+    }
     if (a.providerReference && a.providerReference !== fact.reference) {
       await exception(tx, i.id, "REFERENCE_MISMATCH", fact, now);
       return;
@@ -55,7 +88,13 @@ export async function applyFact(
       return;
     }
     if (a.state === fact.state) return;
-    if (fact.state === "Confirmed" && i.expiresAt <= now)
+    if (
+      fact.state === "Requires action" &&
+      !fact.action &&
+      !simulatedIntegration(integration)
+    )
+      throw new PortalError("PROVIDER_CUSTOMER_ACTION_REQUIRED", 502);
+    if (fact.state === "Confirmed" && i.expiresAt <= now && !i.cryptoQuoteId)
       await exception(tx, i.id, "LATE_PAYMENT", fact, now);
     await tx.paymentAttempt.update({
       where: { id: a.id },
@@ -65,13 +104,14 @@ export async function applyFact(
         action:
           fact.state === "Requires action"
             ? json(
-                sandboxInstructions(
-                  i.selectedMethod!,
-                  fact.reference,
-                  i.amount,
-                  i.asset,
-                  i.expiresAt,
-                ),
+                fact.action ??
+                  sandboxInstructions(
+                    i.selectedMethod!,
+                    fact.reference,
+                    i.amount,
+                    i.asset,
+                    i.expiresAt,
+                  ),
               )
             : undefined,
       },
@@ -159,7 +199,36 @@ export async function applyFact(
       },
       update: { executionState: fact.state, timeline, latencyMs },
     });
-    if (fact.state === "Confirmed") {
+    const platform = integration.config as {
+      mode?: string;
+      platformAccountId?: string;
+      linkId?: string;
+    };
+    if (fact.state === "Confirmed" && platform.mode === "PLATFORM") {
+      // Funds are held for the merchant at PayRouta's platform account: the
+      // merchant-funds book replaces the outside-custody observation.
+      await recordPlatformPayment(
+        tx,
+        a,
+        i,
+        {
+          platformAccountId: platform.platformAccountId!,
+          linkId: platform.linkId!,
+        },
+        fact.reference,
+        now,
+      );
+      await event(tx, i.id, "settlement.pending", now);
+      await queue(
+        tx,
+        i.orgId,
+        "payment-reconcile",
+        `reconcile:${a.id}`,
+        { attemptId: a.id },
+        new Date(now.getTime() + 2000),
+      );
+    } else if (fact.state === "Confirmed") {
+      await accrueFee(tx, i, now);
       const n = minor(i.amount, i.precision).toString();
       await post(
         tx,
@@ -177,7 +246,15 @@ export async function applyFact(
         ],
       );
       await event(tx, i.id, "settlement.pending", now);
-      if (i.scenario !== "settlement-pending")
+      // A merchant-owned partner account settles directly to the merchant on
+      // the provider's schedule; only the simulator settles here.
+      if (
+        i.scenario !== "settlement-pending" &&
+        (simulatedIntegration(integration) ||
+          isDepositAdapter(
+            (integration.config as { adapter?: string }).adapter,
+          ))
+      )
         await queue(tx, i.orgId, "payment-settle", `settle:${a.id}`, {
           attemptId: a.id,
         });
@@ -207,10 +284,10 @@ export async function dispatch(attemptId: string, now = new Date()) {
   });
   let adapter;
   try {
+    if (!isPlatformProfile(route.profileId)) assertLaunchMethod(route.method);
     if (route.expiresAt <= now) throw new PortalError("QUOTE_EXPIRED");
-    const current = await revalidateSelectedMethod(
-      a.intent.orgId,
-      a.intent.contextId,
+    const current = await revalidateRoute(
+      a.intent,
       route.evaluationId,
       route.method,
       now,
@@ -226,14 +303,23 @@ export async function dispatch(attemptId: string, now = new Date()) {
     )
       throw new PortalError("EXECUTION_INTEGRATION_SCOPE_MISMATCH", 409);
     adapter = resolveExecutionAdapter(integration);
-    const adapterId =
-      ((integration.config as { adapter?: string })?.adapter) || "simulator";
-    assertAdapterConfiguration(
-      adapterId,
-      "1",
-      a.environment,
-      integration.config,
-    );
+    // Partner and platform accounts are qualified through their own
+    // connection; the provider-portal adapter configuration applies to
+    // registry providers.
+    if (
+      !["PARTNER", "PLATFORM"].includes(
+        (integration.config as { mode?: string })?.mode ?? "",
+      )
+    ) {
+      const adapterId =
+        (integration.config as { adapter?: string })?.adapter || "simulator";
+      assertAdapterConfiguration(
+        adapterId,
+        "1",
+        a.environment,
+        integration.config,
+      );
+    }
   } catch {
     await atomic(async (tx) => {
       const result = await tx.paymentAttempt.updateMany({
@@ -302,20 +388,28 @@ export async function dispatch(attemptId: string, now = new Date()) {
       },
       now,
     );
+  // Same-method fallback after a definite rejection before any provider
+  // obligation: the simulator's fallback scenario, or a partner account that
+  // refused the payment (e.g. an unsupported currency).
   if (
     result.state === "Rejected" &&
-    a.intent.scenario === "fallback" &&
-    a.number === 1
+    a.number === 1 &&
+    (a.intent.scenario === "fallback" ||
+      isMerchantAccountProfile(a.profileId))
   ) {
-    const current = await revalidateSelectedMethod(
-      a.intent.orgId,
-      a.intent.contextId,
-      route.evaluationId,
-      route.method,
-      now,
-    );
+    let current: { candidateIds: string[] };
+    try {
+      current = await revalidateRoute(
+        a.intent,
+        route.evaluationId,
+        route.method,
+        now,
+      );
+    } catch {
+      return;
+    }
     const snapshot = route.snapshot as {
-      ranked: { profileId: string; fee: string }[];
+      ranked: { profileId: string; fee: string | null }[];
     };
     const next = snapshot.ranked.find(
       (p) =>
@@ -334,9 +428,7 @@ export async function dispatch(attemptId: string, now = new Date()) {
           }))
         )
           return;
-        const p = await tx.publishedProfile.findUniqueOrThrow({
-          where: { id: next.profileId },
-        });
+        const p = await attemptTarget(tx, next.profileId, a.intent.orgId);
         const r = await tx.paymentRoute.create({
           data: {
             intentId: a.intentId,
@@ -344,7 +436,7 @@ export async function dispatch(attemptId: string, now = new Date()) {
             evaluationId: route.evaluationId,
             policy: route.policy,
             policyVersion: route.policyVersion,
-            profileId: p.id,
+            profileId: p.profileId,
             snapshot: json({
               ...(route.snapshot as object),
               providerFeeMinor: next.fee,
@@ -357,8 +449,8 @@ export async function dispatch(attemptId: string, now = new Date()) {
           data: {
             intentId: a.intentId,
             number: 2,
-            profileId: p.id,
-            providerOrgId: p.orgId,
+            profileId: p.profileId,
+            providerOrgId: p.providerOrgId,
             integrationId: p.integrationId,
             environment: a.environment,
             routeId: r.id,
@@ -398,17 +490,42 @@ export async function poll(attemptId: string, now = new Date()) {
   )
     throw new PortalError("EXECUTION_INTEGRATION_SCOPE_MISMATCH", 409);
   const adapter = resolveExecutionAdapter(integration);
-  let fact = await adapter.status(a);
-  if (!fact && a.state === "Dispatching") {
+  let fact;
+  try {
+    fact = await adapter.status(a, a.intent);
+  } catch (error) {
+    if (error instanceof PortalError && /^DEPOSIT_/.test(error.message))
+      await atomic((tx) =>
+        exception(
+          tx,
+          a.intentId,
+          error.message,
+          {
+            attemptId: a.id,
+            integrationId: a.integrationId,
+            nextAction:
+              "Inspect the receive address and authenticated chain evidence before any new payment attempt",
+          },
+          now,
+        ),
+      );
+    throw error;
+  }
+  if (
+    !fact &&
+    ((a.state === "Dispatching" && simulatedIntegration(integration)) ||
+      (["Dispatching", "Unknown"].includes(a.state) &&
+        isDepositAdapter((integration.config as { adapter?: string }).adapter)))
+  ) {
     // Simulator lookup is authoritative and create supports the same durable idempotency key.
     const route = await db.paymentRoute.findUniqueOrThrow({
       where: { id: a.routeId },
     });
     try {
+      if (!isPlatformProfile(route.profileId)) assertLaunchMethod(route.method);
       if (route.expiresAt <= now) throw new PortalError("QUOTE_EXPIRED");
-      const eligible = await revalidateSelectedMethod(
-        a.intent.orgId,
-        a.intent.contextId,
+      const eligible = await revalidateRoute(
+        a.intent,
         route.evaluationId,
         route.method,
         now,
@@ -428,17 +545,20 @@ export async function poll(attemptId: string, now = new Date()) {
       );
       return;
     }
+    const risk = await atomic((tx) => enforceRisk(tx, a.intent, now, false));
+    if (risk.decision !== "Allow") return;
     await adapter.create(a, a.intent);
-    fact = await adapter.status(a);
+    fact = await adapter.status(a, a.intent);
   }
-  if (fact)
+  if (fact && fact.state !== "Unknown")
     await applyFact(
       a.id,
       {
         reference: fact.reference,
         state: fact.state,
-        amount: fact.amount || a.intent.amount,
-        asset: fact.asset ?? a.intent.asset,
+        amount: fact.amount,
+        asset: fact.asset,
+        ...(fact.action ? { action: fact.action } : {}),
       },
       now,
     );
@@ -699,6 +819,59 @@ export async function settle(attemptId: string, now = new Date()) {
   )
     throw new PortalError("EXECUTION_INTEGRATION_SCOPE_MISMATCH", 409);
   resolveExecutionAdapter(integration);
+  // Partner accounts settle directly to the merchant; nothing to record here
+  // until the provider's own settlement report is imported.
+  if (isDepositAdapter((integration.config as { adapter?: string }).adapter)) {
+    const binding = await db.depositBinding.findUniqueOrThrow({
+      where: { attemptId: a.id },
+    });
+    const claims = await db.depositClaim.findMany({
+      where: { attemptId: a.id },
+      take: 2,
+    });
+    const asset = a.intent.asset as SettlementEvidence["asset"];
+    if (
+      claims.length !== 1 ||
+      binding.integrationId !== a.integrationId ||
+      a.providerOrgId !== a.intent.orgId ||
+      binding.environment !== a.environment ||
+      binding.network !== asset.network ||
+      binding.identifier !== asset.identifier
+    )
+      throw new PortalError("DEPOSIT_SETTLEMENT_EVIDENCE_REQUIRED", 409);
+    // Re-read canonical finalized evidence; the browser's transaction hash is never authoritative.
+    const verified = await resolveExecutionAdapter(integration).status(
+      a,
+      a.intent,
+    );
+    if (verified?.state !== "Confirmed")
+      throw new PortalError("DEPOSIT_NOT_FINALIZED", 409);
+    const gross = minor(a.intent.amount, a.intent.precision).toString();
+    return recordSettlement(
+      {
+        integrationId: a.integrationId,
+        environment: a.environment,
+        reference: `chain:${claims[0].txHash}:${claims[0].logIndex}`,
+        asset,
+        gross,
+        fee: "0",
+        net: gross,
+        evidence: JSON.stringify({
+          source: a.intent.cryptoQuoteId
+            ? "finalized-crypto-transfer"
+            : "finalized-stablecoin-transfer",
+          network: binding.network,
+          address: binding.address,
+          txHash: claims[0].txHash,
+          logIndex: claims[0].logIndex,
+          blockHash: claims[0].blockHash,
+        }),
+        allocations: [{ intentId: a.intentId, amount: gross, fee: "0" }],
+      },
+      now,
+    );
+  }
+  if (!simulatedIntegration(integration)) return;
   const i = a.intent,
     route = await db.paymentRoute.findUniqueOrThrow({
       where: { id: a.routeId },
@@ -733,6 +906,22 @@ export async function settle(attemptId: string, now = new Date()) {
 }
 export async function reconcile(attemptId: string, now = new Date()) {
   await poll(attemptId, now);
+  const ready = await db.paymentAttempt.findUniqueOrThrow({
+    where: { id: attemptId },
+  });
+  const readyIntegration = await db.integration.findUniqueOrThrow({
+    where: { id: ready.integrationId },
+  });
+  if (
+    ready.state === "Confirmed" &&
+    isDepositAdapter(
+      (readyIntegration.config as { adapter?: string }).adapter,
+    ) &&
+    !(await db.settlementAllocation.count({
+      where: { intentId: ready.intentId },
+    }))
+  )
+    await settle(attemptId, now);
   return atomic(async (tx) => {
     const a = await tx.paymentAttempt.findUniqueOrThrow({
       where: { id: attemptId },
@@ -751,7 +940,43 @@ export async function reconcile(attemptId: string, now = new Date()) {
     const unresolved = await tx.paymentException.findMany({
       where: { intentId: a.intentId, state: "Unresolved" },
     });
-    const problems: string[] = unresolved.map((e) => e.code);
+    // Finalized deposit settlement supersedes only the temporary age warning.
+    // Retain other exceptions and append the resolution to the audit timeline.
+    const completedDeposit =
+      a.state === "Confirmed" &&
+      isDepositAdapter(
+        (readyIntegration.config as { adapter?: string }).adapter,
+      ) &&
+      entries.length === 1 &&
+      s.length === 1 &&
+      s[0].settlement.state === "Completed" &&
+      BigInt(s[0].amount) === minor(a.intent.amount, a.intent.precision) &&
+      s[0].fee ===
+        (route.snapshot as { providerFeeMinor: string }).providerFeeMinor &&
+      (await tx.depositClaim.count({ where: { attemptId: a.id } })) === 1;
+    const resolved = completedDeposit
+      ? unresolved.filter((e) => e.code === "AGED_PENDING")
+      : [];
+    for (const warning of resolved)
+      await tx.paymentException.update({
+        where: { id: warning.id },
+        data: {
+          state: "Resolved",
+          timeline: json([
+            ...(warning.timeline as object[]),
+            {
+              at: now.toISOString(),
+              action: "Resolved",
+              reason: "Finalized deposit and exact completed settlement",
+              attemptId: a.id,
+              settlementId: s[0].settlementId,
+            },
+          ]),
+        },
+      });
+    const problems: string[] = unresolved
+      .filter((e) => !resolved.some((r) => r.id === e.id))
+      .map((e) => e.code);
     if (a.state === "Confirmed" && entries.length !== 1)
       problems.push("MISSING_JOURNAL");
     if (
@@ -790,6 +1015,14 @@ export async function reconcile(attemptId: string, now = new Date()) {
         evidence: x.settlement.evidence,
       })),
       journalIds: entries.map((e) => e.id),
+      unresolvedCodes: [...new Set(problems)].sort(),
+      resolvedExceptionIds: (
+        await tx.paymentException.findMany({
+          where: { intentId: a.intentId, state: "Resolved" },
+          select: { id: true },
+          orderBy: { id: "asc" },
+        })
+      ).map((e) => e.id),
     };
     for (const code of problems)
       await exception(tx, a.intentId, code, evidence, now);

@@ -1,0 +1,19 @@
+# Pix (Central Bank of Brazil)
+
+> **Implementation status:** Provider code path: stripe, adyen. Not live-qualified by code alone. Merchant account enablement, credentials and sandbox qualification are required. See [current coverage](provider-coverage.md).
+
+**Category**: [Bank Transfer](providers/bank-transfer/README.md)  
+**Provider**: Banco Central do Brasil (BACEN)  
+**Method ID**: `bank-transfer`, `pix`  
+**Integration Mode**: `STANDARD`
+
+Pix is Brazil's official instant payment system, created and operated by the Central Bank of Brazil. It has become the dominant payment method in Brazil with over 150 million active users.
+
+---
+
+## Technical Flow
+
+- **Dynamic Pix QR (Pix Dinâmico)**: PayRouta generates an exact-amount EMV QR code and "Pix Copia e Cola" code for each checkout session.
+- **Speed**: Instant push clearing in under 2 seconds, 24 hours a day, 7 days a week.
+- **Direct Settlement**: Funds settle straight into the merchant's Brazilian bank account (Nubank, Itaú, Bradesco, Banco do Brasil, Santander).
+- **Zero Chargebacks**: Pix payments are final and cannot be charged back by card issuers.

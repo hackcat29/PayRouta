@@ -2,14 +2,30 @@ import "dotenv/config";
 import { test, expect } from "@playwright/test";
 import { createOTP } from "@better-auth/utils/otp";
 import AxeBuilder from "@axe-core/playwright";
-const origin = "http://127.0.0.1:3000";
+const origin = process.env.PAYROUTA_TEST_ORIGIN ?? "http://127.0.0.1:3000";
 test("merchant workspace: auth, environment isolation, payment table and mobile accessibility", async ({
   page,
 }) => {
-  const signIn = await page.request.post("/api/auth/sign-in/email", {
-    headers: { Origin: origin },
-    data: { email: "owner@harbor.example", password: "PayRouta-Local-2026!" },
-  });
+  const login = () =>
+    page.request.post("/api/auth/sign-in/email", {
+      headers: { Origin: origin },
+      data: { email: "owner@harbor.example", password: "PayRouta-Local-2026!" },
+    });
+  let signIn = await login();
+  // The suite performs four sign-ins from one IP. Honor the production
+  // three-per-ten-second auth limit instead of disabling it for tests.
+  if (signIn.status() === 429) {
+    const retryAfter = Number(signIn.headers()["retry-after"]);
+    await new Promise((resolve) =>
+      setTimeout(
+        resolve,
+        (Number.isFinite(retryAfter) && retryAfter > 0
+          ? Math.min(retryAfter + 1, 60)
+          : 11) * 1000,
+      ),
+    );
+    signIn = await login();
+  }
   expect(signIn.ok(), await signIn.text()).toBeTruthy();
   const verified = await page.request.post("/api/auth/two-factor/verify-totp", {
     headers: { Origin: origin },
@@ -31,7 +47,9 @@ test("merchant workspace: auth, environment isolation, payment table and mobile 
   await expect(
     page.getByRole("heading", { name: "Home", exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("Payments received", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Payments received", { exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Recent payments", exact: true }),
   ).toBeVisible();
@@ -56,7 +74,7 @@ test("merchant workspace: auth, environment isolation, payment table and mobile 
   await page.getByRole("button", { name: "Switch", exact: true }).click();
   await page.getByRole("link", { name: "Payments", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Payments", exact: true }),
+    page.getByRole("heading", { name: "Transactions", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("columnheader", { name: "Amount", exact: true }),
@@ -106,25 +124,27 @@ test("merchant workspace: auth, environment isolation, payment table and mobile 
   await expect(
     page.getByRole("heading", { name: "How customers pay", exact: true }),
   ).toBeVisible();
-  await page
-    .getByRole("checkbox", { name: "Bank transfer", exact: true })
-    .check();
+  await page.getByRole("checkbox", { name: "Stablecoin", exact: true }).check();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "How you get paid", exact: true }),
+    page.getByRole("heading", { name: "Currencies and markets", exact: true }),
   ).toBeVisible();
+  // Bank and identity details are collected (encrypted) in Activate payments,
+  // never in the business setup wizard.
+  await expect(
+    page.getByLabel(/Account number|IBAN|Settlement bank/),
+  ).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Activate payments" }).first()).toBeVisible();
   await page
-    .getByLabel("Search settlement currencies", { exact: true })
+    .getByLabel("Search currencies you expect to be paid in", { exact: true })
     .fill("NGN");
   await page
-    .getByLabel("Settlement currencies", { exact: true })
+    .getByLabel("Currencies you expect to be paid in", { exact: true })
     .selectOption("NGN");
   await page
     .getByLabel("Search payer countries", { exact: true })
     .fill("Nigeria");
-  await page
-    .getByLabel("Payer countries", { exact: true })
-    .selectOption("NG");
+  await page.getByLabel("Payer countries", { exact: true }).selectOption("NG");
   await page
     .getByRole("radio", { name: "Under $10,000 per month", exact: true })
     .check();

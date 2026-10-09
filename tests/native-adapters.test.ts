@@ -41,7 +41,8 @@ const mockBankIntent: CreateIntentParam = {
   reference: "ref-1",
   amount: "1000.00",
   currency: "NGN",
-  selectedMethod: "bank_transfer",
+  selectedMethod: "bank-transfer",
+  metadata: { payer_email: "payer@example.com", payer_name: "Test Payer" },
   asset: { kind: "fiat", identifier: "NGN", network: "" },
   status: "Initiated",
   createdAt: new Date(),
@@ -56,6 +57,7 @@ const mockCardIntent: CreateIntentParam = {
   amount: "5000.00",
   currency: "NGN",
   selectedMethod: "card",
+  metadata: { payer_email: "payer@example.com" },
   asset: { kind: "fiat", identifier: "NGN", network: "" },
   status: "Initiated",
   createdAt: new Date(),
@@ -69,6 +71,7 @@ test("monnify adapter fails closed when credentials are not configured", async (
       mode: "NATIVE",
       apiKeyRef: "missing_key",
       secretKeyRef: "missing_secret",
+      returnUrl: "https://merchant.example/return",
       contractCode: "123456",
     },
     {
@@ -111,11 +114,12 @@ test("monnify adapter authenticates, initializes payment, and queries status", a
           responseBody: {
             transactionReference: "MNFY_TXN_999",
             paymentReference: "att_key_001",
+            enabledPaymentMethod: ["ACCOUNT_TRANSFER"], checkoutUrl: "https://sandbox.sdk.monnify.com/checkout/test",
           },
         }),
       };
     }
-    if (options.path.startsWith("/api/v2/transactions/")) {
+    if (options.path.startsWith("/api/v2/merchant/transactions/query")) {
       return {
         status: 200,
         headers: {},
@@ -123,6 +127,7 @@ test("monnify adapter authenticates, initializes payment, and queries status", a
           requestSuccessful: true,
           responseBody: {
             paymentStatus: "PAID",
+            paymentReference: "att_key_001", currencyCode: "NGN",
             amountPaid: 1000.0,
             transactionReference: "MNFY_TXN_999",
           },
@@ -138,6 +143,7 @@ test("monnify adapter authenticates, initializes payment, and queries status", a
       mode: "NATIVE",
       apiKeyRef: "monnify_api_key",
       secretKeyRef: "monnify_secret_key",
+      returnUrl: "https://merchant.example/return",
       contractCode: "CONTRACT_123",
     },
     { http, credentials },
@@ -146,12 +152,12 @@ test("monnify adapter authenticates, initializes payment, and queries status", a
   const initResult = await adapter.create(mockAttempt, mockBankIntent);
 
   assert.equal(initResult.reference, "MNFY_TXN_999");
-  assert.equal(initResult.state, "Pending");
+  assert.equal(initResult.state, "Requires action");
   assert.equal(calls.length, 2);
   assert.equal(calls[0].path, "/api/v1/auth/login");
   assert.equal(calls[1].path, "/api/v1/merchant/transactions/init-transaction");
 
-  const statusResult = await adapter.status(mockAttempt);
+  const statusResult = await adapter.status({...mockAttempt,providerReference:"MNFY_TXN_999"});
   assert.ok(statusResult);
   assert.equal(statusResult.state, "Confirmed");
   assert.equal(statusResult.amount, "1000");
@@ -252,6 +258,7 @@ test("paystack adapter initializes payment and verifies status", async () => {
       adapter: "paystack",
       mode: "NATIVE",
       secretKeyRef: "pstk_secret",
+      returnUrl: "https://merchant.example/return",
     },
     { http, credentials },
   );
@@ -259,7 +266,7 @@ test("paystack adapter initializes payment and verifies status", async () => {
   const init = await adapter.create(mockAttempt, mockCardIntent);
 
   assert.equal(init.reference, "pstk-ref-1");
-  assert.equal(init.state, "Pending");
+  assert.equal(init.state, "Requires action");
 
   const stat = await adapter.status({
     id: "att_001",
@@ -333,6 +340,8 @@ test("flutterwave adapter initializes payment and verifies status", async () => 
       adapter: "flutterwave",
       mode: "NATIVE",
       secretKeyRef: "flw_secret",
+      returnUrl: "https://merchant.example/return",
+      paymentOptionsControlled: true,
     },
     { http, credentials },
   );
@@ -340,7 +349,7 @@ test("flutterwave adapter initializes payment and verifies status", async () => 
   const init = await adapter.create(mockAttempt, flwIntent);
 
   assert.equal(init.reference, "att_key_001");
-  assert.equal(init.state, "Pending");
+  assert.equal(init.state, "Requires action");
 
   const stat = await adapter.status({
     id: "att_001",

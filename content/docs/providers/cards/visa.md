@@ -1,0 +1,24 @@
+# Visa Direct & Scheme Rails
+
+> **Implementation status:** Provider code path: stripe, adyen, paystack, flutterwave. Not live-qualified by code alone. Card scheme, not a separate acquiring API. See [current coverage](provider-coverage.md).
+
+**Category**: [Cards](providers/cards/README.md)  
+**Provider**: Visa, Inc.  
+**Method ID**: `card`  
+**Integration Mode**: `STANDARD` / `NATIVE`
+
+Visa provides card authorization and real-time push payments (Visa Direct). Merchants route domestic and cross-border transactions through Visa scheme endpoints via their direct acquiring partners.
+
+---
+
+## Capabilities
+
+- **E-Commerce Authorization**: Visa 3-D Secure 2.2 with automated risk-based authentication.
+- **Account Funding Transactions (AFT)**: Rapid funds capture for wallet reloads and digital commerce.
+- **Original Credit Transactions (OCT)**: Sub-second direct payouts to eligible Visa debit and credit cards.
+
+---
+
+## Redundancy & Acquirer Failover
+
+When an authorization fails due to an acquiring gateway timeout or network degradation, PayRouta routes the transaction across alternate BIN routes and certified sponsor banks without degrading transaction telemetry.

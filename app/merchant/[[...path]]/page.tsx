@@ -1,8 +1,20 @@
+import { merchantConfiguration } from "@/lib/merchant/configuration";
+import { transactionExplorer } from "@/lib/blockchain/chains";
+import { Providers } from "./providers";
+import { partnerOverview } from "@/lib/partners/service";
+import { paymentAsset as tokenAsset } from "@/lib/blockchain/crypto-assets";
+import { labelOf } from "@/lib/providers/normalized";
+import { CryptoPayments } from "./crypto-payments";
+import { onchainMethod } from "@/lib/blockchain/crypto-assets";
+import { Stablecoins } from "./stablecoins";
+import { stablecoinOverview } from "@/lib/merchant/stablecoins";
+import { feeTotals } from "@/lib/payments/billing";
+import { formatFee } from "@/lib/payments/pricing";
 import { storedLiveScope } from "@/lib/merchant/live-scope";
 import { MerchantTeam, AcceptMerchantInvitation } from "./team";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { evaluateContext } from "@/lib/portal/availability-service";
+
 import { identity } from "@/lib/portal/access";
 import { merchantMember } from "@/lib/merchant/access";
 import { db } from "@/lib/portal/db";
@@ -14,18 +26,39 @@ import { applicationRequirements } from "@/lib/merchant/evidence";
 import { merchantMetrics } from "@/lib/merchant/metrics";
 import { WebhookControls } from "./webhooks";
 import { Keys } from "./keys";
+
+import { CreateWorkspace } from "./create-workspace";
+import { merchantTreasury, paymentFunds } from "@/lib/treasury/views";
+import {
+  ActivationSection,
+  BalancesSection,
+  DisputesSection,
+  PaymentFundsPanel,
+  TreasuryBanner,
+} from "./treasury-sections";
+
 import "@/components/portal/portal.css";
 import "./workspace.css";
+import "./treasury.css";
+const assetLabel = (raw: unknown) => {
+  const a = raw as { identifier: string; network?: string };
+  return tokenAsset(a.network || "", a.identifier)?.symbol || a.identifier;
+};
 export const dynamic = "force-dynamic";
 const routeTitles = {
   onboarding: "Business setup",
+  activation: "Activate payments",
+  balances: "Balances & payouts",
+  disputes: "Disputes",
   overview: "Home",
   payments: "Transactions",
   customers: "Customers",
   "payment-methods": "Payment methods",
+  providers: "Payment providers",
   settlements: "Settlements",
   reconciliation: "Payment issues",
   analytics: "Analytics",
+  billing: "Billing",
   "developers/api-keys": "API keys",
   "developers/webhooks": "Webhook deliveries",
   "developers/logs": "API requests",
@@ -45,6 +78,8 @@ const primaryNav: {
     path: "payments",
     children: [
       { label: "Transactions", path: "payments" },
+      { label: "Balances & payouts", path: "balances" },
+      { label: "Disputes", path: "disputes" },
       { label: "Customers", path: "customers" },
       { label: "Settlements", path: "settlements" },
       { label: "Payment issues", path: "reconciliation" },
@@ -52,6 +87,7 @@ const primaryNav: {
     ],
   },
   { label: "Payment methods", path: "payment-methods" },
+  { label: "Payment providers", path: "providers" },
   {
     label: "Developers",
     path: "developers/api-keys",
@@ -65,7 +101,9 @@ const primaryNav: {
     label: "Settings",
     path: "settings",
     children: [
+      { label: "Activate payments", path: "activation" },
       { label: "Business setup", path: "onboarding" },
+      { label: "Billing", path: "billing" },
       { label: "Team", path: "team" },
       { label: "Session & security", path: "security" },
     ],
@@ -92,7 +130,7 @@ export default async function Page({
     user = await identity();
   } catch (e) {
     if (e instanceof PortalError && e.status === 401)
-      redirect("/provider/sign-in");
+      redirect("/provider/sign-in?next=/merchant");
     throw e;
   }
   if (section === "team" && typeof query.invitation === "string")
@@ -113,12 +151,16 @@ export default async function Page({
   if (!orgId)
     return (
       <div className="portal p-simple">
-        <h1>Merchant setup needed</h1>
-        <p>Your account has no configured merchant workspace.</p>
-        <Link href="/provider/settings">Account settings</Link>
+        <CreateWorkspace />
       </div>
     );
   const { config, membership } = await merchantMember(orgId);
+  const providerMember = memberships.length
+    ? await db.membership.findFirst({
+        where: { userId: user.user.id, merchantRole: null },
+        select: { id: true },
+      })
+    : null;
   const env =
     typeof query.environment === "string"
       ? query.environment
@@ -188,9 +230,11 @@ export default async function Page({
             {liveScope.success ? (
               <p>
                 {liveScope.data.status} · {liveScope.data.input.merchantCountry}{" "}
-                · {liveScope.data.input.methods.join(", ")} · NGN · review due{" "}
-                {liveScope.data.input.nextReviewAt}. Real processing remains
-                unavailable pending provider qualification.
+                · {liveScope.data.input.methods.map(labelOf).join(", ")} ·{" "}
+                {liveScope.data.input.asset} · review due{" "}
+                {liveScope.data.input.nextReviewAt}. Live processing also
+                requires current screening, evidence, billing terms and unused
+                receive addresses.
               </p>
             ) : (
               <p>No live scope approved.</p>
@@ -256,7 +300,9 @@ export default async function Page({
                 <option value="">All</option>
                 {["bank-transfer", "card", "mobile-money", "stablecoin"].map(
                   (m) => (
-                    <option key={m}>{m}</option>
+                    <option key={m} value={m}>
+                      {labelOf(m)}
+                    </option>
                   ),
                 )}
               </select>
@@ -297,10 +343,13 @@ export default async function Page({
                       <Link href={href(`payments/${p.id}`)}>{p.reference}</Link>
                     </td>
                     <td>
-                      {p.amount}{" "}
-                      {(p.asset as { identifier: string }).identifier}
+                      {p.amount} {assetLabel(p.asset)}
                     </td>
-                    <td>{p.selectedMethod || "Awaiting selection"}</td>
+                    <td>
+                      {p.selectedMethod
+                        ? labelOf(p.selectedMethod)
+                        : "Awaiting selection"}
+                    </td>
                     <td>
                       {p.state === "Confirmed" ? "Payment confirmed" : p.state}
                     </td>
@@ -326,12 +375,35 @@ export default async function Page({
         select: { number: true, state: true, createdAt: true, updatedAt: true },
         orderBy: { number: "asc" },
       });
+      const chainClaims = await db.depositClaim.findMany({
+        where: {
+          attemptId: {
+            in: (
+              await db.paymentAttempt.findMany({
+                where: { intentId: result.id, intent: scope },
+                select: { id: true },
+              })
+            ).map((a) => a.id),
+          },
+        },
+      });
       content = (
         <section>
           <h2>{result.reference}</h2>
+          {chainClaims.map((c) => (
+            <p key={c.id}>
+              Verified transfer:{" "}
+              <a
+                href={transactionExplorer(c.network, c.txHash)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                View transaction on the explorer
+              </a>
+            </p>
+          ))}
           <p>
-            {result.amount}{" "}
-            {(result.asset as { identifier: string }).identifier} ·{" "}
+            {result.amount} {assetLabel(result.asset)} ·{" "}
             {result.state === "Confirmed" ? "Payment confirmed" : result.state}
           </p>
           <p>Method: {result.selectedMethod || "Awaiting selection"}</p>
@@ -347,30 +419,90 @@ export default async function Page({
             Payment confirmation and settlement are separate facts. Review
             allocations in Settlements.
           </p>
+          {await paymentFunds(result.id).then(
+            (funds) =>
+              funds && (
+                <PaymentFundsPanel
+                  orgId={orgId}
+                  intentId={result.id}
+                  funds={funds}
+                  canRefund={can(membership.role, "configure")}
+                />
+              ),
+          )}
         </section>
       );
     }
+  } else if (section === "activation") {
+    const view = await merchantTreasury(orgId, env);
+    const overview = await partnerOverview(orgId, env);
+    const profile = (overview.profile?.data ?? overview.draft ?? {}) as {
+      country?: string;
+      settlementCurrency?: string;
+      owners?: { givenName: string; familyName: string }[];
+    };
+    content = can(membership.role, "configure") ? (
+      <ActivationSection
+        orgId={orgId}
+        view={view}
+        country={profile.country ?? config.country}
+        currency={profile.settlementCurrency}
+        ownerNames={(overview.profile?.data.owners ?? []).map((o) => `${o.givenName} ${o.familyName}`)}
+        profilePanel={
+          <Providers profileOnly orgId={orgId} overview={overview} canConfigure={can(membership.role, "configure")} />
+        }
+      />
+    ) : (
+      <p>Owner or admin access is required to activate payments.</p>
+    );
+  } else if (section === "balances") {
+    content = <BalancesSection orgId={orgId} view={await merchantTreasury(orgId, env)} href={href} />;
+  } else if (section === "disputes") {
+    content = (
+      <DisputesSection
+        orgId={orgId}
+        view={await merchantTreasury(orgId, env)}
+        href={href}
+        canRespond={can(membership.role, "configure")}
+      />
+    );
   } else if (section === "customers") {
     const intentsList = await db.paymentIntent.findMany({
       where: scope,
-      select: { reference: true, amount: true, asset: true, state: true, createdAt: true },
+      select: {
+        reference: true,
+        amount: true,
+        asset: true,
+        state: true,
+        createdAt: true,
+      },
       orderBy: { createdAt: "desc" },
       take: 100,
     });
-    const customersMap = new Map<string, { count: number; total: number; lastSeen: Date }>();
+    const customersMap = new Map<
+      string,
+      { count: number; total: number; lastSeen: Date }
+    >();
     for (const item of intentsList) {
       const key = item.reference.split("-")[0] || item.reference;
-      const prev = customersMap.get(key) || { count: 0, total: 0, lastSeen: item.createdAt };
+      const prev = customersMap.get(key) || {
+        count: 0,
+        total: 0,
+        lastSeen: item.createdAt,
+      };
       customersMap.set(key, {
         count: prev.count + 1,
         total: prev.total + Number(item.amount),
-        lastSeen: item.createdAt > prev.lastSeen ? item.createdAt : prev.lastSeen,
+        lastSeen:
+          item.createdAt > prev.lastSeen ? item.createdAt : prev.lastSeen,
       });
     }
-    const customerRows = Array.from(customersMap.entries()).map(([id, info]) => ({
-      id,
-      ...info,
-    }));
+    const customerRows = Array.from(customersMap.entries()).map(
+      ([id, info]) => ({
+        id,
+        ...info,
+      }),
+    );
     content = (
       <section>
         <p>Customer payment history and customer volume in this environment.</p>
@@ -387,7 +519,9 @@ export default async function Page({
             <tbody>
               {customerRows.map((c) => (
                 <tr key={c.id}>
-                  <td><strong>{c.id}</strong></td>
+                  <td>
+                    <strong>{c.id}</strong>
+                  </td>
                   <td>{c.count}</td>
                   <td>{c.total.toFixed(2)}</td>
                   <td>{c.lastSeen.toISOString().slice(0, 10)}</td>
@@ -399,159 +533,40 @@ export default async function Page({
         {!customerRows.length && <p>No customer transactions yet.</p>}
       </section>
     );
-  } else if (section === "payment-methods") {
-    const intent =
-      typeof query.intentId === "string"
-        ? await db.paymentIntent.findFirst({
-            where: { ...scope, id: query.intentId },
-          })
-        : null;
-    let evaluation: Awaited<ReturnType<typeof evaluateContext>> | null = null;
-    let explanation =
-      "Choose an open payment intent to check its available methods.";
-    if (intent) {
-      try {
-        evaluation = await evaluateContext(orgId, intent.contextId);
-      } catch (error) {
-        if (error instanceof PortalError) explanation = error.message;
-        else throw error;
-      }
-    }
-    const configuredMethods = [
-      {
-        id: "bank_transfer",
-        name: "Instant Bank Transfer",
-        rail: "Direct Account-to-Account (NIP, FedNow, SEPA, Pix)",
-        routing: "Paystack · Monnify · Flutterwave",
-        fallback: "Automatic same-method failover",
-        status: "Active",
-        currency: "NGN, USD, EUR, BRL",
-      },
-      {
-        id: "card",
-        name: "Debit & Credit Cards",
-        rail: "Visa, Mastercard, Verve",
-        routing: "Multi-acquirer smart routing with 3D Secure 2.2",
-        fallback: "Silent failover on acquirer timeout",
-        status: "Active",
-        currency: "Global Multi-currency",
-      },
-      {
-        id: "mobile_money",
-        name: "Mobile Money & USSD",
-        rail: "MTN MoMo, M-Pesa, Airtel Money, Telco USSD",
-        routing: "Carrier push-to-pay with dynamic fallback",
-        fallback: "Prompt re-dispatch on carrier timeout",
-        status: "Active",
-        currency: "KES, GHS, UGX, NGN",
-      },
-      {
-        id: "stablecoin",
-        name: "Base USDC (Stablecoins)",
-        rail: "Sub-second L2 settlement",
-        routing: "Decentralized on-chain gateway with instant fiat receipt",
-        fallback: "RPC load balancing across Alchemy endpoints",
-        status: "Active",
-        currency: "USDC (Base / Ethereum)",
-      },
-      {
-        id: "wallet",
-        name: "Digital Wallets",
-        rail: "Apple Pay, Google Pay, PalmPay, OPay",
-        routing: "1-Click biometric authorization",
-        fallback: "Native scheme fallback",
-        status: "Active",
-        currency: "Global Multi-currency",
-      },
-    ];
-
+  } else if (section === "providers" || section === "payment-methods") {
     content = (
       <>
-        <section>
-          <div className="merchant-section-header">
-            <div>
-              <h2>Accepted Customer Methods</h2>
-              <p>
-                Methods configured for <strong>{membership.org.name}</strong> in {env === "sandbox" ? "Sandbox" : "Live"} environment.
-                PayRouta evaluates these dynamically at checkout and applies smart multi-provider failover.
-              </p>
-            </div>
-            <Link href="/checkout/demo" className="merchant-btn-action">
-              Test Checkout Experience →
-            </Link>
-          </div>
-
-          <div className="merchant-methods-grid">
-            {configuredMethods.map((m) => (
-              <div key={m.id} className="merchant-method-card">
-                <div className="merchant-method-top">
-                  <div>
-                    <strong>{m.name}</strong>
-                    <span className="merchant-method-rail">{m.rail}</span>
-                  </div>
-                  <span className="merchant-status-badge active">{m.status}</span>
-                </div>
-                <div className="merchant-method-details">
-                  <div className="merchant-method-row">
-                    <span className="row-label">Routed Providers:</span>
-                    <span className="row-value">{m.routing}</span>
-                  </div>
-                  <div className="merchant-method-row">
-                    <span className="row-label">Failover Protection:</span>
-                    <span className="row-value">{m.fallback}</span>
-                  </div>
-                  <div className="merchant-method-row">
-                    <span className="row-label">Supported Currencies:</span>
-                    <span className="row-value">{m.currency}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section>
-          <h2>Intent Availability Inspector</h2>
-          <p>
-            Inspect the real-time availability evaluation for a specific payment intent based on amount, currency, corridor, and provider health.
-          </p>
-          <form>
-            <input type="hidden" name="orgId" value={orgId} />
-            <input type="hidden" name="environment" value={env} />
-            <label>
-              Payment intent ID
-              <input
-                name="intentId"
-                required
-                defaultValue={
-                  typeof query.intentId === "string" ? query.intentId : ""
-                }
-              />
-            </label>
-            <button>Check availability</button>
-          </form>
-          {evaluation ? (
-            <div className="merchant-evaluation-results">
-              <p>
-                For {intent?.reference}. Evaluated {evaluation.evaluatedAt};
-                expires {evaluation.expiresAt}.
-              </p>
-              <ul>
-                {evaluation.methods.map((m) => (
-                  <li key={m.method}>
-                    <strong>{m.label}</strong> — {m.explanation}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : (
-            <p className="merchant-muted-tip">{explanation}</p>
+        <Stablecoins
+          orgId={orgId}
+          environment={env}
+          accounts={(await stablecoinOverview(orgId, env)).filter(
+            (a) => onchainMethod(a.network, a.identifier) === "stablecoin",
           )}
-          <p>
-            Availability depends on this payment&apos;s amount, asset, method, and
-            transaction context. The customer chooses the method at checkout.
-          </p>
-        </section>
+          country={config.country}
+          readiness={(await merchantConfiguration(orgId, env)).stablecoinAssets}
+          canConfigure={can(membership.role, "configure")}
+        />
+        <CryptoPayments
+          orgId={orgId}
+          environment={env}
+          country={config.country}
+          assets={(await merchantConfiguration(orgId, env)).cryptoAssets}
+          stablecoinAssets={
+            (await merchantConfiguration(orgId, env)).stablecoinAssets
+          }
+          accounts={(await stablecoinOverview(orgId, env)).filter(
+            (a) => onchainMethod(a.network, a.identifier) === "crypto-app",
+          )}
+          canConfigure={can(membership.role, "configure")}
+        />
+        {section === "providers" && (
+          <Providers
+            profileOnly
+            orgId={orgId}
+            overview={await partnerOverview(orgId, env)}
+            canConfigure={can(membership.role, "configure")}
+          />
+        )}
       </>
     );
   } else if (section === "settlements") {
@@ -713,6 +728,79 @@ export default async function Page({
         {!exceptions.length && <p>No reconciliation exceptions.</p>}
       </section>
     );
+  } else if (section === "billing") {
+    const month =
+      typeof query.month === "string" &&
+      /^\d{4}-(0[1-9]|1[0-2])$/.test(query.month)
+        ? query.month
+        : new Date().toISOString().slice(0, 7);
+    const totals = await feeTotals(orgId, env, month);
+    const statements = await db.billingStatement.findMany({
+      where: { orgId, environment: env, month },
+      orderBy: { currency: "asc" },
+    });
+    content = (
+      <section>
+        <h2>Platform fees</h2>
+        <p>
+          0.25% for cards, digital wallets and buy now, pay later; 0.10% for
+          bank payments, USSD, mobile money and crypto. USD caps are $2 and $1
+          respectively. Other currency caps and any fiat valuation follow your
+          agreed fee schedule.
+        </p>
+        <p>
+          Billed once per successful payment, separately from provider
+          processing fees and settlements. Monthly periods use UTC. Amounts
+          below exclude tax.
+        </p>
+        <form method="get">
+          <input type="hidden" name="orgId" value={orgId} />
+          <label>
+            Month{" "}
+            <input type="month" name="month" defaultValue={month} required />
+          </label>
+          <button type="submit">View month</button>
+        </form>
+        <h3>{month}</h3>
+        {env === "sandbox" ? (
+          <p>Your sandbox is free. Test payments do not create payable fees.</p>
+        ) : totals.length ? (
+          <ul>
+            {totals.map((t) => (
+              <li key={`${t.currency}:${t.precision}`}>
+                {t.currency} {formatFee(t.amountMinor, t.precision)} across{" "}
+                {t.payments} successful payments
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No platform fees for this month.</p>
+        )}
+        <a
+          href={`/api/merchant/billing?orgId=${encodeURIComponent(orgId)}&environment=${env}&month=${month}`}
+        >
+          Download fee details
+        </a>
+        <h3>Closed monthly statements</h3>
+        {statements.length ? (
+          <ul>
+            {statements.map((s) => (
+              <li key={s.id}>
+                {s.currency} {formatFee(s.amountMinor.toFixed(0), s.precision)}{" "}
+                — statement {s.id}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No closed usage statement for this month.</p>
+        )}
+        <p>
+          Usage statements record platform charges. Your tax invoice and payment
+          instructions are issued separately under your agreement. A statement
+          is not proof of payment.
+        </p>
+      </section>
+    );
   } else if (section === "analytics") {
     const to = new Date();
     const from = new Date(to.getTime() - 30 * 86400000);
@@ -745,7 +833,13 @@ export default async function Page({
           sessions. Pending and unknown attempts are not failures. Late evidence
           updates these results.
         </p>
-        <p>Recognized PayRouta revenue: Not configured.</p>
+        <p>
+          <Link
+            href={`/merchant/billing?orgId=${encodeURIComponent(orgId)}&environment=${env}`}
+          >
+            View platform fees and monthly billing statements
+          </Link>
+        </p>
       </section>
     );
   } else if (section === "team") {
@@ -783,27 +877,62 @@ export default async function Page({
   else {
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 86400000);
-    const [count, confirmed, attention, recent, recentConfirmed] =
-      await Promise.all([
-        db.paymentIntent.count({ where: scope }),
-        db.paymentIntent.count({ where: { ...scope, state: "Confirmed" } }),
-        db.paymentException.count({
-          where: { intent: scope, state: "Unresolved" },
-        }),
-        db.paymentIntent.findMany({
-          where: scope,
-          orderBy: { createdAt: "desc" },
-          take: 8,
-        }),
-        db.paymentIntent.findMany({
-          where: {
-            ...scope,
-            state: "Confirmed",
-            createdAt: { gte: weekAgo },
-          },
-          select: { createdAt: true },
-        }),
-      ]);
+    const [
+      count,
+      confirmed,
+      attention,
+      recent,
+      recentConfirmed,
+      approvedAccounts,
+      keyCount,
+    ] = await Promise.all([
+      db.paymentIntent.count({ where: scope }),
+      db.paymentIntent.count({ where: { ...scope, state: "Confirmed" } }),
+      db.paymentException.count({
+        where: { intent: scope, state: "Unresolved" },
+      }),
+      db.paymentIntent.findMany({
+        where: scope,
+        orderBy: { createdAt: "desc" },
+        take: 8,
+      }),
+      db.paymentIntent.findMany({
+        where: {
+          ...scope,
+          state: "Confirmed",
+          createdAt: { gte: weekAgo },
+        },
+        select: { createdAt: true },
+      }),
+      db.partnerApplication.count({
+        where: { orgId, environment: env, state: "Approved" },
+      }),
+      db.merchantApiKey.count({
+        where: { orgId, environment: env, revokedAt: null },
+      }),
+    ]);
+    const setup = [
+      {
+        done: ["Under review", "Approved"].includes(config.applicationState),
+        label: "Business setup submitted",
+        path: "onboarding",
+      },
+      {
+        done: approvedAccounts > 0,
+        label: "At least one provider account approved",
+        path: "providers",
+      },
+      {
+        done: keyCount > 0,
+        label: "API key created",
+        path: "developers/api-keys",
+      },
+      {
+        done: !!config.webhookUrl,
+        label: "Webhook endpoint configured",
+        path: "developers/webhooks",
+      },
+    ];
     const successRate =
       count === 0 ? null : Math.round((confirmed / count) * 100);
     const byDay = Array.from({ length: 7 }, (_, i) => {
@@ -818,8 +947,10 @@ export default async function Page({
       };
     });
     const maxDay = Math.max(1, ...byDay.map((d) => d.count));
+    const treasury = await merchantTreasury(orgId, env);
     content = (
       <section>
+        <TreasuryBanner view={treasury} href={href} />
         <p>How payments are moving in this environment.</p>
         <div className="merchant-metrics">
           <div>
@@ -827,20 +958,35 @@ export default async function Page({
             <span>Payments received</span>
           </div>
           <div>
-            <strong>
-              {successRate === null ? "—" : `${successRate}%`}
-            </strong>
+            <strong>{successRate === null ? "—" : `${successRate}%`}</strong>
             <span>Success rate</span>
           </div>
           <div>
-            <strong>{confirmed > 0 ? "Pending next cycle" : "None pending"}</strong>
-            <span>Next / pending settlement</span>
+            <strong>{approvedAccounts}</strong>
+            <span>Approved provider accounts</span>
           </div>
           <div>
             <strong>{attention}</strong>
             <span>Payments needing attention</span>
           </div>
         </div>
+        {setup.some((s) => !s.done) && (
+          <>
+            <h2 className="merchant-setup-heading">Getting set up</h2>
+            <ul className="merchant-setup">
+              {setup.map((s) => (
+                <li key={s.label}>
+                  {s.done ? "✓" : "○"}{" "}
+                  {s.done ? (
+                    s.label
+                  ) : (
+                    <Link href={href(s.path)}>{s.label}</Link>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
         <h2>Last 7 days</h2>
         <div
           className="merchant-chart"
@@ -871,7 +1017,7 @@ export default async function Page({
                     <Link href={href(`payments/${p.id}`)}>{p.reference}</Link>
                   </td>
                   <td>
-                    {p.amount} {(p.asset as { identifier: string }).identifier}
+                    {p.amount} {assetLabel(p.asset)}
                   </td>
                   <td>
                     {p.state === "Confirmed" ? "Payment confirmed" : p.state}
@@ -889,7 +1035,26 @@ export default async function Page({
   return (
     <div className="portal merchant-workspace">
       <header>
-        <Link href={href("overview")}>PayRouta / {membership.org.name}</Link>
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+          <Link href={href("overview")}>PayRouta / {membership.org.name}</Link>
+          {providerMember && (
+            <Link
+              href="/provider/overview"
+              style={{
+                fontSize: "0.8125rem",
+                fontWeight: 500,
+                color: "inherit",
+                textDecoration: "none",
+                padding: "3px 8px",
+                borderRadius: "4px",
+                border: "1px solid currentColor",
+                opacity: 0.8,
+              }}
+            >
+              Provider workspace →
+            </Link>
+          )}
+        </div>
         <strong>{env === "sandbox" ? "Sandbox" : "Live"}</strong>
         <form>
           <input type="hidden" name="orgId" value={orgId} />
@@ -913,14 +1078,15 @@ export default async function Page({
                 section === item.path ||
                 item.children?.some((child) => child.path === section);
               return (
-                <li key={item.path} className={active ? "active-group" : undefined}>
+                <li
+                  key={item.path}
+                  className={active ? "active-group" : undefined}
+                >
                   <Link
                     href={href(item.path)}
                     aria-current={
                       section === item.path &&
-                      !item.children?.some(
-                        (child) => child.path === section,
-                      )
+                      !item.children?.some((child) => child.path === section)
                         ? "page"
                         : undefined
                     }

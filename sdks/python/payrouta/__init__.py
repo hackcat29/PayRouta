@@ -73,6 +73,11 @@ class PayRouta:
             raise ValueError('Amount must be a string')
         return self.request('POST','payment-intents',intent,idempotency_key)
 
+    def create_crypto_checkout(self, checkout, idempotency_key):
+        if not isinstance(checkout.get("usdAmount"), str):
+            raise ValueError("USD amount must be a string")
+        return self.request("POST", "crypto-checkouts", checkout, idempotency_key)
+
     def get_payment(self, payment_id):
         return self.request('GET','payments/'+quote(payment_id, safe=''))
 

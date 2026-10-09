@@ -1,24 +1,31 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import Markdown from "react-markdown";
-import { readDocs, docEntries } from "@/lib/docs";
+import { readDocs, docEntries, findDoc } from "@/lib/docs";
 import { DocsNavigation } from "@/components/docs-navigation";
 import { CodeBlock } from "@/components/code-block";
 import { trustedOrigin } from "@/lib/site-config";
+
 export function generateStaticParams() {
-  return docEntries.map(([slug]) => ({
-    slug: slug === "overview" ? [] : [slug],
+  const direct = docEntries.map(([slug]) => ({
+    slug: slug === "overview" ? [] : slug.split("/"),
   }));
+  const aliases = docEntries
+    .filter(([slug]) => slug.startsWith("providers/"))
+    .map(([slug]) => ({
+      slug: slug.replace(/^providers\//, "").split("/"),
+    }));
+  return [...direct, ...aliases];
 }
+
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ slug?: string[] }>;
 }) {
   const { slug } = await params;
-  const doc = readDocs().find(
-    (d) => d.slug === (slug?.join("/") || "overview"),
-  );
+  const rawSlug = slug?.join("/") || "overview";
+  const doc = findDoc(rawSlug);
   if (!doc) return {};
   const description =
     doc.content
@@ -30,6 +37,7 @@ export async function generateMetadata({
     alternates: trustedOrigin() ? { canonical: doc.href } : undefined,
   };
 }
+
 export default async function DocsPage({
   params,
 }: {
@@ -37,17 +45,52 @@ export default async function DocsPage({
 }) {
   const { slug } = await params;
   const docs = readDocs();
-  const index = docs.findIndex(
-    (d) => d.slug === (slug?.join("/") || "overview"),
-  );
-  if (index < 0) notFound();
-  const doc = docs[index];
+  const rawSlug = slug?.join("/") || "overview";
+  const doc = findDoc(rawSlug);
+  if (!doc) notFound();
+
+  const index = docs.findIndex((d) => d.slug === doc.slug);
+
+  // Hierarchical breadcrumbs
+  const breadcrumbs: { href: string; label: string }[] = [
+    { href: "/docs", label: "Documentation" },
+  ];
+  if (doc.slug.startsWith("providers/")) {
+    breadcrumbs.push({ href: "/docs/providers", label: "Providers" });
+    const parts = doc.slug.split("/");
+    if (parts.length > 2) {
+      const categorySlug = `providers/${parts[1]}`;
+      const categoryDoc = docs.find((d) => d.slug === categorySlug);
+      breadcrumbs.push({
+        href: `/docs/${categorySlug}`,
+        label: categoryDoc ? categoryDoc.title : parts[1],
+      });
+    }
+  } else if (
+    doc.category &&
+    doc.category !== "Getting Started" &&
+    doc.category !== "Core Concepts" &&
+    doc.category !== "Integration"
+  ) {
+    breadcrumbs.push({ href: doc.href, label: doc.category });
+  }
+  breadcrumbs.push({ href: doc.href, label: doc.title });
+
   return (
     <div className="container docs-shell">
       <DocsNavigation key={doc.slug} items={docs} current={doc.slug} />
       <article className="docs-article">
         <nav aria-label="Breadcrumb" className="breadcrumbs">
-          <Link href="/docs">Documentation</Link> / {doc.title}
+          {breadcrumbs.map((b, i) => (
+            <span key={b.href + "-" + i}>
+              {i > 0 && " / "}
+              {i === breadcrumbs.length - 1 ? (
+                <span>{b.label}</span>
+              ) : (
+                <Link href={b.href}>{b.label}</Link>
+              )}
+            </span>
+          ))}
         </nav>
         <div className="docs-notice">
           Early access · Interfaces and SDKs are provisional. Examples are
@@ -66,6 +109,8 @@ export default async function DocsPage({
               let targetHref = href || "";
               if (targetHref === "README.md" || targetHref === "overview.md") {
                 targetHref = "/docs";
+              } else if (targetHref.endsWith("/README.md")) {
+                targetHref = `/docs/${targetHref.replace(/\/README\.md$/, "")}`;
               } else if (targetHref.endsWith(".md")) {
                 targetHref = `/docs/${targetHref.replace(/\.md$/, "")}`;
               }
@@ -101,7 +146,7 @@ export default async function DocsPage({
           ) : (
             <span />
           )}
-          {index < docs.length - 1 && (
+          {index >= 0 && index < docs.length - 1 && (
             <Link href={docs[index + 1].href}>{docs[index + 1].title} →</Link>
           )}
         </nav>

@@ -1,62 +1,17 @@
 "use client";
+import Link from "next/link";
 import { ReactNode, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { countries, fiat } from "@/lib/portal/domain";
 import { labelOf } from "@/lib/providers/normalized";
 
-const supportedMethods = [
-  "bank-transfer",
-  "card",
-  "mobile-money",
-  "stablecoin",
-] as const;
+const supportedMethods = ["stablecoin"] as const;
 type SupportedMethod = (typeof supportedMethods)[number];
-
-export const businessTypes = [
-  "Registered company (LLC, PLC, Corp)",
-  "Sole proprietorship / Trader",
-  "Freelancer / Individual starter",
-  "Partnership",
-  "Non-profit / NGO",
-] as const;
-
-export const industries = [
-  "E-commerce & Retail",
-  "Software & SaaS",
-  "Digital Goods & Subscriptions",
-  "Financial Technology",
-  "Professional Services",
-  "Education & EdTech",
-  "Logistics & Travel",
-  "Healthcare",
-  "Other",
-] as const;
-
-export const popularBanks = [
-  { code: "044", name: "Access Bank" },
-  { code: "023", name: "Citibank" },
-  { code: "050", name: "Ecobank Nigeria" },
-  { code: "070", name: "Fidelity Bank" },
-  { code: "011", name: "First Bank of Nigeria" },
-  { code: "214", name: "First City Monument Bank (FCMB)" },
-  { code: "058", name: "Guaranty Trust Bank (GTBank)" },
-  { code: "101", name: "Providus Bank" },
-  { code: "221", name: "Stanbic IBTC Bank" },
-  { code: "068", name: "Standard Chartered Bank" },
-  { code: "232", name: "Sterling Bank" },
-  { code: "032", name: "Union Bank of Nigeria" },
-  { code: "033", name: "United Bank for Africa (UBA)" },
-  { code: "035", name: "Wema Bank" },
-  { code: "057", name: "Zenith Bank" },
-  { code: "999", name: "International / Wire bank account" },
-];
 
 type ApplicationValues = {
   legalName: string;
   tradingName: string;
   country: string;
-  businessType: string;
-  industry: string;
   website: string;
   activity: string;
   businessContact: string;
@@ -65,9 +20,6 @@ type ApplicationValues = {
   volumeRange: string;
   settlementCurrencies: string[];
   payerMarkets: string[];
-  settlementBank: string;
-  settlementAccount: string;
-  settlementAccountName: string;
 };
 const volumeOptions = [
   "Under $10,000 per month",
@@ -87,8 +39,9 @@ const steps = [
   },
   {
     id: "settlement",
-    title: "How you get paid",
-    description: "Tell us where to settle funds and what you expect to receive.",
+    title: "Currencies and markets",
+    description:
+      "Tell us which currencies you expect and where your customers are. Your providers pay you directly into the account you set up with them.",
   },
   {
     id: "documents",
@@ -121,19 +74,14 @@ function initialForm(value: Record<string, unknown>): ApplicationValues {
     legalName: String(value.legalName || ""),
     tradingName: String(value.tradingName || ""),
     country: String(value.country || ""),
-    businessType: String(value.businessType || ""),
-    industry: String(value.industry || ""),
     website: String(value.website || ""),
     activity: String(value.activity || ""),
     businessContact: String(value.businessContact || ""),
     technicalContact: String(value.technicalContact || ""),
-    methods,
+    methods: methods.length ? methods : ["stablecoin"],
     volumeRange: String(value.volumeRange || ""),
     settlementCurrencies: toStringArray(value.settlementCurrencies),
     payerMarkets: toStringArray(value.payerMarkets),
-    settlementBank: String(value.settlementBank || ""),
-    settlementAccount: String(value.settlementAccount || ""),
-    settlementAccountName: String(value.settlementAccountName || ""),
   };
 }
 function validEmail(value: string) {
@@ -164,9 +112,7 @@ function validateStep(step: number, form: ApplicationValues) {
     return errors;
   }
   if (step === 1)
-    return form.methods.length
-      ? []
-      : ["Select at least one payment method."];
+    return form.methods.length ? [] : ["Select at least one payment method."];
   if (step === 2) {
     const errors: string[] = [];
     if (!form.settlementCurrencies.length)
@@ -414,7 +360,9 @@ export function Onboarding({
         ))}
       </ol>
       <p>{steps[step].description}</p>
-      {typeof value.reviewFeedback === "string" && <p>{value.reviewFeedback}</p>}
+      {typeof value.reviewFeedback === "string" && (
+        <p>{value.reviewFeedback}</p>
+      )}
       {errors.length > 0 && (
         <div role="alert">
           {errors.map((error) => (
@@ -451,26 +399,6 @@ export function Onboarding({
             }))}
             value={form.country}
             onChange={(next) => update("country", next)}
-          />
-          <SearchableSelect
-            id="merchant-business-type"
-            label="Business type"
-            options={businessTypes.map((type) => ({
-              value: type,
-              label: type,
-            }))}
-            value={form.businessType}
-            onChange={(next) => update("businessType", next)}
-          />
-          <SearchableSelect
-            id="merchant-industry"
-            label="Industry / Category"
-            options={industries.map((ind) => ({
-              value: ind,
-              label: ind,
-            }))}
-            value={form.industry}
-            onChange={(next) => update("industry", next)}
           />
           <label htmlFor="merchant-website">
             Business website
@@ -546,9 +474,16 @@ export function Onboarding({
 
       {step === 2 && (
         <div>
+          <p>
+            Your payout bank account and identity details are collected
+            separately, encrypted, in{" "}
+            <Link href="/merchant/activation">Activate payments</Link>. Payouts
+            go to that account; regulated processing partners hold your balance
+            until then, never PayRouta&apos;s own bank accounts.
+          </p>
           <SearchableMultiSelect
             id="merchant-settlement-currencies"
-            label="Settlement currencies"
+            label="Currencies you expect to be paid in"
             options={fiat.map((currency) => ({
               value: currency,
               label: currency,
@@ -556,34 +491,6 @@ export function Onboarding({
             selected={form.settlementCurrencies}
             onChange={(next) => update("settlementCurrencies", next)}
           />
-          <SearchableSelect
-            id="merchant-settlement-bank"
-            label="Settlement bank"
-            options={popularBanks.map((bank) => ({
-              value: bank.code,
-              label: bank.name,
-            }))}
-            value={form.settlementBank}
-            onChange={(next) => update("settlementBank", next)}
-          />
-          <label htmlFor="merchant-settlement-account">
-            Account number / IBAN
-            <input
-              id="merchant-settlement-account"
-              placeholder="e.g. 0123456789"
-              value={form.settlementAccount}
-              onChange={(event) => update("settlementAccount", event.target.value)}
-            />
-          </label>
-          <label htmlFor="merchant-settlement-name">
-            Account beneficiary name
-            <input
-              id="merchant-settlement-name"
-              placeholder="Legal beneficiary name"
-              value={form.settlementAccountName}
-              onChange={(event) => update("settlementAccountName", event.target.value)}
-            />
-          </label>
           <SearchableMultiSelect
             id="merchant-payer-markets"
             label="Payer countries"
@@ -672,32 +579,12 @@ export function Onboarding({
           </dd>
           <dt>Operating country</dt>
           <dd>{countryName}</dd>
-          {form.businessType && (
-            <>
-              <dt>Business type</dt>
-              <dd>{form.businessType}</dd>
-            </>
-          )}
-          {form.industry && (
-            <>
-              <dt>Industry</dt>
-              <dd>{form.industry}</dd>
-            </>
-          )}
           <dt>Website</dt>
           <dd>{form.website || "Not set"}</dd>
           <dt>Payment methods</dt>
           <dd>{methodLabels}</dd>
-          <dt>Settlement currencies</dt>
+          <dt>Currencies</dt>
           <dd>{form.settlementCurrencies.join(", ") || "Not set"}</dd>
-          {form.settlementAccount && (
-            <>
-              <dt>Settlement account</dt>
-              <dd>
-                {popularBanks.find((b) => b.code === form.settlementBank)?.name || form.settlementBank} — {form.settlementAccount} ({form.settlementAccountName || "Beneficiary"})
-              </dd>
-            </>
-          )}
           <dt>Payer countries</dt>
           <dd>{form.payerMarkets.join(", ") || "Not set"}</dd>
           <dt>Expected volume</dt>
@@ -719,11 +606,7 @@ export function Onboarding({
           Save draft
         </button>
         {step < steps.length - 1 ? (
-          <button
-            type="button"
-            disabled={busy || !editable}
-            onClick={nextStep}
-          >
+          <button type="button" disabled={busy || !editable} onClick={nextStep}>
             Continue
           </button>
         ) : (

@@ -49,6 +49,7 @@ export async function deliver(eventId: string, now = new Date()) {
           {
             method: "POST",
             headers,
+            family: address.family,
             servername: url.hostname,
             lookup: (_h, _o, cb) => cb(null, address.address, address.family),
             timeout: 5000,

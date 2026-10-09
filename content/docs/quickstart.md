@@ -1,74 +1,81 @@
 # Quickstart
 
-This walkthrough uses a local payment intent object to illustrate the end-to-end integration sequence for accepting multi-rail global payments and configuring decoupled merchant settlement with PayRouta.
+Create a sandbox payment, send a customer through hosted checkout, and verify the result. The launch MVP uses real testnet stablecoin transfers. Test tokens have no monetary value. Other payment methods are coming soon.
 
-> [!NOTE]
-> This guide demonstrates proposed API objects and interfaces. Early access and implementation details must be confirmed before production deployment.
+## 1. Create your workspace
 
----
+1. Sign up, verify your email, and turn on an authenticator app under **Settings**.
+2. Create a merchant workspace. Enter your business name and the origin customers return to after checkout (for example `https://shop.example`). New workspaces start in the **sandbox** environment.
+3. Under **Payment methods**, configure fresh merchant-controlled USDC receive addresses on Base Sepolia.
+4. Under **Developers → API keys**, verify your authenticator and create a sandbox key with payment-creation access. The secret (`pr_sandbox_…`) is shown once. Store it on your server only.
 
-## 1. Describe the payment intent
+## 2. Install an SDK
 
-The merchant specifies invoice amount, currency, accepted payment rails, payer context, and preferred settlement destination. Accepted methods constrain the choices that may be offered; availability is evaluated dynamically:
+The TypeScript and Python SDKs are private 0.1.0 releases, shared with early-access merchants. You can also call the HTTP API directly; see the [API reference](api-reference.md).
 
-```json
-{
-  "amount": "25000.00",
-  "currency": "NGN",
-  "payer_context": { "country": "NG" },
-  "settlement": { "currency": "NGN", "target_instrument": "local_bank" },
-  "accepted_methods": [
-    "bank_transfer",
-    "digital_wallet",
-    "mobile_money",
-    "stablecoins",
-    "crypto_app",
-    "cash_voucher"
-  ],
-  "merchant_reference": "order_ng_2026_0914_01"
+```ts
+import { PayRouta } from "@payrouta/server";
+
+const payrouta = new PayRouta({
+  baseUrl: "https://<your PayRouta host>/api/v1",
+  secretKey: process.env.PAYROUTA_SECRET_KEY!,
+  environment: "sandbox",
+});
+```
+
+## 3. Create a payment intent
+
+Your server decides the amount. Never take it from the browser.
+
+```ts
+const asset = { kind: "blockchain", identifier: "erc20:0x036cbd53842c5426634e7929541ec2318f3dcf7e", network: "eip155:84532" } as const;
+const intent = await payrouta.createIntent(
+  {
+    reference: "order_1042",
+    amount: "1.000000",
+    asset,
+    precision: 6,
+    methods: ["stablecoin"],
+    settlement: asset,
+    returnUrl: "https://shop.example/orders/1042",
+  },
+  "order_1042-intent", // idempotency key: reuse it when retrying this request
+);
+```
+
+`returnUrl` must be on the return origin registered for your workspace.
+
+## 4. Send the customer to checkout
+
+```ts
+const session = await payrouta.createCheckoutSession(intent.id, "order_1042-session");
+const checkoutUrl = new URL(session.checkoutPath, "https://<your PayRouta host>").href;
+// Redirect the customer to checkoutUrl.
+```
+
+The customer pays test USDC on the exact network shown. Other payment categories remain visible with Coming soon tags. Confirmation waits for chain finality.
+
+## 5. Confirm the outcome on your server
+
+Treat the customer's return to `returnUrl` as navigation only. Confirm the outcome from a verified webhook (see [Webhooks](webhooks.md)) or by reading the payment:
+
+```ts
+const payment = await payrouta.getPayment(intent.id);
+if (payment.state === "Confirmed") {
+  // Fulfil the order.
 }
 ```
 
----
+## 6. Test failure paths
 
-## 2. Evaluate availability
+Test wrong amounts, wrong networks, wallet cancellation, RPC outages and worker restarts using isolated test fixtures. The stablecoin checkout does not accept simulated `scenario` outcomes.
 
-Use the full transaction context to determine viable methods:
-* Country, currency, ticket-size limits, and provider capabilities determine rail viability.
-* Regulatory status, compliance requirements, and current operating liquidity are evaluated in real time.
-* Never hard-code static country-to-method lookup tables on the frontend.
+## Going live
 
----
+Live processing needs:
 
-## 3. Collect the customer’s choice
+- merchant-owned production receive addresses and verified ownership evidence
+- a reviewed live scope for your business
+- current business screening, exact token/network approval, declared payer country and configured RPC/billing terms
 
-Present available payment methods with clear labels and direct institutions (e.g., specific banks, mobile money operators, or digital wallets):
-* The customer's explicit choice must be respected.
-* If a customer's preferred method becomes temporarily unavailable, do not silently switch rails. Explain the state and request a new customer selection.
-
----
-
-## 4. Route within that method
-
-Compare only eligible providers capable of executing the chosen method:
-* A bank transfer choice compares direct banking providers (e.g., GTBank, Zenith, Access Bank via direct API or NIP).
-* Relative cost, settlement estimates, and latency are evaluated strictly within the selected rail.
-* Pre-execution failover shifts to alternative direct routes within that same method if the primary route is degraded.
-
----
-
-## 5. Reconcile updates and settlement
-
-Persist your unique business reference (`merchant_reference`) and associate it with asynchronous updates:
-* Payment confirmation (`payment.confirmed`) and merchant settlement (`settlement.completed`) operate on decoupled timelines.
-* Fulfill customer orders immediately upon payment confirmation without waiting for multi-day bank settlement clearing.
-* Idempotently process incoming webhooks using verified signatures to prevent duplicate order fulfillment.
-
----
-
-## Next steps
-
-* Learn how to specify accepted methods in [Payment Intents](payment-intents.md).
-* Explore supported rails and channels in [Payment Methods & Channels](payment-methods.md).
-* Review signature verification in [Webhooks & Events](webhooks.md).
-* See error recovery in [Errors & Recovery](errors.md).
+The dashboard shows what is still outstanding.

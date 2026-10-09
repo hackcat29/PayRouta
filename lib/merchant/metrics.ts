@@ -9,7 +9,7 @@ export const metricDictionary = {
   volume:
     "Confirmed original amounts grouped by original asset and precision. Financial accounting totals come from journal postings; no currency conversion.",
   revenue:
-    "Recognized PayRouta fees from the journal. Not configured; never equated with payment volume or provider fees.",
+    "Platform fees accrue in the separate payrouta-platform-accrual book. View confirmed-period totals in Billing; this execution-cohort report does not aggregate platform revenue, payment volume or provider fees together.",
   settlementTime:
     "Payment-confirmed event time to completed settlement evidence time; unavailable until both milestones exist.",
   availability:

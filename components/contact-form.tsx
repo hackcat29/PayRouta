@@ -193,7 +193,7 @@ export function ContactForm({
             }}
           >
             <option value="merchant">Merchant access</option>
-            <option value="provider">Provider participation</option>
+            <option value="provider">Provider partnership</option>
             <option value="pricing">Pricing</option>
             <option value="general">General enquiry</option>
           </select>

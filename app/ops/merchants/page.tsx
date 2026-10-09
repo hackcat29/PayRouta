@@ -1,3 +1,5 @@
+import { stablecoinDepositConfig as depositConfigSchema } from "@/lib/blockchain/deposit-config";
+import { onchainMethod } from "@/lib/blockchain/crypto-assets";
 import Link from "next/link";
 import { internal } from "@/lib/portal/access";
 import { db } from "@/lib/portal/db";
@@ -20,6 +22,28 @@ export default async function Page() {
     },
     take: 100,
     orderBy: { createdAt: "desc" },
+  });
+  const depositAccounts = (
+    await db.integration.findMany({
+      where: {
+        orgId: { in: merchants.map((m) => m.orgId) },
+        environment: "production",
+      },
+      orderBy: { version: "desc" },
+    })
+  ).flatMap((i) => {
+    const c = depositConfigSchema.safeParse(i.config);
+    return c.success
+      ? [
+          {
+            method: onchainMethod(c.data.network, c.data.identifier),
+            orgId: i.orgId,
+            integrationId: i.id,
+            accountReference: c.data.accountId || "",
+            asset: `blockchain:${c.data.identifier}:${c.data.network}`,
+          },
+        ]
+      : [];
   });
   const intents = await db.paymentIntent.findMany({
     where: { id: { in: decisions.map((d) => d.intentId) } },
@@ -89,7 +113,8 @@ export default async function Page() {
               {scope.success
                 ? `${scope.data.status} · review due ${scope.data.input.nextReviewAt}`
                 : "No live scope proposed"}
-              . Scope approval does not activate execution.
+              . Live processing also requires current evidence, screening,
+              billing terms and an available receive address.
             </p>
             {["Under review", "Approved"].includes(m.applicationState) && (
               <details>
@@ -109,15 +134,49 @@ export default async function Page() {
                       ? scope.data.input
                       : {
                           environment: "production",
-                          merchantCountry: "NG",
-                          payerCountries: ["NG"],
-                          methods: ["bank-transfer"],
-                          asset: "fiat:NGN:",
-                          settlementAsset: "fiat:NGN:",
+                          merchantCountry: m.country,
+                          payerCountries: [m.country],
+                          methods: [
+                            ...new Set(
+                              depositAccounts
+                                .filter((a) => a.orgId === m.orgId)
+                                .map((a) => a.method),
+                            ),
+                          ],
+                          asset:
+                            depositAccounts.find((a) => a.orgId === m.orgId)
+                              ?.asset ??
+                            "Configure a production on-chain receive pool first",
+                          settlementAsset:
+                            depositAccounts.find((a) => a.orgId === m.orgId)
+                              ?.asset ??
+                            "Configure a production on-chain receive pool first",
                           maximumMinor: "10000",
                           dailyMaximumMinor: "100000",
+                          additionalAssets: [
+                            ...new Set(
+                              depositAccounts
+                                .filter((a) => a.orgId === m.orgId)
+                                .map((a) => a.asset),
+                            ),
+                          ]
+                            .slice(1)
+                            .map((asset) => ({
+                              asset,
+                              maximumMinor: "10000",
+                              dailyMaximumMinor: "100000",
+                            })),
                           profileIds: [],
-                          accounts: [],
+                          accounts: depositAccounts
+                            .filter((a) => a.orgId === m.orgId)
+                            .slice(0, 200)
+                            .map((a) => ({
+                              integrationId: a.integrationId,
+                              accountReference: a.accountReference,
+                              permissionEvidenceId: "",
+                              settlementDestinationEvidenceId: "",
+                              refundResponsibilityEvidenceId: "",
+                            })),
                           evidenceIds: [],
                           nextReviewAt: nextReview.toISOString(),
                         }

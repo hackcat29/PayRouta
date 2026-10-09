@@ -1,0 +1,18 @@
+# Google Pay
+
+> **Implementation status:** Provider code path: adyen. Not live-qualified by code alone. Enable provider wallet/domain configuration. See [current coverage](provider-coverage.md).
+
+**Category**: [Digital Wallets](providers/digital-wallets/README.md)  
+**Provider**: Google LLC / Alphabet  
+**Method ID**: `digital-wallet`  
+**Integration Mode**: `NATIVE`
+
+Google Pay provides fast, secure checkout across Android devices, Chrome browsers, and web applications using saved Google Wallet cards and bank accounts.
+
+---
+
+## Technical Specifications
+
+- **Tokenization**: Device PANs (DPANs) and Virtual Card Numbers for high authorization rates.
+- **Cross-Platform**: Available across Android, Chrome desktop, iOS web, and progressive web apps (PWAs).
+- **Zero Merchant Liability**: Passes 3DS2 cryptographic verification tokens directly to your configured payment gateway.

@@ -5,7 +5,9 @@ export default defineConfig({
   workers: 1,
   timeout: 60000,
   use: {
-    baseURL: "http://127.0.0.1:3000",
+    // Override to run beside another local app (the server's BETTER_AUTH_URL
+    // must match, since API calls are origin-checked).
+    baseURL: process.env.PAYROUTA_TEST_ORIGIN ?? "http://127.0.0.1:3000",
     headless: true,
     screenshot: "only-on-failure",
   },

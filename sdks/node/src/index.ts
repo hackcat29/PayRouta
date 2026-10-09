@@ -8,11 +8,28 @@ export type Asset = {
 };
 export type IntentInput = {
   reference: string;
+  payerCountry?: string;
   amount: string;
   asset: Asset;
   precision: number;
-  methods: ("bank-transfer" | "card" | "mobile-money" | "stablecoin")[];
+  methods: (
+    | "bank-transfer"
+    | "card"
+    | "mobile-money"
+    | "digital-wallet"
+    | "ussd"
+    | "direct-debit"
+    | "bnpl"
+    | "stablecoin"
+    | "crypto-app"
+  )[];
   settlement: Asset;
+  paymentOptions?: {
+    asset: Asset;
+    amount: string;
+    precision: number;
+    settlement: Asset;
+  }[];
   returnUrl: string;
   metadata?: Record<string, string>;
   scenario?:
@@ -36,6 +53,12 @@ export type Payment = {
   selectedMethod: string | null;
   createdAt: string;
   expiresAt: string;
+};
+export type CryptoCheckoutInput = {
+  reference: string;
+  payerCountry: string;
+  usdAmount: string;
+  options: { network: string; identifier: string }[];
 };
 export type CheckoutSession = {
   id: string;
@@ -85,6 +108,14 @@ export class PayRouta {
       throw new Error("Key environment mismatch");
     if ((options.timeoutMs ?? 10000) <= 0)
       throw new Error("Timeout must be positive");
+  }
+  createCryptoCheckout(input: CryptoCheckoutInput, idempotencyKey: string) {
+    return this.request<CheckoutSession>(
+      "POST",
+      "crypto-checkouts",
+      input,
+      idempotencyKey,
+    );
   }
   async request<T>(
     method: string,

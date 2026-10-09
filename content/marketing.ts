@@ -3,7 +3,7 @@ export const pages = {
     title: "Provider Routing",
     headline: "Use the right provider for the payment in front of you.",
     intro:
-      "After a customer selects an available payment method, PayRouta compares only eligible providers for that method and uses an available route.",
+      "PayRouta routes every payment to the best eligible provider for the method your customer chose, and fails over to another provider for that same method when the first one can't complete it.",
     sections: [
       [
         "Compare providers after customer choice",
@@ -11,7 +11,7 @@ export const pages = {
       ],
       [
         "Check eligibility before comparing cost",
-        "Each route must satisfy corridor, asset, amount, compliance, certification, credential, health, and operational checks. Ineligible providers are excluded before any comparison.",
+        "Each route must use a provider account the merchant owns and has had approved, and must pass corridor, asset, amount, compliance, certification, health, and operational checks. Ineligible providers are excluded before any comparison.",
       ],
       [
         "Balance cost with reliability",
@@ -31,7 +31,7 @@ export const pages = {
     title: "Settlement",
     headline: "Confirmation and settlement are separate facts.",
     intro:
-      "A customer payment can be confirmed before the merchant receives funds. PayRouta records each state separately and reconciles provider settlement evidence.",
+      "Your providers settle to you directly. PayRouta gives you one reconciled view of every payment, fee and settlement across all of them — with mismatches surfaced as exceptions, never silent balances.",
     sections: [
       [
         "Track confirmation separately from payment to the merchant",
@@ -39,7 +39,7 @@ export const pages = {
       ],
       [
         "Use the settlement path supported by the provider",
-        "PayRouta does not invent exchange rates or move customer funds itself. Provider settlement evidence determines the final merchant record.",
+        "Each provider pays you into the destination you set in your own account with them. PayRouta never receives or forwards funds, and never invents exchange rates. Provider settlement evidence determines the final record.",
       ],
       [
         "Reconcile every allocation",
@@ -51,8 +51,12 @@ export const pages = {
     title: "Payment Flow",
     headline: "From customer checkout to merchant settlement.",
     intro:
-      "Create an intent, show only methods that can work, let the customer choose, use an eligible provider, and reconcile settlement.",
+      "Follow a payment through PayRouta: create an intent, offer only methods that can work, let the customer choose, route to the best provider, recover quietly, and reconcile settlement.",
     sections: [
+      [
+        "Open your provider accounts",
+        "Apply once. PayRouta pre-fills an application with each provider you choose, and each account is opened in your name.",
+      ],
       [
         "Create a payment intent",
         "State the amount, asset, accepted methods, settlement asset, and return destination.",
@@ -83,8 +87,12 @@ export const pages = {
     title: "For Merchants",
     headline: "Accept more payments. Lose fewer customers.",
     intro:
-      "PayRouta connects your business to multiple payment providers and uses an available route when a customer pays. Integrate once and show customers the methods they already trust.",
+      "Apply once to PayRouta and accept every major way your customers pay. One integration routes each payment across our regulated processing partners, with a backup per method and a checkout that keeps working when a partner doesn't.",
     sections: [
+      [
+        "Apply once",
+        "One application to PayRouta. We verify your business and set up processing with our partners; you never fill in a provider's forms.",
+      ],
       [
         "Integrate once",
         "Payment intents, checkout sessions, webhooks, settlements, and reconciliation use one merchant interface.",
@@ -105,17 +113,21 @@ export const pages = {
   },
   providers: {
     title: "For Providers",
-    headline: "Tell us what you process. Certification decides what can route.",
+    headline: "Merchants apply once. You onboard them directly.",
     intro:
-      "Providers can register independently, declare payment methods and coverage, connect a sandbox integration, pass certification, and request review. Declaration alone never enables production routing.",
+      "If your programme opens accounts that merchants own, PayRouta can send you pre-screened, pre-filled applications from merchants who choose you. You run your own KYC, contract with the merchant, and settle to them. PayRouta routes their payments to you.",
     sections: [
       [
-        "Declare methods, countries, currencies, and operations",
-        "Plain-language answers become structured capabilities for collection, payout, conversion, authorization, and settlement.",
+        "Offer accounts merchants own",
+        "The merchant contracts with you, logs in to their own account, bears their own losses and keeps the account if they leave PayRouta. PayRouta never sits between you and the merchant's money.",
+      ],
+      [
+        "Receive pre-filled applications",
+        "PayRouta screens each business first, then sends only the fields your programme needs, with the merchant's explicit consent. You collect identity documents and bank details yourself.",
       ],
       [
         "Choose a connection",
-        "Use the PayRouta Standard, map an existing API declaratively, or ask about a native PayRouta-built integration.",
+        "Use your partner onboarding API, implement the PayRouta Provider API, map an existing API declaratively, or ask about a native PayRouta-built integration.",
       ],
       [
         "Test and certify the integration",
@@ -131,7 +143,7 @@ export const pages = {
     title: "Developers",
     headline: "A predictable payment workflow.",
     intro:
-      "Create intents, display evaluated methods, handle normalized outcomes, and reconcile settlement with signed events and idempotent requests.",
+      "One API across all your providers. Idempotent requests, normalized payment states, signed webhooks, TypeScript and Python SDKs for early-access merchants, and a sandbox that simulates provider outages.",
     sections: [
       [
         "Start with a payment intent",
@@ -155,15 +167,15 @@ export const pages = {
     title: "Pricing",
     headline: "Straightforward pricing shaped around your business.",
     intro:
-      "Discuss payment methods, countries, volume, provider arrangements, and settlement requirements before a pilot. There is no public fee schedule yet.",
+      "Simple, usage-based pricing: a free sandbox, a capped platform fee on successful payments, billed monthly, and volume pricing for businesses at scale.",
     sections: [
       [
         "Corridors and methods",
         "Costs depend on the payment methods and provider arrangements that can serve each route.",
       ],
       [
-        "Settlement and conversion",
-        "Settlement timing, provider fees, and any regulated conversion path are confirmed commercially.",
+        "Provider fees",
+        "Each provider charges its processing fees on your own account, under your contract with them. Settlement timing follows each provider's schedule.",
       ],
       [
         "What to include",
@@ -175,7 +187,7 @@ export const pages = {
     title: "About",
     headline: "A payment network ordinary businesses can use.",
     intro:
-      "PayRouta hides provider complexity from merchants and customers while retaining explicit eligibility, availability, execution, settlement, and reconciliation controls.",
+      "PayRouta is building the payment routing layer that works for ordinary businesses: apply once, own your provider accounts, accept the ways your customers pay — and never lose a sale to a single provider's bad day.",
     sections: [
       [
         "Customer choice",
@@ -186,8 +198,8 @@ export const pages = {
         "Compliance, certification, credentials, health, and operational checks decide which methods and routes are available.",
       ],
       [
-        "No custody claims",
-        "PayRouta coordinates routing and transaction status. Regulated providers handle the movement and settlement of funds.",
+        "Your money, on your schedule",
+        "Regulated processing partners hold your balance, never PayRouta's own bank accounts, and PayRouta pays you out on your schedule. Stablecoins go straight to your wallet.",
       ],
     ],
   },
@@ -195,14 +207,14 @@ export const pages = {
     title: "Payment Methods",
     headline: "One schema for familiar payment categories.",
     intro:
-      "PayRouta normalizes payment methods, providers, rails, and execution adapters. The methods shown at checkout still depend on certified providers and the payment context.",
+      "Cards, instant bank transfers, mobile money, wallets, direct debit, vouchers, installments and stablecoins — one schema for the ways the world pays. Which methods you can offer depends on the provider accounts you hold.",
     sections: [],
   },
   "use-cases": {
     title: "Use Cases",
     headline: "One payment layer. Real business scenarios.",
     intro:
-      "These examples explain how availability, customer choice, provider comparison, execution, and reconciliation fit together.",
+      "How online stores, SaaS and digital sellers, and local merchants use PayRouta to open provider accounts in their own name, accept the methods their customers use, and keep checkout working through provider outages.",
     sections: [],
   },
 } as const;
@@ -212,16 +224,16 @@ export const methodContent = [
     name: "Bank transfers",
     group: "Instant & A2A",
     icon: "Zap",
-    examples: "Domestic instant rails · Bank-authorized transfers",
+    examples: "Pix · SEPA Instant · UPI · FedNow · Faster Payments · NIP",
     copy: "Customers move money directly from a bank account and authorize the payment through their own banking flow.",
     consideration:
-      "Only certified bank-transfer providers and corridors can serve a given transaction.",
+      "Available through providers you hold an account with, for the corridors they serve.",
   },
   {
     name: "Cards",
     group: "Traditional",
     icon: "CreditCard",
-    examples: "Global and domestic card networks",
+    examples: "Visa · Mastercard · American Express · domestic schemes",
     copy: "Customers pay by card and complete whatever authorization their issuer or wallet requires.",
     consideration:
       "Provider comparison happens only after the customer selects cards.",
@@ -230,7 +242,7 @@ export const methodContent = [
     name: "Mobile money",
     group: "Local methods",
     icon: "Smartphone",
-    examples: "Carrier wallets · Phone-balance payments",
+    examples: "M-Pesa · MTN MoMo · Airtel Money · Orange Money",
     copy: "Customers approve a payment using a mobile-money account or phone prompt.",
     consideration:
       "Limits and prompts depend on the mobile-money provider and account.",
@@ -239,7 +251,7 @@ export const methodContent = [
     name: "Digital wallets",
     group: "Instant & A2A",
     icon: "Wallet",
-    examples: "Browser and app wallets",
+    examples: "Apple Pay · Google Pay · regional super-apps",
     copy: "Customers check out with a stored wallet balance, linked card, or linked bank account.",
     consideration:
       "Wallet support depends on the customer’s device and the provider’s checkout rules.",
@@ -248,7 +260,7 @@ export const methodContent = [
     name: "Direct debit",
     group: "Traditional",
     icon: "Landmark",
-    examples: "Recurring bank debits",
+    examples: "SEPA Direct Debit · ACH · Bacs",
     copy: "Customers authorize a merchant-initiated debit for a subscription or invoice.",
     consideration:
       "Clearing and return rules follow the domestic banking system.",
@@ -257,7 +269,7 @@ export const methodContent = [
     name: "Cash vouchers",
     group: "Local methods",
     icon: "Receipt",
-    examples: "Retail-generated payment codes",
+    examples: "Boleto · OXXO · retail payment codes",
     copy: "Customers receive a voucher or barcode and complete payment through the designated retail process.",
     consideration:
       "The payment is confirmed only when the voucher process completes.",
@@ -275,19 +287,19 @@ export const methodContent = [
     name: "Stablecoins",
     group: "Digital assets",
     icon: "Coins",
-    examples: "USDC on Base",
-    copy: "Customers send an exact stablecoin payment to an observed on-chain address.",
+    examples: "USDC, EURC and USDT on supported networks",
+    copy: "Customers send an exact stablecoin payment to a wallet address you control. PayRouta observes the chain and never takes custody.",
     consideration:
       "Asset, network, amount precision, confirmations, and wallet screening can all affect eligibility.",
   },
   {
-    name: "Crypto apps",
+    name: "Crypto wallet payments",
     group: "Digital assets",
     icon: "QrCode",
-    examples: "Exchange-held balances",
-    copy: "Customers pay from an existing crypto-app balance through that app’s checkout flow.",
+    examples: "Native coins and original token deployments across eight networks",
+    copy: "Customers pay directly from Web3 wallets using a CoinGecko quote. The selected coin arrives in your own wallet.",
     consideration:
-      "Conversion and settlement remain regulated provider operations.",
+      "Network fees are separate. Wrapped tokens are excluded; exchange-app payments are Coming soon.",
   },
   {
     name: "Other local methods",
@@ -296,10 +308,22 @@ export const methodContent = [
     examples: "Market-specific payment flows",
     copy: "Customers use the payment process established by a local provider.",
     consideration:
-      "These methods appear only when a certified provider can serve them.",
+      "These methods appear only when one of your provider accounts can serve them.",
   },
 ];
 export const useCases = [
+  {
+    title: "One application, several providers",
+    need: "A merchant wants a backup provider without filling in two applications.",
+    choice:
+      "The merchant picks providers and sees exactly what each will receive.",
+    route:
+      "PayRouta screens the business and pre-fills each provider's application.",
+    outcome:
+      "Each provider verifies the merchant and opens an account in the merchant's name.",
+    benefit:
+      "Redundancy without re-onboarding, and no funds held by a middleman.",
+  },
   {
     title: "Same-method backup",
     need: "A provider cannot start the customer’s selected method.",
@@ -321,7 +345,8 @@ export const useCases = [
   {
     title: "Direct stablecoin payment",
     need: "A customer wants to pay on-chain.",
-    choice: "The customer selects stablecoin when asset and network are eligible.",
+    choice:
+      "The customer selects stablecoin when asset and network are eligible.",
     route: "PayRouta observes the transaction and waits for finality.",
     outcome: "The payment becomes confirmed only after chain rules are met.",
     benefit: "Blockchain observation stays inside the same payment lifecycle.",
@@ -341,6 +366,7 @@ export const useCases = [
     route: "Automated certification tests only the declared capabilities.",
     outcome:
       "Approved capabilities can route when all production gates remain satisfied.",
-    benefit: "The network can grow without a custom deployment for every provider.",
+    benefit:
+      "The network can grow without a custom deployment for every provider.",
   },
 ];

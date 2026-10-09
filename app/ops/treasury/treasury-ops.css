@@ -1,0 +1,54 @@
+/* Operations treasury console. Builds on the portal shell (p-shell,
+   p-sidebar, p-workarea) and its tokens. */
+.ot-content h1 { margin: 0 0 20px; }
+.ot-content table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.ot-content th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--slate); padding: 8px 10px; border-bottom: 1px solid var(--mist); }
+.ot-content td { padding: 10px; border-bottom: 1px solid var(--mist); vertical-align: top; }
+.ot-panel { background: white; border: 1px solid var(--mist); border-radius: 10px; padding: 20px; margin-bottom: 20px; overflow-x: auto; }
+.ot-panel h2 { margin: 0 0 12px; font-size: 17px; }
+.ot-panel h3 { margin: 18px 0 8px; font-size: 14px; }
+.ot-muted { color: var(--slate); }
+.ot-block { display: block; margin-top: 2px; }
+.ot-pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; background: #eef2f4; color: var(--slate); white-space: nowrap; }
+.ot-pill.good { background: #e3f6ee; color: #006653; }
+.ot-pill.bad { background: #fbe9ec; color: #98283b; }
+.ot-pill.warn { background: #fdf1dc; color: #7a4d06; }
+.ot-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.ot-stat { display: grid; gap: 4px; padding: 14px 16px; background: white; border: 1px solid var(--mist); border-radius: 10px; color: inherit; text-decoration: none; }
+.ot-stat span { font-size: 12px; color: var(--slate); }
+.ot-stat strong { font-size: 24px; font-variant-numeric: tabular-nums; }
+a.ot-stat:hover { border-color: var(--teal); }
+.ot-crumbs { margin: 0 0 6px; font-size: 13px; }
+.ot-title { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+.ot-title h1 { margin: 0; }
+.ot-columns { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 20px; align-items: start; }
+.ot-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px 20px; margin: 0; }
+.ot-fields dt { font-size: 12px; color: var(--slate); }
+.ot-fields dd { margin: 2px 0 0; overflow-wrap: anywhere; }
+.ot-compact { grid-template-columns: 1fr 1fr; }
+.ot-money { padding: 10px 0; border-bottom: 1px solid var(--mist); }
+.ot-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; font-size: 14px; }
+.ot-timeline { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; }
+.ot-timeline li { display: grid; gap: 2px; padding-left: 12px; border-left: 2px solid var(--mist); font-size: 14px; }
+.ot-timeline p { margin: 2px 0 0; }
+.ot-box { display: grid; gap: 12px; margin-top: 12px; }
+.ot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px 12px; }
+.ot-box label, .ot-grid label { display: grid; gap: 4px; font-size: 13px; font-weight: 500; }
+.ot-box small { color: var(--slate); font-weight: 400; }
+.ot-check { display: flex !important; align-items: center; gap: 8px; }
+.ot-actions, .ot-inline { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+.ot-content button { min-height: 36px; padding: 6px 14px; border-radius: 6px; background: var(--navy); color: white; font-weight: 600; border: 0; cursor: pointer; }
+.ot-content button.ot-secondary { background: white; color: var(--navy); border: 1px solid var(--mist); }
+.ot-content button.ot-danger { background: #98283b; }
+.ot-content button:disabled { opacity: 0.5; cursor: default; }
+.ot-note { margin: 4px 0 0; font-size: 13px; color: #006653; flex-basis: 100%; }
+.ot-note.error { color: var(--error); }
+.ot-blockers { padding: 10px 12px; border-radius: 8px; background: #fff8ec; border: 1px solid #f1d6a6; font-size: 14px; }
+.ot-blockers.clear { background: #f0faf5; border-color: #bfe6d6; }
+.ot-blockers ul { margin: 6px 0 0; padding-left: 18px; }
+@media (max-width: 1100px) {
+  .ot-columns { grid-template-columns: 1fr; }
+}
+.ot-search { margin-bottom: 16px; }
+.ot-search label { display: grid; gap: 4px; font-size: 13px; font-weight: 500; }
+.ot-search input { min-width: 260px; }

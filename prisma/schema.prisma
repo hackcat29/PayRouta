@@ -85,6 +85,13 @@ model Organization {
   name String
   fictional Boolean @default(false)
   createdAt DateTime @default(now())
+  merchantAccounts MerchantAccount[]
+  platformLinks MerchantPlatformLink[]
+  payouts Payout[]
+  refunds PlatformRefund[]
+  disputes PlatformDispute[]
+  verificationDetails MerchantVerificationDetails[]
+  agreements MerchantAgreement[]
   memberships Membership[]
   invitations Invitation[]
   application Application?
@@ -233,6 +240,7 @@ model Integration {
   version Int
   config Json
   createdAt DateTime @default(now())
+  platformLinks MerchantPlatformLink[]
   @@unique([orgId, environment, version])
 }
 model Credential {
@@ -472,7 +480,12 @@ model MerchantConfig {
   webhookKeyId String @default("v1")
 }
 model PaymentIntent {
+  cryptoQuoteId String?
+  paymentOptions Json?
+  selectedOption String?
   pilotBatchId String?
+  feeSnapshot Json?
+  platformFee PaymentFee?
   id String @id @default(cuid())
   orgId String
   environment String
@@ -496,6 +509,7 @@ model PaymentIntent {
   expiresAt DateTime
   createdAt DateTime @default(now())
   allocations SettlementAllocation[]
+  platformPayment PlatformPayment?
   exceptions PaymentException[]
   sessions CheckoutSession[]
   attempts PaymentAttempt[]
@@ -529,6 +543,7 @@ model PaymentAttempt {
   id String @id @default(cuid())
   intentId String
   intent PaymentIntent @relation(fields: [intentId], references: [id])
+  platformPayment PlatformPayment?
   number Int
   profileId String
   providerOrgId String
@@ -616,6 +631,9 @@ model SettlementAllocation {
 }
 model JournalEntry {
   postingTransaction BigInt @default(dbgenerated("txid_current()"))
+  // Required for, and only for, the merchant-funds book.
+  platformAccountId String?
+  platformAccount PlatformAccount? @relation(fields: [platformAccountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   id String @id @default(cuid())
   orgId String
   environment String
@@ -627,6 +645,7 @@ model JournalEntry {
   effectiveAt DateTime
   createdAt DateTime @default(now())
   postings JournalPosting[]
+  @@index([orgId, environment, book, platformAccountId, asset])
 }
 model JournalPosting {
   id String @id @default(cuid())
@@ -635,6 +654,7 @@ model JournalPosting {
   account String
   debit Decimal @db.Decimal(50,0)
   credit Decimal @db.Decimal(50,0)
+  @@index([entryId])
 }
 model PaymentReconciliation {
   id String @id @default(cuid())
@@ -743,4 +763,574 @@ model ProviderCertification {
  humanFailures Json
  createdAt DateTime @default(now())
  @@index([orgId, environment, createdAt])
+}
+// Partner onboarding ("register once"). See lib/partners and
+// docs/PARTNER-PROGRAM.md. Profiles, screenings and consents are immutable
+// (database triggers); a consent may only be revoked once.
+model MerchantKybProfile {
+ id String @id @default(cuid())
+ orgId String
+ version Int
+ data Json
+ fingerprint String
+ createdBy String
+ createdAt DateTime @default(now())
+ merchantAccounts MerchantAccount[]
+ platformLinks MerchantPlatformLink[]
+ @@unique([orgId, version])
+}
+model MerchantScreening {
+ id String @id @default(cuid())
+ orgId String
+ profileVersion Int
+ provider String
+ verdict String
+ results Json
+ createdBy String
+ createdAt DateTime @default(now())
+ @@index([orgId, profileVersion, createdAt])
+}
+// PayRouta's own platform relationship with each partner. Secrets are
+// secret-manager references only.
+model PartnerConnection {
+ id String @id @default(cuid())
+ partnerId String
+ environment String
+ config Json
+ enabled Boolean @default(false)
+ // Set by operations after an end-to-end run against the provider's own
+ // sandbox (onboarding, events, payment, status). Production payments through
+ // a partner require its sandbox connection to be qualified.
+ qualifiedAt DateTime?
+ qualification Json?
+ updatedBy String
+ updatedAt DateTime @updatedAt
+ createdAt DateTime @default(now())
+ @@unique([partnerId, environment])
+}
+model PartnerConsent {
+ id String @id @default(cuid())
+ orgId String
+ partnerId String
+ environment String
+ profileVersion Int
+ fields Json
+ disclosureFingerprint String
+ grantedBy String
+ grantedAt DateTime @default(now())
+ revokedAt DateTime?
+ revokedBy String?
+ @@index([orgId, partnerId, environment])
+}
+model PartnerApplication {
+ id String @id @default(cuid())
+ orgId String
+ partnerId String
+ environment String
+ consentId String
+ profileVersion Int
+ state String @default("Queued")
+ accountRef String?
+ providerAccountId String?
+ requirements Json @default("[]")
+ paymentsEnabled Boolean @default(false)
+ payoutsEnabled Boolean @default(false)
+ reason String?
+ disclosedFingerprint String?
+ integrationId String?
+ submittedAt DateTime?
+ approvedAt DateTime?
+ lastCheckedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@unique([orgId, partnerId, environment])
+ @@unique([partnerId, environment, accountRef])
+ @@index([state, lastCheckedAt])
+}
+model PartnerEvent {
+ id String @id @default(cuid())
+ partnerId String
+ environment String
+ eventId String
+ fingerprint String
+ type String
+ accountRef String?
+ providerAccountId String?
+ objectRef String?
+ state String @default("Received")
+ createdAt DateTime @default(now())
+ @@unique([partnerId, environment, eventId])
+}
+// Production secret store: AES-256-GCM ciphertext under a master key held
+// outside the database (SECRET_MASTER_KEYS). Revocation erases ciphertext.
+model Secret {
+ id String @id
+ keyId String
+ iv Bytes
+ tag Bytes
+ ciphertext Bytes?
+ createdAt DateTime @default(now())
+ rotatedAt DateTime?
+ revokedAt DateTime?
+ @@index([keyId])
+}
+
+// Merchant-owned, permanently consumed receive addresses and finalized logs.
+model DepositBinding {
+ acceptBefore DateTime?
+ attemptId String @id
+ attemptKey String @unique
+ integrationId String
+ environment String
+ network String
+ identifier String
+ address String
+ amount String
+ precision Int
+ startBlock BigInt
+ createdAt DateTime @default(now())
+ @@unique([network, address])
+}
+model DepositScan {
+ cursor String?
+ attemptId String @id
+ nextBlock BigInt
+ updatedAt DateTime @updatedAt
+}
+
+model CryptoQuote {
+ id String @id @default(cuid())
+ orgId String
+ environment String
+ key String
+ fingerprint String
+ request Json
+ terms Json
+ expiresAt DateTime
+ createdAt DateTime @default(now())
+ @@unique([orgId, environment, key])
+}
+model DepositClaim {
+ id String @id @default(cuid())
+ attemptId String @unique
+ network String
+ txHash String
+ logIndex String
+ blockHash String
+ amount String
+ createdAt DateTime @default(now())
+ @@unique([network, txHash, logIndex])
+}
+
+model PaymentFee {
+  intentId String @id
+  intent PaymentIntent @relation(fields: [intentId], references: [id])
+  orgId String
+  environment String
+  method String
+  currency String
+  precision Int
+  amountMinor Decimal @db.Decimal(50,0)
+  billable Boolean
+  // "withheld" when taken at source through a platform account; only
+  // "invoice" fees appear on monthly statements.
+  collection String @default("invoice")
+  terms Json
+  effectiveAt DateTime
+  @@index([orgId, environment, effectiveAt])
+}
+model BillingStatement {
+  id String @id @default(cuid())
+  orgId String
+  environment String
+  month String
+  currency String
+  precision Int
+  amountMinor Decimal @db.Decimal(50,0)
+  lines Json
+  createdAt DateTime @default(now())
+  @@unique([orgId, environment, month, currency, precision])
+}
+
+model WalletSubmission {
+ signed String?
+ id String @id @default(cuid())
+ attemptId String @unique
+ orgId String
+ network String
+ payer String
+ unsigned String
+ messageHash String
+ expiresAt DateTime
+ state String @default("Prepared")
+ transactionHash String?
+ createdAt DateTime @default(now())
+ @@index([orgId, createdAt])
+}
+
+// Email Marketing & Resend Integration Models
+model MarketingSubscriber {
+  id               String                 @id @default(cuid())
+  email            String                 @unique
+  name             String?
+  orgId            String?
+  role             String                 @default("subscriber")
+  status           String                 @default("active")
+  source           String                 @default("landing_page")
+  topics           Json                   @default("[\"product_updates\",\"weekly_digest\",\"developer_advisories\"]")
+  resendContactId  String?
+  resendAudienceId String?
+  unsubscribeToken String                 @unique @default(cuid())
+  lastEmailedAt    DateTime?
+  metadata         Json                   @default("{}")
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  deliveryLogs     MarketingDeliveryLog[]
+  dripSteps        MarketingDripStep[]
+
+  @@index([status, role])
+  @@index([orgId])
+}
+
+model MarketingCampaign {
+  id             String                 @id @default(cuid())
+  name           String
+  subject        String
+  previewText    String?
+  templateId     String                 @default("marketing_broadcast")
+  targetAudience String                 @default("all")
+  targetTopics   Json                   @default("[]")
+  contentHtml    String
+  contentText    String
+  status         String                 @default("draft")
+  scheduledAt    DateTime?
+  sentAt         DateTime?
+  recipientCount Int                    @default(0)
+  openCount      Int                    @default(0)
+  clickCount     Int                    @default(0)
+  bounceCount    Int                    @default(0)
+  metadata       Json                   @default("{}")
+  createdBy      String?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  deliveryLogs   MarketingDeliveryLog[]
+
+  @@index([status, createdAt])
+}
+
+model MarketingDeliveryLog {
+  id            String               @id @default(cuid())
+  subscriberId  String?
+  subscriber    MarketingSubscriber? @relation(fields: [subscriberId], references: [id], onDelete: SetNull)
+  campaignId    String?
+  campaign      MarketingCampaign?   @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  email         String
+  type          String               @default("campaign")
+  templateId    String
+  resendEmailId String?              @unique
+  status        String               @default("sent")
+  errorMessage  String?
+  metadata      Json                 @default("{}")
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  @@index([email, status])
+  @@index([type, createdAt])
+  @@index([resendEmailId])
+}
+
+model MarketingDripStep {
+  id           String              @id @default(cuid())
+  subscriberId String
+  subscriber   MarketingSubscriber @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+  sequence     String              @default("merchant_onboarding")
+  step         Int                 @default(0)
+  sentAt       DateTime            @default(now())
+  nextStepAt   DateTime?
+  completed    Boolean             @default(false)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@unique([subscriberId, sequence, step])
+  @@index([sequence, completed, nextStepAt])
+}
+
+
+// Aggregator foundation (docs/AGGREGATOR.md). Balances and transitions are
+// guarded by database triggers: balances change only through merchant-funds
+// journal postings and can never be overdrawn; transitions are immutable.
+model LegalEntity {
+ id String @id @default(cuid())
+ name String
+ jurisdiction String
+ licensedCountries Json @default("[]")
+ updatedBy String
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ platformAccounts PlatformAccount[]
+ merchantAccounts MerchantAccount[]
+}
+model PlatformAccount {
+ id String @id @default(cuid())
+ legalEntityId String
+ legalEntity LegalEntity @relation(fields: [legalEntityId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+ journalEntries JournalEntry[]
+ links MerchantPlatformLink[]
+ payments PlatformPayment[]
+ payouts Payout[]
+ events PlatformEvent[]
+ refunds PlatformRefund[]
+ disputes PlatformDispute[]
+ reconciliations PlatformReconciliation[]
+ provider String
+ environment String
+ custody String
+ merchantCountries Json
+ config Json
+ enabled Boolean @default(false)
+ qualifiedAt DateTime?
+ qualification Json?
+ updatedBy String
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@unique([legalEntityId, provider, environment])
+}
+model MerchantAccount {
+ id String @id @default(cuid())
+ orgId String
+ environment String
+ state String @default("Submitted")
+ profileVersion Int
+ org Organization @relation(fields: [orgId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+ profile MerchantKybProfile @relation(fields: [orgId, profileVersion], references: [orgId, version], onDelete: NoAction, onUpdate: NoAction)
+ legalEntityId String?
+ legalEntity LegalEntity? @relation(fields: [legalEntityId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+ transitions MerchantAccountTransition[]
+ detailsVersion Int?
+ details MerchantVerificationDetails? @relation(fields: [orgId, detailsVersion], references: [orgId, version], onDelete: NoAction, onUpdate: NoAction)
+ agreementId String?
+ agreement MerchantAgreement? @relation(fields: [agreementId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+ riskTier String?
+ terms Json?
+ version Int @default(1)
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@unique([orgId, environment])
+ @@index([state, updatedAt])
+}
+model MerchantAccountTransition {
+ id String @id @default(cuid())
+ merchantAccountId String
+ merchantAccount MerchantAccount @relation(fields: [merchantAccountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+ from String?
+ to String
+ reason String
+ actorId String
+ evidence Json
+ createdAt DateTime @default(now())
+ @@index([merchantAccountId, createdAt])
+}
+model MerchantBalance {
+ orgId String
+ environment String
+ asset String
+ account String
+ balance Decimal @default(0) @db.Decimal(50,0)
+ updatedAt DateTime @default(now())
+ @@id([orgId, environment, asset, account])
+}
+model MerchantPlatformLink {
+ id String @id @default(cuid())
+ orgId String
+ org Organization @relation(fields: [orgId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+ profile MerchantKybProfile @relation(fields: [orgId, profileVersion], references: [orgId, version], onDelete: NoAction, onUpdate: NoAction)
+ integration Integration? @relation(fields: [integrationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+ detailsVersion Int?
+ details MerchantVerificationDetails? @relation(fields: [orgId, detailsVersion], references: [orgId, version], onDelete: NoAction, onUpdate: NoAction)
+ agreementId String?
+ agreement MerchantAgreement? @relation(fields: [agreementId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+ platformAccountId String
+ platformAccount PlatformAccount @relation(fields: [platformAccountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+ environment String
+ profileVersion Int
+ state String @default("Queued")
+ providerAccountId String?
+ requirements Json @default("[]")
+ paymentsEnabled Boolean @default(false)
+ payoutsEnabled Boolean @default(false)
+ reason String?
+ integrationId String?
+ lastCheckedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ payments PlatformPayment[]
+ payouts Payout[]
+ reconciliations PlatformReconciliation[]
+ @@unique([orgId, platformAccountId])
+ @@unique([platformAccountId, providerAccountId])
+ @@index([state, lastCheckedAt])
+}
+model PlatformPayment {
+ attemptId String @id
+ attempt PaymentAttempt @relation(fields: [attemptId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+ intentId String @unique
+ intent PaymentIntent @relation(fields: [intentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+ orgId String
+ environment String
+ platformAccountId String
+ platformAccount PlatformAccount @relation(fields: [platformAccountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+ linkId String
+ link MerchantPlatformLink @relation(fields: [linkId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+ asset String
+ reference String
+ grossMinor Decimal @db.Decimal(50,0)
+ feeMinor Decimal @db.Decimal(50,0)
+ reserveMinor Decimal? @db.Decimal(50,0)
+ // Processing fee the provider took from the merchant's share.
+ providerFeeMinor Decimal @default(0) @db.Decimal(50,0)
+ // Split settlement: the provider paid the merchant directly.
+ settledDirectly Boolean @default(false)
+ refunds PlatformRefund[]
+ disputes PlatformDispute[]
+ providerPaymentRef String?
+ providerTransferRef String?
+ availableAt DateTime?
+ reserveReleaseAt DateTime?
+ state String @default("Pending")
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@index([orgId, environment, state])
+}
+model MerchantVerificationDetails {
+ id String @id @default(cuid())
+ orgId String
+ org Organization @relation(fields: [orgId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+ version Int
+ secretRef String
+ summary Json
+ fingerprint String
+ createdBy String
+ createdAt DateTime @default(now())
+ merchantAccounts MerchantAccount[]
+ platformLinks MerchantPlatformLink[]
+ @@unique([orgId, version])
+}
+model MerchantAgreement {
+ id String @id @default(cuid())
+ orgId String
+ org Organization @relation(fields: [orgId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+ version String
+ acceptedBy String
+ ip String
+ userAgent String
+ acceptedAt DateTime @default(now())
+ merchantAccounts MerchantAccount[]
+ platformLinks MerchantPlatformLink[]
+ @@index([orgId, acceptedAt])
+}
+// Payouts PayRouta initiates from a merchant's balance at a fund-holding
+// platform account. A partial unique index on (orgId, environment,
+// platformAccountId, asset, period) makes scheduled payouts idempotent.
+model Payout {
+ id String @id @default(cuid())
+ orgId String
+ org Organization @relation(fields: [orgId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+ environment String
+ platformAccountId String
+ platformAccount PlatformAccount @relation(fields: [platformAccountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+ linkId String
+ link MerchantPlatformLink @relation(fields: [linkId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+ asset String
+ amountMinor Decimal @db.Decimal(50,0)
+ state String @default("Queued")
+ providerPayoutRef String?
+ failureCode String?
+ initiatedBy String
+ period String?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@unique([platformAccountId, providerPayoutRef])
+ @@index([orgId, environment, createdAt])
+ @@index([state, updatedAt])
+}
+model PlatformEvent {
+ id String @id @default(cuid())
+ platformAccountId String
+ platformAccount PlatformAccount @relation(fields: [platformAccountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+ eventId String
+ fingerprint String
+ type String
+ kind String
+ accountRef String?
+ objectRef String?
+ state String @default("Received")
+ createdAt DateTime @default(now())
+ @@unique([platformAccountId, eventId])
+}
+model PlatformRefund {
+ id String @id @default(cuid())
+ attemptId String
+ payment PlatformPayment @relation(fields: [attemptId], references: [attemptId], onDelete: NoAction, onUpdate: NoAction)
+ orgId String
+ org Organization @relation(fields: [orgId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+ environment String
+ platformAccountId String
+ platformAccount PlatformAccount @relation(fields: [platformAccountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+ asset String
+ amountMinor Decimal @db.Decimal(50,0)
+ fromAvailableMinor Decimal @db.Decimal(50,0)
+ fromReceivableMinor Decimal @db.Decimal(50,0)
+ state String @default("Queued")
+ providerRefundRef String?
+ failureCode String?
+ reason String?
+ initiatedBy String
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@unique([platformAccountId, providerRefundRef])
+ @@index([attemptId])
+}
+model PlatformDispute {
+ id String @id @default(cuid())
+ attemptId String
+ payment PlatformPayment @relation(fields: [attemptId], references: [attemptId], onDelete: NoAction, onUpdate: NoAction)
+ orgId String
+ org Organization @relation(fields: [orgId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+ environment String
+ platformAccountId String
+ platformAccount PlatformAccount @relation(fields: [platformAccountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+ providerDisputeRef String
+ asset String
+ amountMinor Decimal @db.Decimal(50,0)
+ feeMinor Decimal @default(0) @db.Decimal(50,0)
+ fromAvailableMinor Decimal @db.Decimal(50,0)
+ fromReserveMinor Decimal @db.Decimal(50,0)
+ fromReceivableMinor Decimal @db.Decimal(50,0)
+ state String
+ fundsHeld Boolean @default(false)
+ reason String?
+ evidenceDueBy DateTime?
+ evidence Json?
+ evidenceSubmittedAt DateTime?
+ evidenceSubmittedBy String?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@unique([platformAccountId, providerDisputeRef])
+ @@index([orgId, environment, state])
+}
+model PlatformReconciliation {
+ id String @id @default(cuid())
+ linkId String
+ link MerchantPlatformLink @relation(fields: [linkId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+ orgId String
+ environment String
+ platformAccountId String
+ platformAccount PlatformAccount @relation(fields: [platformAccountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+ asset String
+ day String
+ providerMinor Decimal @db.Decimal(50,0)
+ ledgerMinor Decimal @db.Decimal(50,0)
+ result String
+ createdAt DateTime @default(now())
+ @@unique([linkId, asset, day])
 }

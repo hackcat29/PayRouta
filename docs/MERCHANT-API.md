@@ -61,4 +61,10 @@ Node: `npm run sdk:build`, then install `sdks/node` from its absolute local path
 
 CSV export uses existing session auth at `/api/merchant/export`, with `orgId`, `environment`, and UTC `from`/`to`. Maximum window 31 days and 1,000 rows; larger exports fail with a request to narrow the range. Downloads are direct authorized no-store responses, not public files. Spreadsheet formula prefixes are neutralized; secrets/customer details are excluded.
 
-Configuration contains no provider account references, document IDs, review reasons or internal screening rules. `liveExecutionEnabled` remains false. Permitted methods describe merchant policy; call contextual available-methods before selection. Scope approval and an unexpired review are separate from provider availability and execution qualification.
+Configuration contains no provider account references, document IDs, review reasons or internal screening rules. `liveExecutionEnabled` is true only in production with a current reviewed live scope, execution not paused, and at least one approved merchant-owned provider account that can take a scoped method. Permitted methods describe merchant policy; call contextual available-methods before selection. Scope approval and an unexpired review are separate from provider availability and execution qualification.
+
+## Stablecoin asset readiness
+
+`GET /configuration` now includes `stablecoinAssets` for the current environment: exact `network`, `identifier`, `symbol`, `decimals`, `configured`, `executionEnabled` and a redacted `reason`. Additional reviewed tokens appear under `liveScope.additionalAssets`, with their exact transaction/daily limits. Each asset requires its own current fee valuation; `liveExecutionEnabled` means at least one eligible asset, not blanket permission for every token/network. No keys or receive addresses are returned.
+
+The authenticated merchant dashboard can create stablecoin checkout links under Payment methods. Owner/Admin membership, CSRF validation, recent MFA, rate limiting and the same intent eligibility checks apply. The command is session-only; it does not replace `/api/v1/payment-intents` for server integrations. Lost-response retry retains the same intent and session. The Node SDK accepts optional `payerCountry`, required for live payments.

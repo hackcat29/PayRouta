@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 import { createOTP } from "@better-auth/utils/otp";
 import { randomUUID } from "node:crypto";
 import { db } from "../../lib/portal/db";
-const origin = "http://127.0.0.1:3000";
+const origin = process.env.PAYROUTA_TEST_ORIGIN ?? "http://127.0.0.1:3000";
 test("qualification controls: MFA, scope version conflicts, fictional live denial and audited rollout gates", async ({
   page,
 }) => {
@@ -12,11 +12,26 @@ test("qualification controls: MFA, scope version conflicts, fictional live denia
     process.env.PORTAL_MODE !== "local"
   )
     throw new Error("Local fixture database required");
-  const login = await page.request.post("/api/auth/sign-in/email", {
-    headers: { Origin: origin },
-    data: { email: "ops@payrouta.example", password: "PayRouta-Local-2026!" },
-  });
-  expect(login.ok()).toBeTruthy();
+  const signIn = () =>
+    page.request.post("/api/auth/sign-in/email", {
+      headers: { Origin: origin },
+      data: { email: "ops@payrouta.example", password: "PayRouta-Local-2026!" },
+    });
+  let login = await signIn();
+  // Honor the existing shared auth limit when the suite adds another sign-in.
+  if (login.status() === 429) {
+    const retryAfter = Number(login.headers()["retry-after"]);
+    await new Promise((resolve) =>
+      setTimeout(
+        resolve,
+        (Number.isFinite(retryAfter) && retryAfter > 0
+          ? Math.min(retryAfter + 1, 60)
+          : 11) * 1000,
+      ),
+    );
+    login = await signIn();
+  }
+  expect(login.ok(), await login.text()).toBeTruthy();
   const code = await createOTP("payrouta-fictional-totp-secret").totp();
   const verify = await page.request.post("/api/auth/two-factor/verify-totp", {
     headers: { Origin: origin },
@@ -46,9 +61,11 @@ test("qualification controls: MFA, scope version conflicts, fictional live denia
     environment: "production",
     merchantCountry: "NG",
     payerCountries: ["NG"],
-    methods: ["bank-transfer"],
-    asset: "fiat:NGN:",
-    settlementAsset: "fiat:NGN:",
+    methods: ["stablecoin"],
+    asset:
+      "blockchain:erc20:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913:eip155:8453",
+    settlementAsset:
+      "blockchain:erc20:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913:eip155:8453",
     maximumMinor: "10000",
     dailyMaximumMinor: "20000",
     profileIds: ["missing-profile"],

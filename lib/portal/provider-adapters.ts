@@ -1,3 +1,7 @@
+import { paystackConfigSchema } from "../providers/adapters/native/paystack";
+import { flutterwaveConfigSchema } from "../providers/adapters/native/flutterwave";
+import { monnifyConfigSchema } from "../providers/adapters/native/monnify";
+import { nativeModules } from "../providers/adapters/native/registry";
 import { z } from "zod";
 import { integrationSchema, capabilitySchema, PortalError } from "./domain";
 import type { SecretManager } from "./adapters";
@@ -131,12 +135,13 @@ function nativeProviderAdapter(
     operations: ["health", "availability"],
     validate: (config) => {
       const c = config as { adapter?: string; mode?: string };
-      return c.adapter === id || (c.mode === "NATIVE" && c.adapter === id);
+      const schemas = { paystack: paystackConfigSchema, flutterwave: flutterwaveConfigSchema, monnify: monnifyConfigSchema };
+      return c.adapter === id && schemas[id].safeParse(config).success;
     },
     async observe(operation, input) {
       if (operation !== "health" && !input.capabilityId)
         throw { code: "INVALID_CONFIGURATION" };
-      return { status: "Available" };
+      return { status: "Unknown" };
     },
   };
 }
@@ -148,6 +153,14 @@ const trustedAdapters: readonly ProviderAdapter[] = [
   nativeProviderAdapter("monnify"),
   nativeProviderAdapter("paystack"),
   nativeProviderAdapter("flutterwave"),
+  ...nativeModules.map((module): ProviderAdapter => ({
+    id: module.id, version: "1",
+    environments: module.id === "binance-pay" ? ["production"] : ["sandbox", "production"],
+    operations: ["health", "availability"],
+    validate: (config) => module.schema.safeParse(config).success,
+    // Configuration and reachability alone do not prove merchant eligibility.
+    async observe() { return { status: "Unknown" }; },
+  })),
 ];
 export function resolveProviderAdapter(
   id: string,

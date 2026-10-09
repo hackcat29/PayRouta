@@ -1,3 +1,4 @@
+import { assertLaunchMethod } from "../payments/launch";
 import { merchantRequirements } from "./evidence";
 import { z } from "zod";
 import { merchantMember } from "./access";
@@ -42,6 +43,7 @@ export async function saveApplication(
   const value = submit
     ? applicationSchema.parse(raw)
     : applicationSchema.partial().parse(raw);
+  for (const method of value.methods ?? []) assertLaunchMethod(method);
   const requirements = submit ? await merchantRequirements(value) : [];
   return atomic(async (tx) => {
     const config = await tx.merchantConfig.findUniqueOrThrow({

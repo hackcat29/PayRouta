@@ -1,3 +1,4 @@
+import { createCryptoCheckout } from "@/lib/payments/crypto-checkout";
 import { merchantConfiguration } from "@/lib/merchant/configuration";
 import { randomUUID } from "node:crypto";
 import { ZodError } from "zod";
@@ -22,8 +23,8 @@ import {
 import { db } from "@/lib/portal/db";
 import { atomic, audit } from "@/lib/portal/service";
 import { PortalError } from "@/lib/portal/domain";
-import { createIntent } from "@/lib/payments/service";
-import { evaluateContext } from "@/lib/portal/availability-service";
+import { createIntent, intentAvailability } from "@/lib/payments/service";
+
 import { rawBody } from "@/lib/payments/http";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -70,10 +71,31 @@ async function handle(
         where: { ...tenant, id },
       });
       if (!intent) throw new PortalError("NOT_FOUND", 404);
-      response = await evaluateContext(tenant.orgId, intent.contextId);
+      const availability = await intentAvailability(intent);
+      // Hosted checkout has two display-only states; the public contract
+      // keeps its documented statuses (docs/api-reference.md).
+      const publicStatus: Record<string, string> = {
+        NOT_OFFERED: "UNAVAILABLE",
+        LOCKED: "AVAILABLE",
+      };
+      response = {
+        ...availability,
+        methods: availability.methods.map((m) => ({
+          ...m,
+          status: publicStatus[m.status] ?? m.status,
+        })),
+      };
     } else if (operation === "POST payment-intents" && !id) {
       response = publicIntent.parse(
         await createIntent(actor.orgId, key, await body()),
+      );
+      status = 201;
+    } else if (operation === "POST crypto-checkouts" && !id) {
+      response = await createCryptoCheckout(
+        actor.orgId,
+        actor.environment,
+        key,
+        await body(),
       );
       status = 201;
     } else if (operation === "POST checkout-sessions" && !id) {

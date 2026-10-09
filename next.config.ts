@@ -5,6 +5,32 @@ const config: NextConfig = {
   turbopack: { root: process.cwd() },
   poweredByHeader: false,
   devIndicators: false,
+  async headers() {
+    const https = (process.env.BETTER_AUTH_URL || "").startsWith("https://");
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+          },
+          {
+            key: "Content-Security-Policy",
+            value: "frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'",
+          },
+          ...(https
+            ? [{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" }]
+            : []),
+        ],
+      },
+      // Checkout never leaks its session path to providers or other sites.
+      { source: "/checkout/:path*", headers: [{ key: "Referrer-Policy", value: "no-referrer" }] },
+    ];
+  },
   async redirects() {
     return legacyRedirects.map(({ source, destination }) => ({
       source,

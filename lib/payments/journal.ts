@@ -3,13 +3,30 @@ import { PortalError } from "../portal/domain";
 import { json } from "../portal/service";
 import type { Tx } from "./service";
 export type Posting = { account: string; debit: string; credit: string };
-const accounts = new Set([
-  "provider-clearing",
-  "merchant-payable",
-  "provider-fee",
-  "merchant-settled",
-  "conversion-clearing",
-]);
+export const books = {
+  "provider-merchant-operational": [
+    "provider-clearing",
+    "merchant-payable",
+    "provider-fee",
+    "merchant-settled",
+    "conversion-clearing",
+  ],
+  "payrouta-platform-accrual": ["platform-receivable", "platform-fee-revenue"],
+  // Funds PayRouta owes merchants for money held at one of its platform
+  // accounts (aggregator custody). See lib/treasury/ledger.ts.
+  "merchant-funds": [
+    "funds-clearing",
+    "merchant-pending",
+    "merchant-available",
+    "merchant-reserve",
+    "merchant-dispute-hold",
+    "merchant-receivable",
+    "payout-in-transit",
+    "fee-collected",
+  ],
+} as const;
+export type Book = keyof typeof books;
+const accounts = new Set<string>(Object.values(books).flat());
 export function validatePostings(lines: Posting[]) {
   if (lines.length < 2 || lines.length > 20)
     throw new PortalError("INVALID_JOURNAL");
@@ -36,10 +53,17 @@ export async function post(
     purpose: string;
     effectiveAt: Date;
     reversalOf?: string;
+    book?: Book;
+    platformAccountId?: string;
   },
   lines: Posting[],
 ) {
   validatePostings(lines);
+  const book = input.book ?? "provider-merchant-operational";
+  if (lines.some((l) => !(books[book] as readonly string[]).includes(l.account)))
+    throw new PortalError("JOURNAL_BOOK_ACCOUNT_MISMATCH");
+  if ((book === "merchant-funds") !== Boolean(input.platformAccountId))
+    throw new PortalError("JOURNAL_PLATFORM_ACCOUNT_SCOPE");
   const old = await tx.journalEntry.findUnique({
     where: { source: input.source },
   });
@@ -48,7 +72,7 @@ export async function post(
     data: {
       ...input,
       id: randomUUID(),
-      book: "provider-merchant-operational",
+      book,
       postings: { create: lines },
     },
   });
@@ -74,6 +98,8 @@ export async function reverse(
       asset: old.asset,
       purpose: reason,
       reversalOf: id,
+      book: old.book as Book,
+      platformAccountId: old.platformAccountId ?? undefined,
       effectiveAt: now,
     },
     old.postings.map((p) => ({

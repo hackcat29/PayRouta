@@ -48,6 +48,18 @@ test("every route renders; internal links, assets and page metadata resolve", as
       .locator("a[href]")
       .evaluateAll((els) => els.map((e) => e.getAttribute("href") || "")))
       if (h.startsWith("/") && !h.includes("#")) links.add(h);
+    // Below-the-fold photos load lazily; scroll so every image is requested.
+    await page.evaluate(async () => {
+      for (let y = 0; y < document.body.scrollHeight; y += 800) {
+        scrollTo(0, y);
+        await new Promise((r) => setTimeout(r, 30));
+      }
+    });
+    await page
+      .waitForFunction(() =>
+        [...document.images].every((i) => i.complete),
+      )
+      .catch(() => {});
     expect(
       await page
         .locator("img")
@@ -96,28 +108,17 @@ test("mobile navigation opens, closes and routes correctly", async ({
     page.getByRole("button", { name: "Open navigation" }),
   ).toHaveAttribute("aria-expanded", "false");
 });
-test("demo completes, resets, changes scenario and rejects stale timers", async ({
+test("homepage calculator and code tabs respond to input", async ({
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Bank transfer Available" }).click();
-  await page
-    .getByRole("button", { name: "Simulate payment", exact: true })
-    .click();
-  await expect(
-    page.getByText("Simulated settlement complete in NGN."),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Reset routing demo" }).click();
-  await expect(
-    page.getByRole("button", { name: "Simulate payment", exact: true }),
-  ).toBeDisabled();
-  await page.getByRole("button", { name: "Stablecoins Available" }).click();
-  await page
-    .getByRole("button", { name: "Simulate payment", exact: true })
-    .click();
-  await page.getByLabel("Scenario", { exact: true }).selectOption("1");
-  await expect(page.getByText("Choose a payment method above.")).toBeVisible();
-  await expect(page.getByText("Ready when you choose.")).toBeVisible();
+  const volume = page.getByLabel("Monthly payment volume");
+  await volume.fill("1000000");
+  await expect(page.getByText("$288,000", { exact: true })).toBeVisible();
+  await page.getByRole("tab", { name: "Python" }).click();
+  await expect(page.getByRole("tabpanel")).toContainText("create_intent");
+  await page.getByRole("tab", { name: "cURL" }).click();
+  await expect(page.getByRole("tabpanel")).toContainText("Idempotency-Key");
 });
 test("docs searches real content and copies code", async ({
   page,
@@ -127,7 +128,7 @@ test("docs searches real content and copies code", async ({
   await page.goto("/docs");
   await page
     .getByRole("searchbox", { name: "Search documentation" })
-    .fill("out-of-order");
+    .fill("objectVersion");
   await expect(
     page
       .getByRole("navigation", { name: "Documentation", exact: true })
@@ -136,10 +137,10 @@ test("docs searches real content and copies code", async ({
   await page.getByRole("searchbox").fill("zzzznoresults");
   await expect(page.getByText("No results.", { exact: false })).toBeVisible();
   await page.goto("/docs/quickstart");
-  await page.getByRole("button", { name: "Copy code" }).click();
-  await expect(page.locator(".copy-status")).toContainText("Copied");
+  await page.getByRole("button", { name: "Copy code" }).first().click();
+  await expect(page.locator(".copy-status").first()).toContainText("Copied");
   expect(await page.evaluate(() => navigator.clipboard.readText())).toContain(
-    "accepted_methods",
+    "new PayRouta(",
   );
 });
 test("CTA intents, validation and unconfigured state", async ({ page }) => {
@@ -198,13 +199,7 @@ test("responsive overflow and accessibility across all routes", async ({
 test("reduced motion, 200% text, filter and screenshots", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
-  await page.getByRole("button", { name: "Bank transfer Available" }).click();
-  await page
-    .getByRole("button", { name: "Simulate payment", exact: true })
-    .click();
-  await expect(
-    page.getByText("Simulated settlement complete in NGN."),
-  ).toBeVisible();
+  await expect(page.getByText("Paid · €240.00")).toBeVisible();
   await page.goto("/platform/payment-methods");
   await page
     .getByRole("button", { name: "Digital assets", exact: true })

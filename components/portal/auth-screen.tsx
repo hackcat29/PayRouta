@@ -10,10 +10,15 @@ export const authClient = createAuthClient({ plugins: [twoFactorClient()] });
 export function AuthScreen({
   signUp = false,
   local = false,
+  next,
 }: {
   signUp?: boolean;
   local?: boolean;
+  next?: string;
 }) {
+  const merchant = next?.startsWith("/merchant") ?? false;
+  const home = next ?? "/provider/overview";
+  const suffix = next ? `?next=${encodeURIComponent(next)}` : "";
   const router = useRouter();
   const [message, setMessage] = useState("");
   const [factor, setFactor] = useState(false);
@@ -27,21 +32,43 @@ export function AuthScreen({
           <BrandLogo reverse />
         </Link>
         <div>
-          <h1>
-            A clearer path
-            <br />
-            to joining PayRouta.
-          </h1>
-          <p>
-            Describe your capabilities, test your integration, and follow your
-            application through review.
-          </p>
+          {merchant ? (
+            <>
+              <h1>
+                One application.
+                <br />
+                Every way to get paid.
+              </h1>
+              <p>
+                Open a sandbox workspace, apply once, and accept cards, bank
+                transfers, mobile money and stablecoins, paid out on your
+                schedule.
+              </p>
+            </>
+          ) : (
+            <>
+              <h1>
+                A clearer path
+                <br />
+                to joining PayRouta.
+              </h1>
+              <p>
+                Describe your capabilities, test your integration, and follow
+                your application through review.
+              </p>
+            </>
+          )}
         </div>
-        <small>Provider workspace · Secure account access</small>
+        <small>
+          {merchant ? "Merchant workspace" : "Provider workspace"} · Secure
+          account access
+        </small>
       </div>
       <div className="p-auth-form">
         <div className="p-auth-card">
-          <p className="p-muted">PayRouta provider workspace</p>
+          <p className="p-muted">
+            PayRouta {merchant ? "merchant" : "provider"} workspace
+          </p>
           <h1>
             {factor
               ? "Verify your identity"
@@ -73,7 +100,7 @@ export function AuthScreen({
                     trustDevice: false,
                   });
                   if (!totp.error) {
-                    router.push("/provider/overview");
+                    router.push(home);
                   } else {
                     const backup =
                       await authClient.twoFactor.verifyBackupCode({
@@ -81,7 +108,7 @@ export function AuthScreen({
                       });
                     if (backup.error)
                       throw new Error(backup.error.message);
-                    router.push("/provider/overview");
+                    router.push(home);
                   }
                 } else if (reset) {
                   const r = await authClient.requestPasswordReset({
@@ -97,7 +124,7 @@ export function AuthScreen({
                     name: String(f.get("name")),
                     email,
                     password: String(f.get("password")),
-                    callbackURL: "/provider/organizations/new",
+                    callbackURL: next ?? "/provider/organizations/new",
                   });
                   if (r.error) throw new Error(r.error.message);
                   setMessage(
@@ -117,7 +144,7 @@ export function AuthScreen({
                     r.data.twoFactorRedirect
                   )
                     setFactor(true);
-                  else router.push("/provider/overview");
+                  else router.push(home);
                 }
               } catch (e) {
                 setMessage(
@@ -200,7 +227,9 @@ export function AuthScreen({
           </form>
           <p>
             {signUp ? "Already have an account? " : "New to PayRouta? "}
-            <Link href={signUp ? "/provider/sign-in" : "/provider/sign-up"}>
+            <Link
+              href={`${signUp ? "/provider/sign-in" : "/provider/sign-up"}${suffix}`}
+            >
               {signUp ? "Sign in" : "Create an account"}
             </Link>
           </p>

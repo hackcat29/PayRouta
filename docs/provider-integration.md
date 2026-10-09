@@ -1,114 +1,46 @@
-# Provider Integration
+# Provider integration
 
-Providers contribute execution and liquidity capabilities to the PayRouta routing network. Participants include commercial banks, card acquirers, mobile money operators, crypto exchange checkouts, and tokenized asset issuers.
+For payment providers: how your service becomes available to merchants on PayRouta.
 
-> [!NOTE]
-> Participation in the PayRouta provider network begins with technical evaluation, capability review, and sandboxed pilot execution. Never transmit production credentials, private keys, or compliance documents over public channels.
+## The requirement: accounts merchants own
 
----
+PayRouta only routes through accounts that belong to the merchant. Your programme must let a merchant:
 
-## Provider capability manifest
+1. contract with you directly, and log in to their own account
+2. bear their own chargebacks and losses (or you do), never PayRouta
+3. receive settlement directly from you
+4. keep the account if they leave PayRouta
 
-Providers declare their operational footprint through a structured capability manifest evaluated by the routing engine:
+If your programme meets these, merchants on PayRouta can apply to you without retyping their details. PayRouta screens the business, then sends you a pre-filled application containing only the fields you need. You run your own KYC/KYB and contract with the merchant.
 
-```json
-{
-  "provider_id": "prov_global_clearing_core",
-  "name": "Global Clearing Core",
-  "category": "acquirer_and_banking",
-  "methods": [
-    "instant_bank",
-    "digital_wallet",
-    "card",
-    "direct_debit",
-    "cash_voucher",
-    "bnpl",
-    "mobile_money",
-    "stablecoins",
-    "crypto_app",
-    "rwa"
-  ],
-  "supported_corridors": [
-    {
-      "country": "NG",
-      "currency": "NGN",
-      "methods": ["instant_bank", "mobile_money", "cash_voucher"],
-      "channels": ["web", "mobile_app", "ussd", "agent_pos"],
-      "min_amount": "100.00",
-      "max_amount": "5000000.00",
-      "typical_latency_ms": 450
-    },
-    {
-      "country": "BR",
-      "currency": "BRL",
-      "methods": ["instant_bank", "card", "cash_voucher"],
-      "channels": ["pix_qr", "pos_terminal"],
-      "min_amount": "1.00",
-      "max_amount": "100000.00",
-      "typical_latency_ms": 250
-    }
-  ],
-  "settlement_directions": [
-    {
-      "operation": "pay_in",
-      "accepted_assets": ["NGN", "BRL", "USD", "EUR", "KES"]
-    },
-    {
-      "operation": "payout",
-      "target_instruments": ["local_bank", "multi_currency", "circle_usdc", "binance_pay", "ondo_usdy"]
-    }
-  ]
-}
-```
+## Connecting
 
----
+There are two routes:
 
-## Directional asymmetry
+- **Partner onboarding programme.** If you have an API that creates or pre-fills merchant-owned accounts (a hosted onboarding link or a referral API), PayRouta builds a partner module for it. It covers account creation or referral, the hosted-link host, status mapping and verified account webhooks, and it must pass PayRouta's conformance suite before it is used.
+- **PayRouta Provider API.** Implement the documented Provider API (`docs/provider-api.md`, OpenAPI in `docs/provider-api.openapi.yaml`), or map your existing API declaratively through the provider portal. Declare your capabilities (method, country, currency, operation and limits), then pass automated certification in the sandbox.
 
-Processing capability is rarely symmetric:
-* A provider supporting **Circle USDC $\rightarrow$ NGN** bank conversion does not automatically support **NGN $\rightarrow$ USDC**.
-* Conversion corridors, regulatory licenses, and liquidity reserves must be declared and validated separately for pay-in and payout directions.
+## Certification
 
----
+Certification exercises only the capabilities you declare:
 
-## Dynamic health & telemetry signals
+- payment creation
+- idempotent retry
+- status lookup
+- webhooks
+- cancellation, refunds and settlement reporting, where declared
 
-PayRouta's smart routing engine continuously monitors telemetry from connected providers:
+A capability becomes routable only after certification, review and publication. Health and availability are then monitored continuously, and an unhealthy capability stops receiving traffic.
 
-```mermaid
-graph TD
-    P[Provider Integration] --> H[Health & Telemetry Stream]
-    H --> L[Latency Monitor]
-    H --> E[Error Rate & 5xx Monitor]
-    H --> S[Liquidity & Balance Depth]
+## Data you receive
 
-    L --> Engine[PayRouta Routing Engine]
-    E --> Engine
-    S --> Engine
+Only the fields listed for your programme, with the merchant's explicit consent for your programme. PayRouta does not collect or forward identity-document numbers, dates of birth or bank details; your hosted onboarding collects those.
 
-    Engine -->|Healthy| Route[Eligible Route]
-    Engine -->|Degraded| Failover[Pre-Execution Secondary Failover]
-    Engine -->|Outage| Circuit[Tripped Circuit Breaker]
-```
+## Contact
 
-* **Latency thresholds**: Providers exceeding 2,500ms authorization latency are ranked lower in "Faster" routing policies.
-* **Error spike circuit breakers**: If consecutive failures exceed predefined thresholds, traffic temporarily shifts to secondary providers.
-* **Liquidity depth**: Providers clearing high-value stablecoin or fiat payouts publish real-time liquidity pools to prevent execution rejections.
+Use **Talk to partnerships** on the website to start a partner programme integration.
 
----
 
-## Safe pilot and onboarding sequence
+## Native payment integration coverage
 
-1. **Capability Manifest Declaration**: Define supported rails, currencies, limits, and regional licenses.
-2. **Sandbox Validation**: Test positive authorizations, customer declines, network timeouts, and webhook idempotency.
-3. **Shadow Mode**: Evaluate latency and availability against synthetic test traffic.
-4. **Scoped Pilot**: Route a small percentage of live volume in low-risk corridors.
-5. **Full Network Availability**: Provider becomes eligible for production optimization across Balanced, Lower Cost, and Faster policies.
-
----
-
-## Next steps
-
-* Explore available payment rails in [Payment Methods & Channels](payment-methods.md).
-* Review treasury payout options in [Settlement & Treasury](settlement.md).
-* Submit an enquiry through the [Provider Contact Channel](/contact?intent=provider).
+See [the complete implementation inventory](provider-coverage.md) for all 41 directory entries, current adapter configuration, evidence handling and explicit remaining scope. New adapter code is not live qualification.

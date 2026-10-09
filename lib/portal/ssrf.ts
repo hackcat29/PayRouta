@@ -53,6 +53,8 @@ export async function checkEndpoint(
         method: "GET",
         signal,
         headers: token ? { Authorization: `Bearer ${token}` } : {},
+        // A single validated address is pinned; do not ask lookup for an array.
+        family: address.family,
         servername: url.hostname,
         lookup: (_host, _options, cb) =>
           cb(null, address.address, address.family),

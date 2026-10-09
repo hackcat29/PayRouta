@@ -1,6 +1,6 @@
 import { ZodError } from "zod";
 import { PortalError } from "../portal/domain";
-export async function rawBody(request: Request) {
+export async function rawBody(request: Request, limit = 32768) {
   const reader = request.body?.getReader();
   if (!reader) throw new PortalError("MISSING_BODY");
   const chunks: Uint8Array[] = [];
@@ -15,7 +15,7 @@ export async function rawBody(request: Request) {
       const { value, done } = await reader.read();
       if (done) break;
       size += value.length;
-      if (size > 32768) {
+      if (size > limit) {
         await reader.cancel();
         throw new PortalError("BODY_TOO_LARGE", 413);
       }

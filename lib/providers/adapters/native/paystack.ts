@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { fiatMoney, fiatAsset, minorAmount, metadata, redirect, httpsUrl } from "./common";
 import { z } from "zod";
 import { PortalError } from "../../../portal/domain";
 import type { ProviderHttpOptions } from "../http";
@@ -9,9 +10,8 @@ export const paystackConfigSchema = z
     adapter: z.literal("paystack").default("paystack"),
     mode: z.literal("NATIVE").default("NATIVE"),
     maintainedBy: z.literal("PAYROUTA").default("PAYROUTA"),
-    baseUrl: z
-      .string()
-      .default("https://api.paystack.co"),
+    baseUrl: z.literal("https://api.paystack.co").default("https://api.paystack.co"),
+    returnUrl: httpsUrl.optional(),
     secretKeyRef: z.string().max(100).optional(),
     timeoutMs: z.number().int().min(500).max(15000).default(8000),
   })
@@ -78,21 +78,28 @@ export function paystackExecutionAdapter(
       "verify-event",
     ],
     async create(attempt, intent) {
-      let channels: string[] = ["card", "bank_transfer", "ussd"];
-      if (intent.selectedMethod === "card") channels = ["card"];
-      else if (intent.selectedMethod === "bank-transfer") channels = ["bank_transfer", "dedicated_nuban"];
-      else if (intent.selectedMethod === "ussd") channels = ["ussd"];
-
-      // Paystack expects amounts in minor currency units (e.g. kobo for NGN)
-      const minorAmount = Math.round(Number(intent.amount) * 100);
+      await getSecret();
+      const channelsByMethod: Record<string, string[]> = {
+        card: ["card"], "bank-transfer": ["bank_transfer"], ussd: ["ussd"], "mobile-money": ["mobile_money"],
+      };
+      const channels = channelsByMethod[intent.selectedMethod ?? ""];
+      if (!channels) throw new PortalError("PROVIDER_METHOD_UNAVAILABLE", 409);
+      const money = fiatMoney(intent), m = metadata(intent);
+      if (!c.returnUrl || !z.email().safeParse(m.payer_email).success)
+        throw new PortalError("PROVIDER_CUSTOMER_DETAILS_REQUIRED", 409);
+      if (intent.selectedMethod === "ussd" && money.currency !== "NGN")
+        throw new PortalError("PROVIDER_METHOD_UNAVAILABLE", 409);
+      const key = await getSecret();
+      if (!key.startsWith(attempt.environment === "sandbox" ? "sk_test_" : "sk_live_"))
+        throw new PortalError("PROVIDER_ENVIRONMENT_MISMATCH", 409);
 
       const payload = {
         reference: attempt.key,
-        amount: minorAmount,
-        currency: "NGN",
-        email: "customer@payrouta.internal",
+        amount: money.value,
+        currency: money.currency,
+        email: m.payer_email,
         channels,
-        callback_url: "https://payrouta.internal/checkout/callback",
+        callback_url: c.returnUrl,
       };
 
       const res = await call("POST", "/transaction/initialize", JSON.stringify(payload));
@@ -101,8 +108,9 @@ export function paystackExecutionAdapter(
       }
 
       return {
-        state: "Pending",
+        state: "Requires action",
         reference: res.data.reference || attempt.key,
+        action: redirect("Paystack", res.data.authorization_url, ["checkout.paystack.com"]),
       };
     },
     async status(attempt) {
@@ -119,16 +127,17 @@ export function paystackExecutionAdapter(
       if (pStatus === "success") state = "Confirmed";
       else if (["failed", "abandoned"].includes(pStatus)) state = "Rejected";
 
-      const majorAmount = (Number(res.data.amount || 0) / 100).toFixed(2);
+      const currency = String(res.data.currency ?? "");
+      const majorAmount = minorAmount(res.data.amount, currency);
       return {
         state,
         reference: res.data.reference || ref,
         amount: majorAmount,
-        asset: { kind: "fiat", identifier: "NGN", network: "" },
+        asset: fiatAsset(currency),
       };
     },
     async cancel() {
-      return { state: "Rejected" };
+      throw new PortalError("UNSUPPORTED_OPERATION", 409);
     },
     async payout(input) {
       const minorAmount = Math.round(Number(input.amount) * 100);

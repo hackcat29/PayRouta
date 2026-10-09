@@ -10,7 +10,7 @@ import { randomUUID } from "node:crypto";
 import type { Prisma } from "../generated/prisma/client";
 import { db } from "./db";
 import { atomic, audit, json } from "./service";
-import { localMode } from "./adapters";
+import { sandboxSimulation } from "./adapters";
 import { CapabilityDefinition, PortalError } from "./domain";
 import {
   evaluateAvailability,
@@ -180,7 +180,7 @@ async function loadEvaluation(
         content.evidence.some((ref) => ref.id === e.id),
     );
     const fixture =
-      context.environment === "sandbox" && localMode() && fictional;
+      context.environment === "sandbox" && sandboxSimulation() && fictional;
     evidence.set(snapshot.key, {
       ...assessEvidence(content.requirements, rows, fixture, now),
       fictional,

@@ -17,6 +17,14 @@ export const paymentMethodIds = [
   "stablecoin",
   "crypto-app",
 ] as const;
+// Documented merchant-facing categories; cash/voucher is future taxonomy only.
+export const supportedPaymentMethodIds = [
+  "bank-transfer", "card", "mobile-money", "digital-wallet", "ussd",
+  "direct-debit", "bnpl", "stablecoin", "crypto-app",
+] as const;
+export const fiatPaymentMethodIds = [
+  "bank-transfer", "card", "mobile-money", "digital-wallet", "ussd", "direct-debit", "bnpl",
+] as const;
 export type PaymentMethodId = (typeof paymentMethodIds)[number];
 
 // Plain-language labels. These are what merchants and customers see; internal
@@ -168,16 +176,17 @@ export interface ExecutionAdapter {
   operations: readonly string[];
   create(
     attempt: { id: string; key: string; environment: string; providerReference?: string | null },
-    intent: { reference: string; amount: string; asset: unknown; selectedMethod?: string | null; metadata?: unknown },
-  ): Promise<{ state: string; reference: string }>;
-  status(attempt: { id: string; key: string; providerReference?: string | null }): Promise<{
+    intent: { reference: string; amount: string; asset: unknown; selectedMethod?: string | null; metadata?: unknown; precision?: number },
+  ): Promise<{ state: string; reference: string; action?: unknown }>;
+  status(attempt: { id: string; key: string; providerReference?: string | null }, intent?: { reference: string; amount: string; asset: unknown; selectedMethod?: string | null; metadata?: unknown; precision?: number }): Promise<{
     state: string;
     reference: string;
     amount: string;
     asset: unknown;
+    action?: unknown;
   } | null>;
   cancel?(attempt: { id: string; providerReference?: string | null }): Promise<{ state: string }>;
-  payout?(input: { reference: string; amount: string; asset: unknown; destination: unknown }): Promise<{ state: string; reference: string }>;
+  payout?(input: { reference: string; amount: string; asset: unknown; destination: unknown }): Promise<{ state: string; reference: string; action?: unknown }>;
   verifyWebhook?(input: unknown): Promise<boolean>;
 }
 

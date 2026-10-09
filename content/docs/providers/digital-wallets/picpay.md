@@ -1,0 +1,27 @@
+# PicPay
+
+> **Implementation status:** Provider code path: picpay. Not live-qualified by code alone. Merchant supplies provider-required customer and device fields. See [current coverage](provider-coverage.md).
+
+**Category**: [Digital Wallets](providers/digital-wallets/README.md)  
+**Provider**: PicPay Serviços S.A. (J&F Participações)  
+**Method ID**: `digital-wallet`  
+**Integration Mode**: `STANDARD` / `CONFIGURABLE`
+
+PicPay is Brazil's largest digital payments and social wallet ecosystem, serving more than 35 million active users for instant peer-to-peer and merchant payments.
+
+---
+
+## Technical Specifications
+
+- **Corridor**: Brazil (`BRL`).
+- **Payment Experience**:
+  - **Dynamic In-App QR Code**: Generates dynamic PicPay QR and deep link.
+  - **PicPay Card & Balance**: Deductions from in-app yield balance or stored cards.
+- **Settlement**: Rapid D+0 or D+1 settlement to merchant Brazilian corporate account.
+- **Security**: Mandatory biometric authentication or password confirmation per transaction.
+
+---
+
+## Failover Strategy
+
+PayRouta balances Brazilian mobile wallet volume between Mercado Pago and PicPay, with automated fallback to Pix push QR codes.

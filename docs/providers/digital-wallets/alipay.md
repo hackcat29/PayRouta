@@ -1,0 +1,55 @@
+# Alipay
+
+> **Implementation status:** Provider code path: stripe, adyen. Not live-qualified by code alone. Merchant account enablement, credentials and sandbox qualification are required. See [current coverage](provider-coverage.md).
+
+**Category**: [Digital Wallets](providers/digital-wallets/README.md)  
+**Provider**: Ant Group / Alipay.com Co., Ltd.  
+**Method ID**: `digital-wallet`  
+**Integration Mode**: `STANDARD` / `CONFIGURABLE`
+
+Alipay is the world's leading open digital payment platform, serving over 1 billion consumers in mainland China and globally through cross-border acquiring and Alipay+ network roaming.
+
+---
+
+## Technical Specifications
+
+- **Corridors**: Mainland China (`CNY`), cross-border settling in `USD`, `EUR`, `GBP`, `HKD`, `SGD`, `AUD`, `CAD`, `JPY`.
+- **Flow**: Dynamic barcode/QR scanning on mobile, redirect or app-to-app deep-linking on web.
+- **Settlement**: T+1 or T+2 cross-border direct payout into the merchant's international corporate bank account via Ant Group acquiring partners.
+- **Zero Chargeback Risk**: All transactions require customer biometric or SMS OTP authorization and are non-reversible by card schemes.
+
+---
+
+## Payment Lifecycle
+
+1. **Payment Intent Creation**: Merchant creates a payment intent specifying `digital-wallet` with provider hint `alipay`.
+2. **QR Code / Redirect Payload**: PayRouta returns the official Alipay gateway checkout URL or dynamic QR payload.
+3. **Payer Confirmation**: The customer scans the code with their Alipay app or authenticates via Face Scan / biometric in-app authorization.
+4. **Instant Webhook Resolution**: Alipay dispatches an RSA-SHA256 signed notification to PayRouta, instantly transitioning status to `Confirmed`.
+
+---
+
+## Payment Intent Example
+
+```json
+{
+  "amount": "280.00",
+  "currency": "USD",
+  "payer_context": {
+    "country": "CN"
+  },
+  "accepted_methods": [
+    "digital-wallet"
+  ],
+  "metadata": {
+    "preferred_wallet": "alipay",
+    "display_currency": "CNY"
+  }
+}
+```
+
+---
+
+## Failover Strategy
+
+If an Alipay cross-border acquiring connection reports upstream gateway latency, PayRouta can automatically offer **WeChat Pay** or localized union card networks for Chinese consumers without dropping the session.

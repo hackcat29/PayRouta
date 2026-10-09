@@ -4,7 +4,7 @@ import { db } from "./db";
 import { atomic, json } from "./service";
 import { capabilitySchema, Draft, PortalError } from "./domain";
 import { assertAdapterConfiguration } from "./provider-adapters";
-import { localMode } from "./adapters";
+import { sandboxSimulation } from "./adapters";
 import type { Prisma } from "../generated/prisma/client";
 
 export function canonical(value: unknown): string {
@@ -45,7 +45,7 @@ export async function publicationEvidence(
       deletedAt: null,
     },
   });
-  const fixture = environment === "sandbox" && localMode() && org.fictional;
+  const fixture = environment === "sandbox" && sandboxSimulation() && org.fictional;
   return {
     ...assessEvidence(snapshot.requirements, evidence, fixture, now),
     fictional: org.fictional,
@@ -316,7 +316,7 @@ export async function republishApproved(
       snapshot,
       now,
     );
-    if (!localMode() || !evidence.fictional || !evidence.valid)
+    if (!sandboxSimulation() || !evidence.fictional || !evidence.valid)
       throw new PortalError("SANDBOX_REPUBLICATION_ONLY", 409);
     const integration = snapshot.integrations.find(
       (i) => i.environment === "sandbox",

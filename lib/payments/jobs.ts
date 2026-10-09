@@ -1,9 +1,12 @@
+import { relayWalletSubmission } from "../blockchain/wallet-submissions";
+import { simulatedIntegration } from "../providers/adapters/native/registry";
 import { importSimulatorReport } from "./reports";
 import { db } from "../portal/db";
 import { dispatch, poll, settle, reconcile, applyFact } from "./processing";
 import { deliver } from "./delivery";
 export async function paymentJob(kind: string, p: Record<string, string>) {
-  if (kind === "payment-report") await importSimulatorReport(p.integrationId);
+  if(kind==='payment-wallet-relay') await relayWalletSubmission(p.submissionId);
+  else if (kind === "payment-report") await importSimulatorReport(p.integrationId);
   else if (kind === "payment-dispatch") await dispatch(p.attemptId);
   else if (kind === "payment-poll") await poll(p.attemptId);
   else if (kind === "payment-settle") await settle(p.attemptId);
@@ -14,7 +17,44 @@ export async function paymentJob(kind: string, p: Record<string, string>) {
       where: { id: p.inboxId },
     });
     if (inbox.state === "Processed") return;
-    const payload = inbox.payload as { reference: string; type: string };
+    const payload = inbox.payload as {
+      reference: string;
+      type: string;
+      attemptKey?: string;
+    };
+    if (payload.type === "native.capture") {
+      const integration = await db.integration.findUniqueOrThrow({
+        where: { id: inbox.integrationId },
+      });
+      if (
+        (integration.config as { adapter?: string }).adapter !== "adyen" ||
+        integration.environment !== inbox.environment ||
+        typeof payload.attemptKey !== "string" ||
+        !payload.attemptKey
+      )
+        throw new Error("NATIVE_CAPTURE_SCOPE_MISMATCH");
+      const a = await db.paymentAttempt.findFirst({
+        where: {
+          integrationId: inbox.integrationId,
+          environment: inbox.environment,
+          key: payload.attemptKey,
+        },
+      });
+      if (!a?.providerReference)
+        throw new Error("NATIVE_CAPTURE_ATTEMPT_NOT_READY");
+      const fact = inbox.payload as Record<string, unknown>;
+      await applyFact(a.id, {
+        reference: a.providerReference,
+        state: fact.state,
+        amount: fact.amount,
+        asset: fact.asset,
+      });
+      await db.paymentInbox.update({
+        where: { id: inbox.id },
+        data: { state: "Processed" },
+      });
+      return;
+    }
     const a = await db.paymentAttempt.findFirst({
       where: {
         integrationId: inbox.integrationId,
@@ -58,6 +98,10 @@ export async function sweepPayments(now = new Date()) {
   });
   const bucket = Math.floor(now.getTime() / 60000);
   for (const integrationId of new Set(attempts.map((a) => a.integrationId))) {
+    const integration = await db.integration.findUniqueOrThrow({
+      where: { id: integrationId },
+    });
+    if (!simulatedIntegration(integration)) continue;
     const a = attempts.find((a) => a.integrationId === integrationId)!;
     await db.job.upsert({
       where: { key: `report:${integrationId}:${bucket}` },
@@ -71,6 +115,10 @@ export async function sweepPayments(now = new Date()) {
     });
   }
   for (const a of attempts) {
+    await db.paymentAttempt.update({
+      where: { id: a.id },
+      data: { updatedAt: now },
+    });
     if (
       a.state === "Confirmed" &&
       (await db.paymentReconciliation.findFirst({

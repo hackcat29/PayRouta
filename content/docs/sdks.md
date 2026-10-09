@@ -1,136 +1,46 @@
-# SDKs & Client Libraries
+# SDKs
 
-PayRouta provides server-side libraries and lightweight client checkout SDKs to simplify integration across web, mobile, and in-person environments.
+TypeScript (`@payrouta/server`) and Python (`payrouta-server`) clients are private 0.1.0 releases, shared with early-access merchants. They wrap the [HTTP API](api-reference.md); anything they don't cover can be called directly.
 
-> [!WARNING]
-> **Security boundary**: Never embed server secret keys (`sec_key_...`) in frontend or mobile applications. Client SDKs only accept restricted publishable keys (`pub_key_...`) or client tokens scoped to a single payment intent.
+Both SDKs:
 
----
+- refuse non-HTTPS base URLs (except local loopback), and refuse a key whose prefix doesn't match the environment
+- retry **reads only**, at most twice, honouring `Retry-After`
+- never retry a write automatically. After a timeout or a `5xx`, retry yourself with the **same** idempotency key
+- raise errors carrying `code`, `status`, `requestId` and an `uncertain` flag for writes whose outcome is unknown
 
-## SDK architecture
+## TypeScript
 
-```mermaid
-graph TD
-    subgraph ServerSide["Backend Server (Secure)"]
-        Backend["Your Merchant Backend"]
-        ServerSDK["PayRouta Server SDK (Node, Python, Go)"]
-        Backend -->|Creates Intent with Secret Key| ServerSDK
-        ServerSDK -->|Returns Client Token| Backend
-    end
-
-    subgraph ClientSide["Client Surface (Untrusted)"]
-        ClientToken["Client Secret Token"]
-        Frontend["Web / Mobile App / POS"]
-        ClientSDK["PayRouta Drop-in / Elements SDK"]
-        Backend -->|Hands Client Token| Frontend
-        Frontend --> ClientSDK
-        ClientSDK -->|Renders Available Rails| Payer["Customer Checkout"]
-    end
-```
-
----
-
-## Planned official SDKs
-
-### Server-side libraries
-* **Node.js / TypeScript**: `@payrouta/node`
-* **Python**: `payrouta-python`
-* **Go**: `github.com/payrouta/payrouta-go`
-* **Java / Kotlin**: `com.payrouta.sdk`
-
-### Client-side libraries
-* **Web Drop-in**: `@payrouta/checkout-web` (Vanilla JS, React, Vue, Next.js)
-* **iOS SDK**: `PayRoutaKit` (Swift / SwiftUI)
-* **Android SDK**: `com.payrouta.android` (Kotlin / Jetpack Compose)
-* **React Native / Flutter**: `@payrouta/react-native`, `payrouta_flutter`
-
----
-
-## Server SDK example (TypeScript / Node.js)
-
-```typescript
-import { PayRouta } from "@payrouta/node";
+```ts
+import { PayRouta, verifyWebhook } from "@payrouta/server";
 
 const payrouta = new PayRouta({
-  apiKey: process.env.PAYROUTA_SECRET_KEY!,
+  baseUrl: "https://<your PayRouta host>/api/v1",
+  secretKey: process.env.PAYROUTA_SECRET_KEY!,
+  environment: "sandbox",
+  timeoutMs: 10000,
 });
 
-// Create intent on server
-const intent = await payrouta.paymentIntents.create({
-  amount: "15000.00",
-  currency: "NGN",
-  acceptedMethods: ["bank_transfer", "digital_wallet", "stablecoins"],
-  settlement: {
-    currency: "USD",
-    targetInstrument: "circle_usdc",
-    network: "avalanche",
-  },
-  payerContext: {
-    country: "NG",
-  },
-});
+const intent = await payrouta.createIntent({ /* see API reference */ }, "order_1042-intent");
+const session = await payrouta.createCheckoutSession(intent.id, "order_1042-session");
+const payment = await payrouta.getPayment(intent.id);
 
-// Pass intent.clientSecret to your client
-console.log("Client secret:", intent.clientSecret);
-```
-
----
-
-## Client Web Drop-in example (React)
-
-```tsx
-import { PayRoutaProvider, PaymentElement, usePayRouta } from "@payrouta/react";
-
-export function CheckoutPage({ clientSecret }: { clientSecret: string }) {
-  return (
-    <PayRoutaProvider clientSecret={clientSecret}>
-      <CheckoutForm />
-    </PayRoutaProvider>
-  );
-}
-
-function CheckoutForm() {
-  const { payrouta, isReady } = usePayRouta();
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!payrouta) return;
-
-    const { error, payment } = await payrouta.confirmPayment({
-      returnUrl: "https://yourmerchant.com/order/complete",
-    });
-
-    if (error) {
-      console.error("Payment failed:", error.message);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit}>
-      {/* Renders dynamic available methods (Bank, Wallets, Cards, USSD) */}
-      <PaymentElement />
-      <button type="submit" disabled={!isReady}>
-        Pay Now
-      </button>
-    </form>
-  );
+for await (const p of payrouta.paginate("payments", { state: "Confirmed" })) {
+  // …
 }
 ```
 
----
+## Python
 
-## Handling omnichannel form factors
+```python
+from payrouta import PayRouta, verify_webhook
 
-PayRouta client SDKs natively handle dynamic interaction states:
-* **QR Codes**: Renders high-resolution vector QR codes for Pix, UPI, and crypto checkouts with auto-copy and direct bank deep-links.
-* **USSD Prompts**: For offline or feature-phone flows, renders click-to-dial strings (e.g., `tel:*737*...`) on mobile devices.
-* **Biometric Wallets**: Opens Apple Pay / Google Pay system sheets with single-tap Face ID / Touch ID validation.
-* **POS Terminal Webhooks**: Displays real-time polling or WebSocket updates when a customer tenders payment on an in-person terminal.
+payrouta = PayRouta("https://<your PayRouta host>/api/v1", secret_key, "sandbox")
+intent = payrouta.create_intent({...}, "order_1042-intent")
+session = payrouta.create_checkout_session(intent["id"], "order_1042-session")
+payment = payrouta.get_payment(intent["id"])
+```
 
----
+## Keys
 
-## Next steps
-
-* Review the underlying endpoints in [API Reference](api-reference.md).
-* Set up event handlers in [Webhooks & Events](webhooks.md).
-* Read how to handle failures in [Errors & Recovery](errors.md).
+Keep API keys on your server. Never put them in browser code, URLs, logs or payment metadata. To rotate a key: create the new key, deploy it, then revoke the old one.

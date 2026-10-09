@@ -1,0 +1,18 @@
+# Coinbase Commerce
+
+> **Implementation status:** Provider code path: coinbase-business. Not live-qualified by code alone. Replaced legacy Commerce with Coinbase Business Checkout; Base USDC only. See [current coverage](provider-coverage.md).
+
+**Category**: [Crypto Apps](providers/crypto-apps/README.md)  
+**Provider**: Coinbase Global, Inc.  
+**Method ID**: `crypto-app`  
+**Integration Mode**: `STANDARD`
+
+Coinbase Commerce enables global businesses to accept cryptocurrency payments with direct merchant custody or automated conversion into USD and stablecoins.
+
+---
+
+## Features
+
+- **Merchant-Owned Account**: Full access to the Coinbase Prime / Commerce dashboard.
+- **Webhook Events**: Signed event streaming (`X-CC-Webhook-Signature`) for payment confirmation.
+- **Assets**: Bitcoin, Ethereum, USDC, and Solana.

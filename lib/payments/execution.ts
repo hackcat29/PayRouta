@@ -1,5 +1,8 @@
+import { isDepositAdapter } from "../blockchain/deposit-config";
+import { databaseDepositStore } from "../blockchain/deposit-store";
+import { nativeModules } from "../providers/adapters/native/registry";
 import { db } from "../portal/db";
-import { localMode, secretManager } from "../portal/adapters";
+import { sandboxSimulation, secretManager } from "../portal/adapters";
 import { PortalError } from "../portal/domain";
 import { json } from "../portal/service";
 import { providerRequest } from "../providers/adapters/http";
@@ -11,15 +14,19 @@ export interface ExecutionAdapter {
   create(
     attempt: PaymentAttempt,
     intent: PaymentIntent,
-  ): Promise<{ state: string; reference: string }>;
+  ): Promise<{ state: string; reference: string; action?: unknown }>;
   // Keyed by the attempt so each adapter resolves the provider-side identifier
   // it needs (a durable PayRouta key for the simulator, a provider payment id
   // for an external integration).
-  status(attempt: PaymentAttempt): Promise<{
+  status(
+    attempt: PaymentAttempt,
+    intent?: PaymentIntent,
+  ): Promise<{
     state: string;
     reference: string;
     amount: string;
     asset: unknown;
+    action?: unknown;
   } | null>;
 }
 // Extends the existing simulator with restart-safe provider-side idempotency.
@@ -32,7 +39,7 @@ export const persistentSimulator: ExecutionAdapter = {
     "transaction-report",
   ],
   async create(attempt, intent) {
-    if (!localMode() || attempt.environment !== "sandbox")
+    if (!sandboxSimulation() || attempt.environment !== "sandbox")
       throw new PortalError("SANDBOX_ONLY");
     if (
       intent.scenario === "rejected" ||
@@ -87,10 +94,14 @@ export function sandboxInstructions(
 import { monnifyExecutionAdapter } from "../providers/adapters/native/monnify";
 import { paystackExecutionAdapter } from "../providers/adapters/native/paystack";
 import { flutterwaveExecutionAdapter } from "../providers/adapters/native/flutterwave";
+import { partnerExecutionAdapter } from "./partner-execution";
+import { platformExecutionAdapter } from "../treasury/execution";
 
 // Resolve by immutable integration configuration. No default-to-simulator path:
 // unknown or unqualified adapters must never generate fictional financial facts.
 export function resolveExecutionAdapter(integration: {
+  id?: string;
+  orgId?: string;
   environment: string;
   config: unknown;
 }): ExecutionAdapter {
@@ -99,9 +110,27 @@ export function resolveExecutionAdapter(integration: {
     mode?: string;
   };
   if (config.adapter === "simulator") {
-    if (integration.environment !== "sandbox" || !localMode())
+    if (integration.environment !== "sandbox" || !sandboxSimulation())
       throw new PortalError("SANDBOX_ONLY", 409);
     return persistentSimulator;
+  }
+  // A merchant-owned partner account bound after approval.
+  if (config.mode === "PARTNER") {
+    if (!integration.orgId)
+      throw new PortalError("EXECUTION_ADAPTER_NOT_QUALIFIED", 409);
+    return partnerExecutionAdapter({
+      ...integration,
+      orgId: integration.orgId,
+    });
+  }
+  // A merchant's sub-account under a PayRouta platform account.
+  if (config.mode === "PLATFORM") {
+    if (!integration.orgId)
+      throw new PortalError("EXECUTION_ADAPTER_NOT_QUALIFIED", 409);
+    return platformExecutionAdapter({
+      ...integration,
+      orgId: integration.orgId,
+    });
   }
   if (config.mode === "STANDARD")
     return standardExecutionAdapter(config, {
@@ -115,12 +144,33 @@ export function resolveExecutionAdapter(integration: {
       credentials: secretManager,
     });
   if (config.mode === "NATIVE") {
-    if (config.adapter === "monnify")
+    const native = nativeModules.find((m) => m.id === config.adapter);
+    if (native) {
+      if (
+        (config as { environment?: string }).environment !==
+        integration.environment
+      )
+        throw new PortalError("PROVIDER_ENVIRONMENT_MISMATCH", 409);
+      return native.create(config, {
+        http: providerRequest,
+        credentials: secretManager,
+        ...(isDepositAdapter(config.adapter)
+          ? { deposits: databaseDepositStore(integration.id ?? "") }
+          : {}),
+      });
+    }
+    if (config.adapter === "monnify") {
+      if (
+        ((config as { environment?: string }).environment ?? "sandbox") !==
+        integration.environment
+      )
+        throw new PortalError("PROVIDER_ENVIRONMENT_MISMATCH", 409);
       return monnifyExecutionAdapter(config, {
         http: providerRequest,
         credentials: secretManager,
         clock: () => new Date(),
       });
+    }
     if (config.adapter === "paystack")
       return paystackExecutionAdapter(config, {
         http: providerRequest,

@@ -1,0 +1,208 @@
+import { randomUUID } from "node:crypto";
+import { json } from "../portal/service";
+import { db } from "../portal/db";
+import { stablecoinDepositConfig as depositConfigSchema } from "../blockchain/deposit-config";
+import {
+  paymentAsset as tokenAsset,
+  onchainMethod,
+} from "../blockchain/crypto-assets";
+import { assetKey } from "./contracts";
+import { fingerprint } from "../portal/registry";
+import { PortalError } from "../portal/domain";
+import { approvedAssetLimits, storedLiveScope } from "../merchant/live-scope";
+import type { Tx } from "./service";
+export const depositPrefix = "deposit:";
+export const isDepositProfile = (id: string) => id.startsWith(depositPrefix);
+export async function stablecoinCandidates(
+  orgId: string,
+  environment: string,
+  asset?: unknown,
+  client: Tx | typeof db = db,
+  boundIntentId?: string,
+) {
+  const [integrations, config] = await Promise.all([
+    client.integration.findMany({
+      where: { orgId, environment },
+      orderBy: [{ version: "desc" }, { id: "asc" }],
+    }),
+    client.merchantConfig.findUnique({ where: { orgId } }),
+  ]);
+  if (!config || config.environment !== environment) return [];
+  if ((config?.riskPolicy as { paused?: boolean })?.paused) return [];
+  const out = [];
+  for (const integration of integrations) {
+    const parsed = depositConfigSchema.safeParse(integration.config);
+    if (!parsed.success || parsed.data.environment !== environment) continue;
+    const c = parsed.data;
+    const method = onchainMethod(c.network, c.identifier);
+    if (
+      (
+        config.riskPolicy as { blockedMethods?: string[] }
+      )?.blockedMethods?.includes(method)
+    )
+      continue;
+    const expected = {
+      kind: "blockchain",
+      identifier: c.identifier,
+      network: c.network,
+    };
+    if (asset && fingerprint(asset) !== fingerprint(expected)) continue;
+    // Production eligibility is subsequently rechecked against current reviewed scope and evidence.
+    if (environment === "production") {
+      const parsedScope = storedLiveScope.safeParse(config.liveScope);
+      if (!parsedScope.success) continue;
+      const scope = parsedScope.data;
+      if (
+        scope.status !== "Approved" ||
+        new Date(scope.input.nextReviewAt) <= new Date() ||
+        !approvedAssetLimits(scope.input, assetKey(expected)) ||
+        !scope.input.methods.includes(method) ||
+        !scope.input.accounts.some(
+          (a) =>
+            a.integrationId === integration.id &&
+            a.accountReference === c.accountId,
+        )
+      )
+        continue;
+    }
+    const used = await client.depositBinding.count({
+      where: { network: c.network, address: { in: c.addresses } },
+    });
+    if (used === c.addresses.length) {
+      if (!boundIntentId) continue;
+      const own = await client.paymentAttempt.findFirst({
+        where: {
+          intentId: boundIntentId,
+          integrationId: integration.id,
+          providerOrgId: orgId,
+          state: {
+            in: ["Dispatching", "Unknown", "Requires action", "Pending"],
+          },
+        },
+      });
+      if (
+        !own ||
+        !(await client.depositBinding.findUnique({
+          where: { attemptId: own.id },
+        }))
+      )
+        continue;
+    }
+    out.push({
+      profileId: `${depositPrefix}${integration.id}`,
+      integrationId: integration.id,
+      method,
+      name: `${tokenAsset(c.network, c.identifier)!.symbol} on ${c.network}`,
+      asset: expected,
+    });
+  }
+  return out;
+}
+export async function revalidateDepositEvaluation(
+  intent: {
+    orgId: string;
+    contextId: string;
+    environment: string;
+    asset?: unknown;
+    id?: string;
+  },
+  evaluationId: string,
+  now: Date,
+) {
+  const [e, c] = await Promise.all([
+    db.availabilityEvaluation.findFirst({
+      where: {
+        id: evaluationId,
+        orgId: intent.orgId,
+        contextId: intent.contextId,
+        environment: intent.environment,
+      },
+    }),
+    db.availabilityContext.findFirst({
+      where: { id: intent.contextId, orgId: intent.orgId },
+    }),
+  ]);
+  if (
+    !e ||
+    !c ||
+    e.expiresAt <= now ||
+    c.expiresAt <= now ||
+    e.contextFingerprint !== fingerprint(c.context)
+  )
+    throw new PortalError("EVALUATION_EXPIRED_OR_MISMATCHED", 409);
+  return stablecoinCandidates(
+    intent.orgId,
+    intent.environment,
+    intent.asset,
+    db,
+    intent.id,
+  );
+}
+
+// Native receive pools have their own short-lived eligibility snapshot. Unrelated
+// registry-provider observations must not expire a direct stablecoin checkout.
+export async function evaluateDepositContext(
+  intent: {
+    id: string;
+    orgId: string;
+    contextId: string;
+    environment: string;
+    asset: unknown;
+  },
+  now = new Date(),
+) {
+  const context = await db.availabilityContext.findFirst({
+    where: {
+      id: intent.contextId,
+      orgId: intent.orgId,
+      environment: intent.environment,
+    },
+  });
+  if (!context || context.expiresAt <= now)
+    throw new PortalError("CONTEXT_EXPIRED", 409);
+  const candidates = await stablecoinCandidates(
+    intent.orgId,
+    intent.environment,
+    intent.asset,
+  );
+  const evaluationId = randomUUID();
+  const expiresAt = new Date(
+    Math.min(context.expiresAt.getTime(), now.getTime() + 60000),
+  );
+  const asset = intent.asset as { network: string; identifier: string };
+  const method = onchainMethod(asset.network, asset.identifier);
+  const safe = {
+    evaluationId,
+    evaluatedAt: now.toISOString(),
+    expiresAt: expiresAt.toISOString(),
+    methods: [
+      {
+        method,
+        label: method === "crypto-app" ? "Crypto wallet" : "Stablecoins",
+        status: candidates.length ? "AVAILABLE" : "UNAVAILABLE",
+        explanation: candidates.length
+          ? "Pay directly to the merchant's stablecoin receive address"
+          : "This merchant has not configured this token and network yet.",
+      },
+    ],
+  };
+  await db.availabilityEvaluation.create({
+    data: {
+      id: evaluationId,
+      contextId: context.id,
+      orgId: intent.orgId,
+      environment: intent.environment,
+      policyVersion: context.policyVersion,
+      contextFingerprint: fingerprint(context.context),
+      safe: json(safe),
+      trace: json({
+        source: "merchant-deposit-pools",
+        candidateIds: candidates.map((c) => c.profileId),
+      }),
+      expiresAt,
+      retentionUntil: new Date(now.getTime() + 7 * 86400000),
+      createdAt: now,
+    },
+  });
+  return safe;
+}

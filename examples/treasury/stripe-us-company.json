@@ -1,0 +1,44 @@
+{
+  "profile": {
+    "legalName": "Harbor Test Inc",
+    "businessType": "company",
+    "country": "US",
+    "registrationNumber": "DE-0000000",
+    "taxId": "000000000",
+    "website": "https://harbor.example",
+    "productDescription": "Digital design templates sold as one-off downloads",
+    "industry": "Digital Goods & Subscriptions",
+    "supportEmail": "support@harbor.example",
+    "address": { "line1": "address_full_match", "city": "San Francisco", "region": "CA", "postalCode": "94105", "country": "US" },
+    "representative": { "givenName": "Ada", "familyName": "Okafor", "email": "ada@harbor.example", "title": "CEO" },
+    "owners": [{ "givenName": "Ada", "familyName": "Okafor", "country": "US", "ownershipPercent": 100 }],
+    "monthlyVolume": "10k-50k",
+    "settlementCurrency": "USD"
+  },
+  "details": {
+    "businessPhone": "+14155550100",
+    "representative": {
+      "dateOfBirth": "1901-01-01",
+      "phone": "+14155550101",
+      "email": "ada@harbor.example",
+      "address": { "line1": "address_full_match", "city": "San Francisco", "region": "CA", "postalCode": "94105", "country": "US" },
+      "idNumber": "000000000"
+    },
+    "owners": [
+      {
+        "dateOfBirth": "1901-01-01",
+        "email": "ada@harbor.example",
+        "address": { "line1": "address_full_match", "city": "San Francisco", "region": "CA", "postalCode": "94105", "country": "US" },
+        "idNumber": "000000000"
+      }
+    ],
+    "payoutAccount": {
+      "country": "US",
+      "currency": "USD",
+      "holderName": "Harbor Test Inc",
+      "holderType": "company",
+      "accountNumber": "000123456789",
+      "routingNumber": "110000000"
+    }
+  }
+}

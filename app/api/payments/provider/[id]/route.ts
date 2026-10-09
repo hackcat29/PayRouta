@@ -1,6 +1,8 @@
+import { adyenCaptureEvents } from "@/lib/payments/native-events";
+import { adyenConfigSchema } from "@/lib/providers/adapters/native/adyen";
 import { z } from "zod";
 import { db } from "@/lib/portal/db";
-import { secretManager, localMode } from "@/lib/portal/adapters";
+import { secretManager, sandboxSimulation } from "@/lib/portal/adapters";
 import { PortalError } from "@/lib/portal/domain";
 import { atomic, json } from "@/lib/portal/service";
 import { hash, verify, providerFact } from "@/lib/payments/contracts";
@@ -15,9 +17,29 @@ export async function POST(
     const integration = await db.integration.findUniqueOrThrow({
       where: { id },
     });
+    const config = integration.config as { adapter?: string };
+    if (config.adapter === "adyen") {
+      const c = adyenConfigSchema.parse(config);
+      if (c.environment !== integration.environment || !c.webhookSecretRef)
+        throw new PortalError("EVENT_VERIFIER_UNCONFIGURED", 409);
+      const events = adyenCaptureEvents(c, await rawBody(r), await secretManager.get(c.webhookSecretRef));
+      await atomic(async (tx) => {
+        for (const e of events) {
+          const identity = { integrationId: id, environment: integration.environment, eventId: e.eventId };
+          const old = await tx.paymentInbox.findUnique({ where: { integrationId_environment_eventId: identity } });
+          if (old) {
+            if (old.fingerprint !== e.fingerprint) throw new PortalError("EVENT_ID_CONFLICT", 409);
+            continue;
+          }
+          const inbox = await tx.paymentInbox.create({ data: { ...identity, fingerprint: e.fingerprint, payload: json(e.payload) } });
+          await queue(tx, integration.orgId, "payment-inbox", `inbox:${inbox.id}`, { inboxId: inbox.id });
+        }
+      });
+      return { accepted: true };
+    }
     if (
       integration.environment !== "sandbox" ||
-      !localMode() ||
+      !sandboxSimulation() ||
       (integration.config as { adapter: string }).adapter !== "simulator"
     )
       throw new PortalError("ADAPTER_UNCONFIGURED", 409);

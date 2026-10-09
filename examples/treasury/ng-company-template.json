@@ -1,0 +1,34 @@
+{
+  "profile": {
+    "legalName": "Adaeze Foods Limited",
+    "tradingName": "Adaeze Foods",
+    "businessType": "company",
+    "country": "NG",
+    "registrationNumber": "RC1234567",
+    "website": "https://adaeze.example",
+    "productDescription": "Packaged foods sold online and delivered in Lagos",
+    "industry": "Food & Groceries",
+    "supportEmail": "support@adaeze.example",
+    "address": { "line1": "1 Admiralty Way", "city": "Lagos", "country": "NG" },
+    "representative": { "givenName": "Adaeze", "familyName": "Okafor", "email": "adaeze@adaeze.example", "title": "Director" },
+    "owners": [],
+    "monthlyVolume": "under-10k",
+    "settlementCurrency": "NGN"
+  },
+  "details": {
+    "businessPhone": "+2348012345678",
+    "representative": {
+      "dateOfBirth": "1985-04-12",
+      "address": { "line1": "1 Admiralty Way", "city": "Lagos", "country": "NG" }
+    },
+    "owners": [],
+    "payoutAccount": {
+      "country": "NG",
+      "currency": "NGN",
+      "holderName": "Adaeze Foods Limited",
+      "holderType": "company",
+      "accountNumber": "0000000000",
+      "routingNumber": "000"
+    }
+  }
+}

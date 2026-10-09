@@ -1,0 +1,26 @@
+# Safaricom M-Pesa
+
+> **Implementation status:** Provider code path: flutterwave. Not live-qualified by code alone. KES M-Pesa through Flutterwave; direct Daraja receipt/callback integration is not implemented. See [current coverage](provider-coverage.md).
+
+**Category**: [Mobile Money](providers/mobile-money/README.md)  
+**Provider**: Safaricom PLC  
+**Method ID**: `mobile-money`  
+**Integration Mode**: `NATIVE` / `STANDARD`
+
+M-Pesa is the undisputed leader in mobile money across East Africa. In Kenya, M-Pesa processes over 80% of consumer payments.
+
+---
+
+## Technical Flow (STK Push)
+
+1. The customer enters their phone number (`2547XXXXXXXX`) at checkout.
+2. PayRouta initiates an STK Push (Lipa na M-Pesa Online).
+3. A native prompt automatically wakes up the customer's phone requesting their secret M-Pesa PIN.
+4. Upon PIN entry, Safaricom's Daraja gateway immediately callbacks PayRouta with the confirmation code (`M-Pesa Receipt Number`).
+5. Transaction confirms in under 3 seconds.
+
+---
+
+## Merchant Till & Paybill Accounts
+
+Merchants link their own Safaricom Paybill or Buy Goods Till number during onboarding. All collected customer funds settle directly into the merchant's Safaricom corporate account or sweep bank account.

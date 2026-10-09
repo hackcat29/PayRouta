@@ -438,6 +438,10 @@ export function Ops({ data, route }: { data: OpsData; route: string }) {
               ["requirements", "Requirements"],
               ["audit-log", "Audit log"],
               ["payments", "Payments"],
+              ["merchants", "Merchants"],
+              ["partners", "Partner programmes"],
+              ["treasury", "Treasury"],
+              ["marketing", "Email Marketing"],
             ].map(([path, label]) => (
               <Link
                 href={`/ops/${path}`}

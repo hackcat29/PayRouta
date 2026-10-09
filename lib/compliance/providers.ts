@@ -1,4 +1,6 @@
 import { PortalError } from "../portal/domain";
+import { providerRequest } from "../providers/adapters/http";
+import { openSanctionsScreening } from "./opensanctions";
 
 // Normalized compliance vendor interfaces. Vendors (Didit, Monnify identity,
 // others) are replaceable behind these interfaces; vendor-specific field names
@@ -29,7 +31,11 @@ export interface KybProvider {
 
 export interface EntityScreeningProvider {
   id: string;
-  screenEntity(input: { name?: string; country?: string }): Promise<ScreeningResult>;
+  screenEntity(input: {
+    name?: string;
+    country?: string;
+    kind?: "person" | "organization";
+  }): Promise<ScreeningResult>;
 }
 
 export interface WalletScreeningProvider {
@@ -70,6 +76,17 @@ export function unconfiguredCompliance(id: string): KycProvider &
       return refuse("TRANSACTION_MONITORING");
     },
   };
+}
+
+// Entity screening uses OpenSanctions when OPENSANCTIONS_API_KEY is set
+// (server-only). Otherwise it fails closed.
+export function entityScreeningProvider(): EntityScreeningProvider {
+  const apiKey = process.env.OPENSANCTIONS_API_KEY;
+  if (!apiKey) return complianceProviders.entityScreening;
+  return openSanctionsScreening(
+    { apiKey, dataset: process.env.OPENSANCTIONS_DATASET || "default" },
+    providerRequest,
+  );
 }
 
 // Registry of configured vendors. Empty by default: everything fails closed

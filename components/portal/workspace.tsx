@@ -1460,6 +1460,25 @@ export function Workspace({
               <option value="production">Production</option>
             </select>
           </div>
+          <Link
+            href="/merchant/overview"
+            className="p-merchant-switch-link"
+            style={{
+              marginLeft: "auto",
+              fontSize: "0.8125rem",
+              fontWeight: 500,
+              color: "var(--p-text)",
+              textDecoration: "none",
+              padding: "6px 12px",
+              borderRadius: "6px",
+              border: "1px solid var(--p-border)",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+            }}
+          >
+            Merchant workspace →
+          </Link>
         </header>
         <div className="p-content">
           <div className="p-page-heading">

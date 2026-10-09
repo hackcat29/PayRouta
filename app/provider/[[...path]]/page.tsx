@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { AuthScreen, ResetPassword } from "@/components/portal/auth-screen";
+import { safeNext } from "@/lib/portal/next-path";
 import { Workspace } from "@/components/portal/workspace";
 import { workspaceData, transactionDetail } from "@/lib/portal/queries";
 import { localMode } from "@/lib/portal/adapters";
@@ -49,7 +50,13 @@ export default async function ProviderPage({
   const route = (await params).path?.join("/") || "overview";
   const query = await searchParams;
   if (route === "sign-in" || route === "sign-up")
-    return <AuthScreen signUp={route === "sign-up"} local={localMode()} />;
+    return (
+      <AuthScreen
+        signUp={route === "sign-up"}
+        local={localMode()}
+        next={safeNext(query.next)}
+      />
+    );
   if (route === "reset-password")
     return <ResetPassword token={query.token || ""} />;
   if (route === "dev-mail") {

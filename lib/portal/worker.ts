@@ -1,8 +1,11 @@
+import { screenStablecoinMerchant } from "../merchant/screening";
 import { paymentJob } from "../payments/jobs";
+import { partnerJob } from "../partners/service";
+import { treasuryJob } from "../treasury/jobs";
 import { db } from "./db";
 import { atomic, audit, json } from "./service";
 import { simulator } from "./simulator";
-import { scanner, localMode, storage } from "./adapters";
+import { scanner, localMode, sandboxSimulation, storage } from "./adapters";
 import { checkEndpoint } from "./ssrf";
 import { Draft, PortalError } from "./domain";
 import { publishActivation } from "./registry";
@@ -50,6 +53,12 @@ export async function workOnce(jobKey?: string) {
     const p = candidate.payload as Record<string, string>;
     if (candidate.kind.startsWith("payment-")) {
       await paymentJob(candidate.kind, p);
+    } else if (candidate.kind === "merchant-screening") {
+      await screenStablecoinMerchant(p.orgId,Number(p.version));
+    } else if (candidate.kind.startsWith("partner-")) {
+      await partnerJob(candidate.kind, p);
+    } else if (candidate.kind.startsWith("treasury-")) {
+      await treasuryJob(candidate.kind, p);
     } else if (candidate.kind === "certification") {
       const integration = await db.integration.findUniqueOrThrow({
         where: { id: p.integrationId },
@@ -166,7 +175,7 @@ export async function workOnce(jobKey?: string) {
           },
         });
         const fictional =
-          activation.environment === "sandbox" && localMode() && org.fictional;
+          activation.environment === "sandbox" && sandboxSimulation() && org.fictional;
         if (
           !snapshot.requirements.every((r) =>
             evidence.some(
@@ -276,7 +285,10 @@ export async function workOnce(jobKey?: string) {
         where: { id: candidate.id },
         data: {
           state:
-            candidate.kind.startsWith("payment-") && candidate.attempts < 7
+            (candidate.kind.startsWith("payment-") ||
+              candidate.kind.startsWith("partner-") ||
+              candidate.kind.startsWith("treasury-")) &&
+            candidate.attempts < 7
               ? "Pending"
               : "Failed",
           availableAt: new Date(

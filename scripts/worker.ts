@@ -1,7 +1,13 @@
 import "dotenv/config";
 import { sweepPayments } from "../lib/payments/jobs";
+import { sweepPartners } from "../lib/partners/service";
+import { sweepLinks } from "../lib/treasury/links";
+import { sweepPayouts } from "../lib/treasury/payouts";
+import { sweepDisputesAndRefunds } from "../lib/treasury/events";
+import { sweepReconciliation } from "../lib/treasury/reconciliation";
 import { workOnce, retentionSweep } from "../lib/portal/worker";
 import { refreshObservations } from "../lib/portal/provider-probes";
+import { MarketingService } from "../lib/email/marketing-service";
 const once = process.argv.includes("--once");
 async function main() {
   let maintenance = 0;
@@ -10,6 +16,12 @@ async function main() {
     if (Date.now() > maintenance) {
       await retentionSweep();
       await sweepPayments();
+      await sweepPartners();
+      await sweepLinks();
+      await sweepPayouts();
+      await sweepDisputesAndRefunds();
+      await sweepReconciliation();
+      await MarketingService.processScheduledDrips().catch(console.error);
       maintenance = Date.now() + 60000;
     }
     if (Date.now() > probes) {

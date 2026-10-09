@@ -41,6 +41,7 @@ export async function observePayment(
   return {
     state,
     confirmations: receipt?.confirmations ?? 0,
-    final: !!receipt && receipt.status === "success" && receipt.confirmations >= 1,
+    // Final only at the chain's configured finality depth, consistent with state.
+    final: state === "Confirmed",
   };
 }

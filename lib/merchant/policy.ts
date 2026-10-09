@@ -1,3 +1,4 @@
+import { currentMerchantScreening } from "./screening";
 import {
   liveScopeReasons,
   storedLiveScope,
@@ -42,6 +43,7 @@ export function riskOutcome(
     evidenceCurrent: boolean;
     dailyReserved: bigint;
     alreadyReserved: boolean;
+    liveQualified?: boolean;
   },
 ): { decision: "Allow" | "Deny" | "Hold for review"; reasons: string[] } {
   const reasons: string[] = [];
@@ -49,7 +51,7 @@ export function riskOutcome(
   if (input.method && policy.blockedMethods.includes(input.method))
     reasons.push("METHOD_RESTRICTED");
   // Production execution is closed elsewhere too. Policy cannot manufacture live approval.
-  if (input.environment !== "sandbox")
+  if (input.environment !== "sandbox" && !input.liveQualified)
     reasons.push("LIVE_QUALIFICATION_REQUIRED");
   if (!input.evidenceCurrent) reasons.push("EVIDENCE_REVIEW_REQUIRED");
   const limit = policy.limits.find((l) => l.asset === input.asset);
@@ -124,6 +126,30 @@ export async function enforceRisk(
       now,
     );
     const scope = storedLiveScope.safeParse(config.liveScope);
+    const trusted = await tx.availabilityContext.findUnique({
+      where: { id: intent.contextId },
+    });
+    const payerCountry = (
+      trusted?.context as { payerCountry?: string } | undefined
+    )?.payerCountry;
+    if (
+      !payerCountry ||
+      !scope.success ||
+      !scope.data.input.payerCountries.includes(payerCountry)
+    )
+      reasons.push("PAYER_COUNTRY_OUTSIDE_LIVE_SCOPE");
+    if (
+      scope.success &&
+      scope.data.applicationVersion !== config.applicationVersion
+    )
+      reasons.push("LIVE_SCOPE_APPLICATION_CHANGED");
+    try {
+      await currentMerchantScreening(tx, intent.orgId, config.country, now);
+    } catch (error) {
+      if (error instanceof PortalError)
+        reasons.push("MERCHANT_SCREENING_REQUIRED");
+      else throw error;
+    }
     if (scope.success && scope.data.status === "Approved") {
       try {
         await validateScopeEvidence(
@@ -141,6 +167,18 @@ export async function enforceRisk(
     }
     if (reasons.length)
       outcome = { decision: "Deny", reasons: [...outcome.reasons, ...reasons] };
+    else if (scope.success && scope.data.status === "Approved") {
+      outcome = riskOutcome(policy, {
+        environment: intent.environment,
+        asset,
+        amount: minor(intent.amount, intent.precision),
+        method: intent.selectedMethod,
+        evidenceCurrent: evidence.length === new Set(policy.evidenceIds).size,
+        dailyReserved: BigInt(aggregate._sum.amount?.toFixed(0) || "0"),
+        alreadyReserved: !!prior,
+        liveQualified: true,
+      });
+    }
   }
   if (outcome.decision === "Hold for review") {
     const approval = await tx.merchantRiskDecision.findFirst({

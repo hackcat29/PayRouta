@@ -141,3 +141,19 @@ test("observePayment maps an observed transaction into the normalized lifecycle"
   assert.equal(result.state, "Confirmed");
   assert.equal(result.final, true);
 });
+
+test("observePayment is final only at the chain's finality depth", async () => {
+  const { observePayment } = await import("../lib/blockchain/payments");
+  const rpc = (confirmations: number) =>
+    ({
+      async getTransactionReceipt() {
+        return { status: "success", confirmations };
+      },
+    }) as never;
+  const early = await observePayment(rpc(1), "eip155:1", "0xabc");
+  assert.equal(early.final, false, "1 of 12 Ethereum confirmations is not final");
+  assert.equal(early.state, "Pending");
+  const done = await observePayment(rpc(12), "eip155:1", "0xabc");
+  assert.equal(done.final, true);
+  assert.equal((await observePayment(rpc(1), "eip155:8453", "0xabc")).final, true);
+});

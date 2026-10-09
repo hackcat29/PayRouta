@@ -1,410 +1,330 @@
-import Link from "next/link";
-import {
-  ArrowRight,
-  Building2,
-  CreditCard,
-  Smartphone,
-  Coins,
-  Wallet,
-  CheckCircle2,
-  Landmark,
-} from "lucide-react";
-import { ProductShowcase } from "@/components/product-showcase";
+import { CheckCircle } from "@phosphor-icons/react/dist/ssr";
+import { Btn, Kicker, MkLink, Photo, SectionHead } from "@/components/marketing/ui";
+import { Closing, Faq, FlagStrip, MethodBento, Stats, Versus } from "@/components/marketing/sections";
+import { RouteWidget } from "@/components/marketing/route-widget";
+import { DepartureBoard } from "@/components/marketing/departure-board";
+import { RevenueCalculator } from "@/components/marketing/revenue-calculator";
+import { CodeTabs } from "@/components/marketing/code-tabs";
+import { lines, status } from "@/content/claims";
 import { trustedOrigin, paths } from "@/lib/site-config";
 
 export const metadata = {
-  title: "PayRouta — Multi-Provider Payment Network & Routing",
+  title: { absolute: "PayRouta — Every way your customers pay, one application" },
   description:
-    "Accept more payments. Lose fewer customers. PayRouta connects your business to multiple payment providers and automatically uses an available route when a customer pays.",
+    "Apply once to PayRouta and accept cards, bank transfers, mobile money and stablecoins through regulated processing partners, with same-method failover and payouts on your schedule. Stablecoins go straight to your wallet.",
   alternates: trustedOrigin() ? { canonical: "/" } : undefined,
+  ...(trustedOrigin()
+    ? {
+        openGraph: { images: ["/og/home"] },
+        twitter: { card: "summary_large_image", images: ["/og/home"] },
+      }
+    : {}),
 };
 
-const supportedMethods = [
-  {
-    icon: Building2,
-    title: "Instant Bank Transfers",
-    badge: "Direct Clearing",
-    description:
-      "Instant account-to-account payments with real-time settlement confirmation across Africa (NIP), Europe (SEPA Instant), US (FedNow / RTP), and Brazil (Pix).",
-    coverage: ["Nigeria (NIP)", "Europe (SEPA)", "USA (FedNow)", "Brazil (Pix)"],
-  },
-  {
-    icon: CreditCard,
-    title: "Global & Domestic Cards",
-    badge: "Auto-Failover",
-    description:
-      "Full scheme support for Visa, Mastercard, and Verve with intelligent same-method routing that switches processors silently if acquiring channels degrade.",
-    coverage: ["Visa", "Mastercard", "Verve", "Domestic Schemes"],
-  },
-  {
-    icon: Smartphone,
-    title: "Mobile Money & USSD",
-    badge: "Instant Push",
-    description:
-      "High-converting mobile money workflows with instant push-to-pay prompts for MTN MoMo, M-Pesa, Airtel Money, and bank USSD strings.",
-    coverage: ["MTN MoMo", "M-Pesa", "Airtel Money", "USSD"],
-  },
-  {
-    icon: Coins,
-    title: "Direct Stablecoins (USDC)",
-    badge: "On-Chain Finality",
-    description:
-      "Accept USDC natively on Base and Ethereum with sub-second transaction observation, deterministic finality, and zero chargeback risk.",
-    coverage: ["Base Mainnet", "Ethereum", "Arbitrum", "Polygon"],
-  },
-  {
-    icon: Wallet,
-    title: "Digital Wallets",
-    badge: "One-Tap",
-    description:
-      "One-tap checkout with Apple Pay, Google Pay, and leading regional super-apps including OPay and PalmPay.",
-    coverage: ["Apple Pay", "Google Pay", "OPay", "PalmPay"],
-  },
-  {
-    icon: Landmark,
-    title: "Direct Debit & Mandates",
-    badge: "Recurring A2A",
-    description:
-      "Automated recurring bank debits and mandates for subscription billing, SaaS invoices, and installments with localized clearing and return handling.",
-    coverage: ["SEPA Direct Debit", "Bacs Direct Debit", "ACH Pull", "NIBSS Mandates"],
-  },
-];
-
-const faqs = [
-  {
-    q: "How does PayRouta prevent failed payments?",
-    a: "When a customer initiates a payment, PayRouta evaluates live operational availability, historical success rates, and provider health. If a provider experiences latency or downtime, PayRouta automatically routes through a healthy backup provider within that exact same payment method. The customer completes their checkout seamlessly without seeing an error.",
-  },
-  {
-    q: "Does PayRouta replace our existing payment providers?",
-    a: "No. PayRouta is the routing and orchestration intelligence. Underlying payment processors (like Monnify, Paystack, Flutterwave, or your preferred merchant acquirers) perform the regulated fiat execution. PayRouta coordinates eligibility, availability, routing, reconciliation, and failover.",
-  },
-  {
-    q: "How does settlement work if customers pay with different methods?",
-    a: "Settlement is completely unified. Whether customers pay with bank transfer, card, mobile money, or USDC, PayRouta tracks and reconciles each transaction against provider settlement batches. Funds are deposited directly to your bank account or treasury wallet in your chosen settlement currency.",
-  },
-  {
-    q: "Can external payment providers register on PayRouta?",
-    a: "Yes. Payment processors, banks, and acquirers can self-register on the PayRouta Provider Portal, declare their supported capabilities (countries, currencies, methods), submit compliance documentation, and pass automated sandbox certification before going live.",
-  },
-  {
-    q: "How quickly can our engineering team integrate PayRouta?",
-    a: "Most teams integrate in under an hour using our official Node.js / TypeScript (`@payrouta/server`) or Python (`payrouta`) SDKs. One payment intent integration gives you access to every payment method with zero custom adapter maintenance.",
-  },
+const faqs: [string, string][] = [
+  [
+    "What does PayRouta actually do?",
+    "Two things. First, you apply once to PayRouta: we verify your business and set up processing for you with our regulated payment partners, so you never fill in a provider's forms. Second, one API routes every payment to a partner that can take it, and fails over to another for the same method when the first can't. You can also connect payment accounts you already own.",
+  ],
+  [
+    "Does PayRouta hold my money?",
+    "Not in PayRouta's own bank accounts. Your balance is held by our regulated processing partners, or paid by them straight to your bank, and PayRouta pays it out to you on your schedule. Stablecoin payments go directly to your own wallet. PayRouta is not your merchant of record: you remain the seller.",
+  ],
+  [
+    "Who verifies my business?",
+    "PayRouta does, once. You give us your business details, identity details and payout bank account in your dashboard; we screen them and share with our processing partners only what each one needs to verify you. Identity and bank details are stored encrypted.",
+  ],
+  [
+    "Can I keep my existing provider accounts?",
+    "Yes. Accounts you open in your own name with a supported provider stay yours, and PayRouta routes to them alongside its own processing. If you already have an account with a supported provider, talk to us about connecting it.",
+  ],
+  [
+    "Will PayRouta ever switch my customer to a different payment method?",
+    "No. The customer's choice is fixed. Failover only happens between providers of the same method — a card payment is retried as a card payment. If no eligible provider remains, the customer is asked to choose again.",
+  ],
+  [
+    "How is a retry safe? Couldn't the customer be charged twice?",
+    "Every request is idempotent, and a timeout is never treated as a failure. PayRouta rechecks the original provider's status before it considers another route, so an uncertain payment is resolved before anything is retried.",
+  ],
+  [
+    "Do you handle sales tax or VAT?",
+    "No. PayRouta is not a merchant of record, so tax obligations stay with you. If you need a merchant of record, you can still use one alongside PayRouta.",
+  ],
+  [
+    "Can I go live today?",
+    `${status.stage}: ${status.sandbox.toLowerCase()}. ${status.live}.`,
+  ],
 ];
 
 export default function Home() {
   return (
-    <div className="landing-page-root">
-      {/* HERO SECTION */}
-      <section className="hero-section dark">
-        <div className="container hero-container">
-          <div className="hero-text-content">
-            <div className="hero-live-pill">
-              <span className="pulsing-green-dot" />
-              <span>Multi-Provider Payment Network</span>
-            </div>
-
-            <h1 className="hero-headline">
-              Accept more payments.
-              <br />
-              <span className="hero-highlight">Lose fewer customers.</span>
-            </h1>
-
-            <p className="hero-subhead">
-              PayRouta connects your business to multiple payment providers and
-              automatically uses an available route when a customer pays.
-              Integrate once; accept bank transfers, cards, mobile money, and
-              stablecoins with unified settlement.
-            </p>
-
-            <div className="hero-cta-group">
-              <Link href="/merchant" className="hero-btn-primary">
-                Open Merchant Console <ArrowRight size={16} />
-              </Link>
-              <Link href={paths.docs} className="hero-btn-secondary">
-                View API Docs →
-              </Link>
-            </div>
-
-            <div className="hero-metrics-strip">
-              <div className="metric-item">
-                <strong>40+</strong>
-                <span>Countries supported</span>
-              </div>
-              <div className="metric-divider" />
-              <div className="metric-item">
-                <strong>50+</strong>
-                <span>Local payment methods</span>
-              </div>
-              <div className="metric-divider" />
-              <div className="metric-item">
-                <strong>99.98%</strong>
-                <span>Route availability</span>
-              </div>
-              <div className="metric-divider" />
-              <div className="metric-item">
-                <strong>0</strong>
-                <span>Single points of failure</span>
-              </div>
-            </div>
-          </div>
-
-          {/* INTERACTIVE PRODUCT SHOWCASE CENTERPIECE */}
-          <div className="hero-showcase-wrapper">
-            <ProductShowcase />
-          </div>
-        </div>
-      </section>
-
-      {/* FAILOVER & ROUTING SECTION */}
-      <section className="section bg-light">
-        <div className="container">
-          <div className="section-header-centered">
-            <span className="eyebrow-tag">Intelligent Resilience</span>
-            <h2>One payment network. Automatic same-method failover.</h2>
-            <p>
-              When a payment provider has an outage or bank downtime, single-provider businesses lose sales.
-              PayRouta monitors provider health in real-time and silently re-routes transactions within the same payment method.
-            </p>
-          </div>
-
-          <div className="comparison-grid">
-            <div className="comparison-card single-provider">
-              <div className="comp-card-badge error">Single Provider Setup</div>
-              <h3>Provider Outage = Lost Customer</h3>
-              <p>
-                If your sole provider experiences API errors, maintenance, or degraded bank rails, 100% of your checkouts fail.
-              </p>
-              <ul className="comp-list">
-                <li className="bad">Customer sees &quot;Payment Failed&quot; and abandons cart</li>
-                <li className="bad">Zero automated redundancy or fallback</li>
-                <li className="bad">Engineering team spends hours managing manual failover</li>
-                <li className="bad">Separate integrations required for every new country</li>
-              </ul>
-            </div>
-
-            <div className="comparison-card payrouta-network">
-              <div className="comp-card-badge success">PayRouta Multi-Provider Network</div>
-              <h3>Continuous Availability = Recovered Revenue</h3>
-              <p>
-                PayRouta continuously evaluates operational health. If Provider A stumbles, Provider B fulfills the exact same payment method.
-              </p>
-              <ul className="comp-list">
-                <li className="good"><CheckCircle2 size={16} /> Buyer completes purchase without disruption</li>
-                <li className="good"><CheckCircle2 size={16} /> Automatic same-method failover (Monnify ↔ Paystack ↔ Flutterwave)</li>
-                <li className="good"><CheckCircle2 size={16} /> Unified settlement, transaction states, and reconciliation</li>
-                <li className="good"><CheckCircle2 size={16} /> One integration covers bank transfers, cards, mobile money, and crypto</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* SUPPORTED PAYMENT METHODS */}
-      <section className="section">
-        <div className="container">
-          <div className="section-header-centered">
-            <span className="eyebrow-tag">Global Corridors &amp; Rails</span>
-            <h2>50+ local payment methods across 40+ countries.</h2>
-            <p>
-              Your customers choose the local <strong>payment method</strong> they trust in their currency.
-              Behind the scenes, PayRouta routes across multiple certified <strong>payment providers</strong>
-              (acquirers, processors, and bank gateways) for each method—ensuring instant same-method redundancy.
-            </p>
-          </div>
-
-          <div className="payment-methods-grid">
-            {supportedMethods.map((method) => {
-              const Icon = method.icon;
-              return (
-                <div key={method.title} className="payment-method-card">
-                  <div className="method-card-top">
-                    <div className="method-icon-bubble">
-                      <Icon size={20} />
-                    </div>
-                    <span className="method-badge">{method.badge}</span>
-                  </div>
-                  <h3>{method.title}</h3>
-                  <p>{method.description}</p>
-                  <div className="coverage-tags">
-                    {method.coverage.map((tag) => (
-                      <span key={tag} className="tag-chip">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* 3-STEP FLOW SECTION */}
-      <section className="section bg-light">
-        <div className="container">
-          <div className="section-header-centered">
-            <span className="eyebrow-tag">Simple Workflow</span>
-            <h2>How PayRouta works behind the scenes.</h2>
-            <p>
-              Your customers experience a frictionless checkout. Your business gets enterprise-grade routing.
-            </p>
-          </div>
-
-          <div className="steps-cards-row">
-            <div className="step-card">
-              <span className="step-num">01</span>
-              <h3>Customer Selects Method</h3>
-              <p>
-                At checkout, the customer chooses from normalized methods they recognize: Bank Transfer, Card, Mobile Money, or Stablecoins.
-              </p>
-            </div>
-            <div className="step-card">
-              <span className="step-num">02</span>
-              <h3>Intelligent Route Selection</h3>
-              <p>
-                PayRouta evaluates compliance, fees, and real-time provider availability to route the attempt through the best available processor.
-              </p>
-            </div>
-            <div className="step-card">
-              <span className="step-num">03</span>
-              <h3>Unified Settlement</h3>
-              <p>
-                The payment confirms instantly. Funds are reconciled into your journal ledger and settled to your treasury account automatically.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* DEVELOPER SECTION */}
-      <section className="section dark developer-section">
-        <div className="container dev-grid">
+    <div className="mk">
+      {/* HERO: the product, working */}
+      <section className="mk-hero">
+        <div className="mk-wrap mk-hero-grid">
           <div>
-            <span className="eyebrow-tag text-mint">Developer First</span>
-            <h2>Integrate in 15 minutes. Never touch another payment adapter.</h2>
-            <p className="dev-lead">
-              Our official Node.js and Python SDKs provide strict TypeScript definitions,
-              runtime validation, automatic idempotency keys, and webhook signature verification out of the box.
+            <Kicker line="bank">Payment routing · {status.stage}</Kicker>
+            <h1 className="mk-h1">Every way your customers pay. One integration.</h1>
+            <p className="mk-lead">
+              Apply once to PayRouta and accept cards, bank transfers, mobile
+              money and stablecoins. One API routes every payment across our
+              regulated processing partners — and when one goes down, PayRouta
+              sends the payment through another. You&apos;re paid out on your
+              schedule.
             </p>
-
-            <div className="sdk-install-box">
-              <div className="sdk-line">
-                <span>npm</span>
-                <code>npm install @payrouta/server</code>
-              </div>
-              <div className="sdk-line">
-                <span>pip</span>
-                <code>pip install payrouta</code>
-              </div>
+            <div className="mk-actions">
+              <Btn href="/merchant" large>
+                Start building
+              </Btn>
+              <Btn href="/contact?intent=merchant" ghost large>
+                Talk to sales
+              </Btn>
             </div>
-
-            <div className="dev-actions">
-              <Link href={paths.docs} className="hero-btn-primary">
-                Read Documentation <ArrowRight size={16} />
-              </Link>
-              <Link href={paths.apiReference} className="hero-btn-secondary">
-                OpenAPI Specification
-              </Link>
+            <div className="mk-hero-meta">
+              {["Free sandbox", "One application", "Regulated partners hold funds"].map((t) => (
+                <span key={t}>
+                  <CheckCircle size={18} weight="fill" color="var(--teal)" /> {t}
+                </span>
+              ))}
             </div>
           </div>
-
-          <div className="dev-code-card">
-            <div className="code-header-bar">
-              <div className="code-dots">
-                <span /><span /><span />
-              </div>
-              <span className="code-filename">checkout.ts</span>
-            </div>
-            <pre className="code-body">
-              <code>{`import { PayRouta } from "@payrouta/server";
-
-const payrouta = new PayRouta({
-  apiKey: process.env.PAYROUTA_SECRET_KEY,
-});
-
-// Create normalized payment intent
-const intent = await payrouta.paymentIntents.create({
-  amount: "15000.00",
-  currency: "NGN",
-  reference: "INV-2026-0042",
-  customer: { email: "buyer@example.com" },
-  acceptedMethods: ["bank_transfer", "card", "stablecoin"],
-  settlementCurrency: "NGN",
-});
-
-// Redirect customer to secure checkout
-return res.redirect(intent.checkoutUrl);`}</code>
-            </pre>
-          </div>
+          <RouteWidget />
         </div>
       </section>
 
-      {/* PROVIDER NETWORK SECTION */}
-      <section className="section">
-        <div className="container provider-invite-card">
-          <div className="provider-invite-copy">
-            <span className="eyebrow-tag">For Financial Institutions &amp; PSPs</span>
-            <h2>Join the PayRouta Provider Network.</h2>
-            <p>
-              Are you a payment processor, card acquirer, bank, or mobile money operator?
-              Self-register your organization, declare your regional capabilities, run automated sandbox certification,
-              and receive transaction volume from global merchants.
-            </p>
-            <div className="provider-buttons">
-              <Link href="/provider/onboarding" className="hero-btn-primary">
-                Register as Provider <ArrowRight size={16} />
-              </Link>
-              <Link href="/provider/sign-in" className="hero-btn-secondary">
-                Provider Sign In
-              </Link>
-            </div>
-          </div>
+      <FlagStrip />
+
+      {/* FIGURES */}
+      <section className="mk-section tight mk-mint">
+        <div className="mk-wrap">
+          <Stats />
         </div>
       </section>
 
-      {/* FAQ SECTION */}
-      <section className="section bg-light">
-        <div className="container faq-container">
-          <div className="section-header-centered">
-            <span className="eyebrow-tag">Got Questions?</span>
-            <h2>Frequently asked questions</h2>
-          </div>
-
-          <div className="faq-accordion">
-            {faqs.map((faq, i) => (
-              <details key={i} className="faq-item">
-                <summary className="faq-question">
-                  <span>{faq.q}</span>
-                  <span className="faq-chevron">+</span>
-                </summary>
-                <div className="faq-answer">
-                  <p>{faq.a}</p>
-                </div>
-              </details>
+      {/* ONE APPLICATION */}
+      <section className="mk-section">
+        <div className="mk-wrap">
+          <SectionHead
+            n="1"
+            line="bank"
+            kicker="Register once"
+            title="One application. Every way to get paid."
+            lead="Tell PayRouta about your business once. We verify you and set up processing with our regulated partners behind the scenes — you never see a provider's forms. Already have provider accounts in your own name? Connect them too."
+          >
+            <MkLink href="/docs/provider-accounts">How accounts and payouts work</MkLink>
+          </SectionHead>
+          <div className="mk-principles">
+            {(
+              [
+                ["bank", "Apply once", "One application to PayRouta. We verify your business and share with each processing partner only what it needs."],
+                ["card", "Bring your own accounts", "Accounts you already own with a supported provider stay yours, and PayRouta routes to them alongside its own processing."],
+                ["mobile", "Paid out on your schedule", "Regulated partners hold your balance — never PayRouta's own bank accounts — and you're paid out daily, weekly or monthly. Stablecoins go straight to your wallet."],
+              ] as const
+            ).map(([l, h, p]) => (
+              <article key={h} data-reveal>
+                <span className="mk-bullet" style={{ background: lines[l].color }} aria-hidden="true">
+                  {lines[l].bullet}
+                </span>
+                <h3 className="mk-h3">{h}</h3>
+                <p className="mk-body">{p}</p>
+              </article>
             ))}
           </div>
         </div>
       </section>
 
-      {/* FINAL CTA SECTION */}
-      <section className="section dark closing-cta-section">
-        <div className="container text-center">
-          <h2>Start accepting payments with zero provider lock-in.</h2>
-          <p className="cta-sub">
-            Launch your merchant workspace in 2 minutes. Test in sandbox, invite your team, and go live.
-          </p>
-          <div className="cta-buttons-center">
-            <Link href="/merchant" className="hero-btn-primary large">
-              Launch Merchant Workspace <ArrowRight size={18} />
-            </Link>
-            <Link href={paths.docs} className="hero-btn-secondary large">
-              Explore API Documentation →
-            </Link>
+      {/* FAILOVER */}
+      <section className="mk-section mk-fog">
+        <div className="mk-wrap">
+          <SectionHead
+            n="2"
+            line="card"
+            kicker="Same-method failover"
+            title="Providers go down. Your checkout doesn't."
+            lead="Every provider has outages, maintenance windows and bad afternoons. PayRouta keeps a backup route ready for every payment method, so a failure on their side stays invisible on yours."
+          />
+          <Versus />
+        </div>
+      </section>
+
+      {/* DEPARTURES */}
+      <section className="mk-section mk-dark">
+        <div className="mk-wrap">
+          <SectionHead
+            n="3"
+            line="mobile"
+            kicker="Routing, simulated"
+            title="Every payment leaves on time."
+            lead="PayRouta watches the health of each of your providers and reroutes before your customer notices. This sandbox simulation shows what a busy afternoon looks like."
+          />
+          <DepartureBoard />
+        </div>
+      </section>
+
+      {/* METHODS */}
+      <section className="mk-section">
+        <div className="mk-wrap">
+          <SectionHead
+            n="4"
+            line="wallet"
+            kicker="Payment methods"
+            title="Meet customers in the way they already pay."
+            lead="Card-first checkouts lose most of the world. PayRouta puts the methods people trust behind one schema — and shows each customer only the ones your provider accounts can complete for them."
+          >
+            <MkLink href={paths.paymentMethods}>Explore every method</MkLink>
+          </SectionHead>
+          <MethodBento />
+        </div>
+      </section>
+
+      {/* GLOBAL MERCHANTS */}
+      <section className="mk-section mk-fog">
+        <div className="mk-wrap">
+          <SectionHead
+            n="5"
+            line="crypto"
+            kicker="Built for real businesses"
+            title="From market stalls to global storefronts."
+            lead="Local merchants selling at home and indie software businesses selling worldwide get the same thing: their own provider accounts, a checkout that speaks their customers' language, and a backup when a provider fails."
+          />
+          <div className="mk-mosaic">
+            <Photo src="market-vendor-phone" alt="A market trader holding her phone at her fruit stall" tags={[{ label: "Mobile money", line: "mobile" }]} />
+            <Photo src="boutique-seller" alt="An online clothing seller celebrating an order at her laptop" tags={[{ label: "Cards", line: "card" }]} />
+            <Photo src="cafe-owner-tablet" alt="A café owner using a tablet point of sale behind the counter" tags={[{ label: "Wallets", line: "wallet" }]} />
+            <Photo src="tailor-phone" alt="A tailor smiling at his phone beside a sewing machine" tags={[{ label: "Transfers", line: "bank" }]} />
+            <Photo src="tokyo-street" alt="A street of small shops lit up at night" tags={[{ label: "Wallets", line: "wallet" }]} />
+            <Photo src="packing-orders" alt="A merchant packing an order into a shipping box" tags={[{ label: "Stablecoins", line: "crypto" }]} />
           </div>
         </div>
       </section>
+
+      {/* CALCULATOR */}
+      <section className="mk-section">
+        <div className="mk-wrap">
+          <SectionHead
+            n="6"
+            line="bank"
+            kicker="The cost of a single route"
+            title="How much is one provider costing you?"
+            lead="Provider-side failures are revenue you've already won — the customer chose, clicked pay, and the rails let you down. Estimate what a backup route is worth."
+          />
+          <RevenueCalculator />
+        </div>
+      </section>
+
+      {/* DEVELOPERS */}
+      <section className="mk-section mk-dark">
+        <div className="mk-wrap mk-dev">
+          <div data-reveal>
+            <Kicker n="7">For developers</Kicker>
+            <h2 className="mk-h2">One API across your providers. No adapters to babysit.</h2>
+            <p className="mk-lead">
+              Create an intent, redirect to checkout, listen for signed events.
+              Idempotency, retries, status rechecks and provider quirks are
+              handled before they reach your code.
+            </p>
+            <p className="mk-body">{status.sdks}. Or call the HTTP API directly.</p>
+            <div className="mk-actions">
+              <Btn href="/docs/quickstart">Read the quickstart</Btn>
+              <Btn href={paths.apiReference} ghost>
+                API reference
+              </Btn>
+            </div>
+          </div>
+          <CodeTabs />
+        </div>
+      </section>
+
+      {/* MANIFESTO */}
+      <section className="mk-section">
+        <div className="mk-wrap">
+          <Kicker n="8" line="card">
+            Why PayRouta
+          </Kicker>
+          <p className="mk-quote" data-reveal>
+            The world doesn&apos;t pay one way. A shopper in São Paulo reaches
+            for <mark>Pix</mark>, one in Nairobi for <mark>M-Pesa</mark>, one in
+            Berlin for a <mark>card</mark>. Every business should be able to say
+            yes to all of them — and never lose a sale because one provider had
+            a bad day.
+          </p>
+          <div className="mk-principles">
+            {(
+              [
+                ["card", "The customer chooses", "We never swap a customer's payment method behind their back. Routing happens within the method they picked."],
+                ["bank", "Every method has a backup", "No single provider is a single point of failure. Each method can route to more than one of your providers."],
+                ["mobile", "States are honest", "A timeout is not a failure. Uncertain payments are rechecked before anything is retried, so nobody pays twice."],
+              ] as const
+            ).map(([l, h, p]) => (
+              <article key={h} data-reveal>
+                <span className="mk-bullet" style={{ background: lines[l].color }} aria-hidden="true">
+                  {lines[l].bullet}
+                </span>
+                <h3 className="mk-h3">{h}</h3>
+                <p className="mk-body">{p}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* PROVIDER NETWORK */}
+      <section className="mk-section tight">
+        <div className="mk-wrap">
+          <div className="mk-network mk-dark" data-reveal>
+            <div>
+              <Kicker n="9">For payment providers</Kicker>
+              <h2 className="mk-h2">Merchants apply once. You onboard them directly.</h2>
+              <p className="mk-lead">
+                If your programme opens accounts that merchants own, PayRouta
+                sends you pre-screened, pre-filled applications from merchants
+                who choose you. You verify them, contract with them and settle
+                to them — PayRouta routes their payments to you.
+              </p>
+              <div className="mk-actions">
+                <Btn href="/contact?intent=provider">Talk to partnerships</Btn>
+                <Btn href={paths.providers} ghost>
+                  How it works
+                </Btn>
+              </div>
+            </div>
+            <NetworkGraphic />
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="mk-section mk-fog">
+        <div className="mk-wrap">
+          <Faq items={faqs} />
+        </div>
+      </section>
+
+      <Closing />
     </div>
+  );
+}
+
+// Providers as stations on lines that all run into the PayRouta interchange.
+function NetworkGraphic() {
+  const keys = Object.keys(lines) as (keyof typeof lines)[];
+  return (
+    <svg viewBox="0 0 480 400" aria-hidden="true">
+      {keys.map((k, i) => {
+        const y = 60 + i * 70;
+        const c = lines[k].color;
+        return (
+          <g key={k}>
+            <path d={`M20,${y} H150 L${150 + Math.abs(200 - y) * 0.5},${200 + (y - 200) * 0.5} H460`} fill="none" stroke={c} strokeWidth="10" strokeLinejoin="round" />
+            <circle cx="70" cy={y} r="11" fill="#fff" stroke={c} strokeWidth="5" />
+          </g>
+        );
+      })}
+      <rect x="330" y="72" width="44" height="256" rx="22" fill="#fff" stroke="var(--mint)" strokeWidth="6" />
+      <g transform="translate(337 185) scale(0.3)">
+        <path fill="#0b1b22" d="M16 88V24Q16 12 28 12H57C78 12 90 23 90 40S78 68 57 68H43V52H57C68 52 74 48 74 40S68 28 57 28H32V88Z" />
+        <path fill="#00857a" d="M43 52H62L90 88H70Z" />
+      </g>
+    </svg>
   );
 }

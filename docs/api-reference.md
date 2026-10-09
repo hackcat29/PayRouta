@@ -1,214 +1,133 @@
-# API Reference
+# API reference
 
-The PayRouta REST API allows merchants to programmatically generate payment intents, query real-time method availability, select an eligible provider, and track decoupled settlements.
+Base path: `https://<your PayRouta host>/api/v1`. The machine-readable contract is at `GET /api/v1/openapi.json`.
 
-> [!NOTE]
-> All requests must be made over **HTTPS**. Responses are returned in **JSON** format with standard HTTP status codes.
+## Authentication
 
----
+Send both headers on every request:
 
-## Standard headers
+```
+Authorization: Bearer pr_sandbox_…
+PayRouta-Environment: sandbox
+```
 
-* `Authorization: Bearer <key>` — Secret key authentication (`Bearer sec_live_...`).
-* `Idempotency-Key: <uuid>` — Unique UUID v4 preventing duplicate operations during network retries.
-* `PayRouta-Version: 2026-09-14` — API version identifier.
-* `Content-Type: application/json` — Standard payload format.
+Keys are created in the dashboard under **Developers → API keys**, and each key is bound to one environment. Unknown or revoked keys return `401`. A missing scope, or an environment that doesn't match the key, returns `403`.
 
----
+| Scope | Allows |
+| --- | --- |
+| `payments:read` | Read intents, payments, available methods and checkout sessions |
+| `payments:write` | Create intents, cancel intents, create checkout sessions |
+| `settlements:read` | Read settlements |
+| `webhooks:read` | Read the webhook endpoint and deliveries |
+| `webhooks:write` | Configure the webhook endpoint and request redelivery |
+| `configuration:read` | Read workspace configuration |
 
-## Core endpoints summary
+## Endpoints
 
-* `POST /v1/payment_intents` — Create a new payment intent.
-* `GET /v1/payment_intents/:id` — Retrieve intent details and execution status.
-* `GET /v1/payment_intents/:id/available_methods` — Evaluate viable payment rails and direct institutions.
-* `POST /v1/payment_intents/:id/select_method` — Submit the customer's chosen method and institution.
-* `POST /v1/payment_intents/:id/confirm` — Execute routing and initiate provider authorization.
-* `GET /v1/settlements/:id` — Retrieve merchant settlement status and payout proof.
+| Method and path | Scope | Description |
+| --- | --- | --- |
+| `POST /payment-intents` | payments:write | Create an intent. Requires `Idempotency-Key` |
+| `GET /payment-intents` | payments:read | List intents |
+| `GET /payment-intents/{id}` | payments:read | Retrieve an intent |
+| `POST /payment-intents/{id}/cancel` | payments:write | Cancel, only before any payment attempt exists |
+| `GET /payments`, `GET /payments/{id}` | payments:read | Normalized payment outcomes, including pending ones |
+| `GET /available-methods/{intentId}` | payments:read | Methods that can currently complete this intent |
+| `POST /checkout-sessions` | payments:write | `{ "intentId": "…" }`. Requires `Idempotency-Key` |
+| `GET /checkout-sessions/{id}` | payments:read | Session expiry and revocation |
+| `GET /settlements`, `GET /settlements/{id}` | settlements:read | Settlements that include your payments |
+| `GET /configuration` | configuration:read | Environment, return origin, application state, limits |
+| `GET`, `PUT`, `DELETE /webhook-endpoint` | webhooks:read / webhooks:write | Read, set or rotate, and disable your endpoint |
+| `GET /webhook-deliveries`, `GET /webhook-deliveries/{eventId}` | webhooks:read | Delivery status and attempts |
+| `POST /webhook-deliveries/{eventId}/redeliver` | webhooks:write | Redeliver the same event |
 
----
+Creation returns `201`; other successes return `200`. Every response carries an `X-Request-Id` header.
 
-## 1. Create a Payment Intent
+## Create a payment intent
 
-`POST /v1/payment_intents`
-
-Creates a new payment intent expressing the merchant's commercial constraints.
-
-### Request payload
+`POST /payment-intents`
 
 ```json
 {
-  "amount": "250.00",
-  "currency": "EUR",
-  "accepted_methods": [
-    "instant_bank",
-    "digital_wallet",
-    "card",
-    "stablecoins",
-    "crypto_app",
-    "rwa"
-  ],
-  "settlement": {
-    "currency": "EUR",
-    "target_instrument": "local_bank"
-  },
-  "payer_context": {
-    "country": "DE",
-    "ip_address": "185.220.101.5"
-  },
-  "merchant_reference": "inv_eu_88192"
+  "reference": "order_1042",
+  "amount": "15000.00",
+  "asset": { "kind": "blockchain", "identifier": "erc20:0x036cbd53842c5426634e7929541ec2318f3dcf7e", "network": "eip155:84532" },
+  "precision": 6,
+  "methods": ["stablecoin"],
+  "settlement": { "kind": "blockchain", "identifier": "erc20:0x036cbd53842c5426634e7929541ec2318f3dcf7e", "network": "eip155:84532" },
+  "returnUrl": "https://shop.example/orders/1042",
+  "metadata": { "orderId": "1042" }
 }
 ```
 
-### Response `201 Created`
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `reference` | string (1–100) | yes | Your own reference |
+| `amount` | decimal string | yes | Major units, such as `"15000.00"`. Never a float |
+| `asset` | object | yes | `kind` is `fiat` or `blockchain`; `identifier` is a currency code or a namespaced token id; `network` is `""` for fiat |
+| `payerCountry` | string | live: yes | Declared two-letter payer country within approved live scope |
+| `precision` | integer 0–18 | yes | Decimal places allowed in `amount` |
+| `methods` | array | yes | Launch MVP: `["stablecoin"]` only |
+| `settlement` | asset object | yes | Currently must equal `asset`. PayRouta does not convert currencies |
+| `returnUrl` | URL | yes | Must be on your registered return origin |
+| `metadata` | object | no | Up to 20 string pairs (keys up to 40 characters, values up to 200) |
+| `scenario` | string | no | Sandbox only; see the [quickstart](quickstart.md) |
+
+Unknown fields are rejected.
+
+Response (`201`):
 
 ```json
 {
-  "id": "pi_01j8k9m2x",
-  "status": "requires_method_selection",
-  "amount": "250.00",
-  "currency": "EUR",
-  "settlement": {
-    "currency": "EUR",
-    "target_instrument": "local_bank"
-  },
-  "created_at": "2026-09-14T01:30:00Z",
-  "expires_at": "2026-09-14T02:00:00Z"
+  "id": "cm…",
+  "environment": "sandbox",
+  "reference": "order_1042",
+  "amount": "15000.00",
+  "asset": { "kind": "blockchain", "identifier": "erc20:0x036cbd53842c5426634e7929541ec2318f3dcf7e", "network": "eip155:84532" },
+  "precision": 6,
+  "state": "Open",
+  "selectedMethod": null,
+  "createdAt": "2026-09-28T12:00:00.000Z",
+  "expiresAt": "2026-09-28T12:30:00.000Z"
 }
 ```
 
----
+## Create a checkout session
 
-## 2. Query available methods
+`POST /checkout-sessions` with `{ "intentId": "…" }` returns `{ "id", "intentId", "expiresAt", "checkoutPath" }`. Redirect the customer to `checkoutPath` on your PayRouta host. The session carries a single-use credential; retrying with the same idempotency key while the session is valid returns the same session.
 
-`GET /v1/payment_intents/:id/available_methods`
+## Available methods
 
-Evaluates real-time availability across corridors, provider health, liquidity, and limits.
-
-### Response `200 OK`
+`GET /available-methods/{intentId}` returns an evaluation:
 
 ```json
 {
-  "intent_id": "pi_01j8k9m2x",
+  "evaluationId": "…",
+  "evaluatedAt": "…",
+  "expiresAt": "…",
   "methods": [
-    {
-      "id": "sepa_instant",
-      "category": "instant_bank",
-      "label": "SEPA Instant",
-      "status": "available",
-      "channels": ["web", "mobile_app", "qr"],
-      "direct_institutions": [
-        "Deutsche Bank",
-        "BNP Paribas",
-        "ING Bank",
-        "Santander"
-      ]
-    },
-    {
-      "id": "card",
-      "category": "card",
-      "label": "Cards & Schemes",
-      "status": "available",
-      "channels": ["e_commerce", "pos_terminal", "softpos"],
-      "direct_institutions": [
-        "Girocard",
-        "Carte Bancaire",
-        "Visa",
-        "Mastercard"
-      ]
-    },
-    {
-      "id": "stablecoins",
-      "category": "stablecoins",
-      "label": "Circle USDC & EURC",
-      "status": "available",
-      "channels": ["circle_mint", "direct_transfer"],
-      "networks": ["Avalanche C-Chain", "Base", "Solana", "Ethereum"]
-    }
+    { "method": "card", "label": "Card", "status": "AVAILABLE", "explanation": "…" }
   ]
 }
 ```
 
----
+`status` is one of `COMING_SOON`, `AVAILABLE`, `ACTION_REQUIRED`, `TEMPORARILY_UNAVAILABLE`, `UNAVAILABLE` or `UNKNOWN`. Hosted checkout evaluates methods again for the customer, so use this endpoint for your own display or diagnostics only.
 
-## 3. Select method & execute
+## Settlements
 
-`POST /v1/payment_intents/:id/select_method`
+Amounts are integer strings in **minor units** (`amountUnit: "minor"`). `gross`, `fee` and `net` count only your own allocations, and `reconciliation` reports whether they matched the provider's report.
 
-Submits the customer's explicit choice and initiates optimal route execution.
+## Idempotency
 
-### Request payload
+`POST /payment-intents` and `POST /checkout-sessions` require an `Idempotency-Key` header of 8–100 letters, digits, underscores or hyphens. Reusing a key with the same body returns the original result; reusing it with a different body returns `409 IDEMPOTENCY_CONFLICT`. After a timeout or a `5xx`, retry with the **same** key.
 
-```json
-{
-  "selected_method": "sepa_instant",
-  "direct_institution": "Deutsche Bank",
-  "initiation_channel": "web"
-}
-```
+## Pagination
 
-### Response `200 OK`
+Lists return `{ "data": [...], "nextCursor": "…" | null }`, newest first. `limit` defaults to 25 (maximum 100). Payment lists also accept `reference`, `state`, `method`, `from` (inclusive) and `to` (exclusive).
 
-```json
-{
-  "intent_id": "pi_01j8k9m2x",
-  "status": "processing",
-  "selected_method": "sepa_instant",
-  "selected_institution": "Deutsche Bank",
-  "route": {
-    "provider_id": "de_direct_banking_core",
-    "execution_type": "instant_push",
-    "qr_payload": "https://pay.payrouta.com/qr/01j8k9m2x",
-    "deep_link": "bankapp://pay/01j8k9m2x"
-  }
-}
-```
+## Limits
 
----
+Request bodies are limited to 32 KiB. Each merchant environment may make 120 authenticated requests per minute; beyond that PayRouta returns `429` with `Retry-After: 60`. Error codes are listed in [Errors and recovery](errors.md).
 
-## 4. Query settlement status
+## Create a quoted crypto checkout
 
-`GET /v1/settlements/:id`
-
-Retrieves the merchant settlement lifecycle and payout confirmation.
-
-### Response `200 OK`
-
-```json
-{
-  "settlement_id": "set_8892102",
-  "intent_id": "pi_01j8k9m2x",
-  "status": "completed",
-  "disbursed_amount": "250.00",
-  "currency": "EUR",
-  "payout_destination": "DE89370400440532013000",
-  "cleared_at": "2026-09-14T01:32:15Z",
-  "payout_reference": "NIP/PR/9920102"
-}
-```
-
----
-
-## HTTP status codes
-
-* `200 OK` — Request completed successfully.
-* `201 Created` — Resource created (e.g., payment intent).
-* `400 Bad Request` — Malformed JSON or invalid parameter syntax.
-* `401 Unauthorized` — Missing or invalid API key.
-* `404 Not Found` — Requested resource ID does not exist.
-* `409 Conflict` — Idempotency collision or invalid state transition.
-* `422 Unprocessable` — Request valid but violates business logic or transaction limits.
-* `502 Bad Gateway` — Upstream clearing network timeout or connectivity error.
-
----
-
-## Next steps
-
-* Review data models in [Payment Intents](payment-intents.md).
-* Handle webhooks with [Webhooks & Events](webhooks.md).
-* Review error formats in [Errors & Recovery](errors.md).
-
-## Implemented provider control-plane availability
-
-The local Node application implements protected availability through the existing `POST /api/portal/command` namespace. `evaluate-availability` accepts `orgId` and `contextId`, checks membership, and evaluates a persisted trusted context. It does not accept caller-defined merchant permissions or verification claims. `availability-explanation` returns only the checkout-safe view. Internal context authoring, observations, registry inspection and reconciliation require Operations admin and fresh MFA.
-
-See [Provider integration concepts](/docs/provider-integration) for the public integration workflow. The backend control-plane details in this repository are internal implementation notes, not a published production route.
+`POST /crypto-checkouts` accepts a USD invoice and 1–20 reviewed coin/network options. The server fixes exact coin amounts and two-minute expiry using CoinGecko. It requires `payments:write`, an environment header and an idempotency key. See [Crypto wallet payments](crypto-payments.md) for request fields, supported deployments, fees and retry rules. Manually priced crypto payment intents without this quote are rejected.

@@ -1,47 +1,155 @@
+import { chain } from "../blockchain/chains";
+import { tokenAssets as stableAssets } from "../blockchain/assets";
+import {
+  cryptoAssets,
+  paymentAsset as tokenAsset,
+  onchainMethod,
+} from "../blockchain/crypto-assets";
+const tokenAssets = [...stableAssets, ...cryptoAssets];
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
+import { stablecoinDepositConfig as depositConfigSchema } from "../blockchain/deposit-config";
+import { assertLaunchMethod } from "../payments/launch";
+import { supportedPaymentMethodIds } from "../providers/normalized";
 import { internal } from "../portal/access";
 import { atomic, audit, json } from "../portal/service";
 import { PortalError, capabilitySchema } from "../portal/domain";
 import type { Tx } from "../payments/service";
+import { partnerModule } from "../partners/registry";
 
 const id = z.string().min(1).max(200);
 const positiveMinor = z.string().regex(/^[1-9]\d{0,29}$/);
-// Initial live review is deliberately limited to the requested Nigeria/NGN scope.
-// Adding a market or rail requires a schema + qualification change, not a wildcard.
+// Live review is explicit, never a wildcard: one merchant country, an explicit
+// list of payer countries, named methods and one exact asset (settled in
+// the same currency). Accounts are either merchant-owned partner accounts
+// (the provider contracted with the merchant directly) or connected accounts
+// the merchant already held, which need uploaded permission, settlement and
+// refund evidence.
+const country = z.string().regex(/^[A-Z]{2}$/);
+const reviewedAsset = z
+  .string()
+  .refine(
+    (v) =>
+      /^fiat:[A-Z]{3}:$/.test(v) ||
+      tokenAssets.some(
+        (a) =>
+          `blockchain:${a.identifier}:${a.network}` === v &&
+          chain(a.network)?.testnet === false,
+      ),
+  );
+export function reviewedAssetParts(key: string) {
+  const token = tokenAssets.find(
+    (a) => `blockchain:${a.identifier}:${a.network}` === key,
+  );
+  return token
+    ? {
+        kind: "blockchain",
+        identifier: token.identifier,
+        network: token.network,
+      }
+    : { kind: "fiat", identifier: key.split(":")[1], network: "" };
+}
 export const liveScopeInput = z
   .object({
     environment: z.literal("production"),
-    merchantCountry: z.literal("NG"),
-    payerCountries: z.array(z.literal("NG")).length(1),
+    merchantCountry: country,
+    payerCountries: z.array(country).min(1).max(50),
     methods: z
-      .array(z.enum(["bank-transfer", "card"]))
+      .array(z.enum(supportedPaymentMethodIds))
       .min(1)
-      .max(2),
-    asset: z.literal("fiat:NGN:"),
-    settlementAsset: z.literal("fiat:NGN:"),
+      .max(supportedPaymentMethodIds.length),
+    asset: reviewedAsset,
+    settlementAsset: reviewedAsset,
+    additionalAssets: z
+      .array(
+        z
+          .object({
+            asset: reviewedAsset,
+            maximumMinor: positiveMinor,
+            dailyMaximumMinor: positiveMinor,
+          })
+          .strict(),
+      )
+      .max(199)
+      .default([]),
     maximumMinor: positiveMinor,
     dailyMaximumMinor: positiveMinor,
-    profileIds: z.array(id).min(1).max(10),
+    profileIds: z.array(id).max(10),
     accounts: z
       .array(
         z
           .object({
             integrationId: id,
             accountReference: id,
-            permissionEvidenceId: id,
-            settlementDestinationEvidenceId: id,
-            refundResponsibilityEvidenceId: id,
+            permissionEvidenceId: id.optional(),
+            settlementDestinationEvidenceId: id.optional(),
+            refundResponsibilityEvidenceId: id.optional(),
           })
           .strict(),
       )
       .min(1)
-      .max(4),
+      .max(200),
     evidenceIds: z.array(id).min(1).max(30),
     nextReviewAt: z.iso.datetime(),
   })
   .strict()
   .superRefine((value, ctx) => {
+    const asset = reviewedAssetParts(value.asset);
+    const assetKeys = [
+      value.asset,
+      ...value.additionalAssets.map((a) => a.asset),
+    ];
+    if (
+      new Set(assetKeys).size !== assetKeys.length ||
+      value.additionalAssets.some(
+        (a) =>
+          reviewedAssetParts(a.asset).kind !== "blockchain" ||
+          BigInt(a.maximumMinor) > BigInt(a.dailyMaximumMinor),
+      ) ||
+      (value.additionalAssets.length && asset.kind !== "blockchain")
+    )
+      ctx.addIssue({
+        code: "custom",
+        message:
+          "Additional chains need distinct supported token assets and explicit limits",
+      });
+    if (
+      asset.kind === "blockchain" &&
+      (!tokenAsset(asset.network, asset.identifier) ||
+        value.methods.some((m) => !["stablecoin", "crypto-app"].includes(m)) ||
+        assetKeys.some((k) => {
+          const a = reviewedAssetParts(k);
+          return !value.methods.includes(
+            onchainMethod(a.network, a.identifier),
+          );
+        }) ||
+        value.methods.some(
+          (m) =>
+            !assetKeys.some((k) => {
+              const a = reviewedAssetParts(k);
+              return onchainMethod(a.network, a.identifier) === m;
+            }),
+        ))
+    )
+      ctx.addIssue({
+        code: "custom",
+        message:
+          "Blockchain live scope requires exact supported assets and their on-chain payment methods",
+      });
+    if (
+      asset.kind === "fiat" &&
+      value.methods.some((m) => ["stablecoin", "crypto-app"].includes(m))
+    )
+      ctx.addIssue({
+        code: "custom",
+        message: "Stablecoin scope requires a token asset",
+      });
+    if (value.settlementAsset !== value.asset)
+      ctx.addIssue({
+        code: "custom",
+        path: ["settlementAsset"],
+        message: "Settlement must be in the same currency",
+      });
     if (BigInt(value.maximumMinor) > BigInt(value.dailyMaximumMinor))
       ctx.addIssue({
         code: "custom",
@@ -51,6 +159,7 @@ export const liveScopeInput = z
     for (const [field, values] of [
       ["profileIds", value.profileIds],
       ["methods", value.methods],
+      ["payerCountries", value.payerCountries],
       ["evidenceIds", value.evidenceIds],
       ["accounts", value.accounts.map((a) => a.integrationId)],
     ] as const)
@@ -126,11 +235,13 @@ export async function validateScopeEvidence(
   const ids = [
     ...new Set([
       ...scope.evidenceIds,
-      ...scope.accounts.flatMap((a) => [
-        a.permissionEvidenceId,
-        a.settlementDestinationEvidenceId,
-        a.refundResponsibilityEvidenceId,
-      ]),
+      ...scope.accounts.flatMap((a) =>
+        [
+          a.permissionEvidenceId,
+          a.settlementDestinationEvidenceId,
+          a.refundResponsibilityEvidenceId,
+        ].filter((v): v is string => !!v),
+      ),
     ]),
   ];
   const evidence = await tx.evidence.findMany({
@@ -159,15 +270,89 @@ export async function validateScopeEvidence(
       environment: "production",
     },
   });
+  for (const key of [
+    scope.asset,
+    ...scope.additionalAssets.map((a) => a.asset),
+  ]) {
+    const a = reviewedAssetParts(key);
+    if (
+      a.kind === "blockchain" &&
+      !integrations.some((i) => {
+        const c = depositConfigSchema.safeParse(i.config);
+        return (
+          c.success &&
+          c.data.network === a.network &&
+          c.data.identifier === a.identifier
+        );
+      })
+    )
+      throw new PortalError("SCOPED_CHAIN_ACCOUNT_REQUIRED", 409);
+  }
+  // Accounts created through a partner programme are bound only while their
+  // partner application is still approved and consented.
+  const partnerAccounts = await tx.partnerApplication.findMany({
+    where: {
+      orgId,
+      environment: "production",
+      state: "Approved",
+      integrationId: { in: integrations.map((i) => i.id) },
+    },
+  });
   if (
     integrations.length !== scope.accounts.length ||
     scope.accounts.some((a) => {
       const config = integrations.find((i) => i.id === a.integrationId)
-        ?.config as { accountId?: string; adapter?: string } | undefined;
+        ?.config as
+        | {
+            accountId?: string;
+            adapter?: string;
+            mode?: string;
+            partnerApplicationId?: string;
+          }
+        | undefined;
+      if (!config || config.accountId !== a.accountReference) return true;
+      if (
+        [
+          "evm-native-deposit",
+          "erc20-deposit",
+          "solana-deposit",
+          "stellar-deposit",
+        ].includes(config.adapter || "")
+      ) {
+        const parsed = depositConfigSchema.safeParse(
+          integrations.find((i) => i.id === a.integrationId)?.config,
+        );
+        const approved = [
+          scope.asset,
+          ...scope.additionalAssets.map((a) => a.asset),
+        ].map(reviewedAssetParts);
+        return (
+          !parsed.success ||
+          parsed.data.environment !== "production" ||
+          !approved.some(
+            (a) =>
+              parsed.success &&
+              parsed.data.network === a.network &&
+              parsed.data.identifier === a.identifier,
+          ) ||
+          !a.permissionEvidenceId ||
+          !a.settlementDestinationEvidenceId ||
+          !a.refundResponsibilityEvidenceId
+        );
+      }
+      if (config.mode === "PARTNER")
+        return !partnerAccounts.some(
+          (p) =>
+            p.id === config.partnerApplicationId &&
+            p.integrationId === a.integrationId &&
+            p.partnerId === config.adapter,
+        );
+      // A previously held account needs the three pieces of uploaded evidence.
       return (
-        !config ||
-        config.accountId !== a.accountReference ||
-        !["paystack", "flutterwave"].includes(config.adapter || "")
+        !["paystack", "flutterwave"].includes(config.adapter || "") ||
+        !a.permissionEvidenceId ||
+        !a.settlementDestinationEvidenceId ||
+        !a.refundResponsibilityEvidenceId
       );
     })
   )
@@ -180,6 +365,36 @@ export async function validateScopeEvidence(
       environment: "production",
     },
   });
+  const asset = reviewedAssetParts(scope.asset);
+  const currency = asset.identifier;
+  // Methods a bound partner account can execute cover the scope directly.
+  const partnerMethods = new Set(
+    partnerAccounts.flatMap((p) => {
+      try {
+        return [...(partnerModule(p.partnerId).manifest.paymentMethods ?? [])];
+      } catch {
+        return [];
+      }
+    }),
+  );
+  for (const integration of integrations) {
+    const parsed = depositConfigSchema.safeParse(integration.config);
+    if (
+      parsed.success &&
+      [scope.asset, ...scope.additionalAssets.map((a) => a.asset)].some(
+        (key) => {
+          const a = reviewedAssetParts(key);
+          return (
+            parsed.data.network === a.network &&
+            parsed.data.identifier === a.identifier
+          );
+        },
+      )
+    )
+      partnerMethods.add(
+        onchainMethod(parsed.data.network, parsed.data.identifier),
+      );
+  }
   if (
     profiles.length !== scope.profileIds.length ||
     profiles.some((p) => {
@@ -187,17 +402,20 @@ export async function validateScopeEvidence(
       return (
         !c.success ||
         !scope.accounts.some((a) => a.integrationId === p.integrationId) ||
-        !scope.methods.includes(p.method as "card" | "bank-transfer") ||
+        !scope.methods.includes(p.method as (typeof scope.methods)[number]) ||
         p.operation !== "pay-in" ||
-        p.origin !== "NG" ||
-        p.destination !== "NG" ||
-        p.inputAsset !== "NGN" ||
-        p.inputNetwork !== "" ||
-        c.data.fulfillment?.settlementAsset.identifier !== "NGN" ||
-        c.data.fulfillment?.settlementAsset.kind !== "fiat"
+        !scope.payerCountries.includes(p.origin) ||
+        p.destination !== scope.merchantCountry ||
+        p.inputAsset !== currency ||
+        p.inputNetwork !== asset.network ||
+        c.data.fulfillment?.settlementAsset.identifier !== currency ||
+        c.data.fulfillment?.settlementAsset.kind !== asset.kind ||
+        c.data.fulfillment?.settlementAsset.network !== asset.network
       );
     }) ||
-    scope.methods.some((m) => !profiles.some((p) => p.method === m))
+    scope.methods.some(
+      (m) => !profiles.some((p) => p.method === m) && !partnerMethods.has(m),
+    )
   )
     throw new PortalError("EXACT_APPROVED_PROFILES_REQUIRED", 409);
   return { evidenceIds: ids, profileIds: profiles.map((p) => p.id) };
@@ -233,6 +451,7 @@ export async function liveScopeCommand(raw: unknown, headers: Headers) {
     const previous = storedLiveScope.safeParse(config.liveScope);
     let scope: z.infer<typeof storedLiveScope>;
     if (b.action === "propose-live-scope") {
+      for (const method of b.input.methods) assertLaunchMethod(method);
       if (
         config.applicationVersion !== b.applicationVersion ||
         !["Under review", "Approved"].includes(config.applicationState)
@@ -324,17 +543,29 @@ export function liveScopeReasons(
     reasons.push("LIVE_SCOPE_REVIEW_DUE");
   if (
     context.country !== scope.merchantCountry ||
-    context.asset !== scope.asset ||
+    !approvedAssetLimits(scope, context.asset) ||
     (context.method &&
-      !scope.methods.includes(context.method as "card" | "bank-transfer"))
+      !scope.methods.includes(context.method as (typeof scope.methods)[number]))
   )
     reasons.push("OUTSIDE_APPROVED_LIVE_SCOPE");
-  if (context.amount > BigInt(scope.maximumMinor))
+  const limits = approvedAssetLimits(scope, context.asset);
+  if (limits && context.amount > BigInt(limits.maximumMinor))
     reasons.push("LIVE_SCOPE_TRANSACTION_LIMIT");
   if (
+    limits &&
     !context.alreadyReserved &&
-    context.dailyReserved + context.amount > BigInt(scope.dailyMaximumMinor)
+    context.dailyReserved + context.amount > BigInt(limits.dailyMaximumMinor)
   )
     reasons.push("LIVE_SCOPE_AGGREGATE_LIMIT");
   return reasons;
+}
+
+export function approvedAssetLimits(scope: LiveScopeInput, asset: string) {
+  return scope.asset === asset
+    ? {
+        asset: scope.asset,
+        maximumMinor: scope.maximumMinor,
+        dailyMaximumMinor: scope.dailyMaximumMinor,
+      }
+    : scope.additionalAssets.find((a) => a.asset === asset);
 }

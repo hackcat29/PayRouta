@@ -1,4 +1,8 @@
+import { createMerchantCryptoCheckout } from "@/lib/merchant/crypto-checkout";
+import { createStablecoinCheckout } from "@/lib/merchant/stablecoin-checkout";
+import { configureStablecoins } from "@/lib/merchant/stablecoins";
 import { liveScopeCommand } from "@/lib/merchant/live-scope";
+import { createMerchantWorkspace } from "@/lib/merchant/workspace";
 import { transitionRollout } from "@/lib/merchant/qualification";
 import { teamCommand } from "@/lib/merchant/team";
 import { saveApplication, operatorCommand } from "@/lib/merchant/onboarding";
@@ -63,8 +67,35 @@ export async function POST(request: Request) {
       ].includes(raw?.action)
     )
       return liveScopeCommand(raw, request.headers);
+    if (raw?.action === "crypto-checkout")
+      return createMerchantCryptoCheckout(
+        z.string().min(1).parse(raw.orgId),
+        raw.input,
+        request.headers,
+      );
+    if (raw?.action === "crypto-wallets")
+      return configureStablecoins(
+        z.string().min(1).parse(raw.orgId),
+        raw.input,
+        request.headers,
+        true,
+      );
+    if (raw?.action === "stablecoin-checkout")
+      return createStablecoinCheckout(
+        z.string().min(1).parse(raw.orgId),
+        raw.input,
+        request.headers,
+      );
+    if (raw?.action === "stablecoins")
+      return configureStablecoins(
+        z.string().min(1).parse(raw.orgId),
+        raw.input,
+        request.headers,
+      );
     if (raw?.action === "rollout-transition")
       return transitionRollout(raw, request.headers);
+    if (raw?.action === "create-workspace")
+      return createMerchantWorkspace(raw.input, request.headers);
     if (["merchant-invite", "merchant-role"].includes(raw?.action))
       return teamCommand(raw, request.headers);
     if (["policy", "approve-risk", "review-application"].includes(raw?.action))

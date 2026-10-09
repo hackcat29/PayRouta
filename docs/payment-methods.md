@@ -1,142 +1,30 @@
-# Payment Methods & Initiation Channels
+# Payment methods
 
-Availability determines whether a payment rail can serve a transaction right now. It is computed before customer selection and provider routing.
+> Launch scope: stablecoins and direct crypto wallet payments for every merchant, plus cards, bank transfers and mobile money through PayRouta's processing partners once your payments account is activated. Exchange-app payments are Coming soon. Stablecoin sandbox payments use actual testnet tokens; they cannot simulate a successful deposit. See [Crypto wallet payments](crypto-payments.md).
+The merchant API accepts **9 method categories**: bank transfer, card, mobile money, digital wallet, USSD, direct debit, BNPL, stablecoin and crypto app. These are request categories, not nine live-qualified integrations.
 
-> [!TIP]
-> PayRouta distinguishes between the **Settlement Rail** (how funds clear and settle) and the **Initiation Channel** (how the customer authorizes the transaction, such as online, via offline USSD, or at an in-person POS terminal).
+The provider directory contains **41 guides in 8 categories**: **40 payment-related guides and one excluded real-world-asset reference**. Guides include providers, wallet brands, card schemes, bank rails and token assets; they are not 41 independent payment methods. The internal taxonomy also contains cash/voucher, which the merchant API does not currently accept.
 
----
+| `methods` value | Execution code / remaining scope |
+| --- | --- |
+| `bank-transfer` | Paystack / Flutterwave / Monnify NGN transfer; Stripe EUR/USD hosted credit transfers; Stripe / Adyen Pix; PhonePe UPI or net banking |
+| `card` | Hosted Stripe, Adyen, Paystack and Flutterwave; Visa and Mastercard are schemes within acquiring integrations |
+| `mobile-money` | MTN MoMo collection API; supported Paystack and Flutterwave channels, including KES M-Pesa |
+| `digital-wallet` | Explicit enabled wallets in Stripe / Adyen / Xendit, PayPal Orders, approved US Venmo, NGN OPay QR, PayPay, Mercado Pago and PicPay |
+| `ussd` | Paystack / Flutterwave NGN hosted checkout |
+| `direct-debit` | Stripe hosted ACH/SEPA mandates; Adyen SEPA debit |
+| `bnpl` | Stripe Klarna/Affirm; Adyen Klarna/Affirm with validated order lines |
+| `stablecoin` | Direct ERC-20, SPL and Stellar classic deposits across Ethereum, Base, Arc, Avalanche, Arbitrum, Polygon, Solana and Stellar. USDC on all eight; EURC on six; USDT on Ethereum/Avalanche/Solana. Exact asset binding and finalized receipts; production review remains gated |
+| `crypto-app` | Direct on-chain wallet payments with CoinGecko USD quotes and exact original deployments. Ethereum, Base, Arbitrum, Polygon, Avalanche, Solana and Arc: 20 crypto coins each; Stellar: 12. Exchange-app payments are Coming soon |
 
-## Inputs to availability
+Provider code is exercised with injected transports. No newly added integration is enabled or live-qualified by this change. Actual checkout availability still requires an approved account/capability, exact country/currency/amount eligibility, authentic operational observations, secret references and the existing production review. Native configuration is provisioned by operators; the generic provider form does not onboard these new adapters automatically.
 
-Availability is evaluated dynamically using multiple inputs:
-* **Payer Context**: Geolocation, country of residence, currency, device capabilities.
-* **Merchant Profile**: Business entity jurisdiction, accepted methods, settlement preferences.
-* **Transaction Limits**: Minimum and maximum ticket sizes per rail.
-* **Regulatory & Compliance**: KYC/AML rules, local scheme regulations, sanctions screening.
-* **Provider Operating Health**: Real-time provider latency, error rates, maintenance windows, and available liquidity.
+See [the complete coverage and configuration guide](provider-coverage.md) for all 41 entries and their prerequisites. Private PalmPay/Chipper API contracts and direct Daraja/Airtel APIs remain unimplemented. Stripe credit transfers need an existing customer and account eligibility; EUR/USD hosted instructions are implemented, but instant SEPA, FedNow/RTP and payouts are not. PhonePe UPI is a bank payment that may be completed with any supported UPI app; it is not a PhonePe wallet-balance integration.
 
----
+Customers choose a method; providers collect card/wallet authorization on their own pages. Optional `metadata.preferred_wallet` and `metadata.payment_rail` restrict the adapter's payment types. They cannot enable a method the operator or provider has not enabled. PayRouta does not collect card numbers or security codes on ordinary checkouts.
 
-## The 10 core settlement rails
+Payment confirmation and merchant settlement are separate. Provider confirmation recognizes the exact invoice asset/amount. External settlement requires imported provider settlement evidence; only the explicit sandbox simulator creates simulated settlement facts. An uncertain creation is polled or sent for inspection, never blindly recreated.
 
-PayRouta classifies payment methods into 10 fundamental global clearing rails:
+## Excluded scope
 
-### 1. Instant Bank Transfers (A2A)
-Real-time account-to-account bank transfer networks move funds directly between bank accounts within seconds.
-* **Global Systems**: **Pix** (Brazil), **UPI** (India), **iDEAL / Wero** (Europe), **FedNow / RTP** (US), **Faster Payments FPS** (UK), **NIP** (Nigeria), **BLIK** (Poland), **SPEI** (Mexico), **PayNow** (Singapore), **PromptPay** (Thailand).
-* **Initiation Channels**: Online banking redirect, dynamic QR code scanning, and offline **Bank USSD shortcodes** (e.g., `*737#` for GTBank, `*966#` for Zenith Bank) enabling feature-phone users to authorize interbank transfers without internet connectivity.
-
-### 2. Digital Wallets
-Stored-value and aggregated payment wallets enabling instant one-tap or QR-based checkout.
-* **Global Systems**: **Apple Pay**, **Google Pay**, **PayPal**, **Cash App**, **Venmo** (North America / Europe); **OPay**, **PalmPay** (West Africa); **Alipay**, **WeChat Pay** (China); **PayPay** (Japan); **Mercado Pago** (Latin America); **GCash** (Philippines).
-* **Initiation Channels**: Native mobile OS biometric sheet (Face ID / Touch ID), browser extension, dynamic QR code.
-
-### 3. Domestic & International Card Networks
-Debit, credit, and prepaid card schemes spanning international card brands and regional domestic schemes.
-* **Global Systems**: **Visa**, **Mastercard**, **American Express**, **Discover** alongside domestic schemes with superior local authorization rates: **RuPay** (India), **Cartes Bancaires (CB)** (France), **UnionPay** (China), **Elo** (Brazil), **JCB** (Japan), **Verve** (Nigeria / West Africa), **Mada** (Saudi Arabia), **Troy** (Turkey).
-* **Initiation Channels**: Online checkout (Card-Not-Present), in-person **Point-of-Sale (POS) terminals**, mobile POS (mPOS), and **SoftPOS (Tap-to-Phone)**.
-
-### 4. Direct Debit & Wire Transfers
-Batch bank clearing and electronic fund transfers suited for recurring subscriptions, payroll, utility bills, and large enterprise B2B invoices.
-* **Global Systems**: **ACH Direct Debit** (US), **SEPA Direct Debit (SDD)** (Eurozone), **Bacs** (UK), **PADs** (Canada), **BECS** (Australia), **Fedwire**, **SWIFT**.
-* **Settlement Timing**: Clears along standard commercial banking schedules over 1 to 3 business days.
-
-### 5. Cash Vouchers & Retail Payments
-Cash collection networks and retail vouchers allowing customers to initiate digital orders online and complete payment in cash.
-* **Global Systems**: **OXXO Pay** (Mexico), **Boleto Bancário** (Brazil), **Konbini** (Japan: 7-Eleven, Lawson, FamilyMart), **Multibanco** (Portugal), **Pago Fácil / Rapipago** (Argentina), **Paysafecard** (Europe).
-* **Agent Banking POS Channels**: Neighborhood agency banking networks (such as **Moniepoint**, **Baxi**, **Paga**, and **Equity Agent POS**) where customers tender physical cash at neighborhood agent counters to settle digital transactions.
-
-### 6. Buy Now, Pay Later (BNPL) & Local Installments
-Point-of-sale financing and consumer installment credit. The merchant receives full upfront settlement, while the financing provider handles consumer installment risk.
-* **Global Systems**: **Klarna** (Europe / US), **Affirm** (US), **Afterpay / Clearpay** (Australia / US / UK), **Tabby**, **Tamara** (Middle East), and Latin American card installments (*Parcelamento* in Brazil, *Meses sin intereses* in Mexico, *Cuotas* in Argentina).
-
-### 7. Mobile Money & Carrier Billing
-Telecom-stored balances and mobile phone billing systems widely adopted in emerging markets where mobile phones outnumber traditional bank accounts.
-* **Global Systems**: **Safaricom M-Pesa** (East Africa), **MTN MoMo** (Sub-Saharan Africa), **Airtel Money**, **Orange Money**, **Direct Carrier Billing** (Boku, Fortumo, Centili).
-* **Initiation Channels**: SIM Toolkit (STK Push) prompts and offline **Telco USSD sessions** (e.g., `*334#` for M-Pesa, `*671#` for MoMo) requiring zero internet connectivity.
-
-### 8. Stablecoins
-Regulated, dollar-backed digital currency tokens for instant, 24/7 global cross-border settlement.
-* **Supported Assets & Networks**: **Circle USDC** across high-throughput blockchains including **Avalanche (C-Chain)**, **Base**, **Solana**, **Ethereum**, **Polygon PoS**, and **Arbitrum One**; **Circle EURC** for MiCA-compliant Euro liquidity.
-* **Clearing Speed**: Sub-second to few-second finality with low fixed network fees. Settle directly to corporate crypto wallets or convert automatically to fiat bank accounts.
-
-### 9. Crypto Apps & Exchange Checkouts
-Direct checkout integrations with major cryptocurrency exchange balances and crypto apps.
-* **Global Systems**: **Binance Pay**, **Coinbase Commerce**, **Gate Pay**, **OKX Pay**, **Crypto.com Pay**.
-* **Initiation Channels**: In-app authorization and dynamic QR scanning. Payments clear instantly off-chain within the exchange ecosystem without blockchain network gas fees.
-
-### 10. Real-World Assets (RWAs)
-Tokenized traditional financial instruments and yield-bearing cash equivalents on public blockchains.
-* **Supported Assets**: Short-term tokenized US Treasury bills and yield notes (**Ondo Finance USDY / OUSG**, **Franklin Templeton BENJI**), tokenized physical gold (**Paxos Gold PAXG**), and tokenized sovereign debt notes.
-* **Use Cases**: Buyers check out using eligible tokenized RWAs, and merchants can elect to receive settlement directly in yield-generating notes.
-
----
-
-## Initiation channels vs. settlement rails
-
-PayRouta cleanly separates the **settlement rail** from the **initiation channel**:
-
-```mermaid
-graph LR
-    subgraph Channels["Initiation Channels (How payers authorize)"]
-        C1["Web Checkout"]
-        C2["Mobile App SDK"]
-        C3["Dynamic QR"]
-        C4["Bank USSD (*737#)"]
-        C5["Telco USSD (*334#)"]
-        C6["In-Person POS / SoftPOS"]
-        C7["Agent Banking Kiosks"]
-    end
-
-    subgraph Rails["Settlement Rails (Where funds clear)"]
-        R1["Instant Bank Transfers (A2A)"]
-        R2["Digital Wallets"]
-        R3["Cards & Schemes"]
-        R4["Direct Debit & Wire"]
-        R5["Cash Vouchers & Retail"]
-        R6["Installments (BNPL)"]
-        R7["Mobile Money"]
-        R8["Stablecoins (Circle USDC)"]
-        R9["Crypto Apps"]
-        R10["Real-World Assets"]
-    end
-
-    C4 --> R1
-    C5 --> R7
-    C6 --> R3
-    C6 --> R1
-    C7 --> R5
-```
-
-* **Bank USSD** (`*737#`, `*966#`) operates under **Instant Bank Transfers (A2A)**: Enables feature-phone users to authorize interbank transfers offline.
-* **Telco USSD & STK Push** (`*334#`, `*671#`) operates under **Mobile Money**: Debits telecom wallet balances directly on low-connectivity devices.
-* **In-Person POS Terminals & SoftPOS** operate under **Card Schemes** and **Instant Bank Transfers**: Bridges physical retail checkouts with automated digital routing.
-* **Agent POS Cash Tender** operates under **Cash Vouchers & Retail Payments**: Confirms payments when cash is handed to verified neighborhood agents (Moniepoint, Baxi, Paga, OXXO).
-
----
-
-## Availability states
-
-| State | Definition | Customer Presentation |
-| :--- | :--- | :--- |
-| **Available** | At least one eligible provider path satisfies requirements. | Displayed as selectable option. |
-| **Unavailable** | No provider currently satisfies the transaction corridor. | Hidden or grayed out with clear explanation. |
-| **Degraded** | Rail is operational but experiencing elevated latency or reduced SLA. | Offered with performance notice or routed via secondary path. |
-| **Restricted** | Regulatory, ticket-size, or merchant policy constraint applies. | Ineligible for selection with specific reason. |
-
----
-
-## Customer selection guardrails
-
-1. **Explicit Choice**: Accepted payment methods are merchant preferences, not an assumption that every method is viable. Always allow the customer to choose from viable options.
-2. **Strict Route Comparison**: A bank transfer choice compares eligible banks and banking gateways. A card choice compares domestic and international acquirers. Lower fees on another rail never permit overriding customer selection.
-3. **Reselection on Depletion**: If all eligible providers for a chosen rail fail prior to execution, request customer reselection rather than silently executing on a different rail.
-
----
-
-## Next steps
-
-* Learn how to specify accepted methods in [Payment Intents](payment-intents.md).
-* Explore merchant payout options in [Settlement & Treasury](settlement.md).
-* Review API parameters in [API Reference](api-reference.md).
+Tokenized securities and other real-world assets, custody, currency conversion and merchant-of-record tax services are excluded. Cash/voucher remains future taxonomy. Direct stablecoin code observes merchant-owned addresses; production activation still requires an approved blockchain review scope. Code coverage is not live qualification.

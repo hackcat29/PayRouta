@@ -1,88 +1,50 @@
-# Errors & Recovery
+# Errors and recovery
 
-Errors should explain precisely which stage of the transaction failed without conflating availability, execution, and settlement. 
-
-> [!IMPORTANT]
-> A lost network connection or timeout after payment initiation does not mean payment failed. Blindly retrying can cause double charges. Always check authoritative status before initiating a new charge.
-
----
-
-## Error taxonomy
-
-| Error Code | Category | Cause | Recommended Action |
-| :--- | :--- | :--- | :--- |
-| `invalid_intent_request` | Validation | Missing required fields, bad currency, or invalid decimals. | Fix request parameters; do not retry identical payload. |
-| `method_unavailable` | Availability | Requested rail cannot serve this corridor, amount, or device. | Display remaining viable rails for customer reselection. |
-| `provider_degraded` | Routing | Primary route experiencing elevated errors before execution. | Engine auto-fails over to secondary route within same method. |
-| `provider_declined` | Execution | Insufficient funds, incorrect PIN, or customer card rejected. | Show human-readable reason; prompt customer to try another method. |
-| `execution_timeout` | Uncertainty | Upstream clearing network delayed response after initiation. | **Do not re-attempt.** Poll `GET /v1/payment_intents/:id` or await webhook. |
-| `settlement_delayed` | Treasury | Banking cutoff or temporary liquidity constraint. | Order fulfillment proceeds; treasury monitors payout status. |
-
----
-
-## Error response format
-
-All error responses return standard JSON with an `error` envelope:
+Errors return a JSON body and an HTTP status:
 
 ```json
-{
-  "error": {
-    "code": "method_unavailable",
-    "message": "Instant bank transfer is unavailable for this corridor and ticket size.",
-    "param": "accepted_methods",
-    "details": {
-      "method_id": "bank_transfer",
-      "reason": "exceeds_corridor_limit",
-      "max_limit": "500000.00",
-      "currency": "NGN"
-    },
-    "doc_url": "https://docs.payrouta.com/payment-methods"
-  }
-}
+{ "error": { "code": "IDEMPOTENCY_CONFLICT", "requestId": "…" } }
 ```
 
----
+Quote `requestId` when contacting support.
 
-## Handling specific edge cases
+## HTTP status
 
-### 1. Provider unavailable before initiation
-If a primary banking or card provider becomes degraded *before* customer authorization begins:
-* PayRouta's engine automatically selects the secondary direct provider for that same method.
-* If all eligible providers for that method are depleted, PayRouta returns `method_unavailable`.
-* **Prompt the customer for a fresh selection**. Never silently switch from bank transfer to credit card.
+| Status | Meaning | Retry? |
+| --- | --- | --- |
+| 400 | Invalid request (`INVALID_REQUEST` or a specific code) | No. Fix the request |
+| 401 | `UNAUTHORIZED`: missing, invalid, expired or revoked key | No |
+| 403 | `FORBIDDEN`, `ENVIRONMENT_NOT_CONFIGURED`: the key lacks the scope, or the environment doesn't match | No |
+| 404 | `NOT_FOUND` | No |
+| 408 | Request body timed out | Yes, with the same idempotency key |
+| 409 | A conflict with current state (codes below) | Depends on the code |
+| 413 | Body over 32 KiB | No |
+| 429 | `RATE_LIMITED` | After `Retry-After` seconds |
+| 503 | `SERVICE_UNAVAILABLE` | Yes, with the same idempotency key. The write may have succeeded |
 
-### 2. Uncertain execution and timeouts
-If an API request times out while waiting for upstream network confirmation:
-1. Preserve your `merchant_reference` and `Idempotency-Key`.
-2. Do not immediately ask the customer to re-enter payment details.
-3. Call `GET /v1/payment_intents/:id` with exponential backoff (e.g., 2s, 4s, 8s).
-4. If status transitions to `confirmed`, proceed with fulfillment.
-5. If status transitions to `failed`, prompt customer for retry.
+## Common codes
 
-### 3. Settlement pending is not transaction failure
-Payment authorization and merchant settlement occur on separate timelines. If customer pay-in is confirmed (`payment.confirmed`), the buyer's obligation is complete:
-* Fulfill the order immediately.
-* Do not cancel or reverse customer purchases because bank batch settlement is scheduled for the next business morning.
+| Code | Meaning | What to do |
+| --- | --- | --- |
+| `IDEMPOTENCY_CONFLICT` | This key was used with a different body | Use a new key for a genuinely new request |
+| `INVALID_IDEMPOTENCY_KEY` | The key must be 8–100 letters, digits, `_` or `-` | Fix the key |
+| `RETURN_ORIGIN_NOT_REGISTERED` | `returnUrl` is not on your registered origin | Use your registered origin, or update it in Settings |
+| `SANDBOX_REQUIRES_POSITIVE_SAME_ASSET_PAYMENT` | The amount is zero, or `settlement` differs from `asset` | Send a positive amount in a single asset |
+| `EXECUTION_ADAPTER_NOT_CONFIGURED` | No qualified execution path for this environment | In production, finish provider accounts and live-scope review first |
+| `INTENT_NOT_OPEN` | The intent is no longer open | Read the intent; create a new one if needed |
+| `CANCELLATION_NOT_PERMITTED` | An attempt already exists | Wait for the outcome instead |
+| `SESSION_EXPIRED`, `CHECKOUT_EXPIRED_OR_UNAUTHORIZED` | The checkout session expired or was revoked | Create a new session for the same intent |
+| `REFRESH_METHODS`, `QUOTE_EXPIRED_RESELECT_METHOD` | Availability or the route expired | Checkout asks the customer to reselect |
+| `PAYMENT_ALREADY_IN_PROGRESS` | An attempt is active | Wait for the outcome |
+| `NO_COMPARABLE_QUOTES`, `PROVIDER_NO_LONGER_ELIGIBLE` | No eligible provider remains for the chosen method | The customer chooses another method |
+| `COMPLIANCE_DECISION:BLOCK` and similar | Compliance policy stopped the payment | Don't retry. Contact support |
 
----
+## Uncertain outcomes
 
-## Safe retry guidance
+A timeout or `503` on a **write** does not mean it failed. Retry with the **same** `Idempotency-Key`: you get the original result if it succeeded, or a fresh attempt if it didn't. The SDKs mark these errors `uncertain`.
 
-```mermaid
-graph TD
-    Start["Request Fails / Times Out"] --> CheckCode{"Error Type?"}
-    CheckCode -->|4xx Validation| FixPayload["Fix Parameters (Do Not Retry)"]
-    CheckCode -->|5xx or Network Timeout| PollStatus["Poll GET /v1/payment_intents/:id"]
-    PollStatus --> CheckStatus{"Status?"}
-    CheckStatus -->|confirmed| Fulfill["Fulfill Order Immediately"]
-    CheckStatus -->|failed| Reselect["Prompt Customer for Reselection"]
-    CheckStatus -->|processing| Wait["Exponential Backoff & Await Webhook"]
-```
+For payments, `Unknown` means PayRouta is still confirming with the provider. It never retries on another provider until the original provider's status is known, so a customer is never charged twice.
 
----
+## Platform pricing
 
-## Next steps
-
-* Review webhook reconciliation in [Webhooks & Events](webhooks.md).
-* Review payment intent requirements in [Payment Intents](payment-intents.md).
-* Explore API endpoints in [API Reference](api-reference.md).
+`PAYMENT_FEE_SCHEDULE_REQUIRED` (409) means the production payment asset/precision has no agreed billing terms. `PAYMENT_FEE_VALUATION_EXPIRED` (409) means a cross-asset/crypto valuation no longer covers checkout. Ask the operator to configure approved pricing; no provider payment is dispatched by an intent that fails these checks. `PAYMENT_FEE_TERMS_MISSING` is an operations exception for confirmed pre-pricing intents, which are never automatically back-billed.

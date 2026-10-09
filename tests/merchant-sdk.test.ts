@@ -110,3 +110,47 @@ test("CSV neutralizes formula prefixes including whitespace and quotes", async (
   assert.equal(csvCell('a"b'), '"a""b"');
   assert.equal(csvCell("100.00"), '"100.00"');
 });
+
+test("SDK supplies declared payer country and exact stablecoin alternatives for live requests", async () => {
+  const sdk = new PayRouta({
+    ...options,
+    transport: async (_url, init) => {
+      const body = JSON.parse(String(init?.body));
+      assert.equal(body.payerCountry, "NG");
+      assert.equal(body.amount, "1.000001");
+      assert.equal(body.paymentOptions[0].amount, "0.9000001");
+      return Response.json({ id: "fictional-intent" });
+    },
+  });
+  const primary = {
+      kind: "blockchain" as const,
+      network: "eip155:1",
+      identifier: "erc20:usdt",
+    },
+    alternative = {
+      kind: "blockchain" as const,
+      network: "stellar:pubnet",
+      identifier: "stellar:EURC.issuer",
+    };
+  await sdk.createIntent(
+    {
+      reference: "Fictional SDK encoding test",
+      payerCountry: "NG",
+      amount: "1.000001",
+      asset: primary,
+      settlement: primary,
+      precision: 6,
+      methods: ["stablecoin"],
+      returnUrl: "https://merchant.example",
+      paymentOptions: [
+        {
+          asset: alternative,
+          settlement: alternative,
+          amount: "0.9000001",
+          precision: 7,
+        },
+      ],
+    },
+    "same-stablecoin-key",
+  );
+});
