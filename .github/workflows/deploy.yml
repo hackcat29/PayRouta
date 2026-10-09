@@ -86,26 +86,43 @@ jobs:
           envs: SHA
           script_stop: true
           script: |
-            # Load nvm before enabling strict mode: nvm.sh is not safe under set -eu.
-            export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+            echo "==> Deploy started for SHA: $SHA"
+            export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+            if [ -s "$NVM_DIR/nvm.sh" ]; then
+              . "$NVM_DIR/nvm.sh"
+            elif [ -s "/root/.nvm/nvm.sh" ]; then
+              export NVM_DIR="/root/.nvm"
+              . "$NVM_DIR/nvm.sh"
+            fi
+            echo "==> Node: $(node -v 2>/dev/null || echo 'not found in PATH')"
+            echo "==> NPM: $(npm -v 2>/dev/null || echo 'not found in PATH')"
+            echo "==> PM2: $(which pm2 2>/dev/null || echo 'not found in PATH')"
             set -euo pipefail
             ROOT=/opt/payrouta
             REL="$ROOT/releases/$SHA"
             PREV="$(readlink -f "$ROOT/current" || true)"
             mkdir -p "$REL"
+            echo "==> Extracting release archive..."
             tar -xzf "$ROOT/incoming/release.tgz" -C "$REL"
             ln -sfn "$ROOT/.env" "$REL/.env"
             cd "$REL"
+            echo "==> Installing dependencies..."
             npm ci
+            echo "==> Generating Prisma client..."
             npx prisma generate
+            echo "==> Running database migrations..."
             npx prisma migrate deploy
+            echo "==> Building standalone application..."
             npm run build
             cp -r public .next/standalone/
             cp -r .next/static .next/standalone/.next/
+            echo "==> Running production preflight..."
             npm run preflight:production
+            echo "==> Switching current release link to $REL..."
             ln -sfn "$REL" "$ROOT/current"
+            echo "==> Reloading PM2 services..."
             pm2 startOrReload "$REL/ecosystem.config.cjs" --update-env
+            echo "==> Checking health endpoint (http://127.0.0.1:3051/api/health)..."
             ok=0
             for i in $(seq 1 20); do
               if curl -fsS http://127.0.0.1:3051/api/health >/dev/null; then ok=1; break; fi
@@ -119,5 +136,8 @@ jobs:
               fi
               exit 1
             fi
+            echo "==> Health check passed! Saving PM2 state..."
             pm2 save
             ls -1dt "$ROOT"/releases/* | tail -n +6 | xargs -r rm -rf
+            echo "==> Deployment finished successfully!"
+
