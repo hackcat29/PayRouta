@@ -118,6 +118,9 @@ jobs:
             cp -r .next/static .next/standalone/.next/
             echo "==> Running production preflight..."
             npm run preflight:production -- --warn || true
+            echo "==> Stopping legacy PM2 service if present..."
+            pm2 stop payrouta 2>/dev/null || true
+            pm2 delete payrouta 2>/dev/null || true
             echo "==> Switching current release link to $REL..."
             ln -sfn "$REL" "$ROOT/current"
             echo "==> Reloading PM2 services..."
@@ -130,9 +133,13 @@ jobs:
             done
             if [ "$ok" != 1 ]; then
               echo "Health check failed; rolling back to $PREV"
-              if [ -n "$PREV" ]; then
+              if [ -n "$PREV" ] && [ -d "$PREV" ]; then
                 ln -sfn "$PREV" "$ROOT/current"
-                pm2 startOrReload "$PREV/ecosystem.config.cjs" --update-env
+                if [ -f "$PREV/ecosystem.config.cjs" ]; then
+                  pm2 startOrReload "$PREV/ecosystem.config.cjs" --update-env || true
+                elif [ -f "$PREV/.next/standalone/server.js" ]; then
+                  PORT=3051 pm2 start "$PREV/.next/standalone/server.js" --name "payrouta" || true
+                fi
               fi
               exit 1
             fi
