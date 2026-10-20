@@ -24,7 +24,9 @@ If the swap can't complete, the intents network refunds the customer on their ow
 | USDT on Ethereum, Avalanche or Solana | Yes |
 | EURC, or volatile coins (ETH, SOL and others) | Not yet: volatile-coin quotes last two minutes, too short for a cross-chain swap |
 
-PayRouta only accepts a quote whose output equals your invoice amount exactly; anything else is refused rather than shown. Quotes need at least five minutes left on the checkout. NEAR Intents currently sets a minimum swap of about $100; below it, customers pay directly instead.
+PayRouta only accepts a quote whose output equals your invoice amount exactly; anything else is refused rather than shown. Quotes need at least five minutes left on the checkout.
+
+**Minimums and fees.** NEAR Intents has no single minimum: each asset, pair and network has its own, usually a USD floor set by its solvers, and it changes over time. Below it, checkout tells the customer to try another token or chain, or pay directly. NEAR Intents' protocol fee starts at 1 basis point (0.01%) for stablecoin and matching multichain pairs; partner API tiers can set a minimum fee on other pairs. Swap costs are inside the amount the customer is quoted, so you still receive the full invoice.
 
 ## Operations
 

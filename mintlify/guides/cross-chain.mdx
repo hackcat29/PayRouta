@@ -45,7 +45,8 @@ Neither PayRouta nor NEAR Intents holds the funds along the way.
 
 ## Limits
 
-- NEAR Intents currently sets a minimum swap of about $100. Below it, customers pay directly.
+- No single minimum: each asset, pair and network has its own, usually a USD floor set by NEAR Intents' solvers, and it changes over time. Below it, checkout tells the customer to try another token or chain, or pay directly.
+- NEAR Intents' protocol fee starts at 1 basis point (0.01%) for stablecoin and matching multichain pairs; partner API tiers can set a minimum fee on other pairs. Swap costs are inside the customer's quoted amount, so you receive the full invoice.
 - Quotes need at least five minutes left on the checkout.
 - A live dry-run quote on 20 October 2026 confirmed the behaviour PayRouta relies on: for 150 USDC on Base from USDT on Tron, the quoted and minimum output were both exactly 150.000000 USDC, for an input of 151.69 USDT and an estimated 82 seconds.
 

@@ -35,7 +35,7 @@ const errors: Record<string, string> = {
   CROSS_CHAIN_QUOTE_MISMATCH: "No exact quote is available right now. Try another token.",
   CROSS_CHAIN_TOO_LATE: "There isn't enough time left for a cross-chain payment. Pay directly, or start a new checkout.",
   CROSS_CHAIN_RATE_LIMITED: "Too many requests. Wait a few seconds and try again.",
-  CROSS_CHAIN_AMOUNT_TOO_SMALL: "This amount is below the cross-chain minimum (currently about $100). Pay directly above instead.",
+  CROSS_CHAIN_AMOUNT_TOO_SMALL: "This amount is below the minimum for that token on that network. Try another token or chain, or pay directly above.",
 };
 
 export function CrossChain({ api, onCopy }: { api: Api; onCopy: (value: string, label: string) => void }) {

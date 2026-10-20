@@ -48,6 +48,11 @@ test("1Click errors and malformed answers fail closed", async () => {
     quote(input, async () => ({ status: 400, headers: {}, body: '{"message":"Temporary swap limits: minimum swap amount is $100"}', bytes: 0 })),
     /CROSS_CHAIN_AMOUNT_TOO_SMALL/,
   );
+  // Minimums vary by asset and network; other wordings mean the same.
+  await assert.rejects(
+    quote(input, async () => ({ status: 400, headers: {}, body: '{"message":"Amount below minimum"}', bytes: 0 })),
+    /CROSS_CHAIN_AMOUNT_TOO_SMALL/,
+  );
   await assert.rejects(quote(input, async () => ({ status: 429, headers: {}, body: "{}", bytes: 0 })), /CROSS_CHAIN_RATE_LIMITED/);
   await assert.rejects(quote(input, async () => ok({ quote: { amountIn: "x" } })), /CROSS_CHAIN_UNAVAILABLE/);
   await assert.rejects(status("dep", null, async () => ok({ status: "MAYBE" })), /CROSS_CHAIN_UNAVAILABLE/);

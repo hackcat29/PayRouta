@@ -110,15 +110,17 @@ async function headers() {
 function parse<T>(schema: z.ZodType<T>, response: ProviderHttpResponse, code: string) {
   if (response.status === 429) throw new PortalError("CROSS_CHAIN_RATE_LIMITED", 503);
   if (response.status === 400) {
-    // 1Click explains refusals in `message`, e.g. "Temporary swap limits:
-    // minimum swap amount is $100" (seen 20 October 2026).
+    // 1Click explains refusals in `message`. Minimums vary by asset, pair and
+    // network and change over time, e.g. "Temporary swap limits: minimum
+    // swap amount is $100" (Tron USDT to Base USDC, 20 October 2026) or
+    // "Amount below minimum".
     let message = "";
     try {
       message = String((JSON.parse(response.body) as { message?: unknown }).message ?? "");
     } catch {
       message = "";
     }
-    if (/minimum swap amount/i.test(message)) throw new PortalError("CROSS_CHAIN_AMOUNT_TOO_SMALL", 409);
+    if (/minimum/i.test(message)) throw new PortalError("CROSS_CHAIN_AMOUNT_TOO_SMALL", 409);
     throw new PortalError(code, 409);
   }
   if (response.status !== 200) throw new PortalError("CROSS_CHAIN_UNAVAILABLE", 503);
