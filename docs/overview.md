@@ -1,7 +1,9 @@
 # PayRouta documentation
 
-> Launch scope: stablecoins and direct crypto wallet payments for every merchant, plus cards, bank transfers and mobile money through PayRouta's processing partners once your payments account is activated. Exchange-app payments are Coming soon. Stablecoin sandbox payments use actual testnet tokens; they cannot simulate a successful deposit. See [Crypto wallet payments](crypto-payments.md).
-PayRouta is a payments platform. Merchants apply once to PayRouta, which verifies them and sets up processing with its regulated payment partners behind the scenes. PayRouta then routes each payment to a partner that can take it, keeps a backup for the same method, and reconciles the results in one place.
+> Launch scope: stablecoins and direct crypto wallet payments for every merchant, plus cards, digital wallets, bank transfers and mobile money through PayRouta's processing partners once your payments account is activated. Exchange-app payments are Coming soon. Stablecoin sandbox payments use actual testnet tokens; they cannot simulate a successful deposit. See [Crypto wallet payments](crypto-payments.md).
+PayRouta is one checkout button for every way the world pays, including credit. Add it to any site or app (or use the Shopify and WooCommerce integrations), and customers pay by card, digital wallet, bank transfer, mobile money, USSD, [credit from a licensed lender](credit.md), or stablecoins and crypto from [any wallet and chain](cross-chain.md). Start with the [checkout button](checkout-button.md).
+
+Behind the button, merchants apply once to PayRouta, which verifies them and sets up processing with its regulated payment partners behind the scenes. PayRouta then routes each payment to a partner that can take it, keeps a backup for the same method, and reconciles the results in one place.
 
 PayRouta never holds merchant or customer funds in its own bank accounts. Payments are processed by PayRouta's regulated processing partners, which hold each merchant's balance (or pay the merchant's bank directly) until PayRouta pays the merchant out on its schedule. Merchants can also connect payment accounts in their own name, which settle to them directly. Stablecoin payments go straight to the merchant's own wallet.
 
@@ -34,7 +36,9 @@ PayRouta ──(status, reconciliation, signed webhooks)────────
 
 ## Where to start
 
+- [Checkout button](checkout-button.md): one button, every method.
 - [Quickstart](quickstart.md): a sandbox payment in a few steps.
+- [Pay with credit](credit.md): instalments from licensed lenders; you are paid in full.
 - [API reference](api-reference.md): every endpoint, field and scope.
 - [Webhooks](webhooks.md): verifying and processing events.
 - [Errors and recovery](errors.md): what each error means and when it is safe to retry.

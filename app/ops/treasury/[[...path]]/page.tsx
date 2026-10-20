@@ -23,6 +23,7 @@ import {
   RerunReconciliation,
   TransitionControls,
 } from "../controls";
+import { ScreeningReviewForm } from "../../partners/controls";
 import "@/components/portal/portal.css";
 import "../treasury-ops.css";
 
@@ -339,6 +340,11 @@ async function MerchantDetail({ orgId, environment }: { orgId: string; environme
                   </>
                 ) : (
                   "Not screened"
+                )}
+                {profileRow && screening?.verdict !== "clear" && (
+                  <div className="ot-inline-form">
+                    <ScreeningReviewForm orgId={orgId} profileVersion={profileRow.version} />
+                  </div>
                 )}
               </Field>
               <Field label="Identity details">
@@ -666,7 +672,7 @@ async function Platforms() {
     db.legalEntity.findMany({ orderBy: { name: "asc" } }),
     db.platformAccount.findMany({ include: { legalEntity: true }, orderBy: [{ provider: "asc" }, { environment: "asc" }] }),
   ]);
-  const providers = ["stripe-custom", "paystack-split", "flutterwave-split", "dlocal", "tink", "sandbox-platform", "sandbox-split"].flatMap((id) => {
+  const providers = ["stripe-custom", "paystack-split", "flutterwave-split", "dlocal", "tink", "sandbox-platform", "sandbox-split", "sandbox-credit"].flatMap((id) => {
     try {
       const m = platformModule(id).manifest;
       return [{ id, name: m.name, custody: m.custody }];

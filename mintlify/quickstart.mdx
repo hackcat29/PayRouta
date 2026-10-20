@@ -1,0 +1,102 @@
+---
+title: "Quickstart"
+description: "Create a sandbox checkout, put the checkout button on a page, and confirm the payment on your server."
+---
+
+You'll create a test checkout on your server, open it from a checkout button, and confirm the payment from a webhook. Sandbox stablecoin payments use real testnet tokens, which have no monetary value.
+
+<Steps>
+  <Step title="Create your workspace">
+    1. Sign up, verify your email and turn on an authenticator app under **Settings**.
+    2. Create a merchant workspace. Enter your business name and the **return origin** customers come back to (for example `https://shop.example`). New workspaces start in **sandbox**.
+    3. Under **Payment methods**, add fresh USDC receive addresses you control on Base Sepolia.
+    4. Under **Developers → API keys**, create a sandbox key with payment access. The secret (`pr_sandbox_…`) is shown once; keep it on your server.
+  </Step>
+
+  <Step title="Create checkouts on your server">
+    One call per order. Retrying with the same idempotency key returns the same checkout.
+
+    <CodeGroup>
+    ```ts Node
+    import { PayRouta } from "@payrouta/server";
+
+    const payrouta = new PayRouta({
+      baseUrl: "https://<your PayRouta host>/api/v1",
+      secretKey: process.env.PAYROUTA_SECRET_KEY!,
+      environment: "sandbox",
+    });
+
+    // POST /create-checkout on your own site
+    export async function createCheckout(order: { id: string; total: string }) {
+      const checkout = await payrouta.createCheckout(
+        {
+          reference: order.id,
+          payerCountry: "NG",
+          amount: order.total, // "25.00"
+          currency: "USD",
+          methods: [],
+          crypto: { options: [{ network: "eip155:84532", identifier: "erc20:0x036cbd53842c5426634e7929541ec2318f3dcf7e" }] },
+          returnUrl: `https://shop.example/orders/${order.id}`,
+        },
+        `order-${order.id}`,
+      );
+      return { checkoutUrl: new URL(checkout.checkoutPath, "https://<your PayRouta host>").href };
+    }
+    ```
+
+    ```python Python
+    import os
+    from payrouta import PayRouta
+
+    payrouta = PayRouta(os.environ["PAYROUTA_API_URL"], os.environ["PAYROUTA_SECRET_KEY"], "sandbox")
+
+    def create_checkout(order):
+        checkout = payrouta.create_checkout({
+            "reference": order["id"],
+            "payerCountry": "NG",
+            "amount": order["total"],
+            "currency": "USD",
+            "methods": [],
+            "crypto": {"options": [{"network": "eip155:84532", "identifier": "erc20:0x036cbd53842c5426634e7929541ec2318f3dcf7e"}]},
+            "returnUrl": f"https://shop.example/orders/{order['id']}",
+        }, idempotency_key=f"order-{order['id']}")
+        return {"checkoutUrl": os.environ["PAYROUTA_ORIGIN"] + checkout["checkoutPath"]}
+    ```
+
+    ```bash cURL
+    curl -X POST "$PAYROUTA_API_URL/checkouts" \
+      -H "Authorization: Bearer $PAYROUTA_SECRET_KEY" \
+      -H "PayRouta-Environment: sandbox" \
+      -H "Idempotency-Key: order-1042" \
+      -H "Content-Type: application/json" \
+      -d '{"reference":"1042","payerCountry":"NG","amount":"25.00","currency":"USD","methods":[],
+           "crypto":{"options":[{"network":"eip155:84532","identifier":"erc20:0x036cbd53842c5426634e7929541ec2318f3dcf7e"}]},
+           "returnUrl":"https://shop.example/orders/1042"}'
+    ```
+    </CodeGroup>
+
+    In sandbox, cards, wallets, bank transfers, mobile money and credit need your business to be activated on PayRouta's partners first; add them to `methods` once they're on.
+  </Step>
+
+  <Step title="Add the button">
+    ```html
+    <script src="https://<your PayRouta host>/js/v1/payrouta.js" async></script>
+    <button data-payrouta-checkout="/create-checkout">Checkout</button>
+    ```
+
+    Clicking opens checkout in a secure PayRouta window. Pay with test USDC on Base Sepolia. See the [checkout button guide](/guides/checkout-button) for React and events.
+  </Step>
+
+  <Step title="Confirm on your server">
+    The button's `payrouta:confirmed` event updates your page, but it is not proof of payment. Fulfil the order from a verified [webhook](/integrate/webhooks), or by reading the payment:
+
+    ```ts
+    const payment = await payrouta.getPayment(intentId);
+    if (payment.state === "Confirmed") fulfil(order);
+    ```
+  </Step>
+</Steps>
+
+## Going live
+
+Live processing needs production receive addresses you control, an approved business, and production API keys. Cards, wallets, bank transfers, mobile money and credit open once your business is live on PayRouta's partners in your region. See [fees](/concepts/billing) and [settlement](/concepts/settlement).

@@ -1,4 +1,5 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { renderInvitationEmail } from "@/lib/email/templates/transactional";
 import { z } from "zod";
 import { Prisma } from "@/lib/generated/prisma/client";
 import { db } from "./db";
@@ -85,20 +86,12 @@ export async function command(raw: unknown, h: Headers) {
   const data = raw as Record<string, unknown>;
   const who = await identity(h);
   await rateLimit(who.user.id, 50);
-  if (base.action === "create-organization") {
-    const { name } = z.object({ name: str.max(120) }).parse(data);
-    return atomic(async (tx) => {
-      const org = await tx.organization.create({
-        data: {
-          name,
-          fictional: localMode(),
-          memberships: { create: { userId: who.user.id, role: "Owner" } },
-          application: { create: {} },
-        },
-      });
-      await audit(tx, org.id, who.user.id, "Organization created", org.id);
-      return { orgId: org.id };
-    });
+  // Provider organizations are created only by approving an access request;
+  // there is no self-serve sign-up for payment providers.
+  if (base.action === "ops-provider-access") {
+    await internal(true, h);
+    const { reviewAccessRequest } = await import("./access-requests");
+    return reviewAccessRequest(data, who.user.id);
   }
   if (base.action === "step-up") {
     const { code } = z
@@ -733,7 +726,7 @@ export async function command(raw: unknown, h: Headers) {
     return { message: "Credential revoked" };
   }
   if (base.action === "invite") {
-    await member(orgId, "team", h);
+    const { membership } = await member(orgId, "team", h);
     await stepUp(h);
     await rateLimit(`invite:${who.user.id}`, 5);
     const { email, role } = z
@@ -756,11 +749,16 @@ export async function command(raw: unknown, h: Headers) {
     await audit(db, orgId, who.user.id, "Invitation created", invitation.id, {
       role,
     });
-    const delivery = await mail.send(
-      email,
-      "Join your PayRouta organization",
-      `${process.env.BETTER_AUTH_URL}/provider/team?invitation=${token}`,
-    );
+    const delivery = await mail.send(email, {
+      ...renderInvitationEmail({
+        orgName: membership.org.name,
+        role,
+        url: `${process.env.BETTER_AUTH_URL}/provider/team?invitation=${token}`,
+        expires: "48 hours",
+      }),
+      tag: "invitation",
+      idempotencyKey: `invitation/${invitation.id}`,
+    });
     return {
       message:
         delivery === "captured"

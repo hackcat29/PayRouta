@@ -51,7 +51,8 @@ export async function createMerchantWorkspace(raw: unknown, headers: Headers) {
       country: value.country,
       returnOrigin: url.origin,
     });
-    // Automatically enroll merchant in multi-rail onboarding drip sequence
+    // Onboarding emails for the new workspace owner. Their address is already
+    // verified, so no confirmation email; a past unsubscribe is respected.
     MarketingService.subscribe({
       email: who.user.email,
       name: who.user.name,
@@ -59,6 +60,7 @@ export async function createMerchantWorkspace(raw: unknown, headers: Headers) {
       role: "merchant",
       source: "merchant_workspace_created",
       sendWelcome: true,
+      confirmed: true,
     }).catch(console.error);
     return { orgId: org.id };
   });

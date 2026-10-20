@@ -1,0 +1,28 @@
+# Offsite payments extension: the buyer is redirected to PayRouta checkout
+# and chooses card, digital wallet, bank transfer, mobile money, USSD, credit from a licensed
+# lender, or (USD stores) stablecoins and crypto from any wallet.
+#
+# MTLS_HOST  the nginx host that verifies Shopify's client certificate
+#            (deploy/nginx.conf, "Shopify payments app" server block).
+# Layout follows Shopify CLI's payments-app-extension-offsite template.
+
+api_version = "2026-10"
+
+[[extensions]]
+name = "PayRouta"
+handle = "payrouta-checkout"
+type = "payments_extension"
+
+payment_session_url = "https://MTLS_HOST/api/integrations/shopify/payments/session"
+refund_session_url = "https://MTLS_HOST/api/integrations/shopify/payments/refund"
+merchant_label = "PayRouta (cards, wallets, bank, mobile, credit)"
+buyer_label = "Card, wallet, bank, mobile money, credit or crypto"
+supported_countries = ["NG", "GH", "KE", "ZA", "EG", "RW", "UG", "TZ", "CI", "SN", "GB", "IE", "DE", "FR", "NL", "ES", "IT", "US", "CA", "AU", "BR", "MX", "IN", "SG", "AE"]
+supported_payment_methods = ["visa", "master", "american_express"]
+supports_3ds = false
+supports_installments = true
+supports_deferred_payments = false
+test_mode_available = true
+
+  [[extensions.targeting]]
+  target = "payments.offsite.render"

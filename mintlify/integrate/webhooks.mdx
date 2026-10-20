@@ -1,0 +1,71 @@
+---
+title: "Webhooks"
+description: "PayRouta sends signed events to one HTTPS endpoint per workspace. Configure it under Developers, or with PUT /webhook-endpoint:"
+---
+
+PayRouta sends signed events to one HTTPS endpoint per workspace. Configure it under **Developers**, or with `PUT /webhook-endpoint`:
+
+```json
+{ "url": "https://shop.example/payrouta/webhooks", "secret": "<32–200 characters>", "keyId": "v2" }
+```
+
+The URL must be public HTTPS. PayRouta never follows redirects, and each delivery attempt times out after five seconds.
+
+## Events
+
+| Type | Meaning |
+| --- | --- |
+| `payment.action_required` | The customer must complete a step with the provider |
+| `payment.pending` | A provider has the payment, or its outcome is still being confirmed |
+| `payment.confirmed` | The provider confirmed the customer's funds were accepted |
+| `payment.failed` | The attempt was definitively rejected; the intent is open to try again |
+| `settlement.pending` | Confirmed, but the provider has not yet settled |
+| `settlement.completed` | The provider reported settlement of this payment to you |
+| `settlement.exception` | Reconciliation found a difference that needs review |
+
+## Payload
+
+```json
+{
+  "id": "0f6c…",
+  "type": "payment.confirmed",
+  "schemaVersion": "1",
+  "objectId": "<intent id>",
+  "objectVersion": 4,
+  "environment": "sandbox",
+  "occurredAt": "2026-09-28T12:03:11.000Z",
+  "amount": "15000.00",
+  "asset": { "kind": "fiat", "identifier": "NGN", "network": "" },
+  "state": "Confirmed"
+}
+```
+
+## Verifying signatures
+
+Each delivery has these headers:
+
+| Header | Value |
+| --- | --- |
+| `payrouta-event-id` | Event ID (same as `id`) |
+| `payrouta-timestamp` | Unix seconds |
+| `payrouta-key-id` | The `keyId` you configured |
+| `payrouta-signature` | Hex HMAC-SHA256 |
+
+The signed bytes are `timestamp + "." + eventId + "." + rawBody`. Use the untouched raw body, reject timestamps more than 300 seconds old, and compare in constant time.
+
+```ts
+import { verifyWebhook } from "@payrouta/server";
+
+const ok = verifyWebhook(rawBodyBytes, headers, { v2: process.env.PAYROUTA_WEBHOOK_SECRET! });
+if (!ok) return new Response(null, { status: 400 });
+```
+
+During rotation, keep the previous `keyId` and secret in the map until deliveries signed with the old key stop.
+
+## Processing safely
+
+- Delivery is **at least once** and may arrive **out of order**.
+- Store `id` in the same transaction as your business effect, and treat a repeated `id` as already handled.
+- Ignore any event whose `objectVersion` is lower than one you have already processed.
+- Respond `2xx` quickly and do the work asynchronously.
+- If your endpoint fails, PayRouta retries with exponential backoff, up to eight attempts. You can also redeliver the same event with `POST /webhook-deliveries/{eventId}/redeliver`. A failed delivery never undoes a payment.

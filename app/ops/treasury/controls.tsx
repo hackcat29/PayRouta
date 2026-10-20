@@ -431,6 +431,14 @@ export function PlatformForm({
       <label>
         Non-secret configuration (JSON)
         <textarea name="config" rows={3} defaultValue="{}" />
+        <small>
+          Where PayRouta pays the partner (Stripe, dLocal, Tink), add the partner&apos;s published standard fee per
+          method; merchants are charged it on top of PayRouta&apos;s 1%, and a live account can&apos;t be enabled
+          without it. Example:{" "}
+          <code>
+            {`{"standardFees": {"card": {"bps": 290, "fixedMinor": {"USD": "30"}, "source": "https://stripe.com/pricing"}}}`}
+          </code>
+        </small>
       </label>
       {Array.from({ length: secrets }, (_, i) => (
         <div className="ot-grid" key={i}>

@@ -10,13 +10,20 @@ export async function workspaceData(
   page = 1,
 ) {
   const session = await identity();
+  // Only provider organizations (those with an application) and provider
+  // roles; merchant-only memberships carry role "None".
   const memberships = await db.membership.findMany({
-    where: { userId: session.user.id },
+    where: {
+      userId: session.user.id,
+      role: { not: "None" },
+      org: { application: { isNot: null } },
+    },
     include: { org: { include: { application: true } } },
     orderBy: { org: { name: "asc" } },
   });
-  const providerOrg = memberships.find((m) => m.org.application)?.orgId;
-  const selected = orgId || providerOrg || memberships[0]?.orgId;
+  if (orgId && !memberships.some((m) => m.orgId === orgId))
+    throw new PortalError("You don't have access to this provider organization", 403);
+  const selected = orgId || memberships[0]?.orgId;
   const me = {
     id: session.user.id,
     name: session.user.name,

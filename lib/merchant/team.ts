@@ -4,6 +4,7 @@ import { merchantMember, merchantRoles } from "./access";
 import { stepUp, rateLimit } from "../portal/access";
 import { atomic, audit } from "../portal/service";
 import { mail } from "../portal/adapters";
+import { renderInvitationEmail } from "../email/templates/transactional";
 import { hash } from "../payments/contracts";
 import { PortalError } from "../portal/domain";
 export async function teamCommand(raw: unknown, headers: Headers) {
@@ -59,11 +60,16 @@ export async function teamCommand(raw: unknown, headers: Headers) {
       );
       return invitation;
     });
-    await mail.send(
-      b.email,
-      "PayRouta merchant invitation",
-      `${process.env.BETTER_AUTH_URL}/merchant/team?orgId=${encodeURIComponent(b.orgId)}&invitation=${token}`,
-    );
+    await mail.send(b.email, {
+      ...renderInvitationEmail({
+        orgName: membership.org.name,
+        role: b.role,
+        url: `${process.env.BETTER_AUTH_URL}/merchant/team?orgId=${encodeURIComponent(b.orgId)}&invitation=${token}`,
+        expires: "7 days",
+      }),
+      tag: "invitation",
+      idempotencyKey: `invitation/${invite.id}`,
+    });
     return { id: invite.id };
   }
   return atomic(async (tx) => {

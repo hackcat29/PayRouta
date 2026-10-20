@@ -12,12 +12,16 @@ export const docEntries: readonly DocEntryTuple[] = [
   // Core Guides & Concepts
   ["overview", "Overview", "Getting Started", "Concepts"],
   ["quickstart", "Quickstart", "Getting Started", "Concepts"],
+  ["payment-links", "Payment Links", "Getting Started", "Concepts"],
+  ["checkout-button", "Checkout Button", "Getting Started", "Concepts"],
   ["provider-accounts", "Provider Accounts", "Core Concepts", "Concepts"],
   ["payment-intents", "Payment Intents", "Core Concepts", "Concepts"],
   ["payment-methods", "Payment Methods", "Core Concepts", "Concepts"],
   ["settlement", "Settlement", "Core Concepts", "Concepts"],
   ["billing", "Fees & Billing", "Core Concepts", "Concepts"],
+  ["credit", "Pay with Credit", "Core Concepts", "Concepts"],
   ["crypto-payments", "Crypto Wallet Payments", "Core Concepts", "Concepts"],
+  ["cross-chain", "Pay from Any Chain", "Core Concepts", "Concepts"],
 
   // Integration
   ["api-reference", "API Reference", "Integration", "Integration"],
@@ -26,6 +30,8 @@ export const docEntries: readonly DocEntryTuple[] = [
   ["provider-integration", "Provider Integration", "Integration", "Integration"],
   ["provider-coverage", "Integration Coverage", "Integration", "Integration"],
   ["errors", "Errors & Recovery", "Integration", "Integration"],
+  ["woocommerce", "WooCommerce", "Platforms", "Integration"],
+  ["shopify", "Shopify", "Platforms", "Integration"],
 
   // Providers Directory Hub
   ["providers", "Provider Directory", "Providers", "Providers"],

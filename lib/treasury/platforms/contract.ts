@@ -42,6 +42,43 @@ export interface PlatformManifest {
   documentation: string;
   // Sandbox-only modules never run outside local mode.
   sandboxOnly?: boolean;
+  // Set for credit partners (method "bnpl"): the licensed lender the
+  // customer borrows from. Unlike other rails, the lender is named at
+  // checkout, because the customer enters a credit agreement with it.
+  credit?: CreditLender;
+}
+
+export interface CreditLender {
+  // Legal name shown to the customer before they agree.
+  lender: string;
+  // Where the lender's credit terms and licence are published.
+  termsUrl: string;
+  // Payer countries the lender can lend to (null: any).
+  countries: readonly string[] | null;
+}
+
+// One way to pay on credit, priced by the lender for this exact amount.
+// Amounts are minor units of the payment currency, as strings.
+export interface CreditOffer {
+  // Stable for the same lender, amount and currency.
+  id: string;
+  lender: string;
+  // "instalments": split into equal payments. "pay-later": one payment later.
+  kind: "instalments" | "pay-later";
+  instalments: number;
+  interval: "week" | "two-weeks" | "month";
+  dueTodayMinor: string;
+  // The regular instalment. When the total doesn't divide evenly, the first
+  // instalment is up to one minor unit per remaining payment larger, and is
+  // given separately.
+  instalmentMinor: string;
+  firstInstalmentMinor?: string;
+  // Everything the customer repays, and the part that is interest and fees.
+  totalMinor: string;
+  costMinor: string;
+  // Annual percentage rate where the lender quotes one (1999 = 19.99%).
+  aprBasisPoints: number | null;
+  termsUrl: string;
 }
 
 export interface PlatformPaymentInput {
@@ -65,6 +102,9 @@ export interface PlatformPaymentInput {
   recipient?: { name: string; accountNumber: string; routingNumber?: string; country: string };
   returnUrl: string;
   cancelUrl: string;
+  // Credit partners only: the offer the customer chose at checkout. The
+  // lender re-prices it and refuses the payment if the offer changed.
+  credit?: { offerId: string };
 }
 
 export type PlatformPaymentState =
@@ -167,6 +207,14 @@ export interface DisputeEvidence {
 // Optional capabilities. Fund-holding rails need payouts to release money to
 // merchants; every rail should verify its webhooks.
 export interface PlatformAdapterExtras {
+  // Credit partners: the plans the lender offers for this payment, before
+  // any credit check. An empty list means no plan fits (amount, country).
+  creditOffers?(input: {
+    amount: string;
+    precision: number;
+    currency: string;
+    payerCountry?: string;
+  }): Promise<CreditOffer[]>;
   createPayout?(input: {
     providerAccountId: string;
     payoutId: string;

@@ -9,7 +9,9 @@ export function SiteChrome({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/provider") ||
     pathname.startsWith("/merchant") ||
     pathname.startsWith("/ops") ||
-    pathname.startsWith("/checkout")
+    pathname.startsWith("/checkout") ||
+    pathname.startsWith("/pay/") ||
+    ["/sign-in", "/sign-up", "/reset-password"].includes(pathname)
   )
     return <main id="main">{children}</main>;
   return (

@@ -64,6 +64,7 @@ export const providerTypes = [
   "Crypto payment provider",
   "Stablecoin / on-ramp / off-ramp provider",
   "BNPL provider",
+  "Lender / consumer-credit provider",
   "Cash / voucher provider",
   "FX / conversion provider",
   "Other payment service",
@@ -80,7 +81,7 @@ export const fiat = referenceData.currencies;
 export function allowedRoute(role: string, route: string) {
   if (["Owner", "Admin"].includes(role)) return true;
   if (
-    ["overview", "settings", "organizations/new", "team"].includes(route) ||
+    ["overview", "settings", "team"].includes(route) ||
     /^(transactions|settlements|performance|availability)(\/|$)/.test(route)
   )
     return true;

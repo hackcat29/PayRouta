@@ -1,9 +1,8 @@
 "use client";
 import { networkName, isTestnet, chain } from "@/lib/blockchain/chains";
-import { StablecoinCheckout, type CheckoutAsset } from "./stablecoin-checkout";
+import type { CheckoutAsset } from "./stablecoin-checkout";
 import { useState } from "react";
 import { tokenAssets } from "@/lib/blockchain/assets";
-import { comingSoonMethods } from "@/lib/payments/launch-catalog";
 type Account = {
   id: string;
   symbol: string;
@@ -18,14 +17,12 @@ export function Stablecoins({
   environment,
   accounts,
   canConfigure,
-  country,
   readiness,
 }: {
   orgId: string;
   environment: string;
   accounts: Account[];
   canConfigure: boolean;
-  country: string;
   readiness: CheckoutAsset[];
 }) {
   const assets = tokenAssets.filter(
@@ -49,7 +46,7 @@ export function Stablecoins({
         <p>
           {environment === "sandbox"
             ? "Use test tokens on the supported test networks. Sandbox platform fees are zero."
-            : "Live payments require approved business evidence, receive-address ownership and a current processing scope. Platform fees are billed separately at 0.10%, using your approved billing valuation and cap."}
+            : "Live payments require approved business evidence, receive-address ownership and a current processing scope. Our fee is 1.5% of each payment, all in, billed separately."}
         </p>
         {accounts.length ? (
           <div className="p-table-wrap">
@@ -134,14 +131,6 @@ export function Stablecoins({
           exact token and network options included in their checkout.
         </p>
       </section>
-      {canConfigure && (
-        <StablecoinCheckout
-          orgId={orgId}
-          environment={environment}
-          country={country}
-          assets={readiness}
-        />
-      )}
       {canConfigure && (
         <section>
           <h2>Add receive addresses</h2>
@@ -246,29 +235,6 @@ export function Stablecoins({
           <p role="status">{message}</p>
         </section>
       )}
-      <section>
-        <h2>More ways to pay</h2>
-        <div className="p-table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Payment method</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {comingSoonMethods.map((m) => (
-                <tr key={m.method}>
-                  <td>{m.label}</td>
-                  <td>
-                    <span className="merchant-status-badge">Coming soon</span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
     </>
   );
 }

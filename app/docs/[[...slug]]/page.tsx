@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { readDocs, docEntries, findDoc } from "@/lib/docs";
 import { DocsNavigation } from "@/components/docs-navigation";
 import { CodeBlock } from "@/components/code-block";
@@ -98,6 +99,7 @@ export default async function DocsPage({
         </div>
         <h1>{doc.title}</h1>
         <Markdown
+          remarkPlugins={[remarkGfm]}
           components={{
             h1: () => null,
             table: ({ children }) => (

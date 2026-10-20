@@ -67,9 +67,17 @@ test("complete approved sandbox registry → observations → customer method av
     activationId: string;
   }[] = [];
   for (let index = 0; index < 3; index++) {
-    const { orgId } = await ok(request, {
-      action: "create-organization",
-      name: `Fictional registry ${index} ${randomUUID()}`,
+    // Provider organizations come from approved access requests.
+    const owner = await db.user.findUniqueOrThrow({
+      where: { email: "owner@harbor.example" },
+    });
+    const { id: orgId } = await db.organization.create({
+      data: {
+        name: `Fictional registry ${index} ${randomUUID()}`,
+        fictional: true,
+        application: { create: {} },
+        memberships: { create: { userId: owner.id, role: "Owner" } },
+      },
     });
     for (const section of [
       "company",

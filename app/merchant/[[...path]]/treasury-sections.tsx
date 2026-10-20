@@ -37,7 +37,7 @@ export function TreasuryBanner({ view, href }: { view: View; href: (p: string) =
     <div className={`tr-banner ${info?.tone ?? "neutral"}`}>
       <div>
         <strong>{!state ? "Activate payments" : info!.label === "Action needed" ? "Your account needs attention" : `Account ${info!.label.toLowerCase()}`}</strong>
-        <p>{!state ? "Tell us about your business to start accepting cards, bank transfers and mobile money." : info!.detail}</p>
+        <p>{!state ? "Tell us about your business to start accepting cards, digital wallets, bank transfers and mobile money." : info!.detail}</p>
       </div>
       <Link className="tr-button" href={href("activation")}>
         {!state ? "Start activation" : "View details"}

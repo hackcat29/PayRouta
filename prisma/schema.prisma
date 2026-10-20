@@ -1,971 +1,1146 @@
 generator client {
-  provider = "prisma-client"
+  provider     = "prisma-client"
   moduleFormat = "cjs"
-  output = "../lib/generated/prisma"
+  output       = "../lib/generated/prisma"
 }
+
 datasource db {
   provider = "postgresql"
 }
+
 model User {
-  id String @id
-  name String
-  email String @unique
-  emailVerified Boolean @default(false)
-  image String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  twoFactorEnabled Boolean @default(false)
-  internalRole String?
-  sessions Session[]
-  accounts Account[]
-  twoFactors TwoFactor[]
-  memberships Membership[]
+  id               String        @id
+  name             String
+  email            String        @unique
+  emailVerified    Boolean       @default(false)
+  image            String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  twoFactorEnabled Boolean       @default(false)
+  internalRole     String?
+  sessions         Session[]
+  accounts         Account[]
+  passkeys         Passkey[]
+  ssoProviders     SsoProvider[]
+  twoFactors       TwoFactor[]
+  memberships      Membership[]
 }
+
 model Session {
-  id String @id
+  id        String   @id
   expiresAt DateTime
-  token String @unique
+  token     String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   ipAddress String?
   userAgent String?
-  userId String
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
 }
+
 model Account {
-  id String @id
-  accountId String
-  providerId String
-  userId String
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accessToken String?
-  refreshToken String?
-  idToken String?
-  accessTokenExpiresAt DateTime?
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
   refreshTokenExpiresAt DateTime?
-  scope String?
-  password String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
   @@index([userId])
 }
+
+// WebAuthn passkeys (@better-auth/passkey). Field names follow the plugin.
+model Passkey {
+  id           String    @id
+  name         String?
+  publicKey    String
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credentialID String
+  counter      Int
+  deviceType   String
+  backedUp     Boolean
+  transports   String?
+  createdAt    DateTime?
+  aaguid       String?
+
+  @@index([userId])
+  @@index([credentialID])
+}
+
+// Company single sign-on (@better-auth/sso): one SAML or OIDC identity
+// provider per merchant domain. organizationId is a PayRouta Organization id.
+model SsoProvider {
+  id             String   @id
+  issuer         String
+  oidcConfig     String?
+  samlConfig     String?
+  userId         String?
+  user           User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  providerId     String   @unique
+  organizationId String?
+  domain         String
+  domainVerified Boolean?
+
+  @@index([organizationId])
+  @@index([domain])
+}
+
 model Verification {
-  id String @id
+  id         String   @id
   identifier String
-  value String
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
   @@index([identifier])
 }
+
 model TwoFactor {
-  id String @id
-  secret String
-  backupCodes String
-  userId String
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  verified Boolean @default(true)
-  failedVerificationCount Int @default(0)
-  lockedUntil DateTime?
+  id                      String    @id
+  secret                  String
+  backupCodes             String
+  userId                  String
+  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  verified                Boolean   @default(true)
+  failedVerificationCount Int       @default(0)
+  lockedUntil             DateTime?
+
   @@index([userId])
 }
+
 model RateLimit {
-  id String @id @default(cuid())
-  key String @unique
-  count Int
+  id          String @id @default(cuid())
+  key         String @unique
+  count       Int
   lastRequest BigInt
 }
+
 model StepUp {
-  sessionId String @id
+  sessionId String   @id
   expiresAt DateTime
 }
+
 model Organization {
-  id String @id @default(cuid())
-  name String
-  fictional Boolean @default(false)
-  createdAt DateTime @default(now())
-  merchantAccounts MerchantAccount[]
-  platformLinks MerchantPlatformLink[]
-  payouts Payout[]
-  refunds PlatformRefund[]
-  disputes PlatformDispute[]
+  id                  String                        @id @default(cuid())
+  name                String
+  fictional           Boolean                       @default(false)
+  createdAt           DateTime                      @default(now())
+  merchantAccounts    MerchantAccount[]
+  platformLinks       MerchantPlatformLink[]
+  payouts             Payout[]
+  refunds             PlatformRefund[]
+  disputes            PlatformDispute[]
   verificationDetails MerchantVerificationDetails[]
-  agreements MerchantAgreement[]
-  memberships Membership[]
-  invitations Invitation[]
-  application Application?
-  capabilities Capability[]
-  settlements SettlementConfig[]
-  integrations Integration[]
-  evidence Evidence[]
-  runs SandboxRun[]
-  activations Activation[]
-  jobs Job[]
-  availability Availability[]
-  transactions Transaction[]
-  settlementRecords Settlement[]
-  events IntegrationEvent[]
-  audit Audit[]
-  notifications Notification[]
-  credentials Credential[]
+  agreements          MerchantAgreement[]
+  memberships         Membership[]
+  invitations         Invitation[]
+  application         Application?
+  capabilities        Capability[]
+  settlements         SettlementConfig[]
+  integrations        Integration[]
+  evidence            Evidence[]
+  runs                SandboxRun[]
+  activations         Activation[]
+  jobs                Job[]
+  availability        Availability[]
+  transactions        Transaction[]
+  settlementRecords   Settlement[]
+  events              IntegrationEvent[]
+  audit               Audit[]
+  notifications       Notification[]
+  credentials         Credential[]
 }
+
 model Membership {
   merchantRole String?
-  id String @id @default(cuid())
-  userId String
-  orgId String
-  role String
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  id           String       @id @default(cuid())
+  userId       String
+  orgId        String
+  role         String
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org          Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
   @@unique([orgId, userId])
   @@index([userId])
 }
+
 model Invitation {
-  participation String @default("provider")
-  id String @id @default(cuid())
-  orgId String
-  org Organization @relation(fields: [orgId], references: [id])
-  email String
-  role String
-  tokenHash String @unique
-  expiresAt DateTime
-  acceptedAt DateTime?
-  createdAt DateTime @default(now())
+  participation String       @default("provider")
+  id            String       @id @default(cuid())
+  orgId         String
+  org           Organization @relation(fields: [orgId], references: [id])
+  email         String
+  role          String
+  tokenHash     String       @unique
+  expiresAt     DateTime
+  acceptedAt    DateTime?
+  createdAt     DateTime     @default(now())
+
   @@index([orgId, email])
 }
+
 model Application {
-  id String @id @default(cuid())
-  orgId String @unique
-  org Organization @relation(fields: [orgId], references: [id])
-  state String @default("Draft")
-  version Int @default(1)
-  draft Json @default("{}")
-  updatedAt DateTime @updatedAt
+  id          String       @id @default(cuid())
+  orgId       String       @unique
+  org         Organization @relation(fields: [orgId], references: [id])
+  state       String       @default("Draft")
+  version     Int          @default(1)
+  draft       Json         @default("{}")
+  updatedAt   DateTime     @updatedAt
   submissions Submission[]
 }
+
 model Submission {
-  id String @id @default(cuid())
-  applicationId String
-  application Application @relation(fields: [applicationId], references: [id])
-  version Int
-  snapshot Json
+  id             String          @id @default(cuid())
+  applicationId  String
+  application    Application     @relation(fields: [applicationId], references: [id])
+  version        Int
+  snapshot       Json
   idempotencyKey String
-  createdAt DateTime @default(now())
-  reviews Review[]
-  changes ChangeRequest[]
-  activations Activation[]
+  createdAt      DateTime        @default(now())
+  reviews        Review[]
+  changes        ChangeRequest[]
+  activations    Activation[]
+
   @@unique([applicationId, version])
   @@unique([applicationId, idempotencyKey])
 }
+
 model Review {
-  id String @id @default(cuid())
+  id           String     @id @default(cuid())
   submissionId String
-  submission Submission @relation(fields: [submissionId], references: [id])
-  actorId String
-  kind String
-  decision String
-  reason String
-  internalNote String @default("")
-  createdAt DateTime @default(now())
+  submission   Submission @relation(fields: [submissionId], references: [id])
+  actorId      String
+  kind         String
+  decision     String
+  reason       String
+  internalNote String     @default("")
+  createdAt    DateTime   @default(now())
+
   @@index([submissionId])
 }
+
 model ChangeRequest {
-  id String @id @default(cuid())
+  id           String     @id @default(cuid())
   submissionId String
-  submission Submission @relation(fields: [submissionId], references: [id])
-  section String
-  message String
-  response String?
-  respondedAt DateTime?
-  createdAt DateTime @default(now())
+  submission   Submission @relation(fields: [submissionId], references: [id])
+  section      String
+  message      String
+  response     String?
+  respondedAt  DateTime?
+  createdAt    DateTime   @default(now())
+
   @@index([submissionId])
 }
+
 model Requirement {
-  id String @id @default(cuid())
-  templateId String
-  version Int
-  name String
-  scope Json
-  illustrative Boolean @default(true)
-  active Boolean @default(true)
-  createdAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  templateId   String
+  version      Int
+  name         String
+  scope        Json
+  illustrative Boolean  @default(true)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
   @@unique([templateId, version])
 }
+
 model Evidence {
-  id String @id @default(cuid())
-  orgId String
-  org Organization @relation(fields: [orgId], references: [id])
-  requirementId String
-  objectKey String @unique
-  filename String
-  mime String
-  size Int
-  sha256 String
-  metadata Json
-  scanStatus String @default("Pending scan")
-  reviewStatus String @default("Uploaded")
-  expiresAt DateTime?
+  id             String       @id @default(cuid())
+  orgId          String
+  org            Organization @relation(fields: [orgId], references: [id])
+  requirementId  String
+  objectKey      String       @unique
+  filename       String
+  mime           String
+  size           Int
+  sha256         String
+  metadata       Json
+  scanStatus     String       @default("Pending scan")
+  reviewStatus   String       @default("Uploaded")
+  expiresAt      DateTime?
   retentionUntil DateTime
-  deletedAt DateTime?
-  createdAt DateTime @default(now())
+  deletedAt      DateTime?
+  createdAt      DateTime     @default(now())
+
   @@index([orgId, requirementId])
 }
+
 model Capability {
-  id String @id @default(cuid())
-  orgId String
-  org Organization @relation(fields: [orgId], references: [id])
+  id           String       @id @default(cuid())
+  orgId        String
+  org          Organization @relation(fields: [orgId], references: [id])
   capabilityId String
-  version Int
-  environment String
-  status String @default("Draft")
-  definition Json
-  createdAt DateTime @default(now())
+  version      Int
+  environment  String
+  status       String       @default("Draft")
+  definition   Json
+  createdAt    DateTime     @default(now())
+
   @@unique([orgId, capabilityId, version, environment])
   @@index([orgId, environment, status])
 }
+
 model SettlementConfig {
-  id String @id @default(cuid())
-  orgId String
-  org Organization @relation(fields: [orgId], references: [id])
-  version Int
+  id         String       @id @default(cuid())
+  orgId      String
+  org        Organization @relation(fields: [orgId], references: [id])
+  version    Int
   definition Json
+
   @@unique([orgId, version])
 }
+
 model Integration {
-  id String @id @default(cuid())
-  orgId String
-  org Organization @relation(fields: [orgId], references: [id])
-  environment String
-  version Int
-  config Json
-  createdAt DateTime @default(now())
+  id            String                 @id @default(cuid())
+  orgId         String
+  org           Organization           @relation(fields: [orgId], references: [id])
+  environment   String
+  version       Int
+  config        Json
+  createdAt     DateTime               @default(now())
   platformLinks MerchantPlatformLink[]
+
   @@unique([orgId, environment, version])
 }
+
 model Credential {
-  id String @id @default(cuid())
-  orgId String
-  org Organization @relation(fields: [orgId], references: [id])
+  id          String       @id @default(cuid())
+  orgId       String
+  org         Organization @relation(fields: [orgId], references: [id])
   environment String
-  kind String
-  label String
-  secretRef String?
-  verifier String?
-  backend String
-  revokedAt DateTime?
-  createdAt DateTime @default(now())
+  kind        String
+  label       String
+  secretRef   String?
+  verifier    String?
+  backend     String
+  revokedAt   DateTime?
+  createdAt   DateTime     @default(now())
+
   @@index([orgId, environment])
 }
+
 model SandboxRun {
-  id String @id @default(cuid())
-  orgId String
-  org Organization @relation(fields: [orgId], references: [id])
-  environment String @default("sandbox")
-  adapter String
+  id                 String       @id @default(cuid())
+  orgId              String
+  org                Organization @relation(fields: [orgId], references: [id])
+  environment        String       @default("sandbox")
+  adapter            String
   integrationVersion Int
-  scenario String
-  outcome String
-  idempotencyKey String
-  steps Json
-  createdAt DateTime @default(now())
-  finishedAt DateTime?
+  scenario           String
+  outcome            String
+  idempotencyKey     String
+  steps              Json
+  createdAt          DateTime     @default(now())
+  finishedAt         DateTime?
+
   @@unique([orgId, idempotencyKey])
 }
+
 model Activation {
-  id String @id @default(cuid())
-  orgId String
-  org Organization @relation(fields: [orgId], references: [id])
-  submissionId String
-  submission Submission @relation(fields: [submissionId], references: [id])
-  environment String
-  state String
-  action String @default("publish")
-  reason String
-  actorId String
-  sequence Int
+  id             String       @id @default(cuid())
+  orgId          String
+  org            Organization @relation(fields: [orgId], references: [id])
+  submissionId   String
+  submission     Submission   @relation(fields: [submissionId], references: [id])
+  environment    String
+  state          String
+  action         String       @default("publish")
+  reason         String
+  actorId        String
+  sequence       Int
   acknowledgedAt DateTime?
-  createdAt DateTime @default(now())
+  createdAt      DateTime     @default(now())
+
   @@unique([orgId, environment, sequence])
 }
+
 model Job {
-  id String @id @default(cuid())
-  orgId String
-  org Organization @relation(fields: [orgId], references: [id])
-  kind String
-  key String @unique
-  payload Json
-  state String @default("Pending")
-  attempts Int @default(0)
-  availableAt DateTime @default(now())
-  lockedAt DateTime?
-  error String?
-  createdAt DateTime @default(now())
+  id          String       @id @default(cuid())
+  orgId       String
+  org         Organization @relation(fields: [orgId], references: [id])
+  kind        String
+  key         String       @unique
+  payload     Json
+  state       String       @default("Pending")
+  attempts    Int          @default(0)
+  availableAt DateTime     @default(now())
+  lockedAt    DateTime?
+  error       String?
+  createdAt   DateTime     @default(now())
+
   @@index([state, availableAt])
 }
+
 model RegistrySnapshot {
-  key String @id
-  orgId String
-  environment String
-  sequence Int
-  action String
-  snapshot Json
+  key            String   @id
+  orgId          String
+  environment    String
+  sequence       Int
+  action         String
+  snapshot       Json
   acknowledgedAt DateTime @default(now())
+
   @@unique([orgId, environment, sequence])
 }
+
 model Availability {
-  integrationId String?
+  integrationId     String?
   capabilityVersion Int?
-  observationType String?
-  trust String?
-  eventKey String? @unique
-  sequence Int?
-  observedAt DateTime?
-  value Json?
-  id String @id @default(cuid())
-  orgId String
-  org Organization @relation(fields: [orgId], references: [id])
-  capabilityId String
-  environment String
-  status String
-  source String
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  observationType   String?
+  trust             String?
+  eventKey          String?      @unique
+  sequence          Int?
+  observedAt        DateTime?
+  value             Json?
+  id                String       @id @default(cuid())
+  orgId             String
+  org               Organization @relation(fields: [orgId], references: [id])
+  capabilityId      String
+  environment       String
+  status            String
+  source            String
+  expiresAt         DateTime
+  createdAt         DateTime     @default(now())
+
   @@index([orgId, environment, capabilityId])
   @@index([integrationId, environment, observationType, capabilityId, observedAt])
 }
+
 model Transaction {
-  id String @id @default(cuid())
-  orgId String
-  org Organization @relation(fields: [orgId], references: [id])
-  environment String
-  reference String
-  method String
-  operation String
-  amount String
-  asset String
-  executionState String
-  latencyMs Int?
+  id              String       @id @default(cuid())
+  orgId           String
+  org             Organization @relation(fields: [orgId], references: [id])
+  environment     String
+  reference       String
+  method          String
+  operation       String
+  amount          String
+  asset           String
+  executionState  String
+  latencyMs       Int?
   failureCategory String?
-  timeline Json
-  createdAt DateTime @default(now())
-  settlements Settlement[]
+  timeline        Json
+  createdAt       DateTime     @default(now())
+  settlements     Settlement[]
+
   @@unique([orgId, environment, reference])
   @@index([orgId, environment, createdAt])
 }
+
 model Settlement {
-  id String @id @default(cuid())
-  orgId String
-  org Organization @relation(fields: [orgId], references: [id])
+  id            String       @id @default(cuid())
+  orgId         String
+  org           Organization @relation(fields: [orgId], references: [id])
   transactionId String
-  transaction Transaction @relation(fields: [transactionId], references: [id])
-  environment String
-  state String
-  reference String
-  amount String
-  asset String
-  createdAt DateTime @default(now())
-  completedAt DateTime?
+  transaction   Transaction  @relation(fields: [transactionId], references: [id])
+  environment   String
+  state         String
+  reference     String
+  amount        String
+  asset         String
+  createdAt     DateTime     @default(now())
+  completedAt   DateTime?
+
   @@index([orgId, environment, createdAt])
 }
+
 model IntegrationEvent {
-  id String @id @default(cuid())
-  orgId String
-  org Organization @relation(fields: [orgId], references: [id])
+  id          String       @id @default(cuid())
+  orgId       String
+  org         Organization @relation(fields: [orgId], references: [id])
   environment String
-  eventId String
-  type String
-  state String
-  summary String
-  createdAt DateTime @default(now())
+  eventId     String
+  type        String
+  state       String
+  summary     String
+  createdAt   DateTime     @default(now())
+
   @@unique([orgId, environment, eventId])
 }
+
 model Audit {
-  id String @id @default(cuid())
-  orgId String?
-  org Organization? @relation(fields: [orgId], references: [id])
-  actorId String
-  action String
-  target String
-  metadata Json @default("{}")
-  internal Boolean @default(false)
-  createdAt DateTime @default(now())
+  id        String        @id @default(cuid())
+  orgId     String?
+  org       Organization? @relation(fields: [orgId], references: [id])
+  actorId   String
+  action    String
+  target    String
+  metadata  Json          @default("{}")
+  internal  Boolean       @default(false)
+  createdAt DateTime      @default(now())
+
   @@index([orgId, createdAt])
 }
+
 model Notification {
-  id String @id @default(cuid())
-  orgId String
-  org Organization @relation(fields: [orgId], references: [id])
-  message String
-  href String
-  readAt DateTime?
-  createdAt DateTime @default(now())
+  id        String       @id @default(cuid())
+  orgId     String
+  org       Organization @relation(fields: [orgId], references: [id])
+  message   String
+  href      String
+  readAt    DateTime?
+  createdAt DateTime     @default(now())
+
   @@index([orgId, createdAt])
 }
 
 // Current projection of the existing immutable RegistrySnapshot history.
 model RegistryHead {
-  orgId String
+  orgId       String
   environment String
-  sequence Int
-  key String @unique
+  sequence    Int
+  key         String @unique
   fingerprint String
-  action String
+  action      String
+
   @@id([orgId, environment])
 }
+
 model PublishedProfile {
-  rollout Json @default("{}")
-  id String @id
-  orgId String
-  integrationId String
-  environment String
-  capabilityId String
+  rollout           Json    @default("{}")
+  id                String  @id
+  orgId             String
+  integrationId     String
+  environment       String
+  capabilityId      String
   capabilityVersion Int
-  submissionId String
-  publicationKey String
-  revision Int
-  method String
-  operation String
-  origin String
-  destination String
-  inputAsset String
-  inputNetwork String
-  current Boolean @default(true)
-  definition Json
+  submissionId      String
+  publicationKey    String
+  revision          Int
+  method            String
+  operation         String
+  origin            String
+  destination       String
+  inputAsset        String
+  inputNetwork      String
+  current           Boolean @default(true)
+  definition        Json
+
   @@index([environment, current, method, operation, inputAsset, inputNetwork])
   @@index([orgId, environment, current])
   @@index([publicationKey])
 }
+
 // Created by trusted internal services/operators, never from checkout claims.
 model AvailabilityContext {
-  id String @id @default(cuid())
-  orgId String
-  environment String
+  id            String   @id @default(cuid())
+  orgId         String
+  environment   String
   policyVersion String
-  context Json
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  context       Json
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+
   @@index([orgId, environment])
 }
+
 model AvailabilityEvaluation {
-  id String @id
-  contextId String
-  orgId String
-  environment String
-  policyVersion String
+  id                 String   @id
+  contextId          String
+  orgId              String
+  environment        String
+  policyVersion      String
   contextFingerprint String
-  safe Json
-  trace Json
-  expiresAt DateTime
-  retentionUntil DateTime
-  createdAt DateTime @default(now())
+  safe               Json
+  trace              Json
+  expiresAt          DateTime
+  retentionUntil     DateTime
+  createdAt          DateTime @default(now())
+
   @@index([orgId, environment, createdAt])
   @@index([retentionUntil])
 }
 
 model MerchantConfig {
-  application Json @default("{}")
-  applicationState String @default("Draft")
-  applicationVersion Int @default(1)
-  riskPolicy Json @default("{}")
-  liveScope Json @default("{}")
-  providerAllowlist Json @default("[]")
-  orgId String @id
-  environment String @default("sandbox")
-  returnOrigin String
-  country String @default("NG")
-  policy String @default("balanced")
-  webhookUrl String?
-  webhookSecretRef String?
-  webhookKeyId String @default("v1")
+  application        Json    @default("{}")
+  applicationState   String  @default("Draft")
+  applicationVersion Int     @default(1)
+  riskPolicy         Json    @default("{}")
+  liveScope          Json    @default("{}")
+  providerAllowlist  Json    @default("[]")
+  orgId              String  @id
+  environment        String  @default("sandbox")
+  returnOrigin       String
+  country            String  @default("NG")
+  policy             String  @default("balanced")
+  webhookUrl         String?
+  webhookSecretRef   String?
+  webhookKeyId       String  @default("v1")
+  // Who pays fees by default: "merchant" or "customer" (lib/payments/fee-bearer.ts).
+  feeBearer          String  @default("merchant")
 }
+
 model PaymentIntent {
-  cryptoQuoteId String?
-  paymentOptions Json?
-  selectedOption String?
-  pilotBatchId String?
-  feeSnapshot Json?
-  platformFee PaymentFee?
-  id String @id @default(cuid())
-  orgId String
-  environment String
-  reference String
-  amount String
-  asset Json
-  precision Int
-  methods Json
-  settlement Json
-  returnUrl String
-  metadata Json
-  key String
-  fingerprint String
-  state String @default("Open")
-  version Int @default(1)
-  selectedMethod String?
-  contextId String
-  evaluationId String?
-  routeId String?
-  scenario String @default("success")
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-  allocations SettlementAllocation[]
+  // "customer": each payment option's amount was raised from its baseAmount
+  // (stored in paymentOptions) so the merchant receives baseAmount after fees.
+  feeBearer       String                 @default("merchant")
+  // Universal checkout (POST /checkouts): intents for the same order that
+  // the customer chooses between (fiat methods and credit, or crypto). Only
+  // one of a group can be paid (lib/payments/universal.ts).
+  checkoutGroup   String?
+  cryptoQuoteId   String?
+  paymentOptions  Json?
+  selectedOption  String?
+  pilotBatchId    String?
+  feeSnapshot     Json?
+  platformFee     PaymentFee?
+  id              String                 @id @default(cuid())
+  orgId           String
+  environment     String
+  reference       String
+  amount          String
+  asset           Json
+  precision       Int
+  methods         Json
+  settlement      Json
+  returnUrl       String
+  metadata        Json
+  key             String
+  fingerprint     String
+  state           String                 @default("Open")
+  version         Int                    @default(1)
+  selectedMethod  String?
+  contextId       String
+  evaluationId    String?
+  routeId         String?
+  scenario        String                 @default("success")
+  expiresAt       DateTime
+  createdAt       DateTime               @default(now())
+  allocations     SettlementAllocation[]
   platformPayment PlatformPayment?
-  exceptions PaymentException[]
-  sessions CheckoutSession[]
-  attempts PaymentAttempt[]
+  exceptions      PaymentException[]
+  sessions        CheckoutSession[]
+  attempts        PaymentAttempt[]
+
   @@unique([orgId, environment, key])
   @@index([orgId, environment, createdAt])
+  @@index([checkoutGroup])
 }
+
 model CheckoutSession {
-  requestKey String? @unique
-  tokenRef String?
+  requestKey String?       @unique
+  tokenRef   String?
+  id         String        @id @default(cuid())
+  intentId   String
+  intent     PaymentIntent @relation(fields: [intentId], references: [id])
+  verifier   String
+  expiresAt  DateTime
+  revokedAt  DateTime?
+
   @@unique([intentId, requestKey])
-  id String @id @default(cuid())
-  intentId String
-  intent PaymentIntent @relation(fields: [intentId], references: [id])
-  verifier String
-  expiresAt DateTime
-  revokedAt DateTime?
 }
+
 model PaymentRoute {
-  id String @id @default(cuid())
-  intentId String
-  method String
-  evaluationId String
-  policy String
+  id            String   @id @default(cuid())
+  intentId      String
+  method        String
+  evaluationId  String
+  policy        String
   policyVersion String
-  profileId String
-  snapshot Json
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  profileId     String
+  snapshot      Json
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
 }
+
 model PaymentAttempt {
-  id String @id @default(cuid())
-  intentId String
-  intent PaymentIntent @relation(fields: [intentId], references: [id])
-  platformPayment PlatformPayment?
-  number Int
-  profileId String
-  providerOrgId String
-  integrationId String
-  environment String
-  routeId String
-  key String @unique
-  fingerprint String
-  state String @default("Created")
+  id                String           @id @default(cuid())
+  intentId          String
+  intent            PaymentIntent    @relation(fields: [intentId], references: [id])
+  platformPayment   PlatformPayment?
+  number            Int
+  profileId         String
+  providerOrgId     String
+  integrationId     String
+  environment       String
+  routeId           String
+  key               String           @unique
+  fingerprint       String
+  state             String           @default("Created")
   providerReference String?
-  action Json?
-  dispatchedAt DateTime?
-  updatedAt DateTime @updatedAt
-  createdAt DateTime @default(now())
+  action            Json?
+  dispatchedAt      DateTime?
+  updatedAt         DateTime         @updatedAt
+  createdAt         DateTime         @default(now())
+
   @@unique([intentId, number])
   @@unique([integrationId, environment, providerReference])
   @@index([providerOrgId, environment, state])
 }
+
 // Durable fictional provider state is deliberately separate from PayRouta attempts.
 model SimulatorPayment {
-  key String @id
-  reference String @unique
-  state String
-  amount String
-  asset Json
-  settlementState String @default("Pending")
-  createdAt DateTime @default(now())
+  key             String   @id
+  reference       String   @unique
+  state           String
+  amount          String
+  asset           Json
+  settlementState String   @default("Pending")
+  createdAt       DateTime @default(now())
 }
+
 model PaymentInbox {
-  id String @id @default(cuid())
+  id            String   @id @default(cuid())
   integrationId String
-  environment String
-  eventId String
-  fingerprint String
-  payload Json
-  state String @default("Pending")
-  createdAt DateTime @default(now())
+  environment   String
+  eventId       String
+  fingerprint   String
+  payload       Json
+  state         String   @default("Pending")
+  createdAt     DateTime @default(now())
+
   @@unique([integrationId, environment, eventId])
 }
+
 model MerchantEvent {
-  id String @id @default(cuid())
-  orgId String
+  id          String   @id @default(cuid())
+  orgId       String
   environment String
-  intentId String
-  type String
-  version Int
-  payload Json
-  createdAt DateTime @default(now())
+  intentId    String
+  type        String
+  version     Int
+  payload     Json
+  createdAt   DateTime @default(now())
+
   @@unique([intentId, type, version])
 }
+
 model MerchantDelivery {
-  id String @id @default(cuid())
-  eventId String @unique
-  state String @default("Pending")
-  attempts Int @default(0)
-  history Json @default("[]")
+  id        String   @id @default(cuid())
+  eventId   String   @unique
+  state     String   @default("Pending")
+  attempts  Int      @default(0)
+  history   Json     @default("[]")
   updatedAt DateTime @updatedAt
 }
+
 model PaymentSettlement {
-  id String @id @default(cuid())
-  providerOrgId String
-  integrationId String
-  environment String
-  reference String
-  asset Json
-  gross String
-  fee String
-  net String
-  state String
-  reconciliation String @default("Unverified")
-  evidence String
-  createdAt DateTime @default(now())
-  allocations SettlementAllocation[]
+  id             String                 @id @default(cuid())
+  providerOrgId  String
+  integrationId  String
+  environment    String
+  reference      String
+  asset          Json
+  gross          String
+  fee            String
+  net            String
+  state          String
+  reconciliation String                 @default("Unverified")
+  evidence       String
+  createdAt      DateTime               @default(now())
+  allocations    SettlementAllocation[]
+
   @@unique([integrationId, environment, reference])
 }
+
 model SettlementAllocation {
-  intent PaymentIntent @relation(fields: [intentId], references: [id])
-  fee String @default("0")
-  id String @id @default(cuid())
+  intent       PaymentIntent     @relation(fields: [intentId], references: [id])
+  fee          String            @default("0")
+  id           String            @id @default(cuid())
   settlementId String
-  settlement PaymentSettlement @relation(fields: [settlementId], references: [id])
-  intentId String
-  amount String
+  settlement   PaymentSettlement @relation(fields: [settlementId], references: [id])
+  intentId     String
+  amount       String
+
   @@unique([settlementId, intentId])
 }
+
 model JournalEntry {
-  postingTransaction BigInt @default(dbgenerated("txid_current()"))
+  postingTransaction BigInt           @default(dbgenerated("txid_current()"))
   // Required for, and only for, the merchant-funds book.
-  platformAccountId String?
-  platformAccount PlatformAccount? @relation(fields: [platformAccountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  id String @id @default(cuid())
-  orgId String
-  environment String
-  source String @unique
-  book String
-  asset String
-  purpose String
-  reversalOf String?
-  effectiveAt DateTime
-  createdAt DateTime @default(now())
-  postings JournalPosting[]
+  platformAccountId  String?
+  platformAccount    PlatformAccount? @relation(fields: [platformAccountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id                 String           @id @default(cuid())
+  orgId              String
+  environment        String
+  source             String           @unique
+  book               String
+  asset              String
+  purpose            String
+  reversalOf         String?
+  effectiveAt        DateTime
+  createdAt          DateTime         @default(now())
+  postings           JournalPosting[]
+
   @@index([orgId, environment, book, platformAccountId, asset])
 }
+
 model JournalPosting {
-  id String @id @default(cuid())
+  id      String       @id @default(cuid())
   entryId String
-  entry JournalEntry @relation(fields: [entryId], references: [id])
+  entry   JournalEntry @relation(fields: [entryId], references: [id])
   account String
-  debit Decimal @db.Decimal(50,0)
-  credit Decimal @db.Decimal(50,0)
+  debit   Decimal      @db.Decimal(50, 0)
+  credit  Decimal      @db.Decimal(50, 0)
+
   @@index([entryId])
 }
+
 model PaymentReconciliation {
-  id String @id @default(cuid())
-  intentId String
-  fingerprint String @unique
-  evidence Json
-  result String
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  intentId    String
+  fingerprint String   @unique
+  evidence    Json
+  result      String
+  createdAt   DateTime @default(now())
 }
+
 model PaymentException {
-  intent PaymentIntent @relation(fields: [intentId], references: [id])
-  id String @id @default(cuid())
-  intentId String
-  code String
-  evidence Json
-  state String @default("Unresolved")
-  timeline Json @default("[]")
-  createdAt DateTime @default(now())
+  intent    PaymentIntent @relation(fields: [intentId], references: [id])
+  id        String        @id @default(cuid())
+  intentId  String
+  code      String
+  evidence  Json
+  state     String        @default("Unresolved")
+  timeline  Json          @default("[]")
+  createdAt DateTime      @default(now())
+
   @@unique([intentId, code])
 }
 
 model PaymentReport {
-  id String @id @default(cuid())
-  integrationId String
-  environment String
-  fingerprint String
+  id               String   @id @default(cuid())
+  integrationId    String
+  environment      String
+  fingerprint      String
   providerReportId String
-  coverageStart DateTime
-  coverageEnd DateTime
-  cursor Int @default(0)
-  state String @default("Pending")
-  rows Json
-  createdAt DateTime @default(now())
+  coverageStart    DateTime
+  coverageEnd      DateTime
+  cursor           Int      @default(0)
+  state            String   @default("Pending")
+  rows             Json
+  createdAt        DateTime @default(now())
+
   @@unique([integrationId, environment, fingerprint])
 }
 
 // Verifiers extend existing organization membership; never recoverable API secrets.
 model MerchantApiKey {
-  id String @id @default(cuid())
-  orgId String
+  id          String    @id @default(cuid())
+  orgId       String
   environment String
-  prefix String
-  verifier String @unique
+  prefix      String
+  verifier    String    @unique
   permissions Json
-  createdAt DateTime @default(now())
-  expiresAt DateTime?
-  revokedAt DateTime?
-  lastUsedAt DateTime?
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  lastUsedAt  DateTime?
+
   @@index([orgId, environment, createdAt])
 }
+
 model MerchantRequest {
-  id String @id
-  orgId String
+  id          String   @id
+  orgId       String
   environment String
-  operation String
-  status Int
-  durationMs Int
-  createdAt DateTime @default(now())
+  operation   String
+  status      Int
+  durationMs  Int
+  createdAt   DateTime @default(now())
+
   @@index([orgId, environment, createdAt])
 }
 
 model MerchantRiskDecision {
- id String @id @default(cuid())
- intentId String
- policyVersion String
- decision String
- reasons Json
- expiresAt DateTime
- createdAt DateTime @default(now())
- @@index([intentId, createdAt])
+  id            String   @id @default(cuid())
+  intentId      String
+  policyVersion String
+  decision      String
+  reasons       Json
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+
+  @@index([intentId, createdAt])
 }
+
 model MerchantReservation {
- intentId String @id
- orgId String
- environment String
- asset String
- day String
- amount Decimal @db.Decimal(50,0)
- createdAt DateTime @default(now())
- @@index([orgId, environment, asset, day])
+  intentId    String   @id
+  orgId       String
+  environment String
+  asset       String
+  day         String
+  amount      Decimal  @db.Decimal(50, 0)
+  createdAt   DateTime @default(now())
+
+  @@index([orgId, environment, asset, day])
 }
+
 // Transaction-level compliance eligibility, evaluated before availability.
 model ComplianceDecision {
- id String @id @default(cuid())
- intentId String
- policyVersion String
- decision String
- reasons Json
- context Json
- expiresAt DateTime
- createdAt DateTime @default(now())
- @@index([intentId, createdAt])
+  id            String   @id @default(cuid())
+  intentId      String
+  policyVersion String
+  decision      String
+  reasons       Json
+  context       Json
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+
+  @@index([intentId, createdAt])
 }
+
 // Persisted provider certification results. Only certified, approved
 // capabilities ever become production-routable.
 model ProviderCertification {
- id String @id @default(cuid())
- orgId String
- environment String
- integrationId String
- capabilityId String?
- status String
- scenarios Json
- passed Int
- failed Int
- humanFailures Json
- createdAt DateTime @default(now())
- @@index([orgId, environment, createdAt])
+  id            String   @id @default(cuid())
+  orgId         String
+  environment   String
+  integrationId String
+  capabilityId  String?
+  status        String
+  scenarios     Json
+  passed        Int
+  failed        Int
+  humanFailures Json
+  createdAt     DateTime @default(now())
+
+  @@index([orgId, environment, createdAt])
 }
+
 // Partner onboarding ("register once"). See lib/partners and
 // docs/PARTNER-PROGRAM.md. Profiles, screenings and consents are immutable
 // (database triggers); a consent may only be revoked once.
 model MerchantKybProfile {
- id String @id @default(cuid())
- orgId String
- version Int
- data Json
- fingerprint String
- createdBy String
- createdAt DateTime @default(now())
- merchantAccounts MerchantAccount[]
- platformLinks MerchantPlatformLink[]
- @@unique([orgId, version])
+  id               String                 @id @default(cuid())
+  orgId            String
+  version          Int
+  data             Json
+  fingerprint      String
+  createdBy        String
+  createdAt        DateTime               @default(now())
+  merchantAccounts MerchantAccount[]
+  platformLinks    MerchantPlatformLink[]
+
+  @@unique([orgId, version])
 }
+
 model MerchantScreening {
- id String @id @default(cuid())
- orgId String
- profileVersion Int
- provider String
- verdict String
- results Json
- createdBy String
- createdAt DateTime @default(now())
- @@index([orgId, profileVersion, createdAt])
+  id             String   @id @default(cuid())
+  orgId          String
+  profileVersion Int
+  provider       String
+  verdict        String
+  results        Json
+  createdBy      String
+  createdAt      DateTime @default(now())
+
+  @@index([orgId, profileVersion, createdAt])
 }
+
 // PayRouta's own platform relationship with each partner. Secrets are
 // secret-manager references only.
 model PartnerConnection {
- id String @id @default(cuid())
- partnerId String
- environment String
- config Json
- enabled Boolean @default(false)
- // Set by operations after an end-to-end run against the provider's own
- // sandbox (onboarding, events, payment, status). Production payments through
- // a partner require its sandbox connection to be qualified.
- qualifiedAt DateTime?
- qualification Json?
- updatedBy String
- updatedAt DateTime @updatedAt
- createdAt DateTime @default(now())
- @@unique([partnerId, environment])
+  id            String    @id @default(cuid())
+  partnerId     String
+  environment   String
+  config        Json
+  enabled       Boolean   @default(false)
+  // Set by operations after an end-to-end run against the provider's own
+  // sandbox (onboarding, events, payment, status). Production payments through
+  // a partner require its sandbox connection to be qualified.
+  qualifiedAt   DateTime?
+  qualification Json?
+  updatedBy     String
+  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime  @default(now())
+
+  @@unique([partnerId, environment])
 }
+
 model PartnerConsent {
- id String @id @default(cuid())
- orgId String
- partnerId String
- environment String
- profileVersion Int
- fields Json
- disclosureFingerprint String
- grantedBy String
- grantedAt DateTime @default(now())
- revokedAt DateTime?
- revokedBy String?
- @@index([orgId, partnerId, environment])
+  id                    String    @id @default(cuid())
+  orgId                 String
+  partnerId             String
+  environment           String
+  profileVersion        Int
+  fields                Json
+  disclosureFingerprint String
+  grantedBy             String
+  grantedAt             DateTime  @default(now())
+  revokedAt             DateTime?
+  revokedBy             String?
+
+  @@index([orgId, partnerId, environment])
 }
+
 model PartnerApplication {
- id String @id @default(cuid())
- orgId String
- partnerId String
- environment String
- consentId String
- profileVersion Int
- state String @default("Queued")
- accountRef String?
- providerAccountId String?
- requirements Json @default("[]")
- paymentsEnabled Boolean @default(false)
- payoutsEnabled Boolean @default(false)
- reason String?
- disclosedFingerprint String?
- integrationId String?
- submittedAt DateTime?
- approvedAt DateTime?
- lastCheckedAt DateTime?
- createdAt DateTime @default(now())
- updatedAt DateTime @updatedAt
- @@unique([orgId, partnerId, environment])
- @@unique([partnerId, environment, accountRef])
- @@index([state, lastCheckedAt])
+  id                   String    @id @default(cuid())
+  orgId                String
+  partnerId            String
+  environment          String
+  consentId            String
+  profileVersion       Int
+  state                String    @default("Queued")
+  accountRef           String?
+  providerAccountId    String?
+  requirements         Json      @default("[]")
+  paymentsEnabled      Boolean   @default(false)
+  payoutsEnabled       Boolean   @default(false)
+  reason               String?
+  disclosedFingerprint String?
+  integrationId        String?
+  submittedAt          DateTime?
+  approvedAt           DateTime?
+  lastCheckedAt        DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@unique([orgId, partnerId, environment])
+  @@unique([partnerId, environment, accountRef])
+  @@index([state, lastCheckedAt])
 }
+
 model PartnerEvent {
- id String @id @default(cuid())
- partnerId String
- environment String
- eventId String
- fingerprint String
- type String
- accountRef String?
- providerAccountId String?
- objectRef String?
- state String @default("Received")
- createdAt DateTime @default(now())
- @@unique([partnerId, environment, eventId])
+  id                String   @id @default(cuid())
+  partnerId         String
+  environment       String
+  eventId           String
+  fingerprint       String
+  type              String
+  accountRef        String?
+  providerAccountId String?
+  objectRef         String?
+  state             String   @default("Received")
+  createdAt         DateTime @default(now())
+
+  @@unique([partnerId, environment, eventId])
 }
+
 // Production secret store: AES-256-GCM ciphertext under a master key held
 // outside the database (SECRET_MASTER_KEYS). Revocation erases ciphertext.
 model Secret {
- id String @id
- keyId String
- iv Bytes
- tag Bytes
- ciphertext Bytes?
- createdAt DateTime @default(now())
- rotatedAt DateTime?
- revokedAt DateTime?
- @@index([keyId])
+  id         String    @id
+  keyId      String
+  iv         Bytes
+  tag        Bytes
+  ciphertext Bytes?
+  createdAt  DateTime  @default(now())
+  rotatedAt  DateTime?
+  revokedAt  DateTime?
+
+  @@index([keyId])
 }
 
 // Merchant-owned, permanently consumed receive addresses and finalized logs.
 model DepositBinding {
- acceptBefore DateTime?
- attemptId String @id
- attemptKey String @unique
- integrationId String
- environment String
- network String
- identifier String
- address String
- amount String
- precision Int
- startBlock BigInt
- createdAt DateTime @default(now())
- @@unique([network, address])
+  acceptBefore  DateTime?
+  attemptId     String    @id
+  attemptKey    String    @unique
+  integrationId String
+  environment   String
+  network       String
+  identifier    String
+  address       String
+  amount        String
+  precision     Int
+  startBlock    BigInt
+  createdAt     DateTime  @default(now())
+
+  @@unique([network, address])
 }
+
 model DepositScan {
- cursor String?
- attemptId String @id
- nextBlock BigInt
- updatedAt DateTime @updatedAt
+  cursor    String?
+  attemptId String   @id
+  nextBlock BigInt
+  updatedAt DateTime @updatedAt
 }
 
 model CryptoQuote {
- id String @id @default(cuid())
- orgId String
- environment String
- key String
- fingerprint String
- request Json
- terms Json
- expiresAt DateTime
- createdAt DateTime @default(now())
- @@unique([orgId, environment, key])
+  id          String   @id @default(cuid())
+  orgId       String
+  environment String
+  key         String
+  fingerprint String
+  request     Json
+  terms       Json
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  @@unique([orgId, environment, key])
 }
+
 model DepositClaim {
- id String @id @default(cuid())
- attemptId String @unique
- network String
- txHash String
- logIndex String
- blockHash String
- amount String
- createdAt DateTime @default(now())
- @@unique([network, txHash, logIndex])
+  id        String   @id @default(cuid())
+  attemptId String   @unique
+  network   String
+  txHash    String
+  logIndex  String
+  blockHash String
+  amount    String
+  createdAt DateTime @default(now())
+
+  @@unique([network, txHash, logIndex])
 }
 
 model PaymentFee {
-  intentId String @id
-  intent PaymentIntent @relation(fields: [intentId], references: [id])
-  orgId String
-  environment String
-  method String
-  currency String
-  precision Int
-  amountMinor Decimal @db.Decimal(50,0)
-  billable Boolean
+  intentId        String        @id
+  intent          PaymentIntent @relation(fields: [intentId], references: [id])
+  orgId           String
+  environment     String
+  method          String
+  currency        String
+  precision       Int
+  // PayRouta's own fee.
+  amountMinor     Decimal       @db.Decimal(50, 0)
+  // The partner's standard fee charged to the merchant on top, where PayRouta
+  // pays the partner (pricing v2). Zero where the partner charges the
+  // merchant directly, and on every v1 fee.
+  partnerFeeMinor Decimal       @default(0) @db.Decimal(50, 0)
+  billable        Boolean
   // "withheld" when taken at source through a platform account; only
   // "invoice" fees appear on monthly statements.
-  collection String @default("invoice")
-  terms Json
-  effectiveAt DateTime
+  collection      String        @default("invoice")
+  terms           Json
+  effectiveAt     DateTime
+
   @@index([orgId, environment, effectiveAt])
 }
+
 model BillingStatement {
-  id String @id @default(cuid())
-  orgId String
+  id          String   @id @default(cuid())
+  orgId       String
   environment String
-  month String
-  currency String
-  precision Int
-  amountMinor Decimal @db.Decimal(50,0)
-  lines Json
-  createdAt DateTime @default(now())
+  month       String
+  currency    String
+  precision   Int
+  amountMinor Decimal  @db.Decimal(50, 0)
+  lines       Json
+  createdAt   DateTime @default(now())
+
   @@unique([orgId, environment, month, currency, precision])
 }
 
 model WalletSubmission {
- signed String?
- id String @id @default(cuid())
- attemptId String @unique
- orgId String
- network String
- payer String
- unsigned String
- messageHash String
- expiresAt DateTime
- state String @default("Prepared")
- transactionHash String?
- createdAt DateTime @default(now())
- @@index([orgId, createdAt])
+  signed          String?
+  id              String   @id @default(cuid())
+  attemptId       String   @unique
+  orgId           String
+  network         String
+  payer           String
+  unsigned        String
+  messageHash     String
+  expiresAt       DateTime
+  state           String   @default("Prepared")
+  transactionHash String?
+  createdAt       DateTime @default(now())
+
+  @@index([orgId, createdAt])
 }
 
 // Email Marketing & Resend Integration Models
@@ -1055,282 +1230,450 @@ model MarketingDripStep {
   @@index([sequence, completed, nextStepAt])
 }
 
-
 // Aggregator foundation (docs/AGGREGATOR.md). Balances and transitions are
 // guarded by database triggers: balances change only through merchant-funds
 // journal postings and can never be overdrawn; transitions are immutable.
 model LegalEntity {
- id String @id @default(cuid())
- name String
- jurisdiction String
- licensedCountries Json @default("[]")
- updatedBy String
- createdAt DateTime @default(now())
- updatedAt DateTime @updatedAt
- platformAccounts PlatformAccount[]
- merchantAccounts MerchantAccount[]
+  id                String            @id @default(cuid())
+  name              String
+  jurisdiction      String
+  licensedCountries Json              @default("[]")
+  updatedBy         String
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  platformAccounts  PlatformAccount[]
+  merchantAccounts  MerchantAccount[]
 }
+
 model PlatformAccount {
- id String @id @default(cuid())
- legalEntityId String
- legalEntity LegalEntity @relation(fields: [legalEntityId], references: [id], onDelete: NoAction, onUpdate: NoAction)
- journalEntries JournalEntry[]
- links MerchantPlatformLink[]
- payments PlatformPayment[]
- payouts Payout[]
- events PlatformEvent[]
- refunds PlatformRefund[]
- disputes PlatformDispute[]
- reconciliations PlatformReconciliation[]
- provider String
- environment String
- custody String
- merchantCountries Json
- config Json
- enabled Boolean @default(false)
- qualifiedAt DateTime?
- qualification Json?
- updatedBy String
- createdAt DateTime @default(now())
- updatedAt DateTime @updatedAt
- @@unique([legalEntityId, provider, environment])
+  id                String                   @id @default(cuid())
+  legalEntityId     String
+  legalEntity       LegalEntity              @relation(fields: [legalEntityId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  journalEntries    JournalEntry[]
+  links             MerchantPlatformLink[]
+  payments          PlatformPayment[]
+  payouts           Payout[]
+  events            PlatformEvent[]
+  refunds           PlatformRefund[]
+  disputes          PlatformDispute[]
+  reconciliations   PlatformReconciliation[]
+  provider          String
+  environment       String
+  custody           String
+  merchantCountries Json
+  config            Json
+  enabled           Boolean                  @default(false)
+  qualifiedAt       DateTime?
+  qualification     Json?
+  updatedBy         String
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+
+  @@unique([legalEntityId, provider, environment])
 }
+
 model MerchantAccount {
- id String @id @default(cuid())
- orgId String
- environment String
- state String @default("Submitted")
- profileVersion Int
- org Organization @relation(fields: [orgId], references: [id], onDelete: NoAction, onUpdate: NoAction)
- profile MerchantKybProfile @relation(fields: [orgId, profileVersion], references: [orgId, version], onDelete: NoAction, onUpdate: NoAction)
- legalEntityId String?
- legalEntity LegalEntity? @relation(fields: [legalEntityId], references: [id], onDelete: NoAction, onUpdate: NoAction)
- transitions MerchantAccountTransition[]
- detailsVersion Int?
- details MerchantVerificationDetails? @relation(fields: [orgId, detailsVersion], references: [orgId, version], onDelete: NoAction, onUpdate: NoAction)
- agreementId String?
- agreement MerchantAgreement? @relation(fields: [agreementId], references: [id], onDelete: NoAction, onUpdate: NoAction)
- riskTier String?
- terms Json?
- version Int @default(1)
- createdAt DateTime @default(now())
- updatedAt DateTime @updatedAt
- @@unique([orgId, environment])
- @@index([state, updatedAt])
+  id             String                       @id @default(cuid())
+  orgId          String
+  environment    String
+  state          String                       @default("Submitted")
+  profileVersion Int
+  org            Organization                 @relation(fields: [orgId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  profile        MerchantKybProfile           @relation(fields: [orgId, profileVersion], references: [orgId, version], onDelete: NoAction, onUpdate: NoAction)
+  legalEntityId  String?
+  legalEntity    LegalEntity?                 @relation(fields: [legalEntityId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  transitions    MerchantAccountTransition[]
+  detailsVersion Int?
+  details        MerchantVerificationDetails? @relation(fields: [orgId, detailsVersion], references: [orgId, version], onDelete: NoAction, onUpdate: NoAction)
+  agreementId    String?
+  agreement      MerchantAgreement?           @relation(fields: [agreementId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  riskTier       String?
+  terms          Json?
+  version        Int                          @default(1)
+  createdAt      DateTime                     @default(now())
+  updatedAt      DateTime                     @updatedAt
+
+  @@unique([orgId, environment])
+  @@index([state, updatedAt])
 }
+
 model MerchantAccountTransition {
- id String @id @default(cuid())
- merchantAccountId String
- merchantAccount MerchantAccount @relation(fields: [merchantAccountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
- from String?
- to String
- reason String
- actorId String
- evidence Json
- createdAt DateTime @default(now())
- @@index([merchantAccountId, createdAt])
+  id                String          @id @default(cuid())
+  merchantAccountId String
+  merchantAccount   MerchantAccount @relation(fields: [merchantAccountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  from              String?
+  to                String
+  reason            String
+  actorId           String
+  evidence          Json
+  createdAt         DateTime        @default(now())
+
+  @@index([merchantAccountId, createdAt])
 }
+
 model MerchantBalance {
- orgId String
- environment String
- asset String
- account String
- balance Decimal @default(0) @db.Decimal(50,0)
- updatedAt DateTime @default(now())
- @@id([orgId, environment, asset, account])
+  orgId       String
+  environment String
+  asset       String
+  account     String
+  balance     Decimal  @default(0) @db.Decimal(50, 0)
+  updatedAt   DateTime @default(now())
+
+  @@id([orgId, environment, asset, account])
 }
+
 model MerchantPlatformLink {
- id String @id @default(cuid())
- orgId String
- org Organization @relation(fields: [orgId], references: [id], onDelete: NoAction, onUpdate: NoAction)
- profile MerchantKybProfile @relation(fields: [orgId, profileVersion], references: [orgId, version], onDelete: NoAction, onUpdate: NoAction)
- integration Integration? @relation(fields: [integrationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
- detailsVersion Int?
- details MerchantVerificationDetails? @relation(fields: [orgId, detailsVersion], references: [orgId, version], onDelete: NoAction, onUpdate: NoAction)
- agreementId String?
- agreement MerchantAgreement? @relation(fields: [agreementId], references: [id], onDelete: NoAction, onUpdate: NoAction)
- platformAccountId String
- platformAccount PlatformAccount @relation(fields: [platformAccountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
- environment String
- profileVersion Int
- state String @default("Queued")
- providerAccountId String?
- requirements Json @default("[]")
- paymentsEnabled Boolean @default(false)
- payoutsEnabled Boolean @default(false)
- reason String?
- integrationId String?
- lastCheckedAt DateTime?
- createdAt DateTime @default(now())
- updatedAt DateTime @updatedAt
- payments PlatformPayment[]
- payouts Payout[]
- reconciliations PlatformReconciliation[]
- @@unique([orgId, platformAccountId])
- @@unique([platformAccountId, providerAccountId])
- @@index([state, lastCheckedAt])
+  id                String                       @id @default(cuid())
+  orgId             String
+  org               Organization                 @relation(fields: [orgId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  profile           MerchantKybProfile           @relation(fields: [orgId, profileVersion], references: [orgId, version], onDelete: NoAction, onUpdate: NoAction)
+  integration       Integration?                 @relation(fields: [integrationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  detailsVersion    Int?
+  details           MerchantVerificationDetails? @relation(fields: [orgId, detailsVersion], references: [orgId, version], onDelete: NoAction, onUpdate: NoAction)
+  agreementId       String?
+  agreement         MerchantAgreement?           @relation(fields: [agreementId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  platformAccountId String
+  platformAccount   PlatformAccount              @relation(fields: [platformAccountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  environment       String
+  profileVersion    Int
+  state             String                       @default("Queued")
+  providerAccountId String?
+  requirements      Json                         @default("[]")
+  paymentsEnabled   Boolean                      @default(false)
+  payoutsEnabled    Boolean                      @default(false)
+  reason            String?
+  integrationId     String?
+  lastCheckedAt     DateTime?
+  createdAt         DateTime                     @default(now())
+  updatedAt         DateTime                     @updatedAt
+  payments          PlatformPayment[]
+  payouts           Payout[]
+  reconciliations   PlatformReconciliation[]
+
+  @@unique([orgId, platformAccountId])
+  @@unique([platformAccountId, providerAccountId])
+  @@index([state, lastCheckedAt])
 }
+
 model PlatformPayment {
- attemptId String @id
- attempt PaymentAttempt @relation(fields: [attemptId], references: [id], onDelete: NoAction, onUpdate: NoAction)
- intentId String @unique
- intent PaymentIntent @relation(fields: [intentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
- orgId String
- environment String
- platformAccountId String
- platformAccount PlatformAccount @relation(fields: [platformAccountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
- linkId String
- link MerchantPlatformLink @relation(fields: [linkId], references: [id], onDelete: NoAction, onUpdate: NoAction)
- asset String
- reference String
- grossMinor Decimal @db.Decimal(50,0)
- feeMinor Decimal @db.Decimal(50,0)
- reserveMinor Decimal? @db.Decimal(50,0)
- // Processing fee the provider took from the merchant's share.
- providerFeeMinor Decimal @default(0) @db.Decimal(50,0)
- // Split settlement: the provider paid the merchant directly.
- settledDirectly Boolean @default(false)
- refunds PlatformRefund[]
- disputes PlatformDispute[]
- providerPaymentRef String?
- providerTransferRef String?
- availableAt DateTime?
- reserveReleaseAt DateTime?
- state String @default("Pending")
- createdAt DateTime @default(now())
- updatedAt DateTime @updatedAt
- @@index([orgId, environment, state])
+  attemptId           String               @id
+  attempt             PaymentAttempt       @relation(fields: [attemptId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  intentId            String               @unique
+  intent              PaymentIntent        @relation(fields: [intentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  orgId               String
+  environment         String
+  platformAccountId   String
+  platformAccount     PlatformAccount      @relation(fields: [platformAccountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  linkId              String
+  link                MerchantPlatformLink @relation(fields: [linkId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  asset               String
+  reference           String
+  grossMinor          Decimal              @db.Decimal(50, 0)
+  feeMinor            Decimal              @db.Decimal(50, 0)
+  // Part of feeMinor that is the partner's standard fee passed on.
+  partnerFeeMinor     Decimal              @default(0) @db.Decimal(50, 0)
+  reserveMinor        Decimal?             @db.Decimal(50, 0)
+  // Processing fee the provider took from the merchant's share.
+  providerFeeMinor    Decimal              @default(0) @db.Decimal(50, 0)
+  // Split settlement: the provider paid the merchant directly.
+  settledDirectly     Boolean              @default(false)
+  refunds             PlatformRefund[]
+  disputes            PlatformDispute[]
+  providerPaymentRef  String?
+  providerTransferRef String?
+  availableAt         DateTime?
+  reserveReleaseAt    DateTime?
+  state               String               @default("Pending")
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  @@index([orgId, environment, state])
 }
+
 model MerchantVerificationDetails {
- id String @id @default(cuid())
- orgId String
- org Organization @relation(fields: [orgId], references: [id], onDelete: NoAction, onUpdate: NoAction)
- version Int
- secretRef String
- summary Json
- fingerprint String
- createdBy String
- createdAt DateTime @default(now())
- merchantAccounts MerchantAccount[]
- platformLinks MerchantPlatformLink[]
- @@unique([orgId, version])
+  id               String                 @id @default(cuid())
+  orgId            String
+  org              Organization           @relation(fields: [orgId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  version          Int
+  secretRef        String
+  summary          Json
+  fingerprint      String
+  createdBy        String
+  createdAt        DateTime               @default(now())
+  merchantAccounts MerchantAccount[]
+  platformLinks    MerchantPlatformLink[]
+
+  @@unique([orgId, version])
 }
+
 model MerchantAgreement {
- id String @id @default(cuid())
- orgId String
- org Organization @relation(fields: [orgId], references: [id], onDelete: NoAction, onUpdate: NoAction)
- version String
- acceptedBy String
- ip String
- userAgent String
- acceptedAt DateTime @default(now())
- merchantAccounts MerchantAccount[]
- platformLinks MerchantPlatformLink[]
- @@index([orgId, acceptedAt])
+  id               String                 @id @default(cuid())
+  orgId            String
+  org              Organization           @relation(fields: [orgId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  version          String
+  acceptedBy       String
+  ip               String
+  userAgent        String
+  acceptedAt       DateTime               @default(now())
+  merchantAccounts MerchantAccount[]
+  platformLinks    MerchantPlatformLink[]
+
+  @@index([orgId, acceptedAt])
 }
+
 // Payouts PayRouta initiates from a merchant's balance at a fund-holding
 // platform account. A partial unique index on (orgId, environment,
 // platformAccountId, asset, period) makes scheduled payouts idempotent.
 model Payout {
- id String @id @default(cuid())
- orgId String
- org Organization @relation(fields: [orgId], references: [id], onDelete: NoAction, onUpdate: NoAction)
- environment String
- platformAccountId String
- platformAccount PlatformAccount @relation(fields: [platformAccountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
- linkId String
- link MerchantPlatformLink @relation(fields: [linkId], references: [id], onDelete: NoAction, onUpdate: NoAction)
- asset String
- amountMinor Decimal @db.Decimal(50,0)
- state String @default("Queued")
- providerPayoutRef String?
- failureCode String?
- initiatedBy String
- period String?
- createdAt DateTime @default(now())
- updatedAt DateTime @updatedAt
- @@unique([platformAccountId, providerPayoutRef])
- @@index([orgId, environment, createdAt])
- @@index([state, updatedAt])
+  id                String               @id @default(cuid())
+  orgId             String
+  org               Organization         @relation(fields: [orgId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  environment       String
+  platformAccountId String
+  platformAccount   PlatformAccount      @relation(fields: [platformAccountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  linkId            String
+  link              MerchantPlatformLink @relation(fields: [linkId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  asset             String
+  amountMinor       Decimal              @db.Decimal(50, 0)
+  state             String               @default("Queued")
+  providerPayoutRef String?
+  failureCode       String?
+  initiatedBy       String
+  period            String?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  @@unique([platformAccountId, providerPayoutRef])
+  @@index([orgId, environment, createdAt])
+  @@index([state, updatedAt])
 }
+
 model PlatformEvent {
- id String @id @default(cuid())
- platformAccountId String
- platformAccount PlatformAccount @relation(fields: [platformAccountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
- eventId String
- fingerprint String
- type String
- kind String
- accountRef String?
- objectRef String?
- state String @default("Received")
- createdAt DateTime @default(now())
- @@unique([platformAccountId, eventId])
+  id                String          @id @default(cuid())
+  platformAccountId String
+  platformAccount   PlatformAccount @relation(fields: [platformAccountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  eventId           String
+  fingerprint       String
+  type              String
+  kind              String
+  accountRef        String?
+  objectRef         String?
+  state             String          @default("Received")
+  createdAt         DateTime        @default(now())
+
+  @@unique([platformAccountId, eventId])
 }
+
 model PlatformRefund {
- id String @id @default(cuid())
- attemptId String
- payment PlatformPayment @relation(fields: [attemptId], references: [attemptId], onDelete: NoAction, onUpdate: NoAction)
- orgId String
- org Organization @relation(fields: [orgId], references: [id], onDelete: NoAction, onUpdate: NoAction)
- environment String
- platformAccountId String
- platformAccount PlatformAccount @relation(fields: [platformAccountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
- asset String
- amountMinor Decimal @db.Decimal(50,0)
- fromAvailableMinor Decimal @db.Decimal(50,0)
- fromReceivableMinor Decimal @db.Decimal(50,0)
- state String @default("Queued")
- providerRefundRef String?
- failureCode String?
- reason String?
- initiatedBy String
- createdAt DateTime @default(now())
- updatedAt DateTime @updatedAt
- @@unique([platformAccountId, providerRefundRef])
- @@index([attemptId])
+  id                  String          @id @default(cuid())
+  attemptId           String
+  payment             PlatformPayment @relation(fields: [attemptId], references: [attemptId], onDelete: NoAction, onUpdate: NoAction)
+  orgId               String
+  org                 Organization    @relation(fields: [orgId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  environment         String
+  platformAccountId   String
+  platformAccount     PlatformAccount @relation(fields: [platformAccountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  asset               String
+  amountMinor         Decimal         @db.Decimal(50, 0)
+  fromAvailableMinor  Decimal         @db.Decimal(50, 0)
+  fromReceivableMinor Decimal         @db.Decimal(50, 0)
+  state               String          @default("Queued")
+  providerRefundRef   String?
+  failureCode         String?
+  reason              String?
+  initiatedBy         String
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  @@unique([platformAccountId, providerRefundRef])
+  @@index([attemptId])
 }
+
 model PlatformDispute {
- id String @id @default(cuid())
- attemptId String
- payment PlatformPayment @relation(fields: [attemptId], references: [attemptId], onDelete: NoAction, onUpdate: NoAction)
- orgId String
- org Organization @relation(fields: [orgId], references: [id], onDelete: NoAction, onUpdate: NoAction)
- environment String
- platformAccountId String
- platformAccount PlatformAccount @relation(fields: [platformAccountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
- providerDisputeRef String
- asset String
- amountMinor Decimal @db.Decimal(50,0)
- feeMinor Decimal @default(0) @db.Decimal(50,0)
- fromAvailableMinor Decimal @db.Decimal(50,0)
- fromReserveMinor Decimal @db.Decimal(50,0)
- fromReceivableMinor Decimal @db.Decimal(50,0)
- state String
- fundsHeld Boolean @default(false)
- reason String?
- evidenceDueBy DateTime?
- evidence Json?
- evidenceSubmittedAt DateTime?
- evidenceSubmittedBy String?
- createdAt DateTime @default(now())
- updatedAt DateTime @updatedAt
- @@unique([platformAccountId, providerDisputeRef])
- @@index([orgId, environment, state])
+  id                  String          @id @default(cuid())
+  attemptId           String
+  payment             PlatformPayment @relation(fields: [attemptId], references: [attemptId], onDelete: NoAction, onUpdate: NoAction)
+  orgId               String
+  org                 Organization    @relation(fields: [orgId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  environment         String
+  platformAccountId   String
+  platformAccount     PlatformAccount @relation(fields: [platformAccountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  providerDisputeRef  String
+  asset               String
+  amountMinor         Decimal         @db.Decimal(50, 0)
+  feeMinor            Decimal         @default(0) @db.Decimal(50, 0)
+  fromAvailableMinor  Decimal         @db.Decimal(50, 0)
+  fromReserveMinor    Decimal         @db.Decimal(50, 0)
+  fromReceivableMinor Decimal         @db.Decimal(50, 0)
+  state               String
+  fundsHeld           Boolean         @default(false)
+  reason              String?
+  evidenceDueBy       DateTime?
+  evidence            Json?
+  evidenceSubmittedAt DateTime?
+  evidenceSubmittedBy String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  @@unique([platformAccountId, providerDisputeRef])
+  @@index([orgId, environment, state])
 }
+
 model PlatformReconciliation {
- id String @id @default(cuid())
- linkId String
- link MerchantPlatformLink @relation(fields: [linkId], references: [id], onDelete: NoAction, onUpdate: NoAction)
- orgId String
- environment String
- platformAccountId String
- platformAccount PlatformAccount @relation(fields: [platformAccountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
- asset String
- day String
- providerMinor Decimal @db.Decimal(50,0)
- ledgerMinor Decimal @db.Decimal(50,0)
- result String
- createdAt DateTime @default(now())
- @@unique([linkId, asset, day])
+  id                String               @id @default(cuid())
+  linkId            String
+  link              MerchantPlatformLink @relation(fields: [linkId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  orgId             String
+  environment       String
+  platformAccountId String
+  platformAccount   PlatformAccount      @relation(fields: [platformAccountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  asset             String
+  day               String
+  providerMinor     Decimal              @db.Decimal(50, 0)
+  ledgerMinor       Decimal              @db.Decimal(50, 0)
+  result            String
+  createdAt         DateTime             @default(now())
+
+  @@unique([linkId, asset, day])
+}
+
+// Payment providers can't sign themselves up. They ask for access through the
+// public form, operations reviews the request, and an approval creates the
+// provider organization and emails the contact an owner invitation.
+model ProviderAccessRequest {
+  id           String    @id @default(cuid())
+  submissionId String    @unique
+  state        String    @default("Pending")
+  name         String
+  email        String
+  company      String
+  website      String
+  country      String
+  providerType String
+  methods      String
+  markets      String
+  message      String    @default("")
+  reviewNote   String?
+  reviewedBy   String?
+  reviewedAt   DateTime?
+  orgId        String?
+  invitationId String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([state, createdAt])
+  @@index([email])
+}
+
+// Cross-chain payment (lib/intents): the customer pays a crypto checkout from
+// another chain or token. An intents network (NEAR Intents 1Click) quotes an
+// exact-output swap that delivers the invoice amount to the merchant's
+// receive address for this attempt; the customer sends `amountIn` of
+// `originAsset` to `depositAddress`. PayRouta never holds the funds, and the
+// payment is still confirmed only by the existing on-chain verification of
+// the delivered transfer.
+model CrossChainPayment {
+  id                String   @id @default(cuid())
+  intentId          String
+  attemptId         String
+  environment       String
+  provider          String
+  originAsset       String
+  originChain       String
+  originSymbol      String
+  destinationAsset  String
+  depositAddress    String   @unique
+  depositMemo       String?
+  amountIn          String
+  amountInFormatted String
+  amountOut         String
+  refundTo          String
+  deadline          DateTime
+  quote             Json
+  status            String   @default("PENDING_DEPOSIT")
+  checkedAt         DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([attemptId, createdAt])
+}
+
+// Shopify payments app (lib/integrations/shopify, docs/shopify.md). One row
+// per installed shop. The offline access token lives in the secret vault.
+model ShopifyShop {
+  id             String    @id @default(cuid())
+  shop           String    @unique
+  orgId          String?
+  environment    String    @default("sandbox")
+  accessTokenRef String
+  scopes         String
+  // Fiat methods offered from this shop, and crypto options for USD shops.
+  methods        Json
+  cryptoOptions  Json
+  ready          Boolean   @default(false)
+  installedAt    DateTime  @default(now())
+  uninstalledAt  DateTime?
+  updatedAt      DateTime  @updatedAt
+}
+
+// A Shopify offsite payment session and the PayRouta universal checkout it
+// opened. `id` is Shopify's idempotency key for the session.
+model ShopifyPaymentSession {
+  id            String    @id
+  gid           String    @unique
+  shop          String
+  checkoutGroup String    @unique
+  amount        String
+  currency      String
+  test          Boolean
+  cancelUrl     String
+  // Key of the universal checkout (lib/payments/universal.ts); the checkout
+  // link itself stays in the secret vault.
+  checkoutKey   String
+  state         String    @default("Pending")
+  nextActionUrl String?
+  resolvedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([shop, createdAt])
+}
+
+model ShopifyRefundSession {
+  id         String   @id
+  gid        String   @unique
+  shop       String
+  paymentId  String
+  amount     String
+  currency   String
+  state      String   @default("Pending")
+  refundId   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// Payment link (lib/merchant/payment-links.ts): a shareable URL for merchants
+// with no website or store. Each visit that presses Pay opens a fresh
+// universal checkout for the link's amount; nothing is created by previews.
+model PaymentLink {
+  id          String   @id @default(cuid())
+  orgId       String
+  environment String
+  slug        String   @unique
+  title       String
+  description String?
+  amount      String
+  currency    String
+  // Fiat methods offered, and whether stablecoins are offered (USD links).
+  methods     Json
+  crypto      Boolean  @default(false)
+  // Where most customers are; a visitor's own country is used when known.
+  country     String
+  active      Boolean  @default(true)
+  checkouts   Int      @default(0)
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([orgId, environment, createdAt])
 }

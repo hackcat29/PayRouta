@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import { Checkout } from "./view";
 import { FiatCheckout } from "./fiat-view";
+import { rememberPopup } from "./popup";
 
 type Initial = Parameters<typeof FiatCheckout>[0]["initial"];
 
@@ -14,6 +15,7 @@ export function CheckoutRouter({ id }: { id: string }) {
   );
   useEffect(() => {
     if (id === "demo") return;
+    rememberPopup(id);
     let alive = true;
     (async () => {
       try {

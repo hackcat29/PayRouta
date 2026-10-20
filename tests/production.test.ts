@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { currencyExponent, fromMinorUnits, toMinorUnits } from "../lib/partners/money";
+import { entityScreeningProvider, withManualFallback } from "../lib/compliance/providers";
 import { openSanctionsScreening, openSanctionsVerdict } from "../lib/compliance/opensanctions";
 import { parseKeyring } from "../lib/portal/secret-store";
 import { parseClamdReply } from "../lib/portal/scanner-clamd";
@@ -60,6 +61,48 @@ test("screening: sanctions matches stop, PEP-only matches go to review, weak hit
     openSanctionsScreening({ apiKey: "k" }, async () => ({ status: 500, headers: {}, body: "" })).screenEntity({ name: "x" }),
     /UNAVAILABLE/,
   );
+});
+
+test("screening: OpenSanctions when a key is set, otherwise manual review (never an automatic clear)", async () => {
+  const saved = process.env.OPENSANCTIONS_API_KEY;
+  try {
+    process.env.OPENSANCTIONS_API_KEY = "k";
+    assert.equal(entityScreeningProvider().id, "opensanctions");
+    delete process.env.OPENSANCTIONS_API_KEY;
+    const provider = entityScreeningProvider();
+    assert.equal(provider.id, "manual-review-required");
+    const r = await provider.screenEntity({ name: "Acme Ltd", country: "GB", kind: "organization" });
+    assert.equal(r.verdict, "review");
+  } finally {
+    if (saved === undefined) delete process.env.OPENSANCTIONS_API_KEY;
+    else process.env.OPENSANCTIONS_API_KEY = saved;
+  }
+});
+
+test("screening fallback: an unreachable vendor or rejected key means manual review, never a clear", async () => {
+  const logs: string[] = [];
+  const failing = (status: number) =>
+    withManualFallback(
+      openSanctionsScreening({ apiKey: "k" }, async () => ({ status, headers: {}, body: "" })),
+      (line) => logs.push(line),
+    );
+  for (const status of [500, 429, 401]) {
+    const r = await failing(status).screenEntity({ name: "Acme Ltd", country: "GB", kind: "organization" });
+    assert.equal(r.verdict, "review", `HTTP ${status}`);
+    assert.equal(r.reference, "opensanctions-unavailable");
+  }
+  assert.equal(logs.length, 3);
+  assert.match(logs[2], /ENTITY_SCREENING_KEY_REJECTED/, "a rejected key is reported as such");
+  const working = withManualFallback(
+    openSanctionsScreening({ apiKey: "k" }, async () => ({
+      status: 200,
+      headers: {},
+      body: JSON.stringify({ responses: { q: { results: [{ id: "x", match: true, properties: { topics: ["sanction"] } }] } } }),
+    })),
+    (line) => logs.push(line),
+  );
+  assert.equal((await working.screenEntity({ name: "Acme Ltd" })).verdict, "match", "a working vendor's answer stands");
+  assert.equal(logs.length, 3);
 });
 
 test("secret store keyring: 32-byte keys, known active key, malformed input refused", () => {
@@ -130,4 +173,12 @@ test("availability merge: the merchant's own accounts make a method available, a
   assert.equal("action" in merged.methods[0], false);
   assert.equal(mergeAvailability(evaluation, [candidate], ["bank-transfer"]).methods[0].status, "UNAVAILABLE");
   assert.equal(evaluation.methods[0].status, "UNAVAILABLE", "input is not mutated");
+});
+
+test("object storage: R2 endpoints are recognised and a bucket path is never doubled", async () => {
+  const { isR2, s3Endpoint } = await import("../lib/portal/adapters");
+  assert.equal(isR2("https://abc123.r2.cloudflarestorage.com/payrouta"), true);
+  assert.equal(isR2("https://s3.eu-central-1.amazonaws.com"), false);
+  assert.equal(s3Endpoint("https://abc123.r2.cloudflarestorage.com/payrouta"), "https://abc123.r2.cloudflarestorage.com");
+  assert.equal(s3Endpoint(""), undefined);
 });

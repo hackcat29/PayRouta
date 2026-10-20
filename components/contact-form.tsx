@@ -193,7 +193,6 @@ export function ContactForm({
             }}
           >
             <option value="merchant">Merchant access</option>
-            <option value="provider">Provider partnership</option>
             <option value="pricing">Pricing</option>
             <option value="general">General enquiry</option>
           </select>
@@ -228,19 +227,6 @@ export function ContactForm({
                 ))}
               </div>
             </fieldset>
-          </>
-        )}
-        {intent === "provider" && (
-          <>
-            {field("providerType", "What kind of payment service do you offer?", {
-              optional: true,
-              max: 120,
-            })}
-            {field("capabilities", "What payments can you process?", {
-              optional: true,
-              area: true,
-              max: 1000,
-            })}
           </>
         )}
         {field("message", "How can we help?", { area: true, max: 4000 })}

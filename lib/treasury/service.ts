@@ -2,6 +2,7 @@
 // require an internal Operations admin with step-up; merchants may only
 // submit their own account and read its state.
 import { z } from "zod";
+import { missingStandardFees, splitPlatformConfig } from "./partner-fees";
 import { db } from "../portal/db";
 import { PortalError } from "../portal/domain";
 import { internal, stepUp } from "../portal/access";
@@ -116,9 +117,24 @@ export async function configurePlatformAccount(raw: unknown, headers: Headers) {
     ...input.config,
     ...refs,
   };
-  if (!mod.configSchema.safeParse({ ...config, environment: input.environment }).success) {
+  let invalid = false;
+  try {
+    invalid = !mod.configSchema.safeParse({
+      ...splitPlatformConfig(config).moduleConfig,
+      environment: input.environment,
+    }).success;
+  } catch {
+    invalid = true;
+  }
+  if (invalid) {
     for (const ref of Object.values(refs)) await secretManager.revoke(ref);
     throw new PortalError("PLATFORM_ACCOUNT_CONFIG_INVALID", 409);
+  }
+  // Where PayRouta pays the partner, merchants are charged the partner's
+  // standard fee; a live rail without it would lose money on every payment.
+  if (input.environment === "production" && input.enabled && missingStandardFees(mod.manifest, config).length) {
+    for (const ref of Object.values(refs)) await secretManager.revoke(ref);
+    throw new PortalError(`PLATFORM_STANDARD_FEES_REQUIRED:${missingStandardFees(mod.manifest, config).join(",")}`, 409);
   }
   const data = {
     custody: input.custody,

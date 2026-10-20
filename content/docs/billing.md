@@ -1,26 +1,51 @@
-# Platform fees and billing
+# Fees and billing
 
-PayRouta fees are separate from the processing fees your providers charge under your own contracts.
+PayRouta charges a percentage of each successful payment. Test mode is free.
 
-| Payment method | Platform fee | Cap for USD payments |
-| --- | ---: | ---: |
-| Cards, digital wallets, buy now/pay later | 0.25% of successful payment amount | $2 per payment |
-| Bank transfers, direct debit, USSD, mobile money, stablecoins and crypto apps | 0.10% of successful payment amount | $1 per payment |
+| How the payment is processed | PayRouta fee |
+| --- | ---: |
+| Cards, digital wallets, pay later, bank transfer, direct debit, USSD, mobile money | 1%, capped at $5 per payment, plus the processing partner's standard fee |
+| Stablecoins and crypto (PayRouta is the only processor) | 1.5%, all in |
 
-Sandbox payments are free. Failed, pending and unknown attempts do not incur platform fees. A payment recovered on another provider is charged once after successful confirmation, regardless of the number of attempts.
+- **Partner fee.** The standard fee the licensed partner charges for that method, country and card type, passed on without a markup. Each payment shows our fee and the partner fee separately.
+- **$5 cap.** PayRouta's 1% never exceeds $5 a payment. Other currencies have a fixed cap close to $5: €4.50, £3.80, C$6.50, A$7.50, ¥700, CHF 4, SEK 48, S$6, AED 18, ₹400, ₱275, R$25, MX$90, COL$20,000, ₦7,500, GH₵50, KSh 640, R85 and CFA 2,800. Payments in a currency without a cap need agreed terms first. The partner fee and the 1.5% on crypto aren't capped.
+- **No minimum.** Fees round to the nearest minor unit of the payment's currency, halves up.
+- **Charged once.** Failed, pending and unknown attempts are free. A payment completed by a backup processor is charged once, with the partner fee of the processor that completed it.
+- **Saved terms.** Your fee terms are saved when the payment is created; later changes apply to new payments only.
+- **Refunds.** Fees on a refunded payment aren't returned.
 
-Other currencies use explicitly agreed currency-specific caps. Crypto uses an agreed, evidenced fiat valuation and a cap in that billing currency. These are not automatic USD conversions or guarantees of token parity. Applicable taxes are additional. Volume pricing is negotiated and applies only after your agreement is configured.
+Volume rates (from $100,000 a month) are agreed in your merchant agreement.
 
-## Monthly statements
+## How fees are collected
 
-Open **Settings → Billing** to view platform charges and download payment-level details. Periods are UTC calendar months. We record a payment in the month its authoritative confirmation is processed; late provider evidence may therefore appear in a later month.
+- **Cards, bank and mobile money processed through PayRouta:** taken from the payment before it reaches your balance. Nothing to pay later.
+- **Stablecoins and crypto:** the payment goes straight to your wallet, so the fee is valued in USD from the quote used at checkout and billed on your monthly statement.
+- **Your own processor accounts:** your processor charges you its fee directly; PayRouta's 1% is billed monthly.
 
-The percentage applies to the successful payment amount, not your provider's processing fee. Fees round to the nearest billing-currency minor unit, with halves rounded up. There is no minimum transaction fee. Your fee terms are saved when checkout starts; changes apply only to new payments.
+Open **Settings → Billing** to see monthly totals and download payment-level detail. Periods are UTC calendar months, by when the payment was confirmed. Statements are pretax usage records, not tax invoices.
 
-Platform charges are billed separately from provider settlements. PayRouta does not deduct this fee from your customer's payment or sweep your crypto deposits. Usage statements are pretax records; your tax invoice, payment instructions and due date follow your merchant agreement. A statement is not a payment receipt.
+## Who pays the fees
 
-If a successful payment is later refunded, its usage record remains. Any contractual platform-fee credit is reviewed separately. Provider refunds and disputes follow your provider's terms and are currently handled in its dashboard.
+Choose under **Settings → Who pays fees**:
 
-## Example
+- **You absorb them** (default). The customer pays your price, and fees come out of what you receive.
+- **Customers pay them.** The fee is added on top at checkout, so you receive your full price. The customer sees the fee as a separate line before paying.
 
-A successful $100 USD card payment incurs a $0.25 platform fee, in addition to the provider's own processing charge. A $1,000 USD bank-transfer payment incurs a $1.00 platform fee because of the cap. The sandbox incurs neither charge.
+Override the default on any payment with `feeBearer` (`"merchant"` or `"customer"`) when you create it. The choice is fixed once the payment exists.
+
+How the added fee is worked out:
+
+- **Stablecoins and crypto:** exactly 1.5%, built into the quoted coin amount.
+- **Cards, bank and mobile money:** PayRouta's 1% plus the partner's standard fee for the most expensive method the payment accepts. To pass on exactly the card cost, create card-only payments.
+
+The payment's `amount` is what the customer pays; `baseAmount` is your price and `customerFee` the difference.
+
+Adding card or bank fees for customers is banned in the EU and UK, so merchants established there can only pass on stablecoin and crypto fees. Elsewhere, card network and local rules may limit or require disclosure of surcharges; you are responsible for following them.
+
+## Examples
+
+- A $100.00 card payment processed by a partner whose standard fee is 2.9% + $0.30: PayRouta's fee is $1.00 and the partner fee $3.20, so you receive $95.80.
+- A $2,000.00 card payment on the same rail: PayRouta's fee is capped at $5.00, the partner fee is $58.30.
+- The same payment with customers paying the fees: the customer pays $104.37 and you receive $100.00.
+- A ₦185,000 bank transfer on a rail where the partner deducts its own fee: PayRouta's fee is ₦1,850, plus the partner's fee. On ₦1,000,000 it would be capped at ₦7,500.
+- A 500 USDC payment: the fee is 1.5% of its USD value at checkout, billed monthly.

@@ -30,7 +30,7 @@ export const sandboxPlatformManifest: PlatformManifest = {
   sandboxOnly: true,
 };
 
-const configSchema = z
+export const sandboxConfigSchema = z
   .object({
     environment: z.literal("sandbox").default("sandbox"),
     reviewSeconds: z.number().int().min(0).max(3600).default(0),
@@ -74,8 +74,9 @@ export const sandboxSplitManifest: PlatformManifest = {
   merchantBearsProcessingFee: true,
 };
 
-const create = (manifest: PlatformManifest) => (raw: unknown, deps: PartnerDeps): PlatformAdapter => {
-  const c = configSchema.parse(raw ?? {});
+// Also the base of the fictional lender in ./sandbox-credit.
+export const createSandboxAdapter = (manifest: PlatformManifest) => (raw: unknown, deps: PartnerDeps): PlatformAdapter => {
+  const c = sandboxConfigSchema.parse(raw ?? {});
   const now = () => deps.now?.() ?? new Date();
   return {
     async createAccount(input) {
@@ -175,11 +176,11 @@ const create = (manifest: PlatformManifest) => (raw: unknown, deps: PartnerDeps)
 
 export const sandboxPlatform: PlatformModule = {
   manifest: sandboxPlatformManifest,
-  configSchema,
-  create: create(sandboxPlatformManifest),
+  configSchema: sandboxConfigSchema,
+  create: createSandboxAdapter(sandboxPlatformManifest),
 };
 export const sandboxSplitPlatform: PlatformModule = {
   manifest: sandboxSplitManifest,
-  configSchema,
-  create: create(sandboxSplitManifest),
+  configSchema: sandboxConfigSchema,
+  create: createSandboxAdapter(sandboxSplitManifest),
 };

@@ -65,47 +65,27 @@ test("billing: free sandbox, fee export and organization/environment isolation",
     page.getByRole("heading", { name: "2026-09", exact: true }),
   ).toBeVisible();
 });
-test("pricing: both method rates, caps and monthly billing are published", async ({
+test("pricing: both rates, the cap and who pays fees are published", async ({
   page,
 }) => {
   await page.goto("/pricing");
-  await expect(page.getByText("0.25%", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("0.10%", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("1.5%", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("1% capped at $5", { exact: false }).first()).toBeVisible();
   await expect(
-    page.getByText(
-      "cards, digital wallets and BNPL; capped at $2 per USD payment",
-      { exact: true },
-    ),
+    page.getByText("Who pays the fees", { exact: true }),
   ).toBeVisible();
   await expect(
-    page
-      .getByText("Billed monthly, separately from provider settlements.", {
-        exact: false,
-      })
-      .first(),
+    page.getByText("Test mode and failed payments are free.", { exact: false }),
   ).toBeVisible();
-  await page.getByText("Standard", { exact: true }).scrollIntoViewIfNeeded();
-  await expect(page.locator(".mk-plan.feature")).toHaveCSS("opacity", "1");
-  await page.screenshot({
-    path: "/private/tmp/payrouta-fees/pricing-cards.png",
-    fullPage: false,
-  });
 });
 
-test("pricing: mobile caps and billing text fit the viewport", async ({
-  page,
-}) => {
+test("pricing: mobile rates fit the viewport", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/pricing");
-  await page.getByText("Standard", { exact: true }).scrollIntoViewIfNeeded();
-  await expect(page.getByText("0.10%", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("1.5%", { exact: true }).first()).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true);
-  await expect(page.locator(".mk-plan.feature")).toHaveCSS("opacity", "1");
-  await page.screenshot({
-    path: "/private/tmp/payrouta-fees/pricing-mobile.png",
-  });
 });

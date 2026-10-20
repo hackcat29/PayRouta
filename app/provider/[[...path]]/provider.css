@@ -1,0 +1,245 @@
+/* Provider workspace. The frame and most screens use the merchant dashboard
+   styles (workspace.css); this adds the few provider-only pieces and brings
+   the shared onboarding forms (p-* classes in portal.css) into the same look. */
+
+.pv-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: #eef2f3;
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 500;
+}
+.pv-notice {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid #cfdcf7;
+  border-radius: 8px;
+  background: var(--info-bg);
+  color: var(--ink);
+  font-size: 13.5px;
+}
+.ms-body .pv-notice button {
+  min-height: 0;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--muted);
+}
+.portal .pv-local {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--faint);
+}
+.pv-stack {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.ms-kpis.pv-kpis-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.ms-kpis.pv-kpis-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.ms-kpi > strong .ms-pill {
+  font-size: 13px;
+  letter-spacing: 0;
+  vertical-align: middle;
+}
+.pv-ref {
+  font-size: 17px;
+  overflow-wrap: anywhere;
+}
+.pv-quote {
+  margin: 8px 0 0;
+  padding: 8px 14px;
+  border-left: 3px solid var(--line-2);
+  color: var(--ink-2);
+}
+.pv-secret {
+  display: block;
+  margin: 8px 0 14px;
+  padding: 10px 12px;
+  overflow-wrap: anywhere;
+}
+.pv-runs details {
+  border-bottom: 1px solid #eef1f2;
+  padding: 10px 0;
+}
+.pv-runs details:last-child {
+  border-bottom: 0;
+}
+.pv-runs summary {
+  justify-content: space-between;
+}
+.pv-runs summary > span:first-child {
+  display: grid;
+  gap: 2px;
+  margin-right: auto;
+}
+.pv-runs summary small {
+  font-weight: 400;
+  font-size: 12px;
+}
+.pv-runs .ms-timeline {
+  margin: 14px 0;
+}
+
+/* Signed in without a provider organization. */
+.pv-account > div {
+  max-width: 720px;
+}
+.portal .pv-solo-title {
+  font-size: 22px;
+  margin: 0 0 4px;
+}
+.pv-solo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px !important;
+}
+.ms-solo .ms-body section {
+  padding: 22px 24px;
+}
+
+.pv-primary .p-button.secondary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+.pv-primary .p-button.secondary:hover {
+  background: var(--accent-ink);
+}
+
+/* Shared onboarding forms and tools. */
+.ms-body .p-button,
+.ms-body .p-dialog-trigger {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+.ms-body .p-button.secondary,
+.ms-body form .p-button.secondary {
+  background: white;
+  border-color: var(--line-2);
+  color: var(--ink);
+}
+.ms-body .p-button.secondary:hover {
+  background: #f4f7f7;
+}
+.ms-body .p-button.danger,
+.ms-body form .p-button.danger {
+  background: white;
+  border-color: #f0c8c4;
+  color: var(--bad);
+}
+.ms-body .p-link {
+  border: 0;
+  background: none;
+  box-shadow: none;
+  min-height: 0;
+  padding: 0;
+  color: var(--accent-ink);
+  font-weight: 500;
+}
+.ms-body .p-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.ms-body .p-field {
+  display: grid;
+  margin-bottom: 0;
+}
+.ms-body .p-field small {
+  color: var(--faint);
+  font-size: 12px;
+}
+.ms-body .p-notice {
+  padding: 10px 14px;
+  border: 1px solid #cfdcf7;
+  border-radius: 8px;
+  background: var(--info-bg);
+  color: var(--ink);
+  font-size: 13.5px;
+}
+.ms-body .p-notice.error {
+  border-color: #f0c8c4;
+  background: var(--bad-bg);
+  color: var(--bad);
+}
+.portal .ms-body .p-muted {
+  color: var(--muted);
+}
+.ms-body .p-stack {
+  display: grid;
+  gap: 14px;
+}
+.ms-body .p-requirement {
+  padding: 12px 0;
+  border-bottom: 1px solid #eef1f2;
+}
+.ms-body .p-requirement:last-child {
+  border-bottom: 0;
+}
+.ms-body .p-json {
+  margin-top: 4px;
+}
+.ms-body .p-json pre,
+.ms-body > .p-json pre {
+  max-height: 420px;
+  overflow: auto;
+  padding: 12px;
+  border-radius: 8px;
+  background: #f4f7f8;
+  font-size: 12px;
+}
+.ms-body > .p-json {
+  padding: 14px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+.ms-body .p-table-wrap td small {
+  display: block;
+  margin-top: 2px;
+  color: var(--faint);
+  font-size: 12px;
+}
+.ms-body .ms-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ms-body .ms-foot > span {
+  margin-right: auto;
+}
+.ms-body td form.ms-inline {
+  flex-wrap: nowrap;
+  margin: 0;
+}
+.ms-body td form.ms-inline select {
+  min-width: 130px;
+}
+
+@media (max-width: 760px) {
+  .ms-body .p-form-grid,
+  .ms-kpis.pv-kpis-2,
+  .ms-kpis.pv-kpis-3 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .pv-tag {
+    display: none;
+  }
+}

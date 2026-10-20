@@ -1,6 +1,6 @@
 # Payment methods
 
-> Launch scope: stablecoins and direct crypto wallet payments for every merchant, plus cards, bank transfers and mobile money through PayRouta's processing partners once your payments account is activated. Exchange-app payments are Coming soon. Stablecoin sandbox payments use actual testnet tokens; they cannot simulate a successful deposit. See [Crypto wallet payments](crypto-payments.md).
+> Launch scope: stablecoins and direct crypto wallet payments for every merchant, plus cards, digital wallets, bank transfers and mobile money through PayRouta's processing partners once your payments account is activated. Exchange-app payments are Coming soon. Stablecoin sandbox payments use actual testnet tokens; they cannot simulate a successful deposit. See [Crypto wallet payments](crypto-payments.md).
 The merchant API accepts **9 method categories**: bank transfer, card, mobile money, digital wallet, USSD, direct debit, BNPL, stablecoin and crypto app. These are request categories, not nine live-qualified integrations.
 
 The provider directory contains **41 guides in 8 categories**: **40 payment-related guides and one excluded real-world-asset reference**. Guides include providers, wallet brands, card schemes, bank rails and token assets; they are not 41 independent payment methods. The internal taxonomy also contains cash/voucher, which the merchant API does not currently accept.

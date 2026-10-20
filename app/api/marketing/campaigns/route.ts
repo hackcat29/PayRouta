@@ -1,91 +1,62 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { z } from "zod";
 import { MarketingService } from "@/lib/email/marketing-service";
+import { errorResponse, json, requireMarketingAdmin } from "@/lib/email/http";
 import { db } from "@/lib/portal/db";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    await requireMarketingAdmin(req);
     const campaigns = await db.marketingCampaign.findMany({
       orderBy: { createdAt: "desc" },
       take: 50,
     });
-    return NextResponse.json({ campaigns });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to load campaigns";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return json({ campaigns });
+  } catch (error) {
+    return errorResponse(error, "Failed to load campaigns");
   }
 }
 
+const createSchema = z.object({
+  action: z.literal("create"),
+  name: z.string().trim().min(1).max(200),
+  subject: z.string().trim().min(1).max(200),
+  previewText: z.string().trim().max(300).optional(),
+  templateId: z.string().max(80).optional(),
+  targetAudience: z.enum(["all", "merchants", "developers", "providers"]).optional(),
+  targetTopics: z.array(z.string()).max(10).optional(),
+  contentHtml: z.string().min(1).max(200_000),
+  contentText: z.string().max(200_000).optional(),
+});
+const testSchema = z.object({
+  action: z.literal("test"),
+  campaignId: z.string().min(1),
+  testEmail: z.email(),
+});
+const launchSchema = z.object({ action: z.literal("launch"), campaignId: z.string().min(1) });
+const schema = z.discriminatedUnion("action", [createSchema, testSchema, launchSchema]);
+
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json().catch(() => ({}));
-    const { action } = body;
+    const session = await requireMarketingAdmin(req);
+    const parsed = schema.safeParse(await req.json().catch(() => ({})));
+    if (!parsed.success)
+      return json({ error: "Supported actions: create (name, subject, contentHtml), test (campaignId, testEmail), launch (campaignId)" }, 400);
+    const body = parsed.data;
 
-    if (action === "create") {
-      const {
-        name,
-        subject,
-        previewText,
-        templateId,
-        targetAudience,
-        targetTopics,
-        contentHtml,
-        contentText,
-      } = body;
-
-      if (!name || !subject || !contentHtml) {
-        return NextResponse.json(
-          { error: "Name, subject, and content are required" },
-          { status: 400 },
-        );
-      }
-
-      const campaign = await MarketingService.createCampaign({
-        name,
-        subject,
-        previewText,
-        templateId,
-        targetAudience,
-        targetTopics,
-        contentHtml,
-        contentText,
-      });
-
-      return NextResponse.json({ success: true, campaign });
+    if (body.action === "create") {
+      const { action: _action, ...input } = body;
+      void _action;
+      const campaign = await MarketingService.createCampaign({ ...input, createdBy: session.user.id });
+      return json({ success: true, campaign });
     }
-
-    if (action === "test") {
-      const { campaignId, testEmail } = body;
-      if (!campaignId || !testEmail) {
-        return NextResponse.json(
-          { error: "campaignId and testEmail are required" },
-          { status: 400 },
-        );
-      }
-
-      const res = await MarketingService.sendTestCampaign(campaignId, testEmail);
-      return NextResponse.json({ success: res.success, result: res });
+    if (body.action === "test") {
+      const result = await MarketingService.sendTestCampaign(body.campaignId, body.testEmail);
+      return json({ success: result.success, result });
     }
-
-    if (action === "launch") {
-      const { campaignId } = body;
-      if (!campaignId) {
-        return NextResponse.json(
-          { error: "campaignId is required" },
-          { status: 400 },
-        );
-      }
-
-      const res = await MarketingService.launchCampaign(campaignId);
-      return NextResponse.json({ success: true, result: res });
-    }
-
-    return NextResponse.json(
-      { error: "Invalid action. Supported actions: create, test, launch" },
-      { status: 400 },
-    );
-  } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Campaign action failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const result = await MarketingService.launchCampaign(body.campaignId);
+    return json({ success: result.failed === 0, result });
+  } catch (error) {
+    return errorResponse(error, "Campaign action failed");
   }
 }

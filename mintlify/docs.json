@@ -1,0 +1,214 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "PayRouta",
+  "colors": {
+    "primary": "#007F73",
+    "light": "#3CC4B3",
+    "dark": "#006159"
+  },
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg"
+  },
+  "favicon": "/favicon.svg",
+  "fonts": {
+    "family": "Inter",
+    "heading": {
+      "family": "Sora"
+    }
+  },
+  "appearance": {
+    "default": "system"
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Guides",
+        "groups": [
+          {
+            "group": "Get started",
+            "pages": [
+              "index",
+              "quickstart",
+              "guides/payment-links",
+              "guides/checkout-button"
+            ]
+          },
+          {
+            "group": "Ways to pay",
+            "pages": [
+              "concepts/payment-methods",
+              "guides/credit",
+              "guides/crypto-payments",
+              "guides/cross-chain"
+            ]
+          },
+          {
+            "group": "How payments work",
+            "pages": [
+              "concepts/payment-intents",
+              "concepts/settlement",
+              "concepts/billing",
+              "concepts/provider-accounts"
+            ]
+          },
+          {
+            "group": "Build",
+            "pages": [
+              "integrate/webhooks",
+              "integrate/sdks",
+              "integrate/errors"
+            ]
+          },
+          {
+            "group": "Platforms",
+            "pages": [
+              "platforms/shopify",
+              "platforms/woocommerce"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api-reference/introduction"
+            ]
+          },
+          {
+            "group": "Merchant API",
+            "openapi": "/openapi/merchant.json"
+          }
+        ]
+      },
+      {
+        "tab": "Partners",
+        "groups": [
+          {
+            "group": "Join PayRouta",
+            "pages": [
+              "partners/provider-integration",
+              "partners/provider-coverage"
+            ]
+          },
+          {
+            "group": "Provider API",
+            "openapi": "/openapi/provider.yaml"
+          },
+          {
+            "group": "Provider directory",
+            "pages": [
+              "providers/index",
+              {
+                "group": "Stablecoins",
+                "pages": [
+                  "providers/stablecoins/index",
+                  "providers/stablecoins/usdc",
+                  "providers/stablecoins/usdt",
+                  "providers/stablecoins/eurc"
+                ]
+              },
+              {
+                "group": "Cards",
+                "pages": [
+                  "providers/cards/index",
+                  "providers/cards/stripe",
+                  "providers/cards/visa",
+                  "providers/cards/mastercard"
+                ]
+              },
+              {
+                "group": "Bank transfer",
+                "pages": [
+                  "providers/bank-transfer/index",
+                  "providers/bank-transfer/paystack",
+                  "providers/bank-transfer/flutterwave",
+                  "providers/bank-transfer/monnify",
+                  "providers/bank-transfer/sepa",
+                  "providers/bank-transfer/ach",
+                  "providers/bank-transfer/pix"
+                ]
+              },
+              {
+                "group": "Digital wallets",
+                "pages": [
+                  "providers/digital-wallets/index",
+                  "providers/digital-wallets/apple-pay",
+                  "providers/digital-wallets/google-pay",
+                  "providers/digital-wallets/paypal",
+                  "providers/digital-wallets/alipay",
+                  "providers/digital-wallets/wechat-pay",
+                  "providers/digital-wallets/grabpay",
+                  "providers/digital-wallets/gcash",
+                  "providers/digital-wallets/shopeepay",
+                  "providers/digital-wallets/phonepe",
+                  "providers/digital-wallets/paytm",
+                  "providers/digital-wallets/mercado-pago",
+                  "providers/digital-wallets/picpay",
+                  "providers/digital-wallets/paypay",
+                  "providers/digital-wallets/kakaopay",
+                  "providers/digital-wallets/revolut-pay",
+                  "providers/digital-wallets/wero",
+                  "providers/digital-wallets/cash-app",
+                  "providers/digital-wallets/venmo",
+                  "providers/digital-wallets/opay",
+                  "providers/digital-wallets/palmpay",
+                  "providers/digital-wallets/chipper-cash"
+                ]
+              },
+              {
+                "group": "Mobile money",
+                "pages": [
+                  "providers/mobile-money/index",
+                  "providers/mobile-money/mpesa",
+                  "providers/mobile-money/mtn-momo",
+                  "providers/mobile-money/airtel-money"
+                ]
+              },
+              {
+                "group": "Credit and BNPL",
+                "pages": [
+                  "providers/bnpl/index",
+                  "providers/bnpl/klarna",
+                  "providers/bnpl/affirm"
+                ]
+              },
+              {
+                "group": "Crypto apps",
+                "pages": [
+                  "providers/crypto-apps/index",
+                  "providers/crypto-apps/binance-pay",
+                  "providers/crypto-apps/coinbase-commerce"
+                ]
+              },
+              {
+                "group": "Real-world assets",
+                "pages": [
+                  "providers/real-world-assets/index",
+                  "providers/real-world-assets/ondo-usdy"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "api": {
+    "playground": {
+      "display": "interactive"
+    }
+  },
+  "contextual": {
+    "options": [
+      "copy",
+      "view",
+      "chatgpt",
+      "claude"
+    ]
+  }
+}

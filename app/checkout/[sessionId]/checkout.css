@@ -161,7 +161,7 @@ button.sc-method { cursor: pointer; font-weight: 600; justify-content: center; m
   color: var(--error);
 }
 
-/* Card, bank transfer and mobile money checkout (fiat-view.tsx): order
+/* Card, digital wallet, bank transfer and mobile money checkout (fiat-view.tsx): order
    summary beside a single payment method choice, in the style of
    established hosted checkouts. */
 .fiat-checkout {
@@ -244,4 +244,348 @@ button.sc-method { cursor: pointer; font-weight: 600; justify-content: center; m
   .fc-merchant { margin-bottom: 16px; }
   .fc-total { font-size: 30px; margin-bottom: 12px; }
   .fc-pane { padding: 24px 16px; }
+}
+
+/* ---------- Refresh: in the style of established hosted checkouts ---------- */
+.fiat-checkout,
+.stablecoin-checkout {
+  --ck-ink: #0e1f25;
+  --ck-muted: #5f7079;
+  --ck-line: #e3e8ea;
+  --ck-accent: #00857a;
+  --ck-accent-ink: #006b62;
+  background: linear-gradient(90deg, #f7f9f9 0 50%, #ffffff 50% 100%);
+  color: var(--ck-ink);
+  -webkit-font-smoothing: antialiased;
+}
+.fiat-checkout:has(.fc-test),
+.stablecoin-checkout:has(.sc-test) {
+  position: relative;
+  border-top: 3px solid #f59e0b;
+}
+.fc-test,
+.sc-test {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  padding: 2px 12px 3px;
+  border-radius: 0 0 7px 7px;
+  background: #f59e0b;
+  color: #3b2002;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.fc-layout,
+.sc-layout {
+  min-height: calc(100vh - 3px);
+}
+.fc-pane,
+.sc-card {
+  box-shadow: -14px 0 30px -24px rgba(14, 31, 37, 0.25);
+  padding-top: 72px;
+}
+.fc-pane > *,
+.sc-card > * {
+  max-width: 420px;
+  width: 100%;
+}
+.fc-summary,
+.sc-summary {
+  padding-top: 72px;
+}
+.fc-merchant {
+  color: var(--ck-ink) !important;
+  text-decoration: none;
+  width: fit-content !important;
+  border-radius: 6px;
+}
+.fc-back {
+  color: var(--ck-muted);
+  font-size: 16px;
+  transition: transform 0.15s;
+}
+.fc-merchant:hover .fc-back {
+  transform: translateX(-3px);
+  color: var(--ck-ink);
+}
+.fc-avatar,
+.sc-avatar {
+  border-radius: 7px;
+  background: var(--ck-ink);
+  font-weight: 700;
+  font-size: 13px;
+}
+.fc-total,
+.sc-summary h1 {
+  font-size: 38px;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+}
+.fc-methods {
+  border-color: var(--ck-line);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(14, 31, 37, 0.04);
+}
+.fc-method {
+  grid-template-columns: 18px 36px minmax(0, 1fr) auto;
+  padding: 15px 16px;
+  border-top-color: var(--ck-line);
+  transition: background 0.12s;
+}
+.fc-method:hover {
+  background: #fafbfb;
+}
+.fc-method.selected {
+  background: #f5fbfa;
+  box-shadow: inset 0 0 0 1.5px var(--ck-accent);
+}
+.fc-method:first-child.selected {
+  border-radius: 12px 12px 0 0;
+}
+.fc-method:last-child.selected {
+  border-radius: 0 0 12px 12px;
+}
+.fc-method:only-child.selected {
+  border-radius: 12px;
+}
+.fc-icon {
+  border-color: var(--ck-line);
+  border-radius: 7px;
+  height: 30px;
+}
+.fc-brands {
+  display: flex;
+  gap: 4px;
+  align-self: start;
+  margin-top: 2px;
+}
+.fc-brands i {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 21px;
+  border-radius: 4px;
+  border: 1px solid var(--ck-line);
+  background: white;
+  font-style: normal;
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.fc-brands .visa {
+  color: #1a1f71;
+  font-style: italic;
+}
+.fc-brands .amex {
+  background: #1f72cd;
+  border-color: #1f72cd;
+  color: white;
+  font-size: 7.5px;
+}
+.fc-brands .mc {
+  display: inline-flex;
+  justify-content: center;
+}
+.fc-brands .mc b {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #eb001b;
+}
+.fc-brands .mc b + b {
+  background: #f79e1b;
+  margin-left: -4px;
+  mix-blend-mode: multiply;
+}
+.fc-pay,
+.sc-primary {
+  gap: 8px;
+  min-height: 46px;
+  border-radius: 9px !important;
+  background: var(--ck-accent) !important;
+  box-shadow: 0 1px 2px rgba(14, 31, 37, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transition: background 0.12s;
+}
+.fc-pay:hover,
+.sc-primary:hover {
+  filter: none;
+  background: var(--ck-accent-ink) !important;
+}
+.fc-footer,
+.sc-footer {
+  align-items: center;
+  gap: 14px;
+  font-size: 12.5px;
+  color: var(--ck-muted);
+}
+.fc-footer span,
+.sc-footer span {
+  padding-right: 14px;
+  border-right: 1px solid var(--ck-line);
+}
+.fc-footer a,
+.sc-footer a {
+  color: var(--ck-muted);
+  text-decoration: none;
+}
+.fc-footer a:hover,
+.sc-footer a:hover {
+  color: var(--ck-ink);
+}
+.fc-check {
+  background: #e6f5ec;
+  color: #067647;
+}
+@media (max-width: 760px) {
+  .fiat-checkout,
+  .stablecoin-checkout {
+    background: #fff;
+  }
+  .fc-layout,
+  .sc-layout {
+    min-height: 0;
+  }
+  .fc-summary,
+  .sc-summary {
+    padding-top: 36px;
+    background: #f7f9f9;
+    border-bottom: 1px solid var(--ck-line);
+  }
+  .fc-summary > *,
+  .sc-summary > *,
+  .fc-pane > *,
+  .sc-card > * {
+    max-width: none;
+  }
+  .fc-pane,
+  .sc-card {
+    box-shadow: none;
+    padding-top: 24px;
+  }
+  .fc-total,
+  .sc-summary h1 {
+    font-size: 32px;
+  }
+  .fc-method {
+    grid-template-columns: 18px 36px minmax(0, 1fr);
+  }
+  .fc-brands {
+    grid-column: 3;
+    margin-top: 0;
+  }
+}
+.sc-network-picker {
+  margin-top: 16px;
+}
+.sc-network-picker label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ck-ink);
+}
+.sc-network-picker select {
+  padding: 10px 12px;
+  border-color: #cfd8dc;
+  border-radius: 9px;
+  font-size: 15px;
+}
+.sc-card details {
+  border-radius: 10px;
+}
+.sc-card details > summary {
+  font-size: 14px;
+  font-weight: 500;
+}
+.sc-method {
+  border-radius: 9px;
+}
+.sc-method[aria-pressed="true"] {
+  box-shadow: inset 0 0 0 1.5px var(--ck-accent);
+}
+
+/* Credit plans (fiat-view.tsx CreditPlans) */
+.fc-credit { display: grid; gap: 10px; }
+.fc-credit .fc-heading { font-size: 15px; }
+.fc-plan { grid-template-columns: 18px minmax(0, 1fr) auto; }
+.fc-plan .fc-method-text small { font-variant-numeric: tabular-nums; }
+.fc-plan-lender { color: var(--ck-muted, #5f7079); font-size: 12px; text-align: right; }
+.fc-skeleton-short { height: 96px; }
+
+/* Universal checkout: switch between the order's fiat and crypto checkouts */
+.fc-switch {
+  display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  width: 100%; padding: 13px 16px; border: 1px dashed var(--ck-line, #e3e8ea); border-radius: 12px;
+  background: var(--white, #fff); color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.fc-switch:hover { background: #fafbfb; border-style: solid; }
+.fc-switch:focus-visible, .sc-switch:focus-visible { outline: 3px solid var(--focus, #7fd6cd); outline-offset: 2px; }
+.sc-switch {
+  width: 100%; margin: 0 0 12px; padding: 10px 12px; border: 1px dashed var(--ck-line, #e3e8ea); border-radius: 10px;
+  background: transparent; color: var(--ck-accent-ink, #006b62); font: inherit; font-weight: 600; text-align: left; cursor: pointer;
+}
+
+/* Pay from another chain or token (cross-chain.tsx) */
+.sc-cross-form { display: grid; gap: 8px; margin-top: 10px; }
+.sc-cross-form select, .sc-cross-form input { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid var(--ck-line, #e3e8ea); border-radius: 8px; font: inherit; background: #fff; }
+.sc-cross-form label { font-size: 13px; font-weight: 600; }
+
+/* Brand (matches the marketing site and payment links): navy actions, pill
+   buttons, display figures, saffron for credit. */
+.fiat-checkout,
+.stablecoin-checkout {
+  --ck-ink: #0f2733;
+  --ck-muted: #5d727c;
+  --ck-line: #e4e0d8;
+  --ck-accent: #0f2733;
+  --ck-accent-ink: #006159;
+  background: linear-gradient(90deg, #f6f4ef 0 50%, #ffffff 50% 100%);
+}
+.fc-total,
+.sc-summary h1 {
+  font-family: var(--font-display), Inter, sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+.fc-pay,
+.sc-primary {
+  border-radius: 999px !important;
+  background: #0f2733 !important;
+  color: #fff !important;
+}
+.fc-pay:hover,
+.sc-primary:hover {
+  background: #1d3c49 !important;
+  filter: none;
+}
+.fc-method.selected {
+  background: #fff;
+  box-shadow: inset 0 0 0 1.5px #0f2733;
+}
+.fc-plan.selected {
+  background: #fff2d9;
+  box-shadow: inset 0 0 0 1.5px #f2a62b;
+}
+.fc-method input,
+.fc-plan input {
+  accent-color: #0f2733;
+}
+.fc-test,
+.sc-test {
+  background: #f2a62b;
+}
+.fc-switch {
+  border-style: solid;
+  border-color: #e4e0d8;
+}
+.fc-check {
+  background: #e2f2ef;
+  color: #006159;
+}
+@media (max-width: 760px) {
+  .fiat-checkout,
+  .stablecoin-checkout {
+    background: #ffffff;
+  }
 }

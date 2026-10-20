@@ -2,17 +2,11 @@ import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 const routes = [
   "/",
-  "/platform/payment-flow",
-  "/platform/provider-routing",
-  "/platform/settlement",
-  "/platform/payment-methods",
-  "/solutions/merchants",
-  "/solutions/providers",
-  "/developers",
-  "/solutions/use-cases",
   "/pricing",
-  "/about",
+  "/partners",
   "/contact",
+  "/terms",
+  "/privacy",
   "/docs",
   ...[
     "quickstart",
@@ -75,50 +69,17 @@ test("every route renders; internal links, assets and page metadata resolve", as
   for (const h of links) expect((await request.get(h)).status(), h).toBe(200);
   expect(errors).toEqual([]);
 });
-test("desktop navigation supports keyboard and Escape focus restoration", async ({
-  page,
-}) => {
+test("header links work on desktop and mobile", async ({ page }) => {
+  const { navLinks, navSections, createLinkHref } = await import("../../lib/site-config");
   await page.goto("/");
-  const product = page.getByRole("button", { name: "Platform", exact: true });
-  await product.focus();
-  await page.keyboard.press("Enter");
-  await expect(
-    page
-      .getByRole("navigation", { name: "Main navigation" })
-      .getByRole("link", { name: "Payment Flow" }),
-  ).toBeVisible();
-  await page.keyboard.press("Tab");
-  await page.keyboard.press("Escape");
-  await expect(product).toBeFocused();
-  await expect(product).toHaveAttribute("aria-expanded", "false");
-});
-test("mobile navigation opens, closes and routes correctly", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/");
-  await page.getByRole("button", { name: "Open navigation" }).click();
-  await page.getByRole("button", { name: "Solutions", exact: true }).click();
-  await page
-    .getByRole("navigation", { name: "Main navigation" })
-    .getByRole("link", { name: "For Providers" })
-    .click();
-  await expect(page).toHaveURL(/providers/);
-  await expect(
-    page.getByRole("button", { name: "Open navigation" }),
-  ).toHaveAttribute("aria-expanded", "false");
-});
-test("homepage calculator and code tabs respond to input", async ({
-  page,
-}) => {
-  await page.goto("/");
-  const volume = page.getByLabel("Monthly payment volume");
-  await volume.fill("1000000");
-  await expect(page.getByText("$288,000", { exact: true })).toBeVisible();
-  await page.getByRole("tab", { name: "Python" }).click();
-  await expect(page.getByRole("tabpanel")).toContainText("create_intent");
-  await page.getByRole("tab", { name: "cURL" }).click();
-  await expect(page.getByRole("tabpanel")).toContainText("Idempotency-Key");
+  const nav = page.getByRole("navigation", { name: "Main navigation" });
+  for (const [href, label] of [...navLinks, ...navSections])
+    await expect(nav.getByRole("link", { name: label, exact: true })).toHaveAttribute("href", href);
+  await expect(nav.getByRole("link", { name: "Create a payment link", exact: true })).toHaveAttribute("href", createLinkHref);
+  await page.setViewportSize({ width: 390, height: 900 });
+  await expect(nav.getByRole("link", { name: "Get started", exact: true })).toBeVisible();
+  await nav.getByRole("link", { name: "Pricing", exact: true }).click();
+  await expect(page).toHaveURL(/\/pricing$/);
 });
 test("docs searches real content and copies code", async ({
   page,
@@ -131,7 +92,7 @@ test("docs searches real content and copies code", async ({
     .fill("objectVersion");
   await expect(
     page
-      .getByRole("navigation", { name: "Documentation", exact: true })
+      .getByRole("navigation", { name: "Documentation search results" })
       .getByRole("link", { name: "Webhooks" }),
   ).toBeVisible();
   await page.getByRole("searchbox").fill("zzzznoresults");
@@ -144,10 +105,13 @@ test("docs searches real content and copies code", async ({
   );
 });
 test("CTA intents, validation and unconfigured state", async ({ page }) => {
-  for (const intent of ["merchant", "provider", "pricing", "general"]) {
+  for (const intent of ["merchant", "pricing", "general"]) {
     await page.goto("/contact?intent=" + intent);
     await expect(page.getByLabel("I’m interested in")).toHaveValue(intent);
   }
+  // Providers are sent to the reviewed access request instead.
+  await page.goto("/contact?intent=provider");
+  await expect(page).toHaveURL(/\/partners#request$/);
   await page.goto("/contact?intent=invalid");
   await expect(page.getByLabel("I’m interested in")).toHaveValue("general");
   await page.getByRole("button", { name: "Check enquiry" }).click();
@@ -167,6 +131,26 @@ test("CTA intents, validation and unconfigured state", async ({ page }) => {
     "Example Person",
   );
 });
+test("provider access is requested, not self-serve", async ({ page }) => {
+  await page.goto("/");
+  await expect(
+    page.getByRole("banner").getByRole("link", { name: "Partners" }),
+  ).toHaveCount(0);
+  await page.getByRole("link", { name: /Request provider access/ }).click();
+  await expect(page).toHaveURL(/\/partners#request$/);
+  await page
+    .getByRole("button", { name: "Request provider access" })
+    .click();
+  await expect(page.getByText("Enter your name.")).toBeVisible();
+  await expect(
+    page.getByText("Choose at least one payment method."),
+  ).toBeVisible();
+  const signUp = await page.request.get("/provider/sign-up", {
+    maxRedirects: 0,
+  });
+  expect(signUp.status()).toBe(307);
+  expect(signUp.headers().location).toContain("/partners#request");
+});
 test("responsive overflow and accessibility across all routes", async ({
   page,
 }) => {
@@ -185,7 +169,8 @@ test("responsive overflow and accessibility across all routes", async ({
   }
   for (const route of [
     "/",
-    "/platform/payment-methods",
+    "/pricing",
+    "/terms",
     "/docs/quickstart",
     "/contact",
   ]) {
@@ -196,23 +181,11 @@ test("responsive overflow and accessibility across all routes", async ({
     expect(results.violations, route).toEqual([]);
   }
 });
-test("reduced motion, 200% text, filter and screenshots", async ({ page }) => {
+test("reduced motion, 200% text and screenshots", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/");
-  await expect(page.getByText("Paid · €240.00")).toBeVisible();
-  await page.goto("/platform/payment-methods");
-  await page
-    .getByRole("button", { name: "Digital assets", exact: true })
-    .click();
-  await expect(page.locator(".method-detail")).toHaveCount(2);
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
-    for (const route of [
-      "/",
-      "/platform/payment-flow",
-      "/docs/quickstart",
-      "/contact",
-    ]) {
+    for (const route of ["/", "/pricing", "/docs/quickstart", "/contact"]) {
       await page.goto(route);
       await page.screenshot({
         path: `test-results/review-${width}-${route.replaceAll("/", "-") || "home"}.png`,
@@ -220,9 +193,7 @@ test("reduced motion, 200% text, filter and screenshots", async ({ page }) => {
       });
       await page.addStyleTag({ content: "html {font-size:200%}" });
       expect(
-        await page.evaluate(
-          () => document.documentElement.scrollWidth <= innerWidth,
-        ),
+        await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
         `200% ${width}: ${route}`,
       ).toBe(true);
     }
@@ -292,8 +263,8 @@ test("permanent migrations preserve queries and parents stay absent", async ({
   }
   for (const path of ["/platform", "/solutions"])
     expect((await request.get(path)).status()).toBe(404);
-  await page.goto("/platform/payment-flow");
-  for (const id of ["availability", "checkout", "execution", "settlement"]) {
+  await page.goto("/terms");
+  for (const id of ["scope", "fees", "risk", "law"]) {
     await page.locator(`a[href="#${id}"]`).click();
     await expect(page.locator(`#${id}`)).toBeVisible();
   }
@@ -303,34 +274,6 @@ test("permanent migrations preserve queries and parents stay absent", async ({
       .locator("a[href]")
       .evaluateAll((els) => els.map((e) => e.getAttribute("href")));
     for (const r of legacyRedirects) expect(links).not.toContain(r.source);
-  }
-});
-
-test("new menu hierarchy works on desktop and mobile", async ({ page }) => {
-  const { navigationGroups } = await import("../../lib/site-config");
-  for (const width of [390, 1440]) {
-    await page.setViewportSize({ width, height: 1000 });
-    for (const group of navigationGroups) {
-      await page.goto("/");
-      if (width === 390)
-        await page.getByRole("button", { name: "Open navigation" }).click();
-      await page
-        .getByRole("button", { name: group.title, exact: true })
-        .click();
-      for (const [href, label] of group.links)
-        await expect(
-          page
-            .getByRole("navigation", { name: "Main navigation" })
-            .getByRole("link", { name: label, exact: true }),
-        ).toHaveAttribute("href", href);
-      await page.keyboard.press("Escape");
-      await expect(
-        page.getByRole("button", { name: group.title, exact: true }),
-      ).toBeFocused();
-    }
-    await expect(
-      page.getByRole("button", { name: "Company", exact: true }),
-    ).toHaveCount(0);
   }
 });
 
@@ -350,7 +293,7 @@ test("marketing editorial review screenshots", async ({ page }) => {
       );
       await expect(
         page.locator(
-          "main .eyebrow, main .badge, main .status-mark, main .capability-tags, main .large-number",
+          "main .badge, main .capability-tags, main .large-number",
         ),
       ).toHaveCount(0);
     }

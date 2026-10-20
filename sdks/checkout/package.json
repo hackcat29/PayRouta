@@ -1,0 +1,23 @@
+{
+  "name": "@payrouta/checkout",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The PayRouta checkout button for React and the browser.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  }
+}

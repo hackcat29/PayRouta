@@ -1,0 +1,32 @@
+---
+title: "Flutterwave"
+description: "Flutterwave offers pan-African payment infrastructure covering over 30 African currencies, barcoded merchant transfers, M-Pesa STK push, and global card\u2026"
+---
+
+<Note>
+**Implementation status:** Provider code path: flutterwave. Not live-qualified by code alone. Merchant account enablement, credentials and sandbox qualification are required. See [current coverage](/partners/provider-coverage).
+</Note>
+
+**Category**: [Bank Transfer](/providers/bank-transfer)  
+**Provider**: Flutterwave Inc.  
+**Method ID**: `bank-transfer`, `card`, `mobile-money`  
+**Integration Mode**: `NATIVE` (`lib/providers/adapters/native/flutterwave.ts`)
+
+Flutterwave offers pan-African payment infrastructure covering over 30 African currencies, barcoded merchant transfers, M-Pesa STK push, and global card collections.
+
+---
+
+## Integration Details
+
+- **Adapter**: Native Flutterwave adapter with standard error mapping and idempotency verification.
+- **Base URL**: `https://api.flutterwave.com/v3`
+- **Supported Operations**: `pay-in`, `payout`, `settlement`
+- **Webhook Signature**: `verif-hash` header validated against the merchant's configured secret hash.
+
+---
+
+## Capabilities
+
+- **Bank Transfer (NGN, KES, GHS, UGX, ZAR)**: Real-time dynamic virtual accounts generated per checkout session.
+- **M-Pesa Collections (KES)**: Automated STK push prompt to customer mobile numbers.
+- **African Multi-Currency Payouts**: Automated merchant settlements across regional banking networks.

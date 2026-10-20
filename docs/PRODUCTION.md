@@ -37,10 +37,13 @@ Then fill in the remaining values in `/opt/payrouta/.env` (see §3). Add the Git
 | `PORTAL_MODE=production`, `BETTER_AUTH_URL` (HTTPS), `BETTER_AUTH_SECRET` | Anything | Yes |
 | `DATABASE_URL` | Anything | Yes |
 | `SECRET_MASTER_KEYS` (and optionally `SECRET_ACTIVE_KEY_ID`) | Storing partner and webhook secrets | Yes |
-| `SMTP_URL`, `MAIL_FROM` | Sign-up verification, password reset, invitations | Yes |
+| `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | All mail: sign-up verification, password reset, invitations, marketing. The sender domain must be verified in Resend (SPF, DKIM, DMARC). `SMTP_URL`/`MAIL_FROM` are an optional fallback. | Yes |
+| `OPENSANCTIONS_API_KEY` | Screening merchants (business, representative, owners) before any partner disclosure. Without it every business waits for a manual decision in /ops | Yes |
+| `RESEND_WEBHOOK_SECRET` | Signing secret for the Resend webhook at `/api/webhooks/resend` (bounces, complaints, opens). Unsigned requests are rejected. | For marketing mail |
+| `RESEND_SEGMENT_ID` | Optional Resend segment for confirmed subscribers | No |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | "Continue with Google". Redirect URI `<BETTER_AUTH_URL>/api/auth/callback/google`. The button is hidden until both are set. | No |
 | `S3_BUCKET`, `S3_REGION` (+ AWS credential chain; `S3_ENDPOINT` for S3-compatible stores) | Evidence document storage | Yes |
 | `CLAMD_HOST`, `CLAMD_PORT` | Malware scanning. Without it every document stays quarantined | Yes |
-| `OPENSANCTIONS_API_KEY` | Screening merchants before any partner disclosure | Yes |
 | `SITE_URL` | Indexable public site and canonical URLs | No |
 | `CONTACT_WEBHOOK_URL` (+ token) | Website enquiries | No |
 | `HOSTED_SANDBOX=enabled` | Merchants testing with simulated providers on this host | No |
@@ -85,7 +88,7 @@ Live payments go through accounts **the merchant owns** at each provider. They o
 
 ### Per merchant
 
-1. The merchant saves their business profile and applies to providers. PayRouta screens them with OpenSanctions, and reviews appear under **Screening held for review**.
+1. The merchant saves their business profile and applies to providers. PayRouta screens the business, its representative and its owners with OpenSanctions (`OPENSANCTIONS_API_KEY`): sanctions matches stop, PEP-only matches go to review, weak hits are clear. Without a key, or when OpenSanctions asks for review, the business is held for a manual decision under **Screening held for review** (partner applications) or on the merchant's treasury page; a manual decision stays valid for 30 days.
 2. The merchant finishes each provider's onboarding. Approved accounts appear on their **Payment methods** page.
 3. The merchant submits **Business setup** with the required documents. Ops reviews it in **Merchants**.
 4. Ops proposes and approves a **live scope**: the merchant's country, an explicit list of payer countries, the methods, one currency and limits. The proposal is pre-filled with the merchant's approved partner accounts.

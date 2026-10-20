@@ -1,4 +1,4 @@
-export type AnalyticsEvent = "cta" | "docs" | "demo" | "enquiry";
+export type AnalyticsEvent = "cta" | "docs" | "demo" | "enquiry" | "provider_access_request";
 export type AnalyticsData = {
   action?: string;
   intent?: string;

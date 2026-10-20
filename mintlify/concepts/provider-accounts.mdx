@@ -1,0 +1,66 @@
+---
+title: "Provider Accounts"
+description: "There are two ways PayRouta processes your payments."
+---
+
+<Info>
+Launch scope: stablecoins and direct crypto wallet payments for every merchant, plus cards, digital wallets, bank transfers and mobile money through PayRouta's processing partners once your payments account is activated. Exchange-app payments are Coming soon. Stablecoin sandbox payments use actual testnet tokens; they cannot simulate a successful deposit. See [Crypto wallet payments](/guides/crypto-payments).
+</Info>
+There are two ways PayRouta processes your payments.
+
+## PayRouta payments (most merchants)
+
+You apply once in **Activate payments**: your business details, your identity and payout bank account (stored encrypted) and PayRouta's merchant terms. PayRouta verifies your business and opens your account with its regulated processing partners for you, by API. You never fill in a provider's forms or log in to a provider.
+
+- **Your balance** is held by those regulated partners, or paid by them straight to your bank, never in PayRouta's own bank accounts.
+- **Payouts** go to your bank account on your schedule (daily, weekly or monthly, or on request), shown in **Balances & payouts**. A rolling reserve may apply, depending on your business.
+- **Refunds and disputes** are handled in your dashboard and funded from your balance.
+
+## Accounts in your own name
+
+If you prefer, PayRouta can also route payments through payment accounts that **you** own. You apply once in the dashboard, and PayRouta prepares an application with each provider you choose.
+
+### Why those accounts are yours
+
+Every provider available through PayRouta must meet all five of these conditions:
+
+| Question | Answer |
+| --- | --- |
+| Who signs the provider's contract? | You, directly with the provider |
+| Who can log in to the account? | You, with your own credentials |
+| Who bears chargebacks and negative balances? | You or the provider, never PayRouta |
+| Where does money settle? | Directly to the destination you set with the provider |
+| What if you stop using PayRouta? | You keep the account |
+
+PayRouta checks these conditions in code, and refuses any provider integration that would put your funds or your liabilities with PayRouta.
+
+### Applying
+
+1. Open **Payment providers** in the dashboard and save your business profile: legal name, business type, country, website, what you sell, support email, registered address, a representative, and the names of anyone owning 25% or more.
+2. Expand a provider to see exactly which of those fields it will receive. Each provider gets only the fields it needs.
+3. Tick consent for each provider you want, then apply. This requires a fresh authenticator code.
+4. PayRouta screens the business, the representative and the owners before anything is shared.
+5. Choose **Continue with &lt;provider>** to finish that provider's own onboarding. The provider collects identity documents and bank details itself, and accepts you under its own terms.
+6. The dashboard shows each provider's status: *Action required*, *Under review*, *Approved*, *Restricted* or *Rejected*. PayRouta re-checks status with the provider after you return, and periodically after that.
+
+When you edit your profile, PayRouta creates a new version. Applications already sent keep the version you consented to, and a new application needs a new consent.
+
+### What PayRouta never collects for these accounts
+
+For accounts in your own name, the provider collects these itself:
+
+- Government ID numbers or document images
+- Dates of birth
+- Bank account numbers, IBANs or card details
+
+(For PayRouta payments, PayRouta collects your identity and payout details itself and stores them encrypted.)
+
+### Disconnecting
+
+**Disconnect** stops PayRouta from sharing anything further with that provider and stops routing to it. The provider account stays open and remains yours. Close it with the provider if you no longer need it.
+
+## Providers
+
+Which providers you can choose depends on your environment and country, and on which provider integrations have passed qualification. The dashboard lists the ones currently open to you. Provider integrations are added one at a time. For accounts in your own name, only programmes where the account belongs to you qualify.
+
+For technical specifications, supported corridors, and integration guides for each provider, explore the [Payment Providers Directory](/providers).

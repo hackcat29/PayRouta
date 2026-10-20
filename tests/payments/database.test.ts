@@ -813,7 +813,7 @@ test("database: production fee is exactly once under concurrent confirmation and
   const fee = await db.paymentFee.findUniqueOrThrow({
     where: { intentId: intent.id },
   });
-  assert.equal(fee.amountMinor.toFixed(0), "25");
+  assert.equal(fee.amountMinor.toFixed(0), "100", "1% of 100.00");
   assert.equal(fee.currency, "USD");
   assert.equal(fee.billable, true);
   assert.equal(
@@ -839,7 +839,7 @@ test("database: production fee is exactly once under concurrent confirmation and
       .find((e) => e.book === "payrouta-platform-accrual")!
       .postings.find((p) => p.account === "platform-receivable")!
       .debit.toFixed(0),
-    "25",
+    "100",
   );
   await assert.rejects(
     db.paymentFee.update({
@@ -856,7 +856,7 @@ test("database: production fee is exactly once under concurrent confirmation and
     /immutable/,
   );
 });
-test("database: pending, rejected and mismatched confirmations incur no fee; low-rate cap applies", async () => {
+test("database: pending, rejected and mismatched confirmations incur no fee; the $5 cap applies", async () => {
   const { intent, a, fact } = await feeFixture("bank-transfer", "10000.00");
   await applyFact(a.id, fact("Pending"));
   await applyFact(a.id, fact("Confirmed", "9999.00"));
@@ -869,7 +869,8 @@ test("database: pending, rejected and mismatched confirmations incur no fee; low
     (
       await db.paymentFee.findUniqueOrThrow({ where: { intentId: intent.id } })
     ).amountMinor.toFixed(0),
-    "100",
+    "500",
+    "1% of 10,000.00 is $100, capped at $5",
   );
   const rejected = await feeFixture();
   await applyFact(rejected.a.id, rejected.fact("Rejected"));
@@ -968,4 +969,42 @@ test("database: closed monthly statements are idempotent, immutable and isolated
     ),
     /BOOK_ACCOUNT_MISMATCH/,
   );
+});
+
+test("database: merchants choose who pays fees, and the choice is fixed on each payment", async () => {
+  const original = await db.merchantConfig.findUniqueOrThrow({ where: { orgId: merchant } });
+  try {
+    // Merchant absorbs fees by default: the customer pays the price.
+    const absorbed = await createIntent(merchant, randomUUID(), input);
+    assert.equal(absorbed.feeBearer, "merchant");
+    assert.equal(absorbed.amount, "100.00");
+
+    // Per-payment override: 1% (standard rate shown in sandbox) on top.
+    const passed = await createIntent(merchant, randomUUID(), { ...input, feeBearer: "customer" });
+    assert.equal(passed.feeBearer, "customer");
+    assert.equal(passed.amount, "101.01");
+    const option = (passed.paymentOptions as { amount: string; baseAmount: string; customerFeeMinor: string }[])[0];
+    assert.deepEqual(
+      { amount: option.amount, baseAmount: option.baseAmount, customerFeeMinor: option.customerFeeMinor },
+      { amount: "101.01", baseAmount: "100.00", customerFeeMinor: "101" },
+    );
+    await assert.rejects(
+      db.paymentIntent.update({ where: { id: passed.id }, data: { feeBearer: "merchant" } }),
+      /immutable/,
+    );
+
+    // Merchant default, overridable back to absorbing.
+    await db.merchantConfig.update({ where: { orgId: merchant }, data: { feeBearer: "customer" } });
+    assert.equal((await createIntent(merchant, randomUUID(), input)).amount, "101.01");
+    assert.equal((await createIntent(merchant, randomUUID(), { ...input, feeBearer: "merchant" })).amount, "100.00");
+
+    // Card and bank surcharges are banned for merchants in the EU and UK.
+    await db.merchantConfig.update({ where: { orgId: merchant }, data: { country: "DE" } });
+    await assert.rejects(createIntent(merchant, randomUUID(), input), /FEE_PASS_THROUGH_NOT_PERMITTED/);
+  } finally {
+    await db.merchantConfig.update({
+      where: { orgId: merchant },
+      data: { feeBearer: original.feeBearer, country: original.country },
+    });
+  }
 });

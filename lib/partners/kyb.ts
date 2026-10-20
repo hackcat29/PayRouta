@@ -124,7 +124,7 @@ export const kybFieldLabels: Record<KybField, string> = {
   country: "Country of registration",
   registrationNumber: "Company registration number",
   taxId: "Tax ID",
-  website: "Website",
+  website: "Website or social page",
   productDescription: "What you sell",
   industry: "Industry",
   supportEmail: "Customer support email",

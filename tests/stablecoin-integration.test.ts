@@ -106,8 +106,6 @@ for (const token of tokenAssets)
           inputPrecision: token.decimals,
           currency: "USD",
           billingPrecision: 2,
-          highCapMinor: "200",
-          lowCapMinor: "100",
           conversionNumerator: numerator,
           conversionDenominator: String(10 ** token.decimals),
           validUntil: "2026-10-08T00:00:00Z",
@@ -119,14 +117,15 @@ for (const token of tokenAssets)
         new Date("2026-10-07T00:00:00Z"),
         raw,
       );
+      // 1.5%, uncapped: PayRouta is the only processor for stablecoins.
       assert.equal(
         calculateFee(snapshot, "stablecoin", "500", token.decimals).amountMinor,
-        token.symbol === "EURC" ? "55" : "50",
+        token.symbol === "EURC" ? "825" : "750",
       );
       assert.equal(
         calculateFee(snapshot, "stablecoin", "2000", token.decimals)
           .amountMinor,
-        "100",
+        token.symbol === "EURC" ? "3300" : "3000",
       );
     }
   });

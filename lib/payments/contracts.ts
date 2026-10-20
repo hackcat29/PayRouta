@@ -54,6 +54,8 @@ export const intentInput = z
       .max(20)
       .optional(),
     returnUrl: z.url().max(2048),
+    // Who pays fees on this payment; defaults to the merchant's setting.
+    feeBearer: z.enum(["merchant", "customer"]).optional(),
     metadata: z
       .record(z.string().max(40), z.string().max(200))
       .refine((v) => Object.keys(v).length <= 20)

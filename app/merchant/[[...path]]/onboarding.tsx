@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { countries, fiat } from "@/lib/portal/domain";
 import { labelOf } from "@/lib/providers/normalized";
 
-const supportedMethods = ["stablecoin"] as const;
+// Crypto is set up here; cards, wallets, bank transfer, mobile money, USSD
+// and credit turn on through Activate payments.
+const supportedMethods = ["stablecoin", "crypto-app"] as const;
 type SupportedMethod = (typeof supportedMethods)[number];
 
 type ApplicationValues = {
@@ -35,7 +37,7 @@ const steps = [
   {
     id: "methods",
     title: "How customers pay",
-    description: "Choose the payment methods you want to offer.",
+    description: "Choose how customers can pay you in crypto. Everything else turns on with activation.",
   },
   {
     id: "settlement",
@@ -102,7 +104,7 @@ function validateStep(step: number, form: ApplicationValues) {
     if (!countries.some((country) => country.id === form.country))
       errors.push("Select an operating country from the list.");
     if (!validWebsite(form.website))
-      errors.push("Enter a valid business website address.");
+      errors.push("Enter your website or social page address, starting with https://.");
     if (form.activity.trim().length < 10)
       errors.push("Describe the business activity in at least 10 characters.");
     if (!validEmail(form.businessContact))
@@ -343,12 +345,8 @@ export function Onboarding({
   }
 
   return (
-    <section aria-labelledby="merchant-setup-heading">
-      <h2 id="merchant-setup-heading">{steps[step].title}</h2>
-      <p>
-        {state} · Step {step + 1} of {steps.length}: {steps[step].title}
-      </p>
-      <ol className="merchant-steps">
+    <div className="ms-wizard">
+      <ol className="merchant-steps" aria-label="Business setup steps">
         {steps.map((entry, index) => (
           <li
             key={entry.id}
@@ -359,267 +357,290 @@ export function Onboarding({
           </li>
         ))}
       </ol>
-      <p>{steps[step].description}</p>
-      {typeof value.reviewFeedback === "string" && (
-        <p>{value.reviewFeedback}</p>
-      )}
-      {errors.length > 0 && (
-        <div role="alert">
-          {errors.map((error) => (
-            <p key={error}>{error}</p>
-          ))}
-        </div>
-      )}
+      <section
+        className="ms-wizard-body"
+        aria-labelledby="merchant-setup-heading"
+      >
+        <p className="ms-step-meta">
+          Step {step + 1} of {steps.length}
+          <span
+            className={`ms-pill ${state === "Approved" ? "good" : state === "Draft" ? "" : "info"}`}
+          >
+            {state}
+          </span>
+        </p>
+        <h2 id="merchant-setup-heading">{steps[step].title}</h2>
+        <p>{steps[step].description}</p>
+        {typeof value.reviewFeedback === "string" && (
+          <p>{value.reviewFeedback}</p>
+        )}
+        {errors.length > 0 && (
+          <div role="alert">
+            {errors.map((error) => (
+              <p key={error}>{error}</p>
+            ))}
+          </div>
+        )}
 
-      {step === 0 && (
-        <div>
-          <label htmlFor="merchant-legal-name">
-            Legal name
-            <input
-              id="merchant-legal-name"
-              value={form.legalName}
-              onChange={(event) => update("legalName", event.target.value)}
-              required
-            />
-          </label>
-          <label htmlFor="merchant-trading-name">
-            Trading name
-            <input
-              id="merchant-trading-name"
-              value={form.tradingName}
-              onChange={(event) => update("tradingName", event.target.value)}
-            />
-          </label>
-          <SearchableSelect
-            id="merchant-country"
-            label="Operating country"
-            options={countries.map((country) => ({
-              value: country.id,
-              label: `${country.name} (${country.id})`,
-            }))}
-            value={form.country}
-            onChange={(next) => update("country", next)}
-          />
-          <label htmlFor="merchant-website">
-            Business website
-            <input
-              id="merchant-website"
-              type="url"
-              inputMode="url"
-              placeholder="https://example.com"
-              value={form.website}
-              onChange={(event) => update("website", event.target.value)}
-              required
-            />
-          </label>
-          <label htmlFor="merchant-activity">
-            Business activity
-            <textarea
-              id="merchant-activity"
-              value={form.activity}
-              onChange={(event) => update("activity", event.target.value)}
-              required
-            />
-          </label>
-          <label htmlFor="merchant-business-contact">
-            Business contact email
-            <input
-              id="merchant-business-contact"
-              type="email"
-              value={form.businessContact}
-              onChange={(event) =>
-                update("businessContact", event.target.value)
-              }
-              required
-            />
-          </label>
-          <label htmlFor="merchant-technical-contact">
-            Technical contact email
-            <input
-              id="merchant-technical-contact"
-              type="email"
-              value={form.technicalContact}
-              onChange={(event) =>
-                update("technicalContact", event.target.value)
-              }
-              required
-            />
-          </label>
-        </div>
-      )}
-
-      {step === 1 && (
-        <fieldset>
-          <legend>How do you want customers to pay?</legend>
-          {supportedMethods.map((method) => (
-            <label key={method}>
+        {step === 0 && (
+          <div>
+            <label htmlFor="merchant-legal-name">
+              Legal name
               <input
-                id={`merchant-method-${method}`}
-                type="checkbox"
-                checked={form.methods.includes(method)}
-                onChange={(event) =>
-                  update(
-                    "methods",
-                    event.target.checked
-                      ? [...form.methods, method]
-                      : form.methods.filter((entry) => entry !== method),
-                  )
-                }
+                id="merchant-legal-name"
+                value={form.legalName}
+                onChange={(event) => update("legalName", event.target.value)}
+                required
               />
-              {labelOf(method)}
             </label>
-          ))}
-        </fieldset>
-      )}
+            <label htmlFor="merchant-trading-name">
+              Trading name
+              <input
+                id="merchant-trading-name"
+                value={form.tradingName}
+                onChange={(event) => update("tradingName", event.target.value)}
+              />
+            </label>
+            <SearchableSelect
+              id="merchant-country"
+              label="Operating country"
+              options={countries.map((country) => ({
+                value: country.id,
+                label: `${country.name} (${country.id})`,
+              }))}
+              value={form.country}
+              onChange={(next) => update("country", next)}
+            />
+            <label htmlFor="merchant-website">
+              Website or social page
+              <small>No website? Use your Instagram, Facebook or WhatsApp Business link.</small>
+              <input
+                id="merchant-website"
+                type="url"
+                inputMode="url"
+                placeholder="https://instagram.com/yourshop"
+                value={form.website}
+                onChange={(event) => update("website", event.target.value)}
+                required
+              />
+            </label>
+            <label htmlFor="merchant-activity">
+              Business activity
+              <textarea
+                id="merchant-activity"
+                value={form.activity}
+                onChange={(event) => update("activity", event.target.value)}
+                required
+              />
+            </label>
+            <label htmlFor="merchant-business-contact">
+              Business contact email
+              <input
+                id="merchant-business-contact"
+                type="email"
+                value={form.businessContact}
+                onChange={(event) =>
+                  update("businessContact", event.target.value)
+                }
+                required
+              />
+            </label>
+            <label htmlFor="merchant-technical-contact">
+              Technical contact email
+              <input
+                id="merchant-technical-contact"
+                type="email"
+                value={form.technicalContact}
+                onChange={(event) =>
+                  update("technicalContact", event.target.value)
+                }
+                required
+              />
+            </label>
+          </div>
+        )}
 
-      {step === 2 && (
-        <div>
-          <p>
-            Your payout bank account and identity details are collected
-            separately, encrypted, in{" "}
-            <Link href="/merchant/activation">Activate payments</Link>. Payouts
-            go to that account; regulated processing partners hold your balance
-            until then, never PayRouta&apos;s own bank accounts.
-          </p>
-          <SearchableMultiSelect
-            id="merchant-settlement-currencies"
-            label="Currencies you expect to be paid in"
-            options={fiat.map((currency) => ({
-              value: currency,
-              label: currency,
-            }))}
-            selected={form.settlementCurrencies}
-            onChange={(next) => update("settlementCurrencies", next)}
-          />
-          <SearchableMultiSelect
-            id="merchant-payer-markets"
-            label="Payer countries"
-            options={countries.map((country) => ({
-              value: country.id,
-              label: `${country.name} (${country.id})`,
-            }))}
-            selected={form.payerMarkets}
-            onChange={(next) => update("payerMarkets", next)}
-          />
+        {step === 1 && (
           <fieldset>
-            <legend>Expected payment volume</legend>
-            {volumeOptions.map((option) => (
-              <label key={option}>
+            <legend>Crypto your customers can pay with</legend>
+            <p className="ms-hint">
+              Cards, digital wallets, bank transfer, mobile money, USSD and pay with credit turn on when you{" "}
+              <Link href="/merchant/activation">activate payments</Link>.
+            </p>
+            {supportedMethods.map((method) => (
+              <label key={method}>
                 <input
-                  id={`merchant-volume-${option}`}
-                  type="radio"
-                  name="merchant-volume"
-                  checked={form.volumeRange === option}
-                  onChange={() => update("volumeRange", option)}
+                  id={`merchant-method-${method}`}
+                  type="checkbox"
+                  checked={form.methods.includes(method)}
+                  onChange={(event) =>
+                    update(
+                      "methods",
+                      event.target.checked
+                        ? [...form.methods, method]
+                        : form.methods.filter((entry) => entry !== method),
+                    )
+                  }
                 />
-                {option}
+                {labelOf(method)}
               </label>
             ))}
-            <label>
-              <input
-                id="merchant-volume-other"
-                type="radio"
-                name="merchant-volume"
-                checked={
-                  form.volumeRange !== "" &&
-                  !volumeOptions.includes(
-                    form.volumeRange as (typeof volumeOptions)[number],
-                  )
-                }
-                onChange={() => update("volumeRange", form.volumeRange)}
-              />
-              Another range
-            </label>
-            {form.volumeRange !== "" &&
-              !volumeOptions.includes(
-                form.volumeRange as (typeof volumeOptions)[number],
-              ) && (
-                <label htmlFor="merchant-volume-description">
-                  Describe the expected volume
-                  <input
-                    id="merchant-volume-description"
-                    value={form.volumeRange}
-                    onChange={(event) =>
-                      update("volumeRange", event.target.value)
-                    }
-                  />
-                </label>
-              )}
           </fieldset>
-        </div>
-      )}
-
-      {step === 3 && (
-        <div>
-          {requirements.length ? (
-            <>
-              <p>Based on this application, upload these documents:</p>
-              <ul>
-                {requirements.map((requirement) => (
-                  <li key={requirement}>{requirement}</li>
-                ))}
-              </ul>
-            </>
-          ) : (
-            <p>
-              No documents are required yet. Save the earlier steps so PayRouta
-              can determine what is needed.
-            </p>
-          )}
-          {evidencePanel}
-        </div>
-      )}
-
-      {step === 4 && (
-        <dl>
-          <dt>Business</dt>
-          <dd>
-            {form.legalName || "Not set"}
-            {form.tradingName ? `, trading as ${form.tradingName}` : ""}
-          </dd>
-          <dt>Operating country</dt>
-          <dd>{countryName}</dd>
-          <dt>Website</dt>
-          <dd>{form.website || "Not set"}</dd>
-          <dt>Payment methods</dt>
-          <dd>{methodLabels}</dd>
-          <dt>Currencies</dt>
-          <dd>{form.settlementCurrencies.join(", ") || "Not set"}</dd>
-          <dt>Payer countries</dt>
-          <dd>{form.payerMarkets.join(", ") || "Not set"}</dd>
-          <dt>Expected volume</dt>
-          <dd>{form.volumeRange || "Not set"}</dd>
-        </dl>
-      )}
-
-      <div className="merchant-wizard-actions">
-        {step > 0 && (
-          <button type="button" onClick={() => setStep(step - 1)}>
-            Back
-          </button>
         )}
-        <button
-          type="button"
-          disabled={busy || !editable}
-          onClick={() => void save(false)}
-        >
-          Save draft
-        </button>
-        {step < steps.length - 1 ? (
-          <button type="button" disabled={busy || !editable} onClick={nextStep}>
-            Continue
-          </button>
-        ) : (
+
+        {step === 2 && (
+          <div>
+            <p>
+              Your payout bank account and identity details are collected
+              separately, encrypted, in{" "}
+              <Link href="/merchant/activation">Activate payments</Link>.
+              Payouts go to that account; regulated processing partners hold
+              your balance until then, never PayRouta&apos;s own bank accounts.
+            </p>
+            <SearchableMultiSelect
+              id="merchant-settlement-currencies"
+              label="Currencies you expect to be paid in"
+              options={fiat.map((currency) => ({
+                value: currency,
+                label: currency,
+              }))}
+              selected={form.settlementCurrencies}
+              onChange={(next) => update("settlementCurrencies", next)}
+            />
+            <SearchableMultiSelect
+              id="merchant-payer-markets"
+              label="Payer countries"
+              options={countries.map((country) => ({
+                value: country.id,
+                label: `${country.name} (${country.id})`,
+              }))}
+              selected={form.payerMarkets}
+              onChange={(next) => update("payerMarkets", next)}
+            />
+            <fieldset>
+              <legend>Expected payment volume</legend>
+              {volumeOptions.map((option) => (
+                <label key={option}>
+                  <input
+                    id={`merchant-volume-${option}`}
+                    type="radio"
+                    name="merchant-volume"
+                    checked={form.volumeRange === option}
+                    onChange={() => update("volumeRange", option)}
+                  />
+                  {option}
+                </label>
+              ))}
+              <label>
+                <input
+                  id="merchant-volume-other"
+                  type="radio"
+                  name="merchant-volume"
+                  checked={
+                    form.volumeRange !== "" &&
+                    !volumeOptions.includes(
+                      form.volumeRange as (typeof volumeOptions)[number],
+                    )
+                  }
+                  onChange={() => update("volumeRange", form.volumeRange)}
+                />
+                Another range
+              </label>
+              {form.volumeRange !== "" &&
+                !volumeOptions.includes(
+                  form.volumeRange as (typeof volumeOptions)[number],
+                ) && (
+                  <label htmlFor="merchant-volume-description">
+                    Describe the expected volume
+                    <input
+                      id="merchant-volume-description"
+                      value={form.volumeRange}
+                      onChange={(event) =>
+                        update("volumeRange", event.target.value)
+                      }
+                    />
+                  </label>
+                )}
+            </fieldset>
+          </div>
+        )}
+
+        {step === 3 && (
+          <div>
+            {requirements.length ? (
+              <>
+                <p>Based on this application, upload these documents:</p>
+                <ul>
+                  {requirements.map((requirement) => (
+                    <li key={requirement}>{requirement}</li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p>
+                No documents are required yet. Save the earlier steps so
+                PayRouta can determine what is needed.
+              </p>
+            )}
+            {evidencePanel}
+          </div>
+        )}
+
+        {step === 4 && (
+          <dl>
+            <dt>Business</dt>
+            <dd>
+              {form.legalName || "Not set"}
+              {form.tradingName ? `, trading as ${form.tradingName}` : ""}
+            </dd>
+            <dt>Operating country</dt>
+            <dd>{countryName}</dd>
+            <dt>Website</dt>
+            <dd>{form.website || "Not set"}</dd>
+            <dt>Payment methods</dt>
+            <dd>{methodLabels}</dd>
+            <dt>Currencies</dt>
+            <dd>{form.settlementCurrencies.join(", ") || "Not set"}</dd>
+            <dt>Payer countries</dt>
+            <dd>{form.payerMarkets.join(", ") || "Not set"}</dd>
+            <dt>Expected volume</dt>
+            <dd>{form.volumeRange || "Not set"}</dd>
+          </dl>
+        )}
+
+        <div className="merchant-wizard-actions">
+          {step > 0 && (
+            <button type="button" onClick={() => setStep(step - 1)}>
+              Back
+            </button>
+          )}
           <button
             type="button"
             disabled={busy || !editable}
-            onClick={() => void save(true)}
+            onClick={() => void save(false)}
           >
-            Submit for review
+            Save draft
           </button>
-        )}
-      </div>
-      <p role="status">{message}</p>
-    </section>
+          {step < steps.length - 1 ? (
+            <button
+              type="button"
+              disabled={busy || !editable}
+              onClick={nextStep}
+            >
+              Continue
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={busy || !editable}
+              onClick={() => void save(true)}
+            >
+              Submit for review
+            </button>
+          )}
+        </div>
+        <p role="status">{message}</p>
+      </section>
+    </div>
   );
 }

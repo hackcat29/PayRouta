@@ -6,3 +6,4 @@ export * from "./marketing-broadcast";
 export * from "./monthly-digest";
 export * from "./transaction-receipt";
 export * from "./security-alert";
+export * from "./transactional";

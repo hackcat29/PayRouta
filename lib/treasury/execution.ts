@@ -6,6 +6,8 @@ import { PortalError } from "../portal/domain";
 import type { ExecutionAdapter } from "../payments/execution";
 import type { PaymentIntent } from "../generated/prisma/client";
 import { calculateFee } from "../payments/pricing";
+import { minor } from "../payments/contracts";
+import { standardPartnerFee } from "./partner-fees";
 import type { ExecutableMethod } from "../partners/contract";
 import { currencyExponent } from "../partners/money";
 import { requireFundsAccess } from "./merchant-account";
@@ -20,16 +22,33 @@ function origin() {
   return new URL(value).origin;
 }
 
-// PayRouta's fee for this payment, in the payment's own minor units. A fee
-// that cannot be withheld in the payment currency is refused, never
-// converted.
-export function withheldFee(intent: Pick<PaymentIntent, "feeSnapshot" | "selectedMethod" | "amount" | "precision" | "asset">) {
+// PayRouta's fee plus, where PayRouta pays the partner, the partner's
+// standard fee, all in the payment's own minor units. A fee that cannot be
+// withheld in the payment currency is refused, never converted. Sandbox
+// terms are free.
+export function platformFees(
+  intent: Pick<PaymentIntent, "feeSnapshot" | "selectedMethod" | "amount" | "precision" | "asset">,
+  platform: { provider: string; config: unknown },
+) {
   const currency = (intent.asset as { identifier?: string }).identifier ?? "";
   const fee = calculateFee(intent.feeSnapshot, intent.selectedMethod!, intent.amount, intent.precision);
-  if (fee.amountMinor === "0") return 0n;
-  if (fee.currency !== currency || fee.precision !== currencyExponent(currency))
+  const free = fee.currency === "";
+  if (!free && (fee.currency !== currency || fee.precision !== currencyExponent(currency)))
     throw new PortalError("PLATFORM_FEE_CURRENCY_MISMATCH", 409);
-  return BigInt(fee.amountMinor);
+  const payroutaMinor = BigInt(fee.amountMinor);
+  const partnerMinor =
+    !free && fee.partnerFeeApplies
+      ? standardPartnerFee(platformModule(platform.provider).manifest, platform.config, {
+          method: intent.selectedMethod!,
+          amount: intent.amount,
+          precision: intent.precision,
+          currency,
+        })
+      : 0n;
+  const totalMinor = payroutaMinor + partnerMinor;
+  if (totalMinor >= minor(intent.amount, intent.precision))
+    throw new PortalError("PLATFORM_FEE_EXCEEDS_PAYMENT", 422);
+  return { payroutaMinor, partnerMinor, totalMinor };
 }
 
 export function platformExecutionAdapter(integration: {
@@ -66,6 +85,7 @@ export function platformExecutionAdapter(integration: {
       manifest: platformModule(platform.provider).manifest,
       providerAccountId: link.providerAccountId,
       link,
+      platform,
     };
   }
 
@@ -73,7 +93,7 @@ export function platformExecutionAdapter(integration: {
     const asset = intent.asset as { kind?: string; identifier?: string };
     if (asset.kind !== "fiat" || !asset.identifier || !intent.selectedMethod)
       return { state: "Rejected", reference: "" };
-    const { adapter, manifest, providerAccountId, link } = await context();
+    const { adapter, manifest, providerAccountId, link, platform } = await context();
     const trusted = await db.availabilityContext.findUnique({ where: { id: intent.contextId } });
     const countries = (trusted?.context ?? {}) as { payerCountry?: string; merchantCountry?: string };
     // Pay-by-bank names the merchant's own verified account as recipient.
@@ -99,6 +119,11 @@ export function platformExecutionAdapter(integration: {
       where: { intentId: intent.id, revokedAt: null },
       orderBy: { expiresAt: "desc" },
     });
+    // Credit: the plan the customer chose, from this attempt's route.
+    const route = await db.paymentAttempt
+      .findFirst({ where: { key: attempt.key }, select: { routeId: true } })
+      .then((a) => (a?.routeId ? db.paymentRoute.findUnique({ where: { id: a.routeId } }) : null));
+    const credit = (route?.snapshot as { credit?: { offerId?: string } } | null)?.credit;
     const back = new URL(session ? `/checkout/${session.id}` : "/checkout", origin());
     const returnUrl = new URL(back);
     returnUrl.searchParams.set("returned", "1");
@@ -111,7 +136,7 @@ export function platformExecutionAdapter(integration: {
         currency: asset.identifier,
         method: intent.selectedMethod as ExecutableMethod,
         // Pay-by-bank rails pay the merchant in full; the fee is invoiced.
-        feeMinor: manifest.feeCollection === "withheld" ? withheldFee(intent) : 0n,
+        feeMinor: manifest.feeCollection === "withheld" ? platformFees(intent, platform).totalMinor : 0n,
         reference: intent.reference,
         payerCountry: countries.payerCountry,
         merchantCountry: countries.merchantCountry,
@@ -122,6 +147,7 @@ export function platformExecutionAdapter(integration: {
         })(),
         returnUrl: returnUrl.toString(),
         cancelUrl: back.toString(),
+        ...(credit?.offerId ? { credit: { offerId: credit.offerId } } : {}),
       })
       .catch((error) => {
         // A refusal before any obligation exists lets the next route be tried.
@@ -137,7 +163,9 @@ export function platformExecutionAdapter(integration: {
             action: result.actionUrl
               ? { kind: "redirect", url: result.actionUrl, provider: "PayRouta", text: "Continue to secure card payment." }
               : manifest.sandboxOnly && integration.environment === "sandbox"
-                ? { kind: "sandbox", provider: manifest.name, text: `Fictional ${manifest.name} payment. Complete the sandbox authorization below.` }
+                ? manifest.credit
+                  ? { kind: "sandbox", provider: manifest.name, text: `Fictional credit from ${manifest.credit.lender}. Approve the test credit below.` }
+                  : { kind: "sandbox", provider: manifest.name, text: `Fictional ${manifest.name} payment. Complete the sandbox authorization below.` }
                 : (() => { throw new PortalError("PROVIDER_CUSTOMER_ACTION_REQUIRED", 502); })(),
           }
         : {}),

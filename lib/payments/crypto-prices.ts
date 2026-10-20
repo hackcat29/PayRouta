@@ -178,10 +178,8 @@ export function cryptoPaymentTerms(
             inputPrecision: a.decimals,
             currency: "USD",
             billingPrecision: 2,
-            highCapMinor: "200",
-            lowCapMinor: "100",
-            highBps: 25,
-            lowBps: 10,
+            // PayRouta is the only processor for crypto: the direct rate
+            // applies, valued in USD from this quote.
             conversionNumerator: n.toString(),
             conversionDenominator: d.toString(),
             validUntil: expiresAt.toISOString(),

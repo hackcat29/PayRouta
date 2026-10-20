@@ -18,9 +18,9 @@ export const applicationSchema = z
     businessContact: z.email(),
     technicalContact: z.email(),
     methods: z
-      .array(z.enum(["bank-transfer", "card", "stablecoin", "mobile-money"]))
+      .array(z.enum(["bank-transfer", "card", "stablecoin", "crypto-app", "mobile-money"]))
       .min(1)
-      .max(4),
+      .max(5),
     volumeRange: z.string().min(1).max(100),
     settlementCurrencies: z
       .array(z.string().regex(/^[A-Z]{3}$/))

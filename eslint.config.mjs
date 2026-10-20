@@ -11,5 +11,6 @@ export default defineConfig([
     "lib/generated/**",
     ".local/**",
     "sdks/node/dist/**",
+    "sdks/checkout/dist/**",
   ]),
 ]);

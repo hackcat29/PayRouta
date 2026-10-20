@@ -16,7 +16,9 @@ import {
   evaluateDepositContext,
   stablecoinCandidates,
 } from "./stablecoin-routes";
-import { snapshotFees } from "./pricing";
+import { partnerMethods, snapshotFees } from "./pricing";
+import { feeFields } from "../merchant/contracts";
+import { assertPassThroughAllowed, chargeForCustomer, passThroughPartnerFees, type FeeBearer } from "./fee-bearer";
 import { enforceRisk } from "../merchant/policy";
 import {
   blocksExecution,
@@ -46,6 +48,19 @@ import {
 } from "./partner-routes";
 import { trustedContextSchema } from "../portal/availability-engine";
 import {
+  checkoutOffers,
+  chosenOffer,
+  isLenderProfile,
+  type CheckoutCreditOffer,
+} from "../treasury/credit-checkout";
+import { creditMethod } from "../treasury/credit";
+import {
+  alternatives,
+  assertGroupFree,
+  switchCheckout,
+  type CheckoutKind,
+} from "./checkout-group";
+import {
   activeStates,
   assetKey,
   hash,
@@ -63,7 +78,25 @@ export type StoredPaymentOption = {
   settlement: { kind: string; identifier: string; network: string };
   contextId: string;
   feeSnapshot: unknown;
+  // Set when the customer pays the fees: what the merchant asked for, and
+  // the fee added on top (minor units of this option's asset).
+  baseAmount?: string;
+  customerFeeMinor?: string;
 };
+// PayRouta's own return pages, which are not on the merchant's registered
+// return origin: Shopify's return (it sends the buyer back to the store) and
+// the payment-link thank-you page (merchants without a website).
+export function platformReturnUrl(value: string) {
+  const base = process.env.BETTER_AUTH_URL;
+  if (!base) return false;
+  const url = new URL(value);
+  return (
+    url.origin === new URL(base).origin &&
+    (url.pathname === "/api/integrations/shopify/return" ||
+      // Payment links: PayRouta's own thank-you page.
+      /^\/pay\/[A-Za-z0-9]{6,20}\/done$/.test(url.pathname))
+  );
+}
 export async function queue(
   tx: Tx,
   orgId: string,
@@ -163,7 +196,8 @@ export async function createIntent(
   )
     throw new PortalError("EXECUTION_ADAPTER_NOT_CONFIGURED", 409);
   if (
-    new URL(value.returnUrl).origin !== config.returnOrigin ||
+    (new URL(value.returnUrl).origin !== config.returnOrigin &&
+      !platformReturnUrl(value.returnUrl)) ||
     new URL(value.returnUrl).username ||
     new URL(value.returnUrl).password
   )
@@ -212,8 +246,37 @@ export async function createIntent(
     optionInputs.length
   )
     throw new PortalError("DUPLICATE_PAYMENT_OPTION", 409);
+  const bearer: FeeBearer = value.feeBearer ?? (config.feeBearer as FeeBearer);
+  // Raises each option so the merchant receives its amount after fees. Done
+  // before compliance and availability so they see what the customer pays.
+  const price = async (option: (typeof optionInputs)[number]) => {
+    if (bearer !== "customer") return option;
+    const fiat = option.asset.kind === "fiat";
+    assertPassThroughAllowed(config.country, fiat);
+    const snapshot =
+      quoteTerms?.options.find((o) => assetKey(o.asset) === assetKey(option.asset))?.feeSnapshot ??
+      snapshotFees(
+        { orgId, environment: config.environment, asset: option.asset, precision: option.precision },
+        now,
+      );
+    const methods = fiat
+      ? value.methods.filter((m) => (partnerMethods as readonly string[]).includes(m))
+      : [];
+    const charge = chargeForCustomer({
+      amount: option.amount,
+      precision: option.precision,
+      snapshot,
+      direct: !fiat,
+      currency: fiat ? option.asset.identifier : undefined,
+      partnerFees: fiat
+        ? await passThroughPartnerFees(orgId, config.environment, option.asset.identifier, methods)
+        : [],
+    });
+    return { ...option, amount: charge.amount, baseAmount: charge.baseAmount, customerFeeMinor: charge.customerFeeMinor };
+  };
   const quoted: StoredPaymentOption[] = [];
-  for (const option of optionInputs) {
+  for (const unpriced of optionInputs) {
+    const option = await price(unpriced);
     if (!aggregator)
       assertLaunchAsset(option.asset, option.precision, config.environment);
     if (
@@ -327,7 +390,8 @@ export async function createIntent(
         orgId,
         environment: config.environment,
         reference: value.reference,
-        amount: value.amount,
+        amount: quoted[0].amount,
+        feeBearer: bearer,
         asset: json(value.asset),
         precision: value.precision,
         methods: value.methods,
@@ -355,7 +419,7 @@ export async function createIntent(
           operation: "pay-in",
           originCountry: value.payerCountry ?? config.country,
           merchantCountry: config.country,
-          amount: value.amount,
+          amount: quoted[0].amount,
           asset: value.asset,
         }),
         expiresAt,
@@ -490,10 +554,13 @@ export async function progress(id: string, token: string, now = new Date()) {
   });
   const options = await checkoutOptions(intent, !!attempt);
   return {
+    // Universal checkout: the order's other checkout (fiat or crypto).
+    alternatives: await alternatives(intent, now),
     paymentOptions: options,
     paymentMethods: checkoutMethodSummary(options, !!attempt),
     chainLocked: !!attempt,
     selectedOption: intent.selectedOption,
+    ...feeFields(intent),
     merchant: merchant.name,
     reference: intent.reference,
     amount: intent.amount,
@@ -717,6 +784,8 @@ export async function selectMethod(
   token: string,
   method: string,
   now = new Date(),
+  // Credit: the key of the plan the customer chose (lib/treasury/credit-checkout).
+  creditOfferKey?: string,
 ) {
   const { intent } = await authorizeSession(id, token, now);
   // The aggregator path is checked against platform accounts in
@@ -769,6 +838,24 @@ export async function selectMethod(
     // is quoted by PayRouta.
     ...eligible.partners.map((p) => ({ profileId: p.profileId, fee: null })),
   ];
+  // Credit: the chosen plan pins the route to its lender. Without a plan,
+  // lenders are left out, since a lender cannot lend without one.
+  let credit: { offerId: string; key: string; offer: CheckoutCreditOffer } | undefined;
+  if (method === creditMethod) {
+    const lenders = new Set<string>();
+    for (const r of ranked) if (await isLenderProfile(r.profileId)) lenders.add(r.profileId);
+    if (creditOfferKey) {
+      const { profileId, ...offer } = await chosenOffer(intent, creditOfferKey);
+      const pinned = ranked.find((r) => r.profileId === profileId);
+      if (!pinned) throw new PortalError("CREDIT_PLAN_NO_LONGER_OFFERED", 409);
+      ranked.splice(0, ranked.length, pinned);
+      credit = { offerId: offer.id, key: offer.key, offer };
+    } else {
+      const others = ranked.filter((r) => !lenders.has(r.profileId));
+      if (lenders.size && !others.length) throw new PortalError("CREDIT_PLAN_REQUIRED", 409);
+      ranked.splice(0, ranked.length, ...others);
+    }
+  }
   if (!ranked.length) throw new PortalError("NO_COMPARABLE_QUOTES", 409);
   const expiry = new Date(now.getTime() + 60000);
   const route = await atomic(async (tx) => {
@@ -803,6 +890,7 @@ export async function selectMethod(
           feeDeductedFromSettlement: true,
           rounding: "exact minor units",
           contextFingerprint: intent.fingerprint,
+          ...(credit ? { credit } : {}),
         }),
         expiresAt: expiry,
       },
@@ -824,7 +912,24 @@ export async function selectMethod(
     asset: intent.asset,
     providerFeeMinor: ranked[0].fee,
     feeDeductedFromSettlement: true,
+    ...(credit ? { credit: credit.offer } : {}),
   };
+}
+// Universal checkout: continue on the order's other checkout.
+export async function switchTo(
+  id: string,
+  token: string,
+  to: CheckoutKind,
+  now = new Date(),
+) {
+  const { intent } = await authorizeSession(id, token, now);
+  return switchCheckout(intent, to, now);
+}
+// The credit plans lenders offer for this checkout (empty when credit is not
+// offered or no lender's plan fits the amount and country).
+export async function creditOffers(id: string, token: string, now = new Date()) {
+  const { intent } = await authorizeSession(id, token, now);
+  return { offers: await checkoutOffers(intent) };
 }
 export async function confirm(
   id: string,
@@ -871,6 +976,8 @@ export async function confirm(
       (old && activeStates.includes(old.state))
     )
       throw new PortalError("PAYMENT_ALREADY_IN_PROGRESS", 409);
+    // Universal checkout: only one intent of an order can be paid.
+    await assertGroupFree(tx, current);
     const stillValid = await tx.checkoutSession.findFirst({
       where: {
         id,
@@ -934,7 +1041,7 @@ export async function customerAction(
     !(binding.mode === "PARTNER" && binding.adapter === "sandbox") &&
     !(
       binding.mode === "PLATFORM" &&
-      ["sandbox-platform", "sandbox-split"].includes(binding.adapter ?? "")
+      ["sandbox-platform", "sandbox-split", "sandbox-credit"].includes(binding.adapter ?? "")
     )
   )
     throw new PortalError("EXTERNAL_CUSTOMER_ACTION_REQUIRED", 409);
@@ -1021,6 +1128,16 @@ export async function event(
   await queue(tx, intent.orgId, "payment-delivery", `delivery:${e.id}`, {
     eventId: e.id,
   });
+  // Commerce-platform orders (lib/integrations/shopify) are completed on the
+  // platform once confirmed; the job does nothing for other checkouts.
+  if (type === "payment.confirmed" && intent.checkoutGroup)
+    await queue(
+      tx,
+      intent.orgId,
+      "payment-shopify-resolve",
+      `shopify-resolve:${intent.checkoutGroup}`,
+      { checkoutGroup: intent.checkoutGroup },
+    );
 }
 export async function refreshContext(intentId: string, now = new Date()) {
   const intent = await db.paymentIntent.findUniqueOrThrow({

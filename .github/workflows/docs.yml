@@ -1,0 +1,30 @@
+name: Docs
+
+# The Mintlify site in mintlify/ deploys through Mintlify's GitHub app
+# (monorepo path: mintlify). This checks it builds and its links resolve
+# before anything merges.
+on:
+  pull_request:
+    paths: ["mintlify/**", "lib/merchant/contracts.ts", "scripts/mintlify-openapi.ts"]
+  push:
+    branches: [main]
+    paths: ["mintlify/**", "lib/merchant/contracts.ts", "scripts/mintlify-openapi.ts"]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # The merchant API reference must match the code.
+      - run: npm run docs:openapi && git diff --exit-code mintlify/openapi/merchant.json
+      - run: npx --yes mint@latest validate
+        working-directory: mintlify
+      - run: npx --yes mint@latest broken-links
+        working-directory: mintlify

@@ -1,0 +1,27 @@
+---
+title: "Card Payment Rails"
+description: "Cards remain one of the most widely used payment methods globally. PayRouta routes card payments through merchant-owned acquiring accounts, ensuring full\u2026"
+---
+
+Cards remain one of the most widely used payment methods globally. PayRouta routes card payments through merchant-owned acquiring accounts, ensuring full 3DS2 liability shift, direct merchant settlements, and intelligent multi-acquirer failover.
+
+PayRouta never collects, transmits, or stores primary account numbers (PANs) or CVVs. All card credentials are collected inside secure provider iframes or tokenized directly with card networks.
+
+---
+
+## Supported Card Providers
+
+| Provider | Method | Capabilities | Settlement Model |
+| --- | --- | --- | --- |
+| [**Stripe Connect**](/providers/cards/stripe) | `card`, `digital-wallet` | Global Visa, Mastercard, Amex, Apple Pay, Google Pay | Direct to merchant bank account |
+| [**Visa Direct**](/providers/cards/visa) | `card` | Global Visa debit/credit auth, real-time push to card | Direct scheme settlement |
+| [**Mastercard**](/providers/cards/mastercard) | `card` | Mastercard network tokenization, Mastercard Send | Direct acquirer settlement |
+
+---
+
+## Same-Method Failover for Cards
+
+PayRouta monitors provider error codes, API latency, and 3DS completion rates in real time. If your primary card provider returns an upstream timeout or 5xx outage:
+1. PayRouta does not present an error to the shopper.
+2. The payment is instantly re-attempted on your secondary card provider for that exact currency and region.
+3. Cardholder authentication tokens (where supported) or 3DS challenge redirects are handled seamlessly without re-typing.

@@ -1,6 +1,6 @@
 # Payment intents
 
-> Launch scope: stablecoins and direct crypto wallet payments for every merchant, plus cards, bank transfers and mobile money through PayRouta's processing partners once your payments account is activated. Exchange-app payments are Coming soon. Stablecoin sandbox payments use actual testnet tokens; they cannot simulate a successful deposit. See [Crypto wallet payments](crypto-payments.md).
+> Launch scope: stablecoins and direct crypto wallet payments for every merchant, plus cards, digital wallets, bank transfers and mobile money through PayRouta's processing partners once your payments account is activated. Exchange-app payments are Coming soon. Stablecoin sandbox payments use actual testnet tokens; they cannot simulate a successful deposit. See [Crypto wallet payments](crypto-payments.md).
 A payment intent records what is owed: the amount, the asset, which methods you accept, and where the customer returns. It is the object your systems reference from checkout through settlement.
 
 ## Lifecycle
@@ -54,5 +54,9 @@ Merchants can also create these checkouts under **Payment methods → Create sta
 ## Metadata
 
 Up to 20 string pairs for your own reconciliation. Never put secrets, card data or personal identity data in metadata.
+
+### `feeBearer`
+
+Optional: `"merchant"` (absorb fees) or `"customer"` (add them to the amount). Defaults to your setting under **Settings → Who pays fees**. When the customer pays, the returned `amount` is the total charged, `baseAmount` your price and `customerFee` the difference. See [Fees and billing](billing.md).
 
 Wallet checkouts created through `POST /api/v1/crypto-checkouts` can quote stablecoins and original crypto coins together against one USD total. Select the exact registered deployments and configured receive pools. Each option uses its own observed CoinGecko USD price, amount and fee valuation; EURC and dollar stablecoins are not assumed to have dollar parity. Customers can switch categories before any payment attempt, then the selected asset is locked. Wrapped and bridged tokens are excluded.

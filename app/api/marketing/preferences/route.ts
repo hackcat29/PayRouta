@@ -1,64 +1,69 @@
-import { NextRequest, NextResponse } from "next/server";
-import {
-  MarketingService,
-  MARKETING_TOPICS,
-} from "@/lib/email/marketing-service";
+import { z } from "zod";
+import { MarketingService, MARKETING_TOPICS } from "@/lib/email/marketing-service";
+import { errorResponse, json, limitByClient } from "@/lib/email/http";
 
-export async function GET(req: NextRequest) {
-  const token = req.nextUrl.searchParams.get("token");
+const view = (s: { email: string; name: string | null; status: string; topics: unknown }) => ({
+  email: s.email,
+  name: s.name,
+  status: s.status,
+  topics: s.topics,
+  availableTopics: MARKETING_TOPICS,
+});
 
-  if (!token) {
-    return NextResponse.json(
-      { error: "Missing subscription token" },
-      { status: 400 },
-    );
+export async function GET(req: Request) {
+  try {
+    await limitByClient(req, "email-preferences", 30);
+    const token = new URL(req.url).searchParams.get("token");
+    if (!token) return json({ error: "This link is missing its token." }, 400);
+    const subscriber = await MarketingService.getSubscriberByToken(token);
+    if (!subscriber) return json({ error: "This link isn't valid any more." }, 404);
+    return json(view(subscriber));
+  } catch (error) {
+    return errorResponse(error, "Failed to load preferences");
   }
-
-  const subscriber = await MarketingService.getSubscriberByToken(token);
-  if (!subscriber) {
-    return NextResponse.json(
-      { error: "Subscriber not found or token has expired" },
-      { status: 404 },
-    );
-  }
-
-  return NextResponse.json({
-    email: subscriber.email,
-    name: subscriber.name,
-    status: subscriber.status,
-    topics: subscriber.topics,
-    availableTopics: MARKETING_TOPICS,
-  });
 }
 
-export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json().catch(() => ({}));
-    const { token, topics, unsubscribeAll } = body;
+const schema = z.object({
+  token: z.string().min(1).max(200),
+  topics: z.array(z.string()).max(10).optional(),
+  unsubscribeAll: z.boolean().optional(),
+  confirm: z.boolean().optional(),
+});
 
-    if (!token || typeof token !== "string") {
-      return NextResponse.json({ error: "Missing token" }, { status: 400 });
+export async function POST(req: Request) {
+  try {
+    await limitByClient(req, "email-preferences", 30);
+    const parsed = schema.safeParse(await req.json().catch(() => ({})));
+    if (!parsed.success) return json({ error: "This link is missing its token." }, 400);
+    const { token, topics, unsubscribeAll, confirm } = parsed.data;
+
+    if (confirm) {
+      const confirmed = await MarketingService.confirm(token);
+      if (!confirmed) return json({ error: "This link isn't valid any more." }, 404);
+      return json({
+        success: true,
+        message:
+          confirmed.status === "active"
+            ? "You're subscribed. Thanks for confirming."
+            : "This address can't receive our emails. Contact us if you think that's wrong.",
+        subscriber: view(confirmed),
+      });
     }
 
     const updated = await MarketingService.updateSubscriberPreferences(token, {
-      topics: Array.isArray(topics) ? topics : undefined,
+      topics,
       unsubscribeAll: Boolean(unsubscribeAll),
     });
-
-    return NextResponse.json({
+    return json({
       success: true,
       message: unsubscribeAll
-        ? "You have been successfully unsubscribed from all marketing emails."
-        : "Your email preferences have been updated.",
-      subscriber: {
-        email: updated.email,
-        status: updated.status,
-        topics: updated.topics,
-      },
+        ? "You're unsubscribed. You won't get any more marketing emails from us."
+        : "Your email preferences are saved.",
+      subscriber: view(updated),
     });
-  } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Failed to update preferences";
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Invalid or expired preference link")
+      return json({ error: "This link isn't valid any more." }, 404);
+    return errorResponse(error, "Failed to update preferences");
   }
 }

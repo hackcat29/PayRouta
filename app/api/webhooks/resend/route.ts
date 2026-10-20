@@ -1,35 +1,25 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { MarketingService } from "@/lib/email/marketing-service";
+import { verifyResendWebhook } from "@/lib/email/resend-client";
 
-export async function POST(req: NextRequest) {
+// Resend delivery events, signed with RESEND_WEBHOOK_SECRET (the "whsec_…"
+// value shown when you add the webhook in Resend). Unsigned or stale requests
+// are rejected, so nobody can mark addresses bounced or unsubscribed.
+export async function POST(req: Request) {
+  if (!process.env.RESEND_WEBHOOK_SECRET || !process.env.RESEND_API_KEY)
+    return NextResponse.json({ error: "Resend webhook is not configured" }, { status: 503 });
+  const payload = await req.text();
+  if (payload.length > 256_000)
+    return NextResponse.json({ error: "Payload too large" }, { status: 413 });
+  const event = verifyResendWebhook(payload, req.headers);
+  if (!event?.type || !event.data)
+    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   try {
-    const rawBody = await req.text();
-    let event: Parameters<typeof MarketingService.handleResendWebhookEvent>[0];
-    try {
-      event = JSON.parse(rawBody);
-    } catch {
-      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-    }
-
-    if (!event || !event.type || !event.data) {
-      return NextResponse.json(
-        { error: "Invalid webhook format" },
-        { status: 400 },
-      );
-    }
-
-    // Process event in MarketingService
     const result = await MarketingService.handleResendWebhookEvent(event);
-
-    return NextResponse.json({
-      received: true,
-      processed: result.processed,
-      type: event.type,
-    });
-  } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Webhook handler failed";
-    console.error("[Resend Webhook Error]", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ received: true, ...result });
+  } catch (error) {
+    console.error("[Resend webhook]", error instanceof Error ? error.message : error);
+    // A 5xx makes Resend retry the delivery later.
+    return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 });
   }
 }

@@ -1,0 +1,373 @@
+openapi: 3.1.0
+info:
+  title: PayRouta Provider API
+  version: 1.0.0
+  description: |
+    The PayRouta Provider API lets an external payment provider join the PayRouta
+    network by implementing a small, stable protocol. A conforming provider never
+    receives a custom code deployment inside PayRouta: PayRouta runs one
+    `StandardProviderAdapter` against every conforming provider.
+
+    This is the STANDARD integration mode. Providers may instead use CONFIGURABLE
+    (declarative mapping of an existing API) or contact PayRouta for a NATIVE
+    adapter.
+servers:
+  - url: https://{providerHost}
+    variables:
+      providerHost:
+        default: api.example-provider.com
+        description: The provider's API host. Must be HTTPS.
+security:
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      summary: Provider health
+      operationId: getHealth
+      responses:
+        "200":
+          description: Provider is reachable.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok, degraded, down]
+              examples:
+                ok:
+                  value: { status: ok }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          $ref: "#/components/responses/ProviderUnavailable"
+  /capabilities:
+    get:
+      summary: List declared capabilities
+      operationId: getCapabilities
+      description: The capabilities the provider currently declares for this environment.
+      responses:
+        "200":
+          description: Capabilities.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [capabilities]
+                properties:
+                  capabilities:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Capability"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /availability:
+    get:
+      summary: Operational availability
+      operationId: getAvailability
+      description: |
+        Current availability for a capability. Used for health, availability and
+        capacity observations. Response is bounded and non-authoritative:
+        PayRouta combines this with its own observations.
+      parameters:
+        - name: capabilityId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Availability and remaining capacity.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [Available, Unavailable, Degraded, Maintenance, Unknown]
+                  remaining:
+                    type: string
+                    description: Remaining daily capacity in minor units (string).
+  /payments:
+    post:
+      summary: Create a payment
+      operationId: createPayment
+      description: |
+        Idempotent payment creation. The provider MUST deduplicate on
+        `idempotencyKey` and return the same `providerPaymentId` for repeated
+        identical requests.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePaymentRequest"
+      responses:
+        "200":
+          description: Payment accepted (pending, processing, action_required, or already terminal).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentStatus"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/IdempotencyConflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          $ref: "#/components/responses/ProviderUnavailable"
+  /payments/{providerPaymentId}:
+    get:
+      summary: Get a payment
+      operationId: getPayment
+      parameters:
+        - name: providerPaymentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Payment status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentStatus"
+        "404":
+          description: Unknown payment. Not proof of non-execution; PayRouta treats this as an unknown outcome, never as safe fallback evidence.
+    post:
+      summary: Cancel a payment
+      operationId: cancelPayment
+      description: Cancellation, where the provider supports it.
+      parameters:
+        - name: providerPaymentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Cancellation result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentStatus"
+  /refunds:
+    post:
+      summary: Create a refund
+      operationId: createRefund
+      description: Refund where supported by the provider's declared capabilities.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [providerPaymentId, amount, reference]
+              properties:
+                providerPaymentId:
+                  type: string
+                amount:
+                  type: string
+                reference:
+                  type: string
+      responses:
+        "200":
+          description: Refund result.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [providerRefundId, status]
+                properties:
+                  providerRefundId:
+                    type: string
+                  status:
+                    type: string
+                    enum: [pending, succeeded, failed]
+  /payouts:
+    post:
+      summary: Create a payout
+      operationId: createPayout
+      description: Payout where supported by the provider's declared capabilities.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePayoutRequest"
+      responses:
+        "200":
+          description: Payout result.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [providerPayoutId, status]
+                properties:
+                  providerPayoutId:
+                    type: string
+                  status:
+                    type: string
+                    enum: [pending, processing, succeeded, failed]
+  /payouts/{providerPayoutId}:
+    get:
+      summary: Get a payout
+      operationId: getPayout
+      parameters:
+        - name: providerPayoutId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Payout status.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [providerPayoutId, status]
+                properties:
+                  providerPayoutId:
+                    type: string
+                  status:
+                    type: string
+                    enum: [pending, processing, succeeded, failed]
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: A provider-issued secret, stored in PayRouta's credential system and referenced by the integration configuration. Never logged.
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 200
+      description: Durable deduplication key supplied by PayRouta.
+  schemas:
+    Asset:
+      type: object
+      required: [kind, identifier, network]
+      properties:
+        kind:
+          type: string
+          enum: [fiat, blockchain]
+        identifier:
+          type: string
+        network:
+          type: string
+    CreatePaymentRequest:
+      type: object
+      required: [idempotencyKey, reference, amount, asset, method]
+      properties:
+        idempotencyKey:
+          type: string
+        reference:
+          type: string
+        amount:
+          type: string
+          description: Decimal string; exact minor units, never floating point.
+        asset:
+          $ref: "#/components/schemas/Asset"
+        method:
+          type: string
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+    PaymentStatus:
+      type: object
+      required: [providerPaymentId, status]
+      properties:
+        providerPaymentId:
+          type: string
+        status:
+          type: string
+          enum: [pending, processing, action_required, succeeded, failed, cancelled]
+        amount:
+          type: string
+        asset:
+          $ref: "#/components/schemas/Asset"
+    CreatePayoutRequest:
+      type: object
+      required: [reference, amount, asset, destination]
+      properties:
+        reference:
+          type: string
+        amount:
+          type: string
+        asset:
+          $ref: "#/components/schemas/Asset"
+        destination:
+          type: object
+          additionalProperties:
+            type: string
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                - INVALID_REQUEST
+                - AUTHENTICATION_FAILURE
+                - AUTHORIZATION_FAILURE
+                - IDEMPOTENCY_CONFLICT
+                - NOT_FOUND
+                - RATE_LIMITED
+                - UNSUPPORTED_OPERATION
+                - PROVIDER_UNAVAILABLE
+                - UNKNOWN_PROVIDER_ERROR
+            message:
+              type: string
+              maxLength: 500
+  responses:
+    InvalidRequest:
+      description: Malformed request.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: Authentication failed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    IdempotencyConflict:
+      description: Reused idempotency key with a different payload.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    RateLimited:
+      description: Rate limited.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    ProviderUnavailable:
+      description: Provider unavailable.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"

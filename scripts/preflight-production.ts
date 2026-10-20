@@ -55,12 +55,23 @@ async function main() {
     true,
     "Secret store master keys (32-byte base64), kept outside the database",
   );
-  const emailConfigured = (!!env.SMTP_URL && !!env.MAIL_FROM) || !!env.RESEND_API_KEY;
   add(
-    "SMTP_URL or RESEND_API_KEY",
-    emailConfigured,
+    "RESEND_API_KEY",
+    !!env.RESEND_API_KEY,
     true,
-    "Verification, reset and invitation email",
+    "All email: verification, reset, invitations, marketing (npm run resend:setup)",
+  );
+  add(
+    "RESEND_FROM_EMAIL",
+    /@[^>\s]+>?\s*$/.test(env.RESEND_FROM_EMAIL ?? ""),
+    true,
+    "Sender on a domain verified in Resend",
+  );
+  add(
+    "RESEND_WEBHOOK_SECRET",
+    !!env.RESEND_WEBHOOK_SECRET,
+    false,
+    "Bounce and complaint handling; create with npm run resend:setup -- --create-webhook",
   );
   add("S3_BUCKET", !!env.S3_BUCKET, true, "Private evidence storage");
   add(
@@ -70,10 +81,16 @@ async function main() {
     "Malware scanning; without it evidence stays quarantined",
   );
   add(
+    "GOOGLE_CLIENT_ID",
+    !!env.GOOGLE_CLIENT_ID && !!env.GOOGLE_CLIENT_SECRET,
+    false,
+    "Optional: shows Continue with Google on sign-in",
+  );
+  add(
     "OPENSANCTIONS_API_KEY",
     !!env.OPENSANCTIONS_API_KEY,
     true,
-    "Merchant screening before any partner disclosure",
+    "Merchant screening (sanctions, PEPs, watchlists) before any partner disclosure; without it every business waits for a manual decision in /ops",
   );
   add(
     "CONTACT_WEBHOOK_URL",

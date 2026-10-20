@@ -48,7 +48,7 @@ interface SubscriberRow {
 }
 
 interface AnalyticsData {
-  subscribers: { total: number; active: number; unsubscribed: number };
+  subscribers: { total: number; active: number; pending?: number; unsubscribed: number };
   campaigns: { total: number; sent: number };
   engagement: { totalSent: number; openRate: string; clickRate: string; bounceRate: string };
   resendStatus: { configured: boolean; mode: string };
@@ -284,7 +284,7 @@ export function MarketingDashboard() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
-      setFeedback({ type: "success", text: `Subscriber ${newSubEmail} added and synced with Resend.` });
+      setFeedback({ type: "success", text: `Confirmation email sent to ${newSubEmail}. They become active once they click the link.` });
       setNewSubEmail("");
       setNewSubName("");
       fetchSubscribers();
@@ -399,7 +399,7 @@ export function MarketingDashboard() {
             {analytics?.subscribers.active ?? 0}
           </div>
           <div style={{ fontSize: "12px", color: "#64748B", marginTop: "4px" }}>
-            {analytics?.subscribers.total ?? 0} total &bull; {analytics?.subscribers.unsubscribed ?? 0} unsubscribed
+            {analytics?.subscribers.total ?? 0} total &bull; {analytics?.subscribers.pending ?? 0} awaiting confirmation &bull; {analytics?.subscribers.unsubscribed ?? 0} unsubscribed
           </div>
         </div>
 

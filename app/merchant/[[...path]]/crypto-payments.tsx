@@ -12,25 +12,18 @@ type Account = {
 export function CryptoPayments({
   orgId,
   environment,
-  country,
   assets,
-  stablecoinAssets = [],
   accounts,
   canConfigure,
 }: {
   orgId: string;
   environment: string;
-  country: string;
   assets: CheckoutAsset[];
-  stablecoinAssets?: CheckoutAsset[];
   accounts: Account[];
   canConfigure: boolean;
 }) {
   const supported = cryptoAssets.filter(
     (a) => isTestnet(a.network) === (environment === "sandbox"),
-  );
-  const checkoutAssets = [...stablecoinAssets, ...assets].filter(
-    (a) => a.executionEnabled,
   );
   const [selected, setSelected] = useState(
     `${supported[0].network}|${supported[0].identifier}`,
@@ -39,11 +32,6 @@ export function CryptoPayments({
     [message, setMessage] = useState("");
   const [networkFilter, setNetworkFilter] = useState("all"),
     [coinSearch, setCoinSearch] = useState("");
-  const [pending, setPending] = useState<object | null>(null),
-    [result, setResult] = useState<{
-      checkoutPath: string;
-      expiresAt: string;
-    } | null>(null);
   const command = async (action: string, input: object) => {
     const response = await fetch("/api/merchant", {
       method: "POST",
@@ -55,21 +43,6 @@ export function CryptoPayments({
       throw new Error(body.error || "Unable to complete request");
     return body;
   };
-  const create = async (input: object) => {
-    setPending(input);
-    setBusy(true);
-    setMessage("");
-    try {
-      setResult(await command("crypto-checkout", input));
-    } catch (e) {
-      setMessage(
-        (e as Error).message +
-          ". Retry uses the same quote; start a new checkout if it expired.",
-      );
-    } finally {
-      setBusy(false);
-    }
-  };
   return (
     <>
       <section>
@@ -80,7 +53,7 @@ export function CryptoPayments({
           Rates are powered by CoinGecko.
         </p>
         <p>
-          Quotes last two minutes. Live platform fees are 0.10%, capped at $1,
+          Quotes last two minutes. Our fee is 1.5% of each payment, all in,
           billed separately. Customers pay their wallet’s network fee. Exchange
           app payments:{" "}
           <span className="merchant-status-badge">Coming soon</span>
@@ -239,116 +212,6 @@ export function CryptoPayments({
                 <button>Save crypto receive addresses</button>
               </fieldset>
             </form>
-          </section>
-          <section>
-            <h2>Create crypto checkout</h2>
-            <p>
-              Enter the invoice total in USD. Your customer can choose any
-              selected stablecoin or crypto coin and network. Select both to
-              offer both payment types. Each amount uses its CoinGecko USD rate.
-              Creating a link requires recent authenticator verification.
-            </p>
-            {!checkoutAssets.length ? (
-              <p>
-                Configure receive addresses and complete required approvals
-                first.
-              </p>
-            ) : (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const form = new FormData(e.currentTarget);
-                  const options = form.getAll("cryptoOption").map((v) => {
-                    const [network, identifier] = String(v).split("|");
-                    return { network, identifier };
-                  });
-                  if (!options.length || options.length > 20) {
-                    setMessage(
-                      "Select between 1 and 20 coin and network options per checkout.",
-                    );
-                    return;
-                  }
-                  void create({
-                    key: crypto.randomUUID(),
-                    environment,
-                    reference: String(form.get("reference")),
-                    payerCountry: String(
-                      form.get("payerCountry"),
-                    ).toUpperCase(),
-                    usdAmount: String(form.get("usdAmount")),
-                    options,
-                  });
-                }}
-              >
-                <fieldset disabled={busy || !!pending}>
-                  <label>
-                    Crypto checkout reference
-                    <input name="reference" required maxLength={100} />
-                  </label>
-                  <label>
-                    Invoice total (USD)
-                    <input
-                      name="usdAmount"
-                      required
-                      inputMode="decimal"
-                      pattern="(0|[1-9][0-9]{0,11})\.[0-9]{2}"
-                      placeholder="10.00"
-                    />
-                  </label>
-                  <label>
-                    Crypto payer country
-                    <input
-                      name="payerCountry"
-                      required
-                      pattern="[A-Za-z]{2}"
-                      maxLength={2}
-                      defaultValue={country}
-                    />
-                  </label>
-                  {checkoutAssets.map((a, index) => (
-                    <label key={a.network + a.identifier}>
-                      <input
-                        type="checkbox"
-                        name="cryptoOption"
-                        value={`${a.network}|${a.identifier}`}
-                        defaultChecked={index < 20}
-                      />
-                      {a.symbol} on {networkName(a.network)} ·{" "}
-                      {a.identifier.startsWith("native:") ||
-                      cryptoAsset(a.network, a.identifier)
-                        ? "Crypto"
-                        : "Stablecoin"}
-                    </label>
-                  ))}
-                  <button>Create crypto checkout link</button>
-                </fieldset>
-              </form>
-            )}
-            {pending && !result && (
-              <button disabled={busy} onClick={() => void create(pending)}>
-                Retry crypto checkout creation
-              </button>
-            )}
-            {result && (
-              <p>
-                Quote expires {new Date(result.expiresAt).toLocaleTimeString()}.{" "}
-                <a href={result.checkoutPath} target="_blank" rel="noreferrer">
-                  Open crypto customer checkout
-                </a>
-              </p>
-            )}
-            {pending && (
-              <button
-                disabled={busy}
-                onClick={() => {
-                  setPending(null);
-                  setResult(null);
-                  setMessage("");
-                }}
-              >
-                Start a new crypto checkout
-              </button>
-            )}
           </section>
         </>
       )}

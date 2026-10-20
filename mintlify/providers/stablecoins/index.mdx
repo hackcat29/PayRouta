@@ -1,0 +1,37 @@
+---
+title: "Stablecoin Rails"
+description: "PayRouta provides non-custodial stablecoin processing. When a customer chooses to pay with stablecoins, they transfer tokens directly to an address that you\u2026"
+---
+
+PayRouta provides non-custodial stablecoin processing. When a customer chooses to pay with stablecoins, they transfer tokens directly to an address that **you control**. PayRouta observes the blockchain network via RPC nodes and confirms the payment only after network finality depth is reached.
+
+PayRouta **never takes custody** of tokens, never manages private keys, and never creates synthetic balances.
+
+---
+
+## Supported Stablecoin Providers & Assets
+
+Each stablecoin asset and provider rail has a dedicated integration page:
+
+| Provider / Asset | Networks Supported | Standard Decimals | Typical Confirmation |
+| --- | --- | --- | --- |
+| [**Circle USDC**](/providers/stablecoins/usdc) | Base (`eip155:8453`), Ethereum (`eip155:1`) | 6 | Sub-second (Base) · 12–64 blocks (Eth) |
+| [**Tether USDT**](/providers/stablecoins/usdt) | Ethereum (`eip155:1`), Polygon, Arbitrum | 6 | ~12–32 blocks |
+| [**Circle EURC**](/providers/stablecoins/eurc) | Base (`eip155:8453`), Ethereum (`eip155:1`) | 6 | MiCA-compliant Euro settlements |
+
+---
+
+## Architecture & Payment Flow
+
+1. **Payment Intent Creation**: The merchant creates an intent accepting method `stablecoin`.
+2. **Deposit Address Allocation**: The merchant's configured wallet address (or an HD-derived sub-address verified during onboarding) is assigned to the intent with an exact token amount and precision.
+3. **Payer Transfer**: The customer signs an ERC-20 transfer using their Web3 wallet (MetaMask, Coinbase Wallet, Phantom) or direct exchange withdrawal.
+4. **On-Chain Observation**: PayRouta's blockchain worker monitors mempool and block receipts using redundant RPC providers (Alchemy, Infura, local nodes).
+5. **Finality Verification**: Payment transitions to `Confirmed` once the network's consensus depth is satisfied.
+6. **Direct Settlement**: Funds are already in the merchant's wallet. PayRouta reconciles the transaction in the ledger without any fund sweep.
+
+---
+
+## Multi-Chain Failover
+
+If gas fees spike or RPC latency on a particular network degrades, PayRouta can route the customer's checkout to an alternative supported chain (e.g. from Ethereum L1 to Base L2) while keeping the payment method within the stablecoins category.

@@ -1,27 +1,37 @@
+import { randomBytes } from "node:crypto";
 import { db } from "@/lib/portal/db";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import {
   sendEmail,
   sendBatchEmails,
-  syncResendAudienceContact,
+  syncResendContact,
   isResendConfigured,
+  type ResendWebhookEvent,
 } from "./resend-client";
 import {
   renderWelcomeEmail,
   renderDripRoutingTipsEmail,
   renderDripSettlementEmail,
   renderMarketingBroadcastEmail,
+  renderConfirmSubscriptionEmail,
   stripHtmlToText,
 } from "./templates";
 
 export const MARKETING_TOPICS = [
-  { id: "product_updates", label: "Product & Protocol Updates", default: true },
-  { id: "weekly_digest", label: "Weekly Routing & Settlement Digest", default: true },
-  { id: "developer_advisories", label: "Developer & API Advisories", default: true },
-  { id: "market_insights", label: "Stablecoins & FX Market Insights", default: false },
+  { id: "product_updates", label: "Product updates", default: true },
+  { id: "weekly_digest", label: "Monthly round-up", default: true },
+  { id: "developer_advisories", label: "API changes and deprecations", default: true },
+  { id: "market_insights", label: "Guides on local payment methods", default: false },
 ] as const;
 
 export type TopicId = (typeof MARKETING_TOPICS)[number]["id"];
+const topicIds = new Set<string>(MARKETING_TOPICS.map((t) => t.id));
+const defaultTopics = MARKETING_TOPICS.filter((t) => t.default).map((t) => t.id);
+
+// Subscriber states. Only "active" subscribers receive marketing mail.
+// "pending" waits for the double opt-in click; "bounced" and "complained" are
+// set by Resend webhooks and are never reactivated automatically.
+export type SubscriberStatus = "pending" | "active" | "unsubscribed" | "bounced" | "complained";
 
 export interface SubscribeInput {
   email: string;
@@ -32,6 +42,9 @@ export interface SubscribeInput {
   topics?: string[];
   metadata?: Record<string, unknown>;
   sendWelcome?: boolean;
+  // The address is already proven (a verified PayRouta account), so the
+  // confirmation email is skipped. Public sign-ups must leave this false.
+  confirmed?: boolean;
 }
 
 export interface CampaignInput {
@@ -46,666 +59,482 @@ export interface CampaignInput {
   createdBy?: string;
 }
 
+type Subscriber = {
+  id: string;
+  email: string;
+  name: string | null;
+  role: string;
+  status: string;
+  unsubscribeToken: string;
+  metadata: Prisma.JsonValue;
+};
+
+const DAY = 86_400_000;
+const RESEND_CONFIRMATION_AFTER = 10 * 60_000;
+const newToken = () => randomBytes(24).toString("base64url");
+const validTopics = (topics?: unknown) =>
+  Array.isArray(topics) ? topics.filter((t): t is string => typeof t === "string" && topicIds.has(t)) : [];
+const meta = (s: { metadata: Prisma.JsonValue }) =>
+  (s.metadata && typeof s.metadata === "object" && !Array.isArray(s.metadata)
+    ? s.metadata
+    : {}) as Record<string, unknown>;
+
+// The onboarding sequence: step 0 is sent on confirmation, later steps by the worker.
+const ONBOARDING = "merchant_onboarding";
+const onboardingSteps = [
+  { templateId: "welcome_onboarding", afterDays: 0 },
+  { templateId: "drip_routing_tips", afterDays: 3 },
+  { templateId: "drip_settlement", afterDays: 4 },
+] as const;
+
 export class MarketingService {
-  private static siteUrl = process.env.SITE_URL || "https://payrouta.com";
+  private static get siteUrl() {
+    return process.env.SITE_URL || "https://payrouta.com";
+  }
+
+  static links(token: string) {
+    const site = this.siteUrl;
+    const t = encodeURIComponent(token);
+    return {
+      preferences: `${site}/email/preferences?token=${t}`,
+      unsubscribe: `${site}/email/preferences?token=${t}&action=unsub`,
+      confirm: `${site}/email/preferences?token=${t}&action=confirm`,
+      oneClick: `${site}/api/marketing/unsubscribe?token=${t}`,
+    };
+  }
+
+  // RFC 8058 one-click unsubscribe, required by Gmail and Yahoo for bulk mail.
+  static unsubscribeHeaders(token: string) {
+    return {
+      "List-Unsubscribe": `<${this.links(token).oneClick}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    };
+  }
 
   /**
-   * Add or update a subscriber, sync to Resend Audience, and kick off onboarding drip.
+   * Public sign-ups get a confirmation email and stay "pending" until the
+   * link is clicked. People who unsubscribed, bounced or complained are never
+   * reactivated without a fresh confirmation. The return value is the same
+   * whether or not the address was already known.
    */
   static async subscribe(input: SubscribeInput) {
     const email = input.email.trim().toLowerCase();
-    if (!email || !email.includes("@")) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254)
       throw new Error("Invalid email address provided");
-    }
+    const chosen = validTopics(input.topics);
+    const topics = chosen.length ? chosen : defaultTopics;
+    const name = input.name?.trim().slice(0, 120) || undefined;
 
-    const defaultTopicList = MARKETING_TOPICS.filter((t) => t.default).map(
-      (t) => t.id,
-    );
-    const selectedTopics = input.topics?.length ? input.topics : defaultTopicList;
-
-    // Check existing subscriber
-    let subscriber = await db.marketingSubscriber.findUnique({
-      where: { email },
-    });
-
-    const isNew = !subscriber;
+    let subscriber = await db.marketingSubscriber.findUnique({ where: { email } });
 
     if (!subscriber) {
       subscriber = await db.marketingSubscriber.create({
         data: {
           email,
-          name: input.name,
+          name,
           orgId: input.orgId,
           role: input.role || "subscriber",
           source: input.source || "landing_page",
-          topics: selectedTopics,
-          status: "active",
-          metadata: (input.metadata ?? {}) as Prisma.InputJsonObject,
+          topics,
+          status: input.confirmed ? "active" : "pending",
+          unsubscribeToken: newToken(),
+          metadata: {
+            ...(input.metadata ?? {}),
+            ...(input.confirmed ? { confirmedAt: new Date().toISOString(), confirmedBy: input.source } : {}),
+          } as Prisma.InputJsonObject,
         },
       });
-    } else {
-      // Re-activate if was unsubscribed or update role/name
-      subscriber = await db.marketingSubscriber.update({
-        where: { id: subscriber.id },
-        data: {
-          name: input.name || subscriber.name,
-          role: input.role || subscriber.role,
-          status: "active",
-          topics: selectedTopics,
-          orgId: input.orgId || subscriber.orgId,
-        },
-      });
+      if (input.confirmed) await this.activated(subscriber, input.sendWelcome !== false);
+      else await this.sendConfirmation(subscriber);
+      return subscriber;
     }
 
-    // Sync to Resend Audience in background
-    try {
-      const audienceResult = await syncResendAudienceContact({
-        email: subscriber.email,
-        firstName: subscriber.name?.split(" ")[0],
-        lastName: subscriber.name?.split(" ").slice(1).join(" "),
-        unsubscribed: false,
-      });
-
-      if (audienceResult.contactId) {
-        await db.marketingSubscriber.update({
-          where: { id: subscriber.id },
-          data: { resendContactId: audienceResult.contactId },
-        });
-      }
-    } catch (e) {
-      console.warn("[Resend Audience Sync]", e);
-    }
-
-    // If new or explicitly asked to send welcome email
-    if (input.sendWelcome !== false && isNew) {
-      await this.startOnboardingDrip(subscriber);
-    }
-
+    // Known address. Fill in missing details, but never overwrite a status the
+    // person (or their mailbox) chose.
+    subscriber = await db.marketingSubscriber.update({
+      where: { id: subscriber.id },
+      data: {
+        name: subscriber.name || name,
+        orgId: subscriber.orgId || input.orgId,
+        role: subscriber.role === "subscriber" && input.role ? input.role : subscriber.role,
+      },
+    });
+    if (subscriber.status === "pending" || (subscriber.status === "unsubscribed" && !input.confirmed))
+      await this.sendConfirmation(subscriber);
     return subscriber;
   }
 
-  /**
-   * Start the multi-day onboarding drip for a subscriber
-   */
-  static async startOnboardingDrip(subscriber: {
-    id: string;
-    email: string;
-    name: string | null;
-    role: string;
-    unsubscribeToken: string;
-  }) {
-    const preferencesUrl = `${this.siteUrl}/email/preferences?token=${subscriber.unsubscribeToken}`;
-    const unsubscribeUrl = `${this.siteUrl}/email/preferences?token=${subscriber.unsubscribeToken}&action=unsub`;
-
-    // Render Welcome (Day 0)
-    const emailData = renderWelcomeEmail({
-      name: subscriber.name || undefined,
-      role: subscriber.role as "merchant" | "developer" | "provider" | "subscriber",
-      siteUrl: this.siteUrl,
-      preferencesUrl,
-      unsubscribeUrl,
+  private static async sendConfirmation(subscriber: Subscriber) {
+    const m = meta(subscriber);
+    const last = typeof m.confirmationSentAt === "string" ? Date.parse(m.confirmationSentAt) : 0;
+    if (Date.now() - last < RESEND_CONFIRMATION_AFTER) return;
+    const rendered = renderConfirmSubscriptionEmail({
+      name: subscriber.name,
+      url: this.links(subscriber.unsubscribeToken).confirm,
     });
-
-    // Send via Resend
-    const sendResult = await sendEmail({
+    const res = await sendEmail({
       to: subscriber.email,
-      subject: emailData.subject,
-      html: emailData.html,
-      text: emailData.text,
-      tags: [
-        { name: "type", value: "onboarding" },
-        { name: "step", value: "welcome" },
-        { name: "role", value: subscriber.role },
-      ],
-      headers: {
-        "List-Unsubscribe": `<${unsubscribeUrl}>`,
+      ...rendered,
+      tags: [{ name: "type", value: "subscription_confirmation" }],
+    });
+    await db.marketingSubscriber.update({
+      where: { id: subscriber.id },
+      data: {
+        metadata: { ...m, confirmationSentAt: new Date().toISOString() } as Prisma.InputJsonObject,
       },
     });
+    await this.log(subscriber, "confirmation", "confirm_subscription", res);
+  }
 
-    // Log delivery
+  /** Double opt-in click. Returns the subscriber, or undefined for an unknown token. */
+  static async confirm(token: string) {
+    const subscriber = await db.marketingSubscriber.findUnique({ where: { unsubscribeToken: token } });
+    if (!subscriber) return undefined;
+    if (subscriber.status !== "pending" && subscriber.status !== "unsubscribed") return subscriber;
+    const updated = await db.marketingSubscriber.update({
+      where: { id: subscriber.id },
+      data: {
+        status: "active",
+        topics: validTopics(subscriber.topics).length ? subscriber.topics! : defaultTopics,
+        metadata: { ...meta(subscriber), confirmedAt: new Date().toISOString() } as Prisma.InputJsonObject,
+      },
+    });
+    const started = await db.marketingDripStep.findFirst({
+      where: { subscriberId: updated.id, sequence: ONBOARDING },
+    });
+    await this.activated(updated, !started);
+    return updated;
+  }
+
+  private static async activated(subscriber: Subscriber, startOnboarding: boolean) {
+    const [firstName, ...rest] = (subscriber.name || "").split(" ");
+    const synced = await syncResendContact({
+      email: subscriber.email,
+      firstName: firstName || undefined,
+      lastName: rest.join(" ") || undefined,
+      unsubscribed: false,
+    });
+    if (synced.contactId)
+      await db.marketingSubscriber.update({
+        where: { id: subscriber.id },
+        data: { resendContactId: synced.contactId },
+      });
+    if (startOnboarding) await this.sendOnboardingStep(subscriber, 0);
+  }
+
+  private static render(templateId: string, subscriber: Subscriber) {
+    const links = this.links(subscriber.unsubscribeToken);
+    const common = {
+      name: subscriber.name || undefined,
+      siteUrl: this.siteUrl,
+      preferencesUrl: links.preferences,
+      unsubscribeUrl: links.unsubscribe,
+    };
+    if (templateId === "welcome_onboarding")
+      return renderWelcomeEmail({
+        ...common,
+        role: subscriber.role as "merchant" | "developer" | "provider" | "subscriber",
+      });
+    if (templateId === "drip_routing_tips") return renderDripRoutingTipsEmail(common);
+    return renderDripSettlementEmail(common);
+  }
+
+  private static async sendOnboardingStep(subscriber: Subscriber, step: number) {
+    const def = onboardingSteps[step];
+    const next = onboardingSteps[step + 1];
+    // Claim the step first, so two workers can never send it twice.
+    try {
+      await db.marketingDripStep.create({
+        data: {
+          subscriberId: subscriber.id,
+          sequence: ONBOARDING,
+          step,
+          sentAt: new Date(),
+          nextStepAt: next ? new Date(Date.now() + next.afterDays * DAY) : null,
+          completed: true,
+        },
+      });
+    } catch {
+      return false;
+    }
+    const rendered = this.render(def.templateId, subscriber);
+    const res = await sendEmail({
+      to: subscriber.email,
+      ...rendered,
+      tags: [
+        { name: "type", value: "drip" },
+        { name: "step", value: def.templateId },
+      ],
+      headers: this.unsubscribeHeaders(subscriber.unsubscribeToken),
+      idempotencyKey: `drip/${subscriber.id}/${ONBOARDING}/${step}`,
+    });
+    await this.log(subscriber, "drip", def.templateId, res, { step, sequence: ONBOARDING });
+    return true;
+  }
+
+  private static async log(
+    subscriber: { id: string; email: string },
+    type: string,
+    templateId: string,
+    res: { success: boolean; id?: string; error?: string; isMock?: boolean },
+    metadata: Record<string, unknown> = {},
+    campaignId?: string,
+  ) {
     await db.marketingDeliveryLog.create({
       data: {
         subscriberId: subscriber.id,
+        campaignId,
         email: subscriber.email,
-        type: "drip",
-        templateId: "welcome_onboarding",
-        resendEmailId: sendResult.id,
-        status: sendResult.success ? "sent" : "failed",
-        errorMessage: sendResult.error,
-        metadata: { step: 0, sequence: "merchant_onboarding" },
+        type,
+        templateId,
+        resendEmailId: res.id,
+        status: res.success ? (res.isMock ? "simulated" : "sent") : "failed",
+        errorMessage: res.error,
+        metadata: metadata as Prisma.InputJsonObject,
       },
     });
-
-    // Schedule Next Step (Day 3: Multi-Rail Failover tips)
-    const nextStepDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
-    await db.marketingDripStep.upsert({
-      where: {
-        subscriberId_sequence_step: {
-          subscriberId: subscriber.id,
-          sequence: "merchant_onboarding",
-          step: 0,
-        },
-      },
-      create: {
-        subscriberId: subscriber.id,
-        sequence: "merchant_onboarding",
-        step: 0,
-        sentAt: new Date(),
-        nextStepAt: nextStepDate,
-        completed: true,
-      },
-      update: {
-        sentAt: new Date(),
-        nextStepAt: nextStepDate,
-        completed: true,
-      },
-    });
+    if (res.success)
+      await db.marketingSubscriber.update({
+        where: { id: subscriber.id },
+        data: { lastEmailedAt: new Date() },
+      });
   }
 
-  /**
-   * Process all scheduled drip steps (e.g. Day 3 and Day 7 emails)
-   */
+  /** Sends every onboarding step that is due. Run by the worker every cycle. */
   static async processScheduledDrips() {
-    const now = new Date();
-
-    // Find drip steps that completed step 0 and are due for step 1
-    const dueStep0 = await db.marketingDripStep.findMany({
-      where: {
-        sequence: "merchant_onboarding",
-        step: 0,
-        completed: true,
-        nextStepAt: { lte: now },
-      },
-      include: {
-        subscriber: true,
-      },
-      take: 50,
-    });
-
-    let processedCount = 0;
-
-    for (const item of dueStep0) {
-      if (item.subscriber.status !== "active") continue;
-
-      // Check if step 1 already exists
-      const existingStep1 = await db.marketingDripStep.findUnique({
-        where: {
-          subscriberId_sequence_step: {
-            subscriberId: item.subscriberId,
-            sequence: "merchant_onboarding",
-            step: 1,
-          },
-        },
+    let processed = 0;
+    for (let step = 1; step < onboardingSteps.length; step++) {
+      const due = await db.marketingDripStep.findMany({
+        where: { sequence: ONBOARDING, step: step - 1, completed: true, nextStepAt: { lte: new Date() } },
+        include: { subscriber: true },
+        take: 50,
       });
-
-      if (existingStep1) continue;
-
-      const unsubscribeUrl = `${this.siteUrl}/email/preferences?token=${item.subscriber.unsubscribeToken}&action=unsub`;
-      const preferencesUrl = `${this.siteUrl}/email/preferences?token=${item.subscriber.unsubscribeToken}`;
-
-      const emailData = renderDripRoutingTipsEmail({
-        name: item.subscriber.name || undefined,
-        siteUrl: this.siteUrl,
-        unsubscribeUrl,
-        preferencesUrl,
-      });
-
-      const res = await sendEmail({
-        to: item.subscriber.email,
-        subject: emailData.subject,
-        html: emailData.html,
-        text: emailData.text,
-        tags: [
-          { name: "type", value: "drip" },
-          { name: "step", value: "routing_tips" },
-        ],
-        headers: { "List-Unsubscribe": `<${unsubscribeUrl}>` },
-      });
-
-      // Schedule Step 2 (Day 7) in 4 days
-      const step2Date = new Date(Date.now() + 4 * 24 * 60 * 60 * 1000);
-
-      await db.marketingDripStep.create({
-        data: {
-          subscriberId: item.subscriber.id,
-          sequence: "merchant_onboarding",
-          step: 1,
-          sentAt: new Date(),
-          nextStepAt: step2Date,
-          completed: true,
-        },
-      });
-
-      await db.marketingDeliveryLog.create({
-        data: {
-          subscriberId: item.subscriber.id,
-          email: item.subscriber.email,
-          type: "drip",
-          templateId: "drip_routing_tips",
-          resendEmailId: res.id,
-          status: res.success ? "sent" : "failed",
-          errorMessage: res.error,
-          metadata: { step: 1 },
-        },
-      });
-
-      processedCount++;
+      for (const item of due) {
+        if (item.subscriber.status === "active" && (await this.sendOnboardingStep(item.subscriber, step)))
+          processed++;
+        // Either sent, claimed by someone else, or no longer wanted: stop polling it.
+        await db.marketingDripStep.update({ where: { id: item.id }, data: { nextStepAt: null } });
+      }
     }
-
-    // Find drip steps that completed step 1 and are due for step 2 (Day 7: Settlement)
-    const dueStep1 = await db.marketingDripStep.findMany({
-      where: {
-        sequence: "merchant_onboarding",
-        step: 1,
-        completed: true,
-        nextStepAt: { lte: now },
-      },
-      include: {
-        subscriber: true,
-      },
-      take: 50,
-    });
-
-    for (const item of dueStep1) {
-      if (item.subscriber.status !== "active") continue;
-
-      const existingStep2 = await db.marketingDripStep.findUnique({
-        where: {
-          subscriberId_sequence_step: {
-            subscriberId: item.subscriberId,
-            sequence: "merchant_onboarding",
-            step: 2,
-          },
-        },
-      });
-
-      if (existingStep2) continue;
-
-      const unsubscribeUrl = `${this.siteUrl}/email/preferences?token=${item.subscriber.unsubscribeToken}&action=unsub`;
-      const preferencesUrl = `${this.siteUrl}/email/preferences?token=${item.subscriber.unsubscribeToken}`;
-
-      const emailData = renderDripSettlementEmail({
-        name: item.subscriber.name || undefined,
-        siteUrl: this.siteUrl,
-        unsubscribeUrl,
-        preferencesUrl,
-      });
-
-      const res = await sendEmail({
-        to: item.subscriber.email,
-        subject: emailData.subject,
-        html: emailData.html,
-        text: emailData.text,
-        tags: [
-          { name: "type", value: "drip" },
-          { name: "step", value: "settlement" },
-        ],
-        headers: { "List-Unsubscribe": `<${unsubscribeUrl}>` },
-      });
-
-      await db.marketingDripStep.create({
-        data: {
-          subscriberId: item.subscriber.id,
-          sequence: "merchant_onboarding",
-          step: 2,
-          sentAt: new Date(),
-          completed: true,
-        },
-      });
-
-      await db.marketingDeliveryLog.create({
-        data: {
-          subscriberId: item.subscriber.id,
-          email: item.subscriber.email,
-          type: "drip",
-          templateId: "drip_settlement",
-          resendEmailId: res.id,
-          status: res.success ? "sent" : "failed",
-          errorMessage: res.error,
-          metadata: { step: 2 },
-        },
-      });
-
-      processedCount++;
-    }
-
-    return { processed: processedCount };
+    return { processed };
   }
 
-  /**
-   * Create a new marketing campaign
-   */
   static async createCampaign(input: CampaignInput) {
-    const campaign = await db.marketingCampaign.create({
+    return db.marketingCampaign.create({
       data: {
         name: input.name,
         subject: input.subject,
         previewText: input.previewText,
         templateId: input.templateId || "marketing_broadcast",
         targetAudience: input.targetAudience || "all",
-        targetTopics: input.targetTopics || [],
+        targetTopics: validTopics(input.targetTopics),
         contentHtml: input.contentHtml,
         contentText: input.contentText || stripHtmlToText(input.contentHtml),
         createdBy: input.createdBy,
         status: "draft",
       },
     });
-
-    return campaign;
   }
 
-  /**
-   * Send a test preview of a campaign
-   */
-  static async sendTestCampaign(campaignId: string, testEmail: string) {
-    const campaign = await db.marketingCampaign.findUnique({
-      where: { id: campaignId },
-    });
-
-    if (!campaign) {
-      throw new Error("Campaign not found");
-    }
-
-    const emailData = renderMarketingBroadcastEmail({
+  private static renderCampaign(
+    campaign: { subject: string; previewText: string | null; contentHtml: string },
+    token?: string,
+  ) {
+    const links = token ? this.links(token) : undefined;
+    return renderMarketingBroadcastEmail({
       headline: campaign.subject,
       previewText: campaign.previewText || undefined,
       bodyHtml: campaign.contentHtml,
       siteUrl: this.siteUrl,
-      preferencesUrl: `${this.siteUrl}/email/preferences`,
-      unsubscribeUrl: `${this.siteUrl}/email/preferences?action=unsub`,
+      preferencesUrl: links?.preferences ?? `${this.siteUrl}/email/preferences`,
+      unsubscribeUrl: links?.unsubscribe ?? `${this.siteUrl}/email/preferences`,
     });
+  }
 
-    const res = await sendEmail({
+  static async sendTestCampaign(campaignId: string, testEmail: string) {
+    const campaign = await db.marketingCampaign.findUnique({ where: { id: campaignId } });
+    if (!campaign) throw new Error("Campaign not found");
+    const rendered = this.renderCampaign(campaign);
+    return sendEmail({
       to: testEmail,
       subject: `[TEST] ${campaign.subject}`,
-      html: emailData.html,
-      text: emailData.text,
+      html: rendered.html,
+      text: rendered.text,
       tags: [
         { name: "type", value: "test_campaign" },
         { name: "campaign_id", value: campaign.id },
       ],
     });
-
-    return res;
   }
 
-  /**
-   * Launch and send a campaign to target audience in batch
-   */
+  static async audienceFor(campaign: { targetAudience: string; targetTopics: Prisma.JsonValue }) {
+    const roles: Record<string, string> = { merchants: "merchant", developers: "developer", providers: "provider" };
+    const where: Prisma.MarketingSubscriberWhereInput = { status: "active" };
+    if (roles[campaign.targetAudience]) where.role = roles[campaign.targetAudience];
+    const subscribers = await db.marketingSubscriber.findMany({ where, orderBy: { createdAt: "asc" } });
+    const wanted = validTopics(campaign.targetTopics);
+    // A campaign about given topics reaches only people who kept at least one of them.
+    return wanted.length
+      ? subscribers.filter((s) => validTopics(s.topics).some((t) => wanted.includes(t)))
+      : subscribers;
+  }
+
   static async launchCampaign(campaignId: string) {
-    const campaign = await db.marketingCampaign.findUnique({
-      where: { id: campaignId },
-    });
-
-    if (!campaign) {
-      throw new Error("Campaign not found");
-    }
-
-    if (campaign.status === "sent" || campaign.status === "sending") {
-      throw new Error("Campaign has already been sent or is currently sending");
-    }
-
-    await db.marketingCampaign.update({
-      where: { id: campaignId },
+    // Claim the campaign atomically so a double click can't send it twice.
+    const claimed = await db.marketingCampaign.updateMany({
+      where: { id: campaignId, status: { in: ["draft", "failed"] } },
       data: { status: "sending" },
     });
-
-    // Build subscriber query based on audience filter
-    const audienceFilter: Prisma.MarketingSubscriberWhereInput = {
-      status: "active",
-    };
-
-    if (campaign.targetAudience !== "all") {
-      // Map audience target to role
-      if (campaign.targetAudience === "merchants") {
-        audienceFilter.role = "merchant";
-      } else if (campaign.targetAudience === "developers") {
-        audienceFilter.role = "developer";
-      } else if (campaign.targetAudience === "providers") {
-        audienceFilter.role = "provider";
-      }
+    if (!claimed.count) {
+      const exists = await db.marketingCampaign.findUnique({ where: { id: campaignId } });
+      throw new Error(exists ? "Campaign has already been sent or is currently sending" : "Campaign not found");
     }
-
-    const subscribers = await db.marketingSubscriber.findMany({
-      where: audienceFilter,
-    });
-
-    if (subscribers.length === 0) {
-      await db.marketingCampaign.update({
-        where: { id: campaignId },
-        data: { status: "sent", sentAt: new Date(), recipientCount: 0 },
-      });
-      return { sent: 0 };
-    }
-
-    // Format individual emails for each recipient
-    const emailBatch = subscribers.map((sub) => {
-      const preferencesUrl = `${this.siteUrl}/email/preferences?token=${sub.unsubscribeToken}`;
-      const unsubscribeUrl = `${this.siteUrl}/email/preferences?token=${sub.unsubscribeToken}&action=unsub`;
-
-      const rendered = renderMarketingBroadcastEmail({
-        headline: campaign.subject,
-        previewText: campaign.previewText || undefined,
-        bodyHtml: campaign.contentHtml,
-        siteUrl: this.siteUrl,
-        preferencesUrl,
-        unsubscribeUrl,
-      });
-
-      return {
-        subscriberId: sub.id,
-        to: sub.email,
-        subject: campaign.subject,
-        html: rendered.html,
-        text: rendered.text,
-        tags: [
-          { name: "campaign_id", value: campaign.id },
-          { name: "type", value: "campaign" },
-        ],
-        headers: {
-          "List-Unsubscribe": `<${unsubscribeUrl}>`,
-        },
-      };
-    });
-
-    // Send in chunks of 100 via batch API
-    let totalSent = 0;
-    const chunkSize = 100;
-
-    for (let i = 0; i < emailBatch.length; i += chunkSize) {
-      const chunk = emailBatch.slice(i, i + chunkSize);
-      const batchResult = await sendBatchEmails(
-        chunk.map((item) => ({
-          to: item.to,
-          subject: item.subject,
-          html: item.html,
-          text: item.text,
-          tags: item.tags,
-          headers: item.headers,
-        })),
+    const campaign = await db.marketingCampaign.findUniqueOrThrow({ where: { id: campaignId } });
+    try {
+      // Skip anyone this campaign already reached, so relaunching after a failure resumes.
+      const done = new Set(
+        (
+          await db.marketingDeliveryLog.findMany({
+            where: { campaignId, status: { not: "failed" } },
+            select: { subscriberId: true },
+          })
+        ).map((l) => l.subscriberId),
       );
-
-      // Record logs
-      const logPromises = chunk.map((item, idx) => {
-        const resendId = batchResult.ids[idx];
-        return db.marketingDeliveryLog.create({
-          data: {
-            subscriberId: item.subscriberId,
+      const audience = (await this.audienceFor(campaign)).filter((s) => !done.has(s.id));
+      let sent = 0;
+      let failed = 0;
+      for (let i = 0; i < audience.length; i += 100) {
+        const chunk = audience.slice(i, i + 100);
+        const result = await sendBatchEmails(
+          chunk.map((sub) => {
+            const rendered = this.renderCampaign(campaign, sub.unsubscribeToken);
+            return {
+              to: sub.email,
+              subject: campaign.subject,
+              html: rendered.html,
+              text: rendered.text,
+              tags: [
+                { name: "campaign_id", value: campaign.id },
+                { name: "type", value: "campaign" },
+              ],
+              headers: this.unsubscribeHeaders(sub.unsubscribeToken),
+            };
+          }),
+          `campaign/${campaign.id}/${chunk[0].id}/${chunk.length}`,
+        );
+        await db.marketingDeliveryLog.createMany({
+          data: chunk.map((sub, idx) => ({
+            subscriberId: sub.id,
             campaignId: campaign.id,
-            email: item.to,
+            email: sub.email,
             type: "campaign",
             templateId: campaign.templateId,
-            resendEmailId: resendId,
-            status: batchResult.success ? "sent" : "failed",
-            errorMessage: batchResult.error,
-          },
+            resendEmailId: result.ids[idx],
+            status: result.success ? "sent" : "failed",
+            errorMessage: result.error,
+          })),
         });
+        if (result.success) sent += chunk.length;
+        else failed += chunk.length;
+      }
+      await db.marketingCampaign.update({
+        where: { id: campaignId },
+        data: {
+          status: failed ? "failed" : "sent",
+          sentAt: failed ? null : new Date(),
+          recipientCount: { increment: sent },
+        },
       });
-
-      await Promise.all(logPromises);
-      totalSent += chunk.length;
+      return { sent, failed };
+    } catch (error) {
+      await db.marketingCampaign.update({ where: { id: campaignId }, data: { status: "failed" } });
+      throw error;
     }
-
-    // Update campaign record
-    await db.marketingCampaign.update({
-      where: { id: campaignId },
-      data: {
-        status: "sent",
-        sentAt: new Date(),
-        recipientCount: totalSent,
-      },
-    });
-
-    return { sent: totalSent };
   }
 
-  /**
-   * CAN-SPAM and GDPR Preference Center logic
-   */
   static async getSubscriberByToken(token: string) {
-    const subscriber = await db.marketingSubscriber.findUnique({
-      where: { unsubscribeToken: token },
-    });
-    return subscriber;
+    if (!token) return null;
+    return db.marketingSubscriber.findUnique({ where: { unsubscribeToken: token } });
   }
 
   static async updateSubscriberPreferences(
     token: string,
-    params: {
-      topics?: string[];
-      unsubscribeAll?: boolean;
-    },
+    params: { topics?: string[]; unsubscribeAll?: boolean },
   ) {
-    const subscriber = await db.marketingSubscriber.findUnique({
-      where: { unsubscribeToken: token },
-    });
+    const subscriber = await db.marketingSubscriber.findUnique({ where: { unsubscribeToken: token } });
+    if (!subscriber) throw new Error("Invalid or expired preference link");
 
-    if (!subscriber) {
-      throw new Error("Invalid or expired preference link");
-    }
-
-    const isUnsubscribed = params.unsubscribeAll === true;
-    const newStatus = isUnsubscribed ? "unsubscribed" : "active";
-    const newTopics = isUnsubscribed ? [] : params.topics || (subscriber.topics as string[]);
+    const unsubscribe = params.unsubscribeAll === true;
+    const topics = unsubscribe ? [] : validTopics(params.topics ?? subscriber.topics);
+    // Choosing topics from the preference page is a fresh opt-in for people who
+    // had unsubscribed. Bounced or complained addresses stay suppressed.
+    const status = unsubscribe
+      ? "unsubscribed"
+      : ["bounced", "complained"].includes(subscriber.status)
+        ? subscriber.status
+        : topics.length
+          ? "active"
+          : "unsubscribed";
 
     const updated = await db.marketingSubscriber.update({
       where: { id: subscriber.id },
-      data: {
-        status: newStatus,
-        topics: newTopics,
-      },
+      data: { status, topics },
     });
-
-    // Sync to Resend in background
-    syncResendAudienceContact({
-      email: updated.email,
-      unsubscribed: isUnsubscribed,
-    }).catch(console.error);
-
+    await syncResendContact({ email: updated.email, unsubscribed: status !== "active" });
     return updated;
   }
 
-  /**
-   * Webhook processor for Resend delivery/engagement webhooks
-   */
-  static async handleResendWebhookEvent(event: {
-    type: string;
-    data: {
-      email_id?: string;
-      to?: string[];
-      created_at?: string;
-      [key: string]: unknown;
-    };
-  }) {
-    const emailId = event.data?.email_id;
+  /** Resend delivery webhooks. Statuses only move forward, never back. */
+  static async handleResendWebhookEvent(event: ResendWebhookEvent) {
+    if (event.type === "contact.updated" || event.type === "contact.deleted") {
+      const email = typeof event.data.email === "string" ? event.data.email.toLowerCase() : undefined;
+      if (email && (event.type === "contact.deleted" || event.data.unsubscribed === true)) {
+        await db.marketingSubscriber.updateMany({
+          where: { email, status: { in: ["active", "pending"] } },
+          data: { status: "unsubscribed" },
+        });
+        return { processed: true, type: event.type };
+      }
+      return { processed: false, reason: "No change" };
+    }
+
+    // Bounces and complaints suppress the address even for transactional mail
+    // that has no delivery log here.
+    const recipients = (event.data.to ?? []).map((e) => e.toLowerCase());
+    if (event.type === "email.bounced" || event.type === "email.complained") {
+      const suppressed = event.type === "email.bounced" ? "bounced" : "complained";
+      if (event.type === "email.complained" || isPermanentBounce(event))
+        await db.marketingSubscriber.updateMany({
+          where: { email: { in: recipients }, status: { not: "complained" } },
+          data: { status: suppressed },
+        });
+    }
+
+    const emailId = event.data.email_id;
     if (!emailId) return { processed: false, reason: "No email_id" };
+    const log = await db.marketingDeliveryLog.findUnique({ where: { resendEmailId: emailId } });
+    if (!log) return { processed: event.type === "email.bounced" || event.type === "email.complained", reason: "No delivery log" };
 
-    const log = await db.marketingDeliveryLog.findUnique({
-      where: { resendEmailId: emailId },
-    });
+    const status = eventStatus[event.type];
+    if (!status) return { processed: false, reason: "Ignored event type" };
+    if (rank[status] <= (rank[log.status] ?? 0)) return { processed: true, type: event.type, unchanged: true };
 
-    if (!log) {
-      return { processed: false, reason: "Delivery log not found" };
-    }
-
-    switch (event.type) {
-      case "email.delivered":
-        await db.marketingDeliveryLog.update({
-          where: { id: log.id },
-          data: { status: "delivered" },
-        });
-        break;
-
-      case "email.opened":
-        await db.marketingDeliveryLog.update({
-          where: { id: log.id },
-          data: { status: "opened" },
-        });
-        if (log.campaignId) {
-          await db.marketingCampaign.update({
-            where: { id: log.campaignId },
-            data: { openCount: { increment: 1 } },
-          });
-        }
-        break;
-
-      case "email.clicked":
-        await db.marketingDeliveryLog.update({
-          where: { id: log.id },
-          data: { status: "clicked" },
-        });
-        if (log.campaignId) {
-          await db.marketingCampaign.update({
-            where: { id: log.campaignId },
-            data: { clickCount: { increment: 1 } },
-          });
-        }
-        break;
-
-      case "email.bounced":
-        await db.marketingDeliveryLog.update({
-          where: { id: log.id },
-          data: { status: "bounced" },
-        });
-        if (log.campaignId) {
-          await db.marketingCampaign.update({
-            where: { id: log.campaignId },
-            data: { bounceCount: { increment: 1 } },
-          });
-        }
-        // Suppress subscriber
-        if (log.subscriberId) {
-          await db.marketingSubscriber.update({
-            where: { id: log.subscriberId },
-            data: { status: "bounced" },
-          });
-        }
-        break;
-
-      case "email.complained":
-        await db.marketingDeliveryLog.update({
-          where: { id: log.id },
-          data: { status: "complained" },
-        });
-        if (log.subscriberId) {
-          await db.marketingSubscriber.update({
-            where: { id: log.subscriberId },
-            data: { status: "complained" },
-          });
-        }
-        break;
-    }
-
+    await db.marketingDeliveryLog.update({ where: { id: log.id }, data: { status } });
+    const counter = { opened: "openCount", clicked: "clickCount", bounced: "bounceCount" }[status as string];
+    // Statuses only move forward, so each recipient is counted once per stage.
+    if (log.campaignId && counter)
+      await db.marketingCampaign.update({
+        where: { id: log.campaignId },
+        data: { [counter]: { increment: 1 } },
+      });
     return { processed: true, type: event.type };
   }
 
-  /**
-   * Aggregated Marketing Analytics for the ops & merchant dashboard
-   */
   static async getMarketingAnalytics() {
     const [
       totalSubscribers,
       activeSubscribers,
+      pendingSubscribers,
       unsubscribedCount,
       totalCampaigns,
       sentCampaigns,
@@ -718,52 +547,72 @@ export class MarketingService {
     ] = await Promise.all([
       db.marketingSubscriber.count(),
       db.marketingSubscriber.count({ where: { status: "active" } }),
+      db.marketingSubscriber.count({ where: { status: "pending" } }),
       db.marketingSubscriber.count({ where: { status: "unsubscribed" } }),
       db.marketingCampaign.count(),
       db.marketingCampaign.count({ where: { status: "sent" } }),
-      db.marketingDeliveryLog.count(),
-      db.marketingDeliveryLog.count({ where: { status: "opened" } }),
+      db.marketingDeliveryLog.count({ where: { status: { notIn: ["failed", "simulated"] } } }),
+      db.marketingDeliveryLog.count({ where: { status: { in: ["opened", "clicked"] } } }),
       db.marketingDeliveryLog.count({ where: { status: "clicked" } }),
       db.marketingDeliveryLog.count({ where: { status: "bounced" } }),
-      db.marketingCampaign.findMany({
-        take: 5,
-        orderBy: { createdAt: "desc" },
-      }),
-      db.marketingDeliveryLog.findMany({
-        take: 10,
-        orderBy: { createdAt: "desc" },
-      }),
+      db.marketingCampaign.findMany({ take: 5, orderBy: { createdAt: "desc" } }),
+      db.marketingDeliveryLog.findMany({ take: 10, orderBy: { createdAt: "desc" } }),
     ]);
 
-    const openRate =
-      logsCount > 0 ? ((openLogsCount / logsCount) * 100).toFixed(1) : "0.0";
-    const clickRate =
-      logsCount > 0 ? ((clickLogsCount / logsCount) * 100).toFixed(1) : "0.0";
-    const bounceRate =
-      logsCount > 0 ? ((bounceLogsCount / logsCount) * 100).toFixed(2) : "0.00";
+    const pct = (n: number, digits: number) =>
+      `${logsCount > 0 ? ((n / logsCount) * 100).toFixed(digits) : (0).toFixed(digits)}%`;
 
     return {
       subscribers: {
         total: totalSubscribers,
         active: activeSubscribers,
+        pending: pendingSubscribers,
         unsubscribed: unsubscribedCount,
       },
-      campaigns: {
-        total: totalCampaigns,
-        sent: sentCampaigns,
-      },
+      campaigns: { total: totalCampaigns, sent: sentCampaigns },
       engagement: {
         totalSent: logsCount,
-        openRate: `${openRate}%`,
-        clickRate: `${clickRate}%`,
-        bounceRate: `${bounceRate}%`,
+        openRate: pct(openLogsCount, 1),
+        clickRate: pct(clickLogsCount, 1),
+        bounceRate: pct(bounceLogsCount, 2),
       },
       resendStatus: {
         configured: isResendConfigured(),
         mode: isResendConfigured() ? "live" : "local_mock",
+        webhookSigned: Boolean(process.env.RESEND_WEBHOOK_SECRET),
+        segment: Boolean(process.env.RESEND_SEGMENT_ID || process.env.RESEND_AUDIENCE_ID),
       },
       recentCampaigns,
       recentLogs,
     };
   }
+}
+
+const eventStatus: Record<string, string> = {
+  "email.sent": "sent",
+  "email.delivered": "delivered",
+  "email.delivery_delayed": "delayed",
+  "email.opened": "opened",
+  "email.clicked": "clicked",
+  "email.bounced": "bounced",
+  "email.complained": "complained",
+  "email.failed": "failed",
+};
+const rank: Record<string, number> = {
+  failed: 0,
+  simulated: 1,
+  sent: 1,
+  delayed: 2,
+  delivered: 3,
+  opened: 4,
+  clicked: 5,
+  bounced: 6,
+  complained: 7,
+};
+
+// Resend reports bounce.type "Permanent" for hard bounces. Transient bounces
+// (full mailbox, greylisting) should not suppress the address.
+function isPermanentBounce(event: ResendWebhookEvent) {
+  const bounce = event.data.bounce as { type?: string } | undefined;
+  return !bounce?.type || bounce.type.toLowerCase() === "permanent";
 }

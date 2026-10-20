@@ -1,6 +1,6 @@
 # Provider accounts
 
-> Launch scope: stablecoins and direct crypto wallet payments for every merchant, plus cards, bank transfers and mobile money through PayRouta's processing partners once your payments account is activated. Exchange-app payments are Coming soon. Stablecoin sandbox payments use actual testnet tokens; they cannot simulate a successful deposit. See [Crypto wallet payments](crypto-payments.md).
+> Launch scope: stablecoins and direct crypto wallet payments for every merchant, plus cards, digital wallets, bank transfers and mobile money through PayRouta's processing partners once your payments account is activated. Exchange-app payments are Coming soon. Stablecoin sandbox payments use actual testnet tokens; they cannot simulate a successful deposit. See [Crypto wallet payments](crypto-payments.md).
 There are two ways PayRouta processes your payments.
 
 ## PayRouta payments (most merchants)
@@ -40,18 +40,22 @@ PayRouta checks these conditions in code, and refuses any provider integration t
 
 When you edit your profile, PayRouta creates a new version. Applications already sent keep the version you consented to, and a new application needs a new consent.
 
-## What PayRouta never collects
+### What PayRouta never collects for these accounts
+
+For accounts in your own name, the provider collects these itself:
 
 - Government ID numbers or document images
 - Dates of birth
 - Bank account numbers, IBANs or card details
 
-## Disconnecting
+(For PayRouta payments, PayRouta collects your identity and payout details itself and stores them encrypted.)
+
+### Disconnecting
 
 **Disconnect** stops PayRouta from sharing anything further with that provider and stops routing to it. The provider account stays open and remains yours. Close it with the provider if you no longer need it.
 
 ## Providers
 
-Which providers you can choose depends on your environment and country, and on which provider integrations have passed qualification. The dashboard lists the ones currently open to you. Provider integrations are added one at a time, and only for programmes where the account belongs to the merchant.
+Which providers you can choose depends on your environment and country, and on which provider integrations have passed qualification. The dashboard lists the ones currently open to you. Provider integrations are added one at a time. For accounts in your own name, only programmes where the account belongs to you qualify.
 
 For technical specifications, supported corridors, and integration guides for each provider, explore the [Payment Providers Directory](providers/README.md).

@@ -25,6 +25,9 @@ export async function createCryptoCheckout(
   key: string,
   raw: unknown,
   prices = coinGeckoPrices,
+  // Universal checkout: the order's own return URL instead of the merchant's
+  // home page (still checked against the merchant's return origin).
+  extra: { returnUrl?: string } = {},
 ) {
   if (!/^[\w-]{8,90}$/.test(key))
     throw new PortalError("INVALID_IDEMPOTENCY_KEY", 400);
@@ -86,7 +89,8 @@ export async function createCryptoCheckout(
               assets.map((a) => onchainMethod(a.network, a.identifier)),
             ),
           ],
-          returnUrl: new URL("/", config.returnOrigin).href,
+          returnUrl: extra.returnUrl ?? new URL("/", config.returnOrigin).href,
+          ...(input.feeBearer ? { feeBearer: input.feeBearer } : {}),
           ...(payment.length > 1 ? { paymentOptions: payment.slice(1) } : {}),
         },
         options,

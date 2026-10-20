@@ -2,16 +2,8 @@
 import { useRouter } from "next/navigation";
 import type { WorkspaceData } from "@/lib/portal/queries";
 import { can, roles } from "@/lib/portal/domain";
-import {
-  Action,
-  Badge,
-  DateText,
-  Empty,
-  Field,
-  Modal,
-  Panel,
-  Table,
-} from "./ui";
+import { Action, DateText, Field, Modal, Table } from "./ui";
+import { Badge, Empty, Panel } from "./provider-ui";
 import type { Execute } from "./forms";
 export function Compliance({
   data,

@@ -1,0 +1,30 @@
+# PayRouta payments app for Shopify. Deploy with the Shopify CLI
+# (`shopify app deploy`) from this directory after replacing the
+# placeholders. See docs/shopify.md.
+#
+# APP_ORIGIN       PayRouta's public origin (BETTER_AUTH_URL), e.g. https://pay.example
+# Payment and refund session URLs use the separate mTLS host in
+# extensions/payrouta-checkout/shopify.extension.toml.
+
+client_id = "REPLACE_WITH_SHOPIFY_API_KEY"
+name = "PayRouta"
+application_url = "https://APP_ORIGIN/api/integrations/shopify"
+embedded = false
+
+[access_scopes]
+# Restricted scopes: Shopify must approve PayRouta as a payments partner.
+scopes = "write_payment_gateways,write_payment_sessions"
+
+[auth]
+redirect_urls = ["https://APP_ORIGIN/api/integrations/shopify/callback"]
+
+[webhooks]
+api_version = "2026-10"
+
+  [[webhooks.subscriptions]]
+  topics = ["app/uninstalled"]
+  uri = "https://APP_ORIGIN/api/integrations/shopify/webhooks"
+
+  [[webhooks.subscriptions]]
+  compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+  uri = "https://APP_ORIGIN/api/integrations/shopify/webhooks"

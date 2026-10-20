@@ -1,4 +1,8 @@
 import { cryptoCheckoutInput } from "../payments/crypto-contracts";
+import {
+  universalCheckoutInput,
+  universalCheckoutResponse,
+} from "../payments/universal-contracts";
 import { z } from "zod";
 import { supportedPaymentMethodIds } from "../providers/normalized";
 import { assetSchema } from "../portal/domain";
@@ -44,8 +48,30 @@ export const publicIntent = z.object({
   selectedMethod: z.string().nullable(),
   createdAt: z.coerce.date(),
   expiresAt: z.coerce.date(),
+  // "customer": amount includes fees passed to the customer; baseAmount is
+  // what the merchant receives after fees, customerFee the difference.
+  feeBearer: z.enum(["merchant", "customer"]).default("merchant"),
+  baseAmount: z.string().nullable().default(null),
+  customerFee: z.string().nullable().default(null),
 });
+// The pass-through figures of the selected payment option, for publicIntent.
+export function feeFields(record: { amount?: string; precision?: number; paymentOptions?: unknown; selectedOption?: string | null }) {
+  const options = Array.isArray(record.paymentOptions) ? record.paymentOptions : [];
+  const selected = options.find((o: { id?: string }) => o?.id === record.selectedOption) as
+    | { baseAmount?: string; customerFeeMinor?: string; precision?: number }
+    | undefined;
+  if (!selected?.baseAmount || selected.customerFeeMinor === undefined) return { baseAmount: null, customerFee: null };
+  const precision = selected.precision ?? record.precision ?? 0;
+  const text = selected.customerFeeMinor.padStart(precision + 1, "0");
+  return {
+    baseAmount: selected.baseAmount,
+    customerFee: precision ? `${text.slice(0, -precision)}.${text.slice(-precision)}` : text,
+  };
+}
+export const toPublicIntent = (record: Record<string, unknown>) =>
+  publicIntent.parse({ ...record, ...feeFields(record as Parameters<typeof feeFields>[0]) });
 export const operations = {
+  "POST checkouts": "payments:write",
   "POST crypto-checkouts": "payments:write",
   "GET payment-intents": "payments:read",
   "POST payment-intents": "payments:write",
@@ -55,6 +81,7 @@ export const operations = {
   "POST checkout-sessions": "payments:write",
   "GET settlements": "settlements:read",
   "GET configuration": "configuration:read",
+  "GET fee-settings": "configuration:read",
   "GET webhook-endpoint": "webhooks:read",
   "PUT webhook-endpoint": "webhooks:write",
   "DELETE webhook-endpoint": "webhooks:write",
@@ -62,6 +89,7 @@ export const operations = {
   "POST webhook-deliveries": "webhooks:write",
 } as const;
 export const requestSchemas = {
+  "POST checkouts": universalCheckoutInput,
   "POST crypto-checkouts": cryptoCheckoutInput,
   "POST payment-intents": intentInput,
   "POST checkout-sessions": sessionInput,
@@ -236,6 +264,8 @@ export function responseContract(
         liveExecutionEnabled: z.boolean(),
       })
       .strict();
+  if (operation === "GET fee-settings")
+    return z.object({ feeBearer: z.enum(["merchant", "customer"]) }).strict();
   if (operation === "GET webhook-endpoint")
     return z
       .object({ webhookUrl: z.string().nullable(), webhookKeyId: z.string() })
@@ -253,6 +283,7 @@ export function responseContract(
         revokedAt: z.iso.datetime().nullable(),
       })
       .strict();
+  if (operation === "POST checkouts") return universalCheckoutResponse;
   if (
     operation === "POST checkout-sessions" ||
     operation === "POST crypto-checkouts"
@@ -284,6 +315,15 @@ export function openapi() {
     idempotency?: boolean;
     created?: boolean;
   }[] = [
+    {
+      method: "post",
+      path: "/checkouts",
+      operation: "POST checkouts",
+      body: universalCheckoutInput,
+      response: universalCheckoutResponse,
+      idempotency: true,
+      created: true,
+    },
     {
       method: "post",
       path: "/crypto-checkouts",
@@ -371,6 +411,11 @@ export function openapi() {
     },
     { method: "get", path: "/settlements/{id}", operation: "GET settlements" },
     { method: "get", path: "/configuration", operation: "GET configuration" },
+    {
+      method: "get",
+      path: "/fee-settings",
+      operation: "GET fee-settings",
+    },
     {
       method: "get",
       path: "/webhook-endpoint",
