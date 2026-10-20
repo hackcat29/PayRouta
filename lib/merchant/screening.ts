@@ -4,7 +4,7 @@ import { json, atomic, audit } from "../portal/service";
 import { PortalError } from "../portal/domain";
 import { kybProfileSchema } from "../partners/kyb";
 import { screenProfile, screeningProvider } from "../partners/screening";
-import { manualReviewProviderId } from "../compliance/providers";
+import { manualReviewProviderId, vendorUnavailable } from "../compliance/providers";
 // A manual screening decision by operations stays valid this long; automated
 // results are refreshed daily.
 export const manualScreeningValidDays = 30;
@@ -34,6 +34,20 @@ export async function screenStablecoinMerchant(orgId: string, version: number) {
       return latest;
   }
   const result = await screenProfile(kybProfileSchema.parse(profile.data), provider);
+  // If the vendor couldn't answer for anyone, keep a decision that is still
+  // valid (a manual decision, or an automated result from the last day)
+  // rather than replacing it with a fallback "review" during an outage.
+  if (result.results.every((r) => r.reference === vendorUnavailable(provider.id))) {
+    const latest = await db.merchantScreening.findFirst({
+      where: { orgId, profileVersion: version, provider: { not: "sandbox-fixture" } },
+      orderBy: { createdAt: "desc" },
+    });
+    const stillValid =
+      latest &&
+      latest.verdict !== "review" &&
+      latest.createdAt.getTime() > Date.now() - validFor(latest.provider);
+    if (stillValid) return latest;
+  }
   return atomic(async (tx) => {
     const screening = await tx.merchantScreening.create({
       data: {

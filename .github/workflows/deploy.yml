@@ -81,11 +81,13 @@ jobs:
         uses: appleboy/ssh-action@v1.0.3
         env:
           SHA: ${{ github.sha }}
+          # Optional: synced into the server's .env when set (never echoed).
+          OPENSANCTIONS_API_KEY: ${{ secrets.OPENSANCTIONS_API_KEY }}
         with:
           host: ${{ secrets.CONTABO_HOST }}
           username: ${{ secrets.CONTABO_USER }}
           key: ${{ secrets.CONTABO_SSH_KEY }}
-          envs: SHA
+          envs: SHA,OPENSANCTIONS_API_KEY
           script_stop: true
           script: |
             echo "==> Deploy started for SHA: $SHA"
@@ -101,6 +103,23 @@ jobs:
             echo "==> PM2: $(which pm2 2>/dev/null || echo 'not found in PATH')"
             set -euo pipefail
             ROOT=/opt/payrouta
+            # Sync secrets kept in GitHub into the server's .env, replacing
+            # any old line; values are never printed.
+            if [ -n "${OPENSANCTIONS_API_KEY:-}" ]; then
+              (
+                umask 077
+                grep -v '^OPENSANCTIONS_API_KEY=' "$ROOT/.env" > "$ROOT/.env.sync" || true
+                printf 'OPENSANCTIONS_API_KEY=%s\n' "$OPENSANCTIONS_API_KEY" >> "$ROOT/.env.sync"
+                cat "$ROOT/.env.sync" > "$ROOT/.env"
+                rm -f "$ROOT/.env.sync"
+              )
+              echo "==> OpenSanctions key synced from GitHub"
+            fi
+            if grep -q '^OPENSANCTIONS_API_KEY=.' "$ROOT/.env"; then
+              echo "==> OpenSanctions key present: automated merchant screening on"
+            else
+              echo "==> OpenSanctions key missing: every business waits for manual review"
+            fi
             REL="$ROOT/releases/$SHA"
             PREV="$(readlink -f "$ROOT/current" || true)"
             mkdir -p "$REL"

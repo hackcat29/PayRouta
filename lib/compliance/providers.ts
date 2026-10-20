@@ -89,14 +89,46 @@ export const manualScreening: EntityScreeningProvider = {
   },
 };
 
+// The reference a subject gets when the vendor couldn't answer for it.
+export const vendorUnavailable = (providerId: string) => `${providerId}-unavailable`;
+
+// When the vendor can't answer (outage, rate limit, rejected key), that
+// subject goes to manual review: never cleared, never stuck. The failure is
+// logged so a bad key or a long outage is noticed.
+export function withManualFallback(
+  primary: EntityScreeningProvider,
+  log: (line: string) => void = console.error,
+): EntityScreeningProvider {
+  return {
+    id: primary.id,
+    async screenEntity(input) {
+      try {
+        return await primary.screenEntity(input);
+      } catch (error) {
+        log(
+          JSON.stringify({
+            event: "screening.vendor_unavailable",
+            provider: primary.id,
+            error: error instanceof Error ? error.message : "unknown",
+          }),
+        );
+        return { verdict: "review", reference: vendorUnavailable(primary.id), matches: [] };
+      }
+    },
+  };
+}
+
 // Entity screening uses OpenSanctions (sanctions, PEPs, watchlists) when
-// OPENSANCTIONS_API_KEY is set (server-only); otherwise manual review.
+// OPENSANCTIONS_API_KEY is set (server-only), falling back to manual review
+// for any subject it can't answer; without a key, everything is manual review.
 export function entityScreeningProvider(): EntityScreeningProvider {
   const apiKey = process.env.OPENSANCTIONS_API_KEY;
   if (!apiKey) return manualScreening;
-  return openSanctionsScreening(
-    { apiKey, dataset: process.env.OPENSANCTIONS_DATASET || "default" },
-    providerRequest,
+  return withManualFallback(
+    openSanctionsScreening(
+      { apiKey, dataset: process.env.OPENSANCTIONS_DATASET || "default" },
+      providerRequest,
+    ),
   );
 }
 

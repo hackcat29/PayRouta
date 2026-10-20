@@ -64,6 +64,9 @@ export function openSanctionsScreening(
         timeoutMs: config.timeoutMs ?? 8000,
         maxResponseBytes: 524288,
       });
+      // A rejected key is an operator problem, not an outage: say so.
+      if (response.status === 401 || response.status === 403)
+        throw new PortalError("ENTITY_SCREENING_KEY_REJECTED", 503);
       if (response.status < 200 || response.status >= 300)
         throw new PortalError("ENTITY_SCREENING_UNAVAILABLE", 503);
       let body: { responses?: { q?: { results?: unknown } } };

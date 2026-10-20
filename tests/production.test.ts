@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { currencyExponent, fromMinorUnits, toMinorUnits } from "../lib/partners/money";
-import { entityScreeningProvider } from "../lib/compliance/providers";
+import { entityScreeningProvider, withManualFallback } from "../lib/compliance/providers";
 import { openSanctionsScreening, openSanctionsVerdict } from "../lib/compliance/opensanctions";
 import { parseKeyring } from "../lib/portal/secret-store";
 import { parseClamdReply } from "../lib/portal/scanner-clamd";
@@ -77,6 +77,32 @@ test("screening: OpenSanctions when a key is set, otherwise manual review (never
     if (saved === undefined) delete process.env.OPENSANCTIONS_API_KEY;
     else process.env.OPENSANCTIONS_API_KEY = saved;
   }
+});
+
+test("screening fallback: an unreachable vendor or rejected key means manual review, never a clear", async () => {
+  const logs: string[] = [];
+  const failing = (status: number) =>
+    withManualFallback(
+      openSanctionsScreening({ apiKey: "k" }, async () => ({ status, headers: {}, body: "" })),
+      (line) => logs.push(line),
+    );
+  for (const status of [500, 429, 401]) {
+    const r = await failing(status).screenEntity({ name: "Acme Ltd", country: "GB", kind: "organization" });
+    assert.equal(r.verdict, "review", `HTTP ${status}`);
+    assert.equal(r.reference, "opensanctions-unavailable");
+  }
+  assert.equal(logs.length, 3);
+  assert.match(logs[2], /ENTITY_SCREENING_KEY_REJECTED/, "a rejected key is reported as such");
+  const working = withManualFallback(
+    openSanctionsScreening({ apiKey: "k" }, async () => ({
+      status: 200,
+      headers: {},
+      body: JSON.stringify({ responses: { q: { results: [{ id: "x", match: true, properties: { topics: ["sanction"] } }] } } }),
+    })),
+    (line) => logs.push(line),
+  );
+  assert.equal((await working.screenEntity({ name: "Acme Ltd" })).verdict, "match", "a working vendor's answer stands");
+  assert.equal(logs.length, 3);
 });
 
 test("secret store keyring: 32-byte keys, known active key, malformed input refused", () => {
