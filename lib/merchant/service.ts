@@ -6,7 +6,7 @@ import { secretManager } from "../portal/adapters";
 import { validateEndpoint } from "../portal/ssrf";
 import { hash } from "../payments/contracts";
 import { queue } from "../payments/service";
-import { pageInput, publicIntent, webhookInput } from "./contracts";
+import { pageInput, toPublicIntent, webhookInput } from "./contracts";
 import { z } from "zod";
 export type Scope = { orgId: string; environment: string };
 export function pagination(params: URLSearchParams) {
@@ -63,7 +63,7 @@ export async function intents(
       where: { ...scope, id },
     });
     if (!record) throw new PortalError("NOT_FOUND", 404);
-    return publicIntent.parse(record);
+    return toPublicIntent(record);
   }
   const p = pagination(params);
   const rows = await db.paymentIntent.findMany({
@@ -86,7 +86,7 @@ export async function intents(
     take: p.limit + 1,
   });
   return page(
-    rows.map((row) => publicIntent.parse(row)),
+    rows.map((row) => toPublicIntent(row)),
     p.limit,
   );
 }
@@ -255,7 +255,7 @@ export async function cancelIntent(scope: Scope, id: string, actor: string) {
       where: { ...scope, id },
     });
     if (!intent) throw new PortalError("NOT_FOUND", 404);
-    if (intent.state === "Cancelled") return publicIntent.parse(intent);
+    if (intent.state === "Cancelled") return toPublicIntent(intent);
     // Local cancellation is available only before any provider attempt exists.
     if (
       intent.state !== "Open" ||
@@ -271,6 +271,6 @@ export async function cancelIntent(scope: Scope, id: string, actor: string) {
       data: { state: "Cancelled", version: { increment: 1 } },
     });
     await audit(tx, scope.orgId, actor, "merchant.intent.cancelled", id);
-    return publicIntent.parse(updated);
+    return toPublicIntent(updated);
   });
 }

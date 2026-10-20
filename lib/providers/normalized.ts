@@ -36,7 +36,7 @@ export const paymentMethodLabels: Record<PaymentMethodId, string> = {
   "digital-wallet": "Digital wallet",
   ussd: "USSD",
   "direct-debit": "Direct debit",
-  bnpl: "Buy now, pay later",
+  bnpl: "Pay with credit",
   "cash-voucher": "Cash / voucher",
   stablecoin: "Stablecoin",
   "crypto-app": "Crypto",

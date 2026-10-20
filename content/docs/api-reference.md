@@ -26,6 +26,7 @@ Keys are created in the dashboard under **Developers → API keys**, and each ke
 
 | Method and path | Scope | Description |
 | --- | --- | --- |
+| `POST /checkouts` | payments:write | One checkout for one order: fiat methods and credit, plus crypto for USD orders. Requires `Idempotency-Key` |
 | `POST /payment-intents` | payments:write | Create an intent. Requires `Idempotency-Key` |
 | `GET /payment-intents` | payments:read | List intents |
 | `GET /payment-intents/{id}` | payments:read | Retrieve an intent |
@@ -127,6 +128,37 @@ Lists return `{ "data": [...], "nextCursor": "…" | null }`, newest first. `lim
 ## Limits
 
 Request bodies are limited to 32 KiB. Each merchant environment may make 120 authenticated requests per minute; beyond that PayRouta returns `429` with `Retry-After: 60`. Error codes are listed in [Errors and recovery](errors.md).
+
+## Create a checkout (universal)
+
+`POST /checkouts` is the one call behind the [checkout button](checkout-button.md). It takes the order and returns one checkout link where the customer can pay with any fiat method you list (including `bnpl`, [pay with credit](credit.md)) or, for USD orders, switch to stablecoins and crypto.
+
+```json
+{
+  "reference": "order_2291",
+  "payerCountry": "NG",
+  "amount": "40.00",
+  "currency": "USD",
+  "methods": ["card", "bank-transfer", "mobile-money", "bnpl"],
+  "crypto": { "options": [{ "network": "eip155:8453", "identifier": "erc20:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913" }] },
+  "returnUrl": "https://shop.example/orders/2291",
+  "metadata": { "cart": "c_88" }
+}
+```
+
+`amount` is a decimal string with no more places than the currency allows. `methods` may be empty for a crypto-only checkout; `crypto` is accepted only when `currency` is `USD`, because crypto quotes are USD invoices and PayRouta never converts at an estimated rate. The response:
+
+```json
+{
+  "id": "grp_6f0c…",
+  "reference": "order_2291",
+  "checkoutPath": "/checkout/…#…",
+  "expiresAt": "2026-10-20T12:30:00.000Z",
+  "intents": [{ "kind": "fiat", "intentId": "…" }, { "kind": "crypto", "intentId": "…" }]
+}
+```
+
+Send the customer to your PayRouta origin + `checkoutPath` (or hand it to the checkout button). Each side is an ordinary intent with its own webhooks; both carry your `reference`. Once a payment starts on one side, the other is locked, so at most one is paid. Retrying with the same key and body returns the same checkout.
 
 ## Create a quoted crypto checkout
 

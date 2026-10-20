@@ -38,6 +38,30 @@ async function step(request: APIRequestContext) {
   const r = await cmd(request, { action: "step-up", code: await code() });
   expect(r.ok(), await r.text()).toBeTruthy();
 }
+// Provider organizations come from approved access requests; tests seed them
+// directly with the requested owner.
+async function providerOrg(name: string, email = "owner@harbor.example") {
+  const user = await db.user.findUniqueOrThrow({ where: { email } });
+  const org = await db.organization.create({
+    data: {
+      name,
+      fictional: true,
+      application: { create: {} },
+      memberships: { create: { userId: user.id, role: "Owner" } },
+    },
+  });
+  return org.id;
+}
+async function mailTo(email: string, subject: string) {
+  const all = await Promise.all(
+    (await readdir(".local/portal/mail")).map(async (f) =>
+      JSON.parse(await readFile(`.local/portal/mail/${f}`, "utf8")),
+    ),
+  );
+  return all
+    .filter((m) => m.to === email && m.subject.includes(subject))
+    .sort((a, b) => b.at.localeCompare(a.at))[0];
+}
 async function shot(page: Page, name: string) {
   await page.screenshot({
     path: `test-results/portal-${name}.png`,
@@ -51,11 +75,7 @@ test("provider onboarding, immutable review, changes, activation and publication
 }) => {
   await login(page.request);
   await step(page.request);
-  const result = await cmd(page.request, {
-    action: "create-organization",
-    name: `Review journey ${Date.now()}`,
-  });
-  const { orgId } = await result.json();
+  const orgId = await providerOrg(`Review journey ${Date.now()}`);
   const seed = await db.application.findUniqueOrThrow({
     where: { orgId: "harbor" },
   });
@@ -440,7 +460,7 @@ test("tenant isolation, roles, MFA, credential redaction, quarantine and CSRF", 
   expect(r.status()).toBe(403);
   r = await page.request.post("/api/portal/command", {
     headers: { Origin: "https://evil.example" },
-    data: { action: "create-organization", name: "CSRF" },
+    data: { action: "accept-invitation", token: "x".repeat(40) },
   });
   expect(r.status()).toBe(403);
   await page.goto("/provider/overview?org=cedar");
@@ -505,7 +525,7 @@ test("all provider routes, desktop/mobile screenshots, empty production and acce
         route,
       ).toBeTruthy();
       if (route === "capabilities") {
-        await page.getByRole("button", { name: "Add capability" }).click();
+        await page.getByRole("button", { name: "Add payment method" }).click();
         await shot(page, `capability-form-${width}`);
         await page.getByRole("button", { name: "Close", exact: true }).click();
       }
@@ -536,7 +556,7 @@ test("all provider routes, desktop/mobile screenshots, empty production and acce
   ).toEqual([]);
   await page.goto("/provider/transactions?org=harbor&env=production");
   await expect(
-    page.getByRole("heading", { name: "No production transactions" }),
+    page.getByText("No production transactions", { exact: true }),
   ).toBeVisible();
   await page.goto("/provider/performance?org=harbor&env=production");
   await expect(
@@ -545,45 +565,96 @@ test("all provider routes, desktop/mobile screenshots, empty production and acce
   expect(errors).toEqual([]);
 });
 
-test("public signup verifies email, creates organization, enables MFA and accepts recipient-bound invitation", async ({
+test("access request, ops approval, invited sign-up, MFA and recipient-bound invitation", async ({
   page,
   browser,
 }) => {
   const email = `onboarding-${Date.now()}@example.invalid`;
+  // Provider sign-up without an invitation goes to the request form.
   await page.goto("/provider/sign-up");
+  await expect(page).toHaveURL(/\/partners#request$/);
   await page.getByLabel("Your name").fill("Fictional New Provider");
-  await page.getByLabel("Business email").fill(email);
+  await page.getByLabel("Work email", { exact: true }).fill(email);
+  await page.getByLabel("Company", { exact: true }).fill("Fictional new applicant");
+  await page.getByLabel("Website").fill("https://applicant.example");
+  await page.getByLabel("Country of registration").fill("Nigeria");
+  await page
+    .getByLabel("What kind of payment service do you run?")
+    .selectOption("Mobile-money provider");
+  await page.getByLabel("Mobile money").check();
+  await page
+    .getByLabel("Countries where you can process payments")
+    .fill("Nigeria, Ghana");
+  await page.getByRole("button", { name: "Request provider access" }).click();
+  await expect(page.getByText("Request received")).toBeVisible();
+  const request = await db.providerAccessRequest.findFirstOrThrow({
+    where: { email },
+  });
+  expect(request.state).toBe("Pending");
+  expect(await db.user.count({ where: { email } })).toBe(0);
+  expect(await mailTo(email, "received your PayRouta provider request")).toBeTruthy();
+
+  // Only an operations admin can approve.
+  const reviewer = await browser.newContext({ baseURL: origin });
+  await login(reviewer.request);
+  await step(reviewer.request);
+  let r = await cmd(reviewer.request, {
+    action: "ops-provider-access",
+    decision: "approve",
+    requestId: request.id,
+    orgName: "Fictional new applicant",
+  });
+  expect(r.status()).toBe(403);
+  await reviewer.close();
+  const ops = await browser.newContext({ baseURL: origin });
+  await login(ops.request, "ops@payrouta.example");
+  await step(ops.request);
+  r = await cmd(ops.request, {
+    action: "ops-provider-access",
+    decision: "approve",
+    requestId: request.id,
+    orgName: "Fictional new applicant",
+  });
+  expect(r.ok(), await r.text()).toBeTruthy();
+  r = await cmd(ops.request, {
+    action: "ops-provider-access",
+    decision: "decline",
+    requestId: request.id,
+  });
+  expect(r.status()).toBe(409);
+  await ops.close();
+
+  const approved = await mailTo(email, "approved for the PayRouta provider workspace");
+  await page.goto(approved.text.match(/https?:\/\/\S+provider\/sign-up\S+?(?=\)|\s|$)/)[0]);
+  await page.getByLabel("Full name").fill("Fictional New Provider");
+  await page.getByLabel("Email", { exact: true }).fill(email);
   await page
     .getByLabel("Password", { exact: true })
     .fill("New-Local-Account-123!");
   await page
     .getByRole("button", { name: "Create account", exact: true })
     .click();
-  await expect(page.getByRole("status")).toContainText("Account created");
+  await expect(
+    page.getByRole("heading", { name: "Check your email" }),
+  ).toBeVisible();
   const user = await db.user.findUniqueOrThrow({ where: { email } });
   expect(user.emailVerified).toBe(false);
   expect(user.internalRole).toBeNull();
-  const files = await readdir(".local/portal/mail");
-  const mails = await Promise.all(
-    files.map(async (f) =>
-      JSON.parse(await readFile(`.local/portal/mail/${f}`, "utf8")),
-    ),
-  );
-  const mail = mails.find(
-    (m) => m.to === email && m.subject.includes("Verify"),
-  );
+  const mail = await mailTo(email, "Confirm your email");
   expect(mail).toBeTruthy();
-  await page.goto(mail.text);
-  await expect(page.getByLabel("Organization name")).toBeVisible();
-  await page.getByLabel("Organization name").fill("Fictional new applicant");
-  await page
-    .getByRole("button", { name: "Create organization", exact: true })
-    .click();
-  await expect(page.locator("h1")).toHaveText("Overview");
+  await page.goto(mail.text.match(/https?:\/\/\S+verify-email\S+?(?=\)|\s|$)/)[0]);
+  await expect(
+    page.getByRole("heading", { name: "Join your provider workspace" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Accept invitation" }).click();
+  await expect(page.locator("h1")).toHaveText("Home");
   const membership = await db.membership.findFirstOrThrow({
     where: { userId: user.id },
   });
   expect(membership.role).toBe("Owner");
+  expect(membership.orgId).toBe(
+    (await db.providerAccessRequest.findUniqueOrThrow({ where: { id: request.id } })).orgId,
+  );
   await page.goto(`/provider/onboarding/company?org=${membership.orgId}`);
   await page
     .getByLabel("Legal name", { exact: true })
@@ -614,7 +685,7 @@ test("public signup verifies email, creates organization, enables MFA and accept
   await expect(page.getByRole("status")).toContainText(
     "authorized for 15 minutes",
   );
-  let r = await cmd(page.request, {
+  r = await cmd(page.request, {
     action: "member-remove",
     orgId: membership.orgId,
     memberId: membership.id,
@@ -637,9 +708,11 @@ test("public signup verifies email, creates organization, enables MFA and accept
     ),
   );
   const invitationMail = latest.find(
-    (m) => m.to === email && m.subject.includes("Join"),
+    (m) => m.to === email && m.subject.includes("invited to join"),
   );
-  const token = new URL(invitationMail.text).searchParams.get("invitation");
+  const token = new URL(
+    invitationMail.text.match(/https?:\/\/\S+invitation=[^\s)]+/)[0],
+  ).searchParams.get("invitation");
   r = await cmd(owner.request, { action: "accept-invitation", token });
   expect(r.status()).toBe(403);
   r = await cmd(page.request, { action: "accept-invitation", token });
@@ -704,11 +777,18 @@ test("internal roles, tenant-scoped details, auth limits and all deterministic s
       db.sandboxRun.count({ where: { id: { in: runs }, outcome: "Passed" } }),
     )
     .toBe(scenarios.length);
-  const throttled = await other.request.post("/api/auth/sign-in/email", {
-    headers: { Origin: origin },
-    data: { email: "owner@cedar.example", password: "wrong-password-123" },
-  });
-  expect(throttled.status()).toBe(429);
+  // Password sign-in allows 5 attempts a minute (lib/portal/auth.ts); the
+  // sign-ins above count towards it, so a few wrong guesses reach the limit.
+  const statuses: number[] = [];
+  for (let i = 0; i < 6 && !statuses.includes(429); i++) {
+    const attempt = await other.request.post("/api/auth/sign-in/email", {
+      headers: { Origin: origin },
+      data: { email: "owner@cedar.example", password: "wrong-password-123" },
+    });
+    statuses.push(attempt.status());
+  }
+  expect(statuses.at(-1)).toBe(429);
+  expect(statuses.slice(0, -1).every((s) => s === 401)).toBeTruthy();
   await provider.close();
   await other.close();
 });

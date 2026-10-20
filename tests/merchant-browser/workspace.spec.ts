@@ -63,16 +63,16 @@ test("merchant workspace: auth, environment isolation, payment table and mobile 
   await expect(
     page.getByRole("link", { name: "Settings", exact: true }),
   ).toBeVisible();
-  await page
-    .getByLabel("Environment", { exact: true })
-    .selectOption("production");
-  await page.getByRole("button", { name: "Switch", exact: true }).click();
+  const testMode = page.getByRole("switch", { name: "Test mode" });
+  await expect(testMode).toHaveAttribute("aria-checked", "true");
+  await testMode.click();
   await expect(
     page.getByRole("heading", { name: "No live access yet" }),
   ).toBeVisible();
-  await page.getByLabel("Environment", { exact: true }).selectOption("sandbox");
-  await page.getByRole("button", { name: "Switch", exact: true }).click();
-  await page.getByRole("link", { name: "Payments", exact: true }).click();
+  await expect(testMode).toHaveAttribute("aria-checked", "false");
+  await testMode.click();
+  await expect(page.getByText("You're viewing test data.", { exact: false })).toBeVisible();
+  await page.getByRole("link", { name: "Transactions", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Transactions", exact: true }),
   ).toBeVisible();
@@ -95,6 +95,9 @@ test("merchant workspace: auth, environment isolation, payment table and mobile 
     path: "test-results/merchant-payments-mobile.png",
     fullPage: true,
   });
+  // On a phone the sidebar is a drawer.
+  await page.getByRole("button", { name: "Open menu" }).click();
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
   await page.getByRole("link", { name: "Business setup", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Your business", exact: true }),
@@ -159,7 +162,11 @@ test("merchant workspace: auth, environment isolation, payment table and mobile 
   await expect(
     page.getByRole("heading", { name: "Team", exact: true }),
   ).toBeVisible();
-  await page.getByRole("link", { name: "API keys", exact: true }).click();
+  await page.getByRole("button", { name: "Open menu" }).click();
+  await page.getByRole("link", { name: "Developers", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "API keys", exact: true }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Create key", exact: true }).click();
   const secretInput = page.getByRole("textbox", {
     name: "Copy this secret now. It will not be shown again.",
@@ -168,7 +175,7 @@ test("merchant workspace: auth, environment isolation, payment table and mobile 
   const secret = await secretInput.inputValue();
   await page.getByRole("button", { name: "Hide secret" }).click();
   const row = page
-    .getByRole("listitem")
+    .getByRole("row")
     .filter({ hasText: secret.slice(0, 22) });
   await row.getByRole("button", { name: "Revoke", exact: true }).click();
   await expect(row).toContainText("Revoked");
@@ -179,9 +186,8 @@ test("merchant workspace: auth, environment isolation, payment table and mobile 
     },
   });
   expect(revoked.status()).toBe(401);
-  await page.getByLabel("Environment", { exact: true }).focus();
+  await page.getByRole("button", { name: "Open menu" }).focus();
   await page.keyboard.press("Tab");
-  await expect(
-    page.getByRole("button", { name: "Switch", exact: true }),
-  ).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("switch", { name: "Test mode" })).toBeFocused();
 });

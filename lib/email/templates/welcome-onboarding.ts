@@ -1,4 +1,4 @@
-import { renderBaseTemplate, stripHtmlToText } from "./base";
+import { greeting, renderBaseTemplate, siteUrl as defaultSite, stripHtmlToText } from "./base";
 
 export interface WelcomeEmailProps {
   name?: string;
@@ -13,70 +13,32 @@ export function renderWelcomeEmail(props: WelcomeEmailProps): {
   html: string;
   text: string;
 } {
-  const {
-    name,
-    role = "merchant",
-    siteUrl = process.env.SITE_URL || "https://payrouta.com",
-    unsubscribeUrl,
-    preferencesUrl,
-  } = props;
+  const { name, role = "merchant", siteUrl = defaultSite(), unsubscribeUrl, preferencesUrl } = props;
+  const provider = role === "provider";
 
-  const subject = "Welcome to PayRouta — Global Multi-Rail Payment Routing";
-  const greeting = name ? `Hi ${name},` : "Welcome,";
-
-  const isDeveloper = role === "developer";
-
-  const bodyContent = `
-    <p>${greeting}</p>
-    <p>
-      Welcome to PayRouta. You're now set up with the modern cross-border payment routing layer.
-      With PayRouta, you connect once and gain access to resilient fiat providers (Paystack, Flutterwave, Stripe)
-      alongside high-speed crypto and stablecoin rails (Solana, Stellar, USDC, USDT, and yield-bearing Ondo USDY).
-    </p>
-
-    <div style="background: rgba(0, 82, 255, 0.08); border-left: 3px solid #0052FF; padding: 14px 18px; margin: 20px 0; border-radius: 0 8px 8px 0;">
-      <strong style="color: #FFFFFF; font-size: 14px;">Next steps to get started:</strong>
-      <ol style="margin: 8px 0 0 0; padding-left: 20px; color: #CBD5E1;">
-        <li style="margin-bottom: 6px;">Configure your preferred payment fallback rules in your dashboard.</li>
-        <li style="margin-bottom: 6px;">Test your first sandbox checkout with simulated provider outages.</li>
-        <li style="margin-bottom: 6px;">Deploy webhooks to receive signed notifications on payment confirmations.</li>
-      </ol>
-    </div>
-
-    ${
-      isDeveloper
-        ? `
-    <h3 style="color: #FFFFFF; font-size: 15px; margin-top: 24px; margin-bottom: 8px;">Quickstart API Request</h3>
-    <div class="code-block">
-curl -X POST ${siteUrl}/api/v1/payments/intents \\<br/>
-&nbsp;&nbsp;-H "Authorization: Bearer sec_live_..." \\<br/>
-&nbsp;&nbsp;-H "Content-Type: application/json" \\<br/>
-&nbsp;&nbsp;-d '{"amount": "150.00", "currency": "USD", "settlement": {"target_instrument": "ondo_usdy"}}'
-    </div>
-    `
-        : ""
-    }
-
-    <p style="margin-top: 20px;">
-      Need any assistance or custom provider configuration? Our team of payment engineering specialists is available around the clock.
-    </p>
-  `;
+  const bodyContent = provider
+    ? `<p>${greeting(name)}</p>
+<p>Thanks for your interest in working with PayRouta. We'll send you news about the partner programme and changes to the Provider API.</p>
+<p>If you'd like to talk about an integration now, reply to this email. It goes to the team, not a ticket queue.</p>`
+    : `<p>${greeting(name)}</p>
+<p>Thanks for signing up. Here's how to get started:</p>
+<ol>
+  <li><strong>Create a workspace.</strong> You get test API keys straight away, with no paperwork.</li>
+  <li><strong>Make a test payment.</strong> The quickstart takes you from an API key to a paid checkout.</li>
+  <li><strong>Apply to go live.</strong> Tell us about your business once. We verify it and set up processing with our partners.</li>
+</ol>
+<p>If you get stuck, reply to this email. It goes to the team, not a ticket queue.</p>`;
 
   const html = renderBaseTemplate({
-    previewText: "You are now plugged into PayRouta's resilient multi-rail routing gateway.",
-    headline: "Never Lose a Payment to Provider Downtime",
+    previewText: provider ? "Thanks for your interest in the partner programme." : "Three steps to your first test payment.",
+    headline: "Welcome to PayRouta",
     bodyContent,
-    ctaText: isDeveloper ? "Explore API Docs" : "Open Merchant Dashboard",
-    ctaUrl: isDeveloper ? `${siteUrl}/docs/quickstart` : `${siteUrl}/merchant`,
-    secondaryCtaText: "View Interactive Demo",
-    secondaryCtaUrl: `${siteUrl}/platform/provider-routing`,
+    ctaText: provider ? "How the partner programme works" : "Open your dashboard",
+    ctaUrl: provider ? `${siteUrl}/solutions/providers` : `${siteUrl}/merchant`,
+    secondaryCtaText: provider ? undefined : "Read the quickstart",
+    secondaryCtaUrl: provider ? undefined : `${siteUrl}/docs/quickstart`,
     unsubscribeUrl,
     preferencesUrl,
   });
-
-  return {
-    subject,
-    html,
-    text: stripHtmlToText(html),
-  };
+  return { subject: "Welcome to PayRouta", html, text: stripHtmlToText(html) };
 }

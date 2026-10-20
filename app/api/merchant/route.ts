@@ -1,4 +1,5 @@
 import { createMerchantCryptoCheckout } from "@/lib/merchant/crypto-checkout";
+import { setFeeBearer } from "@/lib/merchant/fees";
 import { createStablecoinCheckout } from "@/lib/merchant/stablecoin-checkout";
 import { configureStablecoins } from "@/lib/merchant/stablecoins";
 import { liveScopeCommand } from "@/lib/merchant/live-scope";
@@ -100,6 +101,12 @@ export async function POST(request: Request) {
       return teamCommand(raw, request.headers);
     if (["policy", "approve-risk", "review-application"].includes(raw?.action))
       return operatorCommand(raw, request.headers);
+    if (raw?.action === "fee-bearer") {
+      const orgId = z.string().parse(raw.orgId);
+      const { session, config } = await merchantMember(orgId, "configure", request.headers);
+      await stepUp(request.headers);
+      return setFeeBearer({ orgId, environment: config.environment }, session.user.id, raw.input);
+    }
     const b = command.parse(raw);
     if (
       b.action === "webhook" ||

@@ -11,6 +11,8 @@ import {
 import type { DepositPayment } from "@/lib/blockchain/wallet-payment";
 import { checkoutCountdown } from "@/lib/payments/checkout-display";
 import { chain, networkName } from "@/lib/blockchain/chains";
+import { returnHandler, switchCheckout, usePopupBridge } from "./popup";
+import { CrossChain } from "./cross-chain";
 import "./checkout.css";
 type Action = {
   kind: string;
@@ -23,6 +25,8 @@ type Action = {
   image?: string;
 };
 type Progress = {
+  // Universal checkout: the order's other checkout.
+  alternatives?: { kind: "fiat" | "crypto"; available: boolean }[];
   method?: string;
   paymentMethods?: Method[];
   cryptoQuote?: { usdAmount: string; source: string } | null;
@@ -40,6 +44,8 @@ type Progress = {
   merchant: string;
   reference: string;
   amount: string;
+  // Set when the merchant passes fees to the customer.
+  customerFee?: string | null;
   state: string;
   attemptState?: string;
   attemptId?: string;
@@ -301,6 +307,14 @@ export function Checkout({ id }: { id: string }) {
   const expired = !!data?.expiresAt && Date.parse(data.expiresAt) <= clock,
     confirmed = data?.state === "Confirmed",
     active = data?.attemptId && data.attemptState !== "Rejected";
+  usePopupBridge(id, {
+    confirmed,
+    pending: data?.attemptState === "Pending",
+    returnUrl: data?.returnUrl,
+    reference: data?.reference,
+    method: data?.method,
+  });
+  const toMerchant = data ? returnHandler(id, { returnUrl: data.returnUrl, reference: data.reference }) : undefined;
   const visibleMethods = [
     ...["stablecoin", "crypto-app"].map(
       (method) =>
@@ -342,6 +356,14 @@ export function Checkout({ id }: { id: string }) {
                 <dt>Order</dt>
                 <dd>{data.reference}</dd>
               </div>
+              {data.customerFee && (
+                <div>
+                  <dt>Includes processing fee</dt>
+                  <dd>
+                    {displayTokenAmount(data.customerFee)} {data.symbol || ""}
+                  </dd>
+                </div>
+              )}
             </dl>
           )}
             {data?.cryptoQuote && (
@@ -434,6 +456,25 @@ export function Checkout({ id }: { id: string }) {
                 </p>
               </div>
             )}
+          {data?.alternatives?.some((x) => x.kind === "fiat" && x.available) &&
+            !active &&
+            !confirmed &&
+            !expired && (
+              <button
+                type="button"
+                className="sc-switch"
+                disabled={busy}
+                onClick={() => {
+                  setBusy(true);
+                  switchCheckout(id, "fiat").catch((e) => {
+                    setError((e as Error).message);
+                    setBusy(false);
+                  });
+                }}
+              >
+                Pay with card, digital wallet, bank transfer, mobile money or credit instead →
+              </button>
+            )}
           {error && (
             <p role="alert" className="sc-error">
               {error}
@@ -461,7 +502,7 @@ export function Checkout({ id }: { id: string }) {
                   ? "Settled to the merchant’s receive address."
                   : "Updating the settlement record…"}
               </p>
-              <a className="sc-primary" href={data.returnUrl}>
+              <a className="sc-primary" href={data.returnUrl} onClick={toMerchant}>
                 Return to merchant
               </a>
             </section>
@@ -492,7 +533,7 @@ export function Checkout({ id }: { id: string }) {
                 </button>
               )}
               <p role="status">{copied}</p>
-              <a className="sc-primary" href={data.returnUrl}>
+              <a className="sc-primary" href={data.returnUrl} onClick={toMerchant}>
                 Return to merchant for a new checkout
               </a>
               <p>
@@ -566,6 +607,7 @@ export function Checkout({ id }: { id: string }) {
                   </div>
                 </div>
               </details>
+              <CrossChain api={api} onCopy={(v, l) => void copy(v, l)} />
               <p role="status">{copied}</p>
               <p className="sc-pending">
                 Waiting for your transfer. After it is detected, network
@@ -681,14 +723,15 @@ export function Checkout({ id }: { id: string }) {
             )}
           </section>
           <footer className="sc-footer">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-              <rect x="5" y="11" width="14" height="10" rx="2" />
-              <path d="M8 11V8a4 4 0 0 1 8 0v3" />
-            </svg>
             <span>
-              Paid straight to the merchant’s wallet and verified on-chain ·
               Powered by <strong>PayRouta</strong>
             </span>
+            <Link href="/terms" target="_blank">
+              Terms
+            </Link>
+            <Link href="/privacy" target="_blank">
+              Privacy
+            </Link>
           </footer>
         </section>
       </div>

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { currencyExponent, fromMinorUnits, toMinorUnits } from "../lib/partners/money";
-import { openSanctionsScreening, openSanctionsVerdict } from "../lib/compliance/opensanctions";
+import { entityScreeningProvider } from "../lib/compliance/providers";
 import { parseKeyring } from "../lib/portal/secret-store";
 import { parseClamdReply } from "../lib/portal/scanner-clamd";
 import { safeNext } from "../lib/portal/next-path";
@@ -27,39 +27,11 @@ test("money: amounts reach providers only when precision matches the currency", 
   assert.equal(fromMinorUnits(1000, "JPY"), "1000");
 });
 
-test("screening: sanctions matches stop, PEP-only matches go to review, weak hits are clear", async () => {
-  assert.equal(openSanctionsVerdict([]), "clear");
-  assert.equal(openSanctionsVerdict([{ match: false, properties: { topics: ["sanction"] } }]), "clear");
-  assert.equal(openSanctionsVerdict([{ match: true, properties: { topics: ["role.pep"] } }]), "review");
-  assert.equal(openSanctionsVerdict([{ match: true, properties: { topics: ["sanction"] } }]), "match");
-  let sent: { path: string; headers?: Record<string, string>; body?: string } | undefined;
-  const screening = openSanctionsScreening({ apiKey: "k" }, async (_base, options) => {
-    sent = options;
-    return {
-      status: 200,
-      headers: {},
-      body: JSON.stringify({
-        responses: { q: { results: [{ id: "NK-1", match: true, properties: { topics: ["sanction"] } }] } },
-      }),
-    };
-  });
-  const r = await screening.screenEntity({ name: "Acme Ltd", country: "GB", kind: "organization" });
-  assert.equal(r.verdict, "match");
-  assert.equal(r.reference, "NK-1");
-  assert.equal(sent?.headers?.Authorization, "ApiKey k");
-  assert.match(sent!.path, /^\/match\/default\?threshold=0\.7$/);
-  assert.deepEqual(JSON.parse(sent!.body!).queries.q, {
-    schema: "LegalEntity",
-    properties: { name: ["Acme Ltd"], country: ["gb"] },
-  });
-  await assert.rejects(
-    openSanctionsScreening({}, async () => ({ status: 200, headers: {}, body: "{}" })).screenEntity({ name: "x" }),
-    /NOT_CONFIGURED/,
-  );
-  await assert.rejects(
-    openSanctionsScreening({ apiKey: "k" }, async () => ({ status: 500, headers: {}, body: "" })).screenEntity({ name: "x" }),
-    /UNAVAILABLE/,
-  );
+test("screening: without an automated vendor every business goes to manual review", async () => {
+  const provider = entityScreeningProvider();
+  assert.equal(provider.id, "manual-review-required");
+  const r = await provider.screenEntity({ name: "Acme Ltd", country: "GB", kind: "organization" });
+  assert.equal(r.verdict, "review", "never an automatic clear");
 });
 
 test("secret store keyring: 32-byte keys, known active key, malformed input refused", () => {
@@ -130,4 +102,12 @@ test("availability merge: the merchant's own accounts make a method available, a
   assert.equal("action" in merged.methods[0], false);
   assert.equal(mergeAvailability(evaluation, [candidate], ["bank-transfer"]).methods[0].status, "UNAVAILABLE");
   assert.equal(evaluation.methods[0].status, "UNAVAILABLE", "input is not mutated");
+});
+
+test("object storage: R2 endpoints are recognised and a bucket path is never doubled", async () => {
+  const { isR2, s3Endpoint } = await import("../lib/portal/adapters");
+  assert.equal(isR2("https://abc123.r2.cloudflarestorage.com/payrouta"), true);
+  assert.equal(isR2("https://s3.eu-central-1.amazonaws.com"), false);
+  assert.equal(s3Endpoint("https://abc123.r2.cloudflarestorage.com/payrouta"), "https://abc123.r2.cloudflarestorage.com");
+  assert.equal(s3Endpoint(""), undefined);
 });

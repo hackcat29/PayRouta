@@ -76,7 +76,7 @@ test("merchant treasury: activation, balances, disputes and refunds, only in Pay
   // No provider names reach the merchant.
   for (const path of ["balances", "disputes", "activation"]) {
     await page.goto(`/merchant/${path}${q(live.orgId)}`);
-    await expect(page.locator("article")).not.toContainText(/Stripe|Paystack|Flutterwave|dLocal|Tink|Sandbox Platform/);
+    await expect(page.locator(".ms-body")).not.toContainText(/Stripe|Paystack|Flutterwave|dLocal|Tink|Sandbox Platform/);
   }
 });
 

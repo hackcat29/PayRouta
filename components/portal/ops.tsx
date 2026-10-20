@@ -435,6 +435,7 @@ export function Ops({ data, route }: { data: OpsData; route: string }) {
             {[
               ["applications", "Applications"],
               ["providers", "Providers"],
+              ["provider-requests", "Access requests"],
               ["requirements", "Requirements"],
               ["audit-log", "Audit log"],
               ["payments", "Payments"],

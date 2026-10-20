@@ -2,12 +2,15 @@
 
 * [Overview](README.md)
 * [Quickstart](quickstart.md)
+* [Checkout button](checkout-button.md)
 
 ## Concepts
 * [Provider accounts](provider-accounts.md)
 * [Payment intents](payment-intents.md)
 * [Payment methods](payment-methods.md)
 * [Settlement](settlement.md)
+* [Pay with credit](credit.md)
+* [Pay from any chain](cross-chain.md)
 
 ## Integration
 * [API reference](api-reference.md)
@@ -15,6 +18,10 @@
 * [Webhooks](webhooks.md)
 * [Errors and recovery](errors.md)
 * [Provider integration](provider-integration.md)
+
+## Platforms
+* [WooCommerce](woocommerce.md)
+* [Shopify](shopify.md)
 
 ## Payment Providers
 * [Directory Overview](providers/README.md)

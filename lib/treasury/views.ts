@@ -149,8 +149,10 @@ export async function paymentFunds(intentId: string) {
   return {
     asset: p.asset,
     grossMinor: p.grossMinor.toFixed(0),
-    feeMinor: p.feeMinor.toFixed(0),
-    processingFeeMinor: p.providerFeeMinor.toFixed(0),
+    // PayRouta's own fee; the partner's standard fee we withheld on the
+    // merchant's behalf counts as processing, like one the partner deducts.
+    feeMinor: (BigInt(p.feeMinor.toFixed(0)) - BigInt(p.partnerFeeMinor.toFixed(0))).toString(),
+    processingFeeMinor: (BigInt(p.providerFeeMinor.toFixed(0)) + BigInt(p.partnerFeeMinor.toFixed(0))).toString(),
     netMinor: (BigInt(p.grossMinor.toFixed(0)) - BigInt(p.feeMinor.toFixed(0)) - BigInt(p.providerFeeMinor.toFixed(0))).toString(),
     fundsState: p.state === "Pending" ? "Incoming" : p.reserveMinor && p.state === "Available" ? "Available (reserve held)" : "Available",
     availableAt: p.availableAt?.toISOString() ?? null,

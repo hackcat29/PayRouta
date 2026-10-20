@@ -80,7 +80,7 @@ export const fiat = referenceData.currencies;
 export function allowedRoute(role: string, route: string) {
   if (["Owner", "Admin"].includes(role)) return true;
   if (
-    ["overview", "settings", "organizations/new", "team"].includes(route) ||
+    ["overview", "settings", "team"].includes(route) ||
     /^(transactions|settlements|performance|availability)(\/|$)/.test(route)
   )
     return true;

@@ -1,0 +1,33 @@
+---
+title: "GCash"
+description: "GCash is the Philippines' #1 financial super-app with over 80 million registered users, commanding more than 85% market penetration among Philippine mobile\u2026"
+---
+
+<Note>
+**Implementation status:** Provider code path: adyen, xendit. Not live-qualified by code alone. Merchant account enablement, credentials and sandbox qualification are required. See [current coverage](/partners/provider-coverage).
+</Note>
+
+**Category**: [Digital Wallets](/providers/digital-wallets)  
+**Provider**: Mynt (Globe Telecom & Ant Group) / G-Xchange, Inc.  
+**Method ID**: `digital-wallet`  
+**Integration Mode**: `STANDARD` / `CONFIGURABLE`
+
+GCash is the Philippines' #1 financial super-app with over 80 million registered users, commanding more than 85% market penetration among Philippine mobile internet users.
+
+---
+
+## Technical Specifications
+
+- **Corridor**: Philippines (`PHP`), cross-border merchant settlement in `USD` or `PHP`.
+- **Payment Experience**:
+  - **Mobile Web / In-App**: Seamless redirection to GCash app with MPIN or Face Unlock authorization.
+  - **Web / Desktop**: QR Ph compliant dynamic QR code or SMS OTP web login.
+- **Settlement**: BSP-regulated direct remittance to merchant Philippine peso bank accounts.
+
+---
+
+## Capabilities & Limits
+
+- **Instant Auth**: Sub-2s settlement notification via verified webhook.
+- **Limits**: Configurable based on the customer's GCash tier (Basic, Fully Verified, Plus).
+- **Merchant Direct Relationship**: Direct contracting through Mynt merchant acquiring program.

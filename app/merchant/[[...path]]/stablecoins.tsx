@@ -49,7 +49,7 @@ export function Stablecoins({
         <p>
           {environment === "sandbox"
             ? "Use test tokens on the supported test networks. Sandbox platform fees are zero."
-            : "Live payments require approved business evidence, receive-address ownership and a current processing scope. Platform fees are billed separately at 0.10%, using your approved billing valuation and cap."}
+            : "Live payments require approved business evidence, receive-address ownership and a current processing scope. Our fee is 1.5% of each payment, all in, billed separately."}
         </p>
         {accounts.length ? (
           <div className="p-table-wrap">

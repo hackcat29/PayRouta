@@ -4,7 +4,9 @@ import { PortalError } from "../../portal/domain";
 import { sandboxSimulation, secretManager } from "../../portal/adapters";
 import { providerRequest } from "../../providers/adapters/http";
 import type { PlatformAdapter, PlatformModule } from "./contract";
+import { splitPlatformConfig } from "../partner-fees";
 import { sandboxPlatform, sandboxSplitPlatform } from "./sandbox";
+import { sandboxCreditPlatform } from "./sandbox-credit";
 import { stripeCustomPlatform } from "./stripe-custom";
 import { paystackSplitPlatform } from "./paystack-split";
 import { flutterwaveSplitPlatform } from "./flutterwave-split";
@@ -15,6 +17,7 @@ const modules = new Map<string, PlatformModule>(
   [
     sandboxPlatform,
     sandboxSplitPlatform,
+    sandboxCreditPlatform,
     stripeCustomPlatform,
     paystackSplitPlatform,
     flutterwaveSplitPlatform,
@@ -42,7 +45,7 @@ export function platformAdapter(account: {
   if (mod.manifest.sandboxOnly && account.environment !== "sandbox")
     throw new PortalError("SANDBOX_PLATFORM_ONLY", 409);
   const parsed = mod.configSchema.safeParse({
-    ...(account.config as object),
+    ...splitPlatformConfig(account.config).moduleConfig,
     environment: account.environment,
   });
   if (!parsed.success) throw new PortalError("PLATFORM_ACCOUNT_CONFIG_INVALID", 409);

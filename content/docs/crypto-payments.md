@@ -29,7 +29,7 @@ Invoices are denominated in USD. Rates come from [CoinGecko Simple Price](https:
 
 The rate source must include its update timestamp. Public/demo prices must be at most five minutes old; Pro prices must be at most two minutes old. Quotes last two minutes after the price response. Missing, stale, future, malformed and rate-limited prices fail closed. No estimated substitute rate is used. For production traffic, configure an appropriate CoinGecko API plan and an encrypted `COINGECKO_API_KEY_REF`; use `COINGECKO_API_PLAN=pro` for Pro. The key remains server-side.
 
-Live platform fees are 0.10%, capped at $1 per successful crypto payment, billed separately using the immutable USD valuation. Sandbox platform fees are zero and non-billable. Customers also pay their wallet’s network fee. Merchants receive the invoice coin amount directly.
+Live fees are 1.5% of each successful crypto payment, valued in USD from the checkout quote and billed monthly (or added to the quoted amount if customers pay the fees; see [Fees and billing](billing.md)). Sandbox platform fees are zero and non-billable. Customers also pay their wallet’s network fee. Merchants receive the invoice coin amount directly.
 
 The chosen network and coin are locked once an attempt starts. A successful transfer must match the original deployment, recipient and exact amount. Finality and canonical block or closed-ledger evidence are required. For crypto, the transfer must be included before the immutable quote deadline; later finality and settlement can complete after expiry. A late, mismatched or uncertain payment requires inspection and is never silently repriced. Refunds remain the merchant’s responsibility.
 

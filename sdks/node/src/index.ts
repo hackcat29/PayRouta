@@ -60,6 +60,26 @@ export type CryptoCheckoutInput = {
   usdAmount: string;
   options: { network: string; identifier: string }[];
 };
+// One checkout for one order (POST /checkouts): fiat methods (including
+// credit) in the order currency, plus crypto from any wallet for USD orders.
+export type UniversalCheckoutInput = {
+  reference: string;
+  payerCountry: string;
+  amount: string;
+  currency: string;
+  methods?: Exclude<IntentInput["methods"][number], "stablecoin" | "crypto-app">[];
+  crypto?: { options: { network: string; identifier: string }[] };
+  returnUrl: string;
+  feeBearer?: "merchant" | "customer";
+  metadata?: Record<string, string>;
+};
+export type UniversalCheckout = {
+  id: string;
+  reference: string;
+  checkoutPath: string;
+  expiresAt: string;
+  intents: { kind: "fiat" | "crypto"; intentId: string }[];
+};
 export type CheckoutSession = {
   id: string;
   intentId: string;
@@ -108,6 +128,14 @@ export class PayRouta {
       throw new Error("Key environment mismatch");
     if ((options.timeoutMs ?? 10000) <= 0)
       throw new Error("Timeout must be positive");
+  }
+  createCheckout(input: UniversalCheckoutInput, idempotencyKey: string) {
+    return this.request<UniversalCheckout>(
+      "POST",
+      "checkouts",
+      input,
+      idempotencyKey,
+    );
   }
   createCryptoCheckout(input: CryptoCheckoutInput, idempotencyKey: string) {
     return this.request<CheckoutSession>(

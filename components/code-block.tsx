@@ -27,7 +27,7 @@ export function CodeBlock({
           {status === "Copied" ? <Check size={16} /> : <Copy size={16} />} Copy
         </button>
       </div>
-      <pre>
+      <pre tabIndex={0}>
         <code>{code}</code>
       </pre>
       <span className="copy-status" role="status">

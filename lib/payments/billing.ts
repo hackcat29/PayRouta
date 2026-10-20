@@ -13,6 +13,9 @@ export async function accrueFee(
   intent: PaymentIntent,
   now: Date,
   collection: "invoice" | "withheld" = "invoice",
+  // The partner's standard fee charged to the merchant where PayRouta pays
+  // the partner (lib/treasury/partner-fees.ts), in the fee's currency.
+  partnerFeeMinor = 0n,
 ) {
   if (await tx.paymentFee.findUnique({ where: { intentId: intent.id } }))
     return;
@@ -54,13 +57,15 @@ export async function accrueFee(
       currency: f.currency,
       precision: f.precision,
       amountMinor: f.amountMinor,
+      partnerFeeMinor: partnerFeeMinor.toString(),
       billable: !snapshot.free,
       collection,
       terms: json(snapshot),
       effectiveAt: now,
     },
   });
-  if (!snapshot.free && BigInt(f.amountMinor) > 0n && collection === "invoice")
+  const invoiced = BigInt(f.amountMinor) + partnerFeeMinor;
+  if (!snapshot.free && invoiced > 0n && collection === "invoice")
     await post(
       tx,
       {
@@ -70,12 +75,12 @@ export async function accrueFee(
         asset: `fiat:${f.currency}:`,
         book: "payrouta-platform-accrual",
         purpose:
-          "Platform fee receivable; billed monthly, not deducted from provider settlement",
+          "Platform fee (and any partner fee passed on) receivable; billed monthly, not deducted from provider settlement",
         effectiveAt: now,
       },
       [
-        { account: "platform-receivable", debit: f.amountMinor, credit: "0" },
-        { account: "platform-fee-revenue", debit: "0", credit: f.amountMinor },
+        { account: "platform-receivable", debit: invoiced.toString(), credit: "0" },
+        { account: "platform-fee-revenue", debit: "0", credit: invoiced.toString() },
       ],
     );
 }
@@ -102,15 +107,21 @@ export async function feeTotals(
       collection: "invoice",
       effectiveAt: { gte: from, lt: to },
     },
-    _sum: { amountMinor: true },
+    _sum: { amountMinor: true, partnerFeeMinor: true },
     _count: true,
   });
-  return groups.map((g) => ({
-    currency: g.currency,
-    precision: g.precision,
-    amountMinor: g._sum.amountMinor?.toFixed(0) ?? "0",
-    payments: g._count,
-  }));
+  return groups.map((g) => {
+    const platform = BigInt(g._sum.amountMinor?.toFixed(0) ?? "0");
+    const partner = BigInt(g._sum.partnerFeeMinor?.toFixed(0) ?? "0");
+    return {
+      currency: g.currency,
+      precision: g.precision,
+      amountMinor: (platform + partner).toString(),
+      platformFeeMinor: platform.toString(),
+      partnerFeeMinor: partner.toString(),
+      payments: g._count,
+    };
+  });
 }
 // Closed-month usage statements are immutable pretax records, not tax invoices or receipts.
 export async function closeStatement(
@@ -158,13 +169,14 @@ export async function closeStatement(
         currency,
         precision,
         amountMinor: fees
-          .reduce((n, f) => n + BigInt(f.amountMinor.toFixed(0)), 0n)
+          .reduce((n, f) => n + BigInt(f.amountMinor.toFixed(0)) + BigInt(f.partnerFeeMinor.toFixed(0)), 0n)
           .toString(),
         lines: json(
           fees.map((f) => ({
             intentId: f.intentId,
             method: f.method,
             amountMinor: f.amountMinor.toFixed(0),
+            partnerFeeMinor: f.partnerFeeMinor.toFixed(0),
             effectiveAt: f.effectiveAt.toISOString(),
             terms: f.terms,
           })),

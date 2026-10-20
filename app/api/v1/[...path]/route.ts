@@ -1,4 +1,5 @@
 import { createCryptoCheckout } from "@/lib/payments/crypto-checkout";
+import { createUniversalCheckout } from "@/lib/payments/universal";
 import { merchantConfiguration } from "@/lib/merchant/configuration";
 import { randomUUID } from "node:crypto";
 import { ZodError } from "zod";
@@ -7,7 +8,7 @@ import {
   operations,
   responseContract,
   openapi,
-  publicIntent,
+  toPublicIntent,
   sessionInput,
 } from "@/lib/merchant/contracts";
 import {
@@ -86,8 +87,16 @@ async function handle(
         })),
       };
     } else if (operation === "POST payment-intents" && !id) {
-      response = publicIntent.parse(
+      response = toPublicIntent(
         await createIntent(actor.orgId, key, await body()),
+      );
+      status = 201;
+    } else if (operation === "POST checkouts" && !id) {
+      response = await createUniversalCheckout(
+        actor.orgId,
+        actor.environment,
+        key,
+        await body(),
       );
       status = 201;
     } else if (operation === "POST crypto-checkouts" && !id) {
@@ -115,6 +124,11 @@ async function handle(
       response = await settlements(tenant, params, id);
     else if (operation === "GET configuration" && !id)
       response = await merchantConfiguration(actor.orgId, actor.environment);
+    else if (operation === "GET fee-settings" && !id)
+      response = await db.merchantConfig.findUnique({
+        where: { orgId: actor.orgId },
+        select: { feeBearer: true },
+      });
     else if (operation === "GET webhook-endpoint" && !id)
       response = await db.merchantConfig.findUnique({
         where: { orgId: actor.orgId },

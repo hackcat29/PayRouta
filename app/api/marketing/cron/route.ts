@@ -1,22 +1,25 @@
-import { NextResponse } from "next/server";
+import { timingSafeEqual } from "node:crypto";
 import { MarketingService } from "@/lib/email/marketing-service";
+import { errorResponse, json, requireMarketingAdmin } from "@/lib/email/http";
 
-export async function POST() {
+// The worker (npm run portal:worker) already sends due onboarding emails. This
+// endpoint is for an external scheduler holding CRON_SECRET, or an ops admin.
+function bearerOk(request: Request) {
+  const secret = process.env.CRON_SECRET;
+  const given = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
+  if (!secret || secret.length < 32 || given.length !== secret.length) return false;
+  return timingSafeEqual(Buffer.from(given), Buffer.from(secret));
+}
+
+async function run(request: Request) {
   try {
+    if (!bearerOk(request)) await requireMarketingAdmin(request);
     const result = await MarketingService.processScheduledDrips();
-    return NextResponse.json({ success: true, ...result });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Drip processing failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return json({ success: true, ...result });
+  } catch (error) {
+    return errorResponse(error, "Drip processing failed");
   }
 }
 
-export async function GET() {
-  try {
-    const result = await MarketingService.processScheduledDrips();
-    return NextResponse.json({ success: true, ...result });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Drip processing failed";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
-}
+export const GET = run;
+export const POST = run;

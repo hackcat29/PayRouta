@@ -80,7 +80,7 @@ export function CryptoPayments({
           Rates are powered by CoinGecko.
         </p>
         <p>
-          Quotes last two minutes. Live platform fees are 0.10%, capped at $1,
+          Quotes last two minutes. Our fee is 1.5% of each payment, all in,
           billed separately. Customers pay their wallet’s network fee. Exchange
           app payments:{" "}
           <span className="merchant-status-badge">Coming soon</span>

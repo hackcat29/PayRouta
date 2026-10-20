@@ -4,7 +4,7 @@ How PayRouta collects payments on behalf of merchants through its own provider a
 
 > **Status (2026-10-09):** phase 1 (foundation) and phase 2a (Stripe Connect Custom with PayRouta-owned onboarding: sub-accounts opened by API, payments with the fee withheld, funds availability and reserve release) are implemented. So are Paystack subaccounts (split settlement). See §3b for every partner. They are verified against the local database with a fictional sandbox platform, and against simulated Stripe responses. Nothing has run against Stripe test mode yet, so no real money moves. Payouts, refunds, disputes and reconciliation (2b, 2c) are next.
 >
-> **Pricing blocker before production:** on this rail PayRouta pays Stripe's processing fees (`fees.payer: application`). The current fee schedule (0.25% capped at $2, [PLATFORM-BILLING.md](PLATFORM-BILLING.md)) is far below Stripe's card fees, so every payment would lose money. Aggregator payments need their own fee schedule before a production platform account is enabled.
+> **Pricing (resolved 2026-10-09):** on this rail PayRouta pays Stripe's processing fees (`fees.payer: application`). Pricing v2 withholds PayRouta's 1% plus Stripe's standard fee, configured as `standardFees` on the platform account; a production account can't be enabled without it ([PLATFORM-BILLING.md](PLATFORM-BILLING.md)).
 >
 > This is an engineering design, not legal advice. Each jurisdiction's licensing position needs counsel's sign-off before production.
 
@@ -253,7 +253,7 @@ Patterned on established processor dashboards and hosted checkouts: an activatio
 - **Payment detail:** a money breakdown (paid, PayRouta fee, processing fee, net, availability), refunds and disputes on the payment, and a refund form with an amount and reason (step-up). Pay-by-bank payments explain that the merchant refunds the customer from their own bank.
 
 **Customer checkout** (`app/checkout/[sessionId]/fiat-view.tsx`, `router.tsx`):
-- The router exchanges the link's token once, then shows the fiat checkout for card, bank, mobile money and USSD payments, or the existing stablecoin checkout for on-chain ones.
+- The router exchanges the link's token once, then shows the fiat checkout for card, wallet, bank, mobile money and USSD payments, or the existing stablecoin checkout for on-chain ones.
 - Layout: order summary on one side, the payment method choice and a single "Pay £x" button on the other. Then a "Continue to secure payment" redirect, a test-payment step in sandbox, a processing state, success, and a retry after failure.
 - Customers only see the merchant and PayRouta. It works on mobile, respects reduced motion, and the checked screens pass axe (WCAG 2 A/AA).
 - **Launch scope.** The launch scope (`lib/payments/launch.ts`) still limits every running server to stablecoin and crypto deposits, plus one more path (`lib/treasury/launch.ts`): fiat payments for a merchant that is Live on PayRouta's platform accounts.

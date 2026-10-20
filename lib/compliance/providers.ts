@@ -1,6 +1,4 @@
 import { PortalError } from "../portal/domain";
-import { providerRequest } from "../providers/adapters/http";
-import { openSanctionsScreening } from "./opensanctions";
 
 // Normalized compliance vendor interfaces. Vendors (Didit, Monnify identity,
 // others) are replaceable behind these interfaces; vendor-specific field names
@@ -78,15 +76,19 @@ export function unconfiguredCompliance(id: string): KycProvider &
   };
 }
 
-// Entity screening uses OpenSanctions when OPENSANCTIONS_API_KEY is set
-// (server-only). Otherwise it fails closed.
+// No automated sanctions screening vendor is wired at the moment, so every
+// real business goes to an operations admin for a manual decision
+// (partner-screening-review). It never returns "clear" on its own.
+export const manualReviewProviderId = "manual-review-required";
+export const manualScreening: EntityScreeningProvider = {
+  id: manualReviewProviderId,
+  async screenEntity() {
+    return { verdict: "review", reference: manualReviewProviderId, matches: [] };
+  },
+};
+
 export function entityScreeningProvider(): EntityScreeningProvider {
-  const apiKey = process.env.OPENSANCTIONS_API_KEY;
-  if (!apiKey) return complianceProviders.entityScreening;
-  return openSanctionsScreening(
-    { apiKey, dataset: process.env.OPENSANCTIONS_DATASET || "default" },
-    providerRequest,
-  );
+  return manualScreening;
 }
 
 // Registry of configured vendors. Empty by default: everything fails closed

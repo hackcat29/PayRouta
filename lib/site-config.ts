@@ -1,82 +1,79 @@
 export const paths = {
   home: "/",
-  paymentFlow: "/platform/payment-flow",
-  paymentMethods: "/platform/payment-methods",
-  providerRouting: "/platform/provider-routing",
-  settlement: "/platform/settlement",
-  merchants: "/solutions/merchants",
-  providers: "/solutions/providers",
-  useCases: "/solutions/use-cases",
-  developers: "/developers",
   pricing: "/pricing",
-  about: "/about",
+  partners: "/partners",
   contact: "/contact",
   docs: "/docs",
+  quickstart: "/docs/quickstart",
   apiReference: "/docs/api-reference",
+  signIn: "/sign-in",
+  signUp: "/sign-up",
+  terms: "/terms",
+  privacy: "/privacy",
 } as const;
 export type CanonicalPath = (typeof paths)[keyof typeof paths];
+
+// Pages rendered by app/[...path] from components/marketing/pages.tsx.
 export const marketingPaths = {
-  "payment-flow": paths.paymentFlow,
-  "payment-methods": paths.paymentMethods,
-  "provider-routing": paths.providerRouting,
-  settlement: paths.settlement,
-  merchants: paths.merchants,
-  providers: paths.providers,
-  "use-cases": paths.useCases,
-  developers: paths.developers,
   pricing: paths.pricing,
-  about: paths.about,
+  partners: paths.partners,
 } as const;
-export const navigationGroups = [
+
+// Payment providers join by invitation, so they're reached from the front
+// page, the footer and the docs rather than the main navigation.
+export const navLinks = [
+  [paths.pricing, "Pricing"],
+  [paths.docs, "Docs"],
+] as const satisfies readonly (readonly [CanonicalPath, string])[];
+
+export const footerColumns = [
   {
-    title: "Platform",
+    title: "Product",
     links: [
-      [paths.paymentFlow, "Payment Flow"],
-      [paths.paymentMethods, "Payment Methods"],
-      [paths.providerRouting, "Provider Routing"],
-      [paths.settlement, "Settlement"],
+      [paths.pricing, "Pricing"],
+      [paths.quickstart, "Quickstart"],
+      [paths.apiReference, "API reference"],
+      [paths.signUp, "Create an account"],
     ],
   },
   {
-    title: "Solutions",
+    title: "Company",
     links: [
-      [paths.merchants, "For Merchants"],
-      [paths.providers, "For Providers"],
-      [paths.useCases, "Use Cases"],
+      [paths.partners, "For providers and lenders"],
+      [paths.contact, "Contact"],
+      [paths.terms, "Terms"],
+      [paths.privacy, "Privacy"],
     ],
   },
-  {
-    title: "Developers",
-    links: [
-      [paths.developers, "Overview"],
-      [paths.docs, "Documentation"],
-      [paths.apiReference, "API Reference"],
-    ],
-  },
-] as const satisfies readonly {
-  title: string;
-  links: readonly (readonly [CanonicalPath, string])[];
-}[];
+] as const satisfies readonly { title: string; links: readonly (readonly [string, string])[] }[];
+
 export const primaryRoutes = [
   [paths.home, "Home"],
-  ...navigationGroups[0].links,
-  ...navigationGroups[1].links,
-  [paths.developers, "Developers"],
-  [paths.docs, "Documentation"],
   [paths.pricing, "Pricing"],
-  [paths.about, "About"],
+  [paths.partners, "For providers and lenders"],
   [paths.contact, "Contact"],
+  [paths.docs, "Documentation"],
+  [paths.terms, "Terms of Service"],
+  [paths.privacy, "Privacy Policy"],
 ] as const;
+
+// Old URLs keep working. Their content now lives on the front page or in
+// the docs.
 export const legacyRedirects = [
-  { source: "/how-it-works", destination: paths.paymentFlow, permanent: true },
-  {
-    source: "/payment-methods",
-    destination: paths.paymentMethods,
-    permanent: true,
-  },
-  { source: "/merchants", destination: paths.merchants, permanent: true },
-  { source: "/providers", destination: paths.providers, permanent: true },
-  { source: "/use-cases", destination: paths.useCases, permanent: true },
+  { source: "/how-it-works", destination: paths.home, permanent: true },
+  { source: "/payment-methods", destination: paths.home, permanent: true },
+  { source: "/developers", destination: paths.docs, permanent: true },
+  { source: "/about", destination: paths.home, permanent: true },
+  { source: "/platform/payment-flow", destination: paths.home, permanent: true },
+  { source: "/platform/provider-routing", destination: paths.home, permanent: true },
+  { source: "/platform/settlement", destination: paths.home, permanent: true },
+  { source: "/platform/payment-methods", destination: paths.home, permanent: true },
+  { source: "/solutions/merchants", destination: paths.home, permanent: true },
+  { source: "/solutions/use-cases", destination: paths.home, permanent: true },
+  { source: "/solutions/providers", destination: paths.partners, permanent: true },
+  { source: "/merchants", destination: paths.home, permanent: true },
+  { source: "/use-cases", destination: paths.home, permanent: true },
+  { source: "/providers", destination: paths.partners, permanent: true },
 ];
 export function trustedOrigin() {
   try {
@@ -88,29 +85,3 @@ export function trustedOrigin() {
     return undefined;
   }
 }
-export const intentExample = JSON.stringify(
-  {
-    amount: "1200.00",
-    currency: "USD",
-    payer_context: { country: "BR" },
-    settlement: {
-      currency: "USD",
-      target_instrument: "ondo_usdy",
-    },
-    accepted_methods: [
-      "instant_bank",
-      "digital_wallet",
-      "card",
-      "direct_debit",
-      "cash_voucher",
-      "bnpl",
-      "mobile_money",
-      "stablecoin",
-      "crypto_app",
-      "rwa",
-      "native_crypto",
-    ],
-  },
-  null,
-  2,
-);

@@ -4,6 +4,7 @@ import { validateRuntime } from "@/lib/portal/config";
 import { PortalError } from "@/lib/portal/domain";
 import { localMode } from "@/lib/portal/adapters";
 import { createOTP } from "@better-auth/utils/otp";
+import { guardSsoManagement, ssoManagementPath } from "@/lib/portal/sso-guard";
 
 const handlers = toNextJsHandler(auth);
 async function handle(request: Request, method: "GET" | "POST") {
@@ -30,6 +31,13 @@ async function handle(request: Request, method: "GET" | "POST") {
         });
         return await handlers[method](modifiedRequest);
       }
+    }
+    const ssoPath = method === "POST" ? ssoManagementPath(request.url) : undefined;
+    if (ssoPath) {
+      const guarded = await guardSsoManagement(request, ssoPath);
+      const response = await handlers.POST(guarded.request);
+      await guarded.after?.(response.clone());
+      return response;
     }
     return await handlers[method](request);
   } catch (error) {

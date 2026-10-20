@@ -17,7 +17,7 @@ import type { PaymentAttempt, PaymentIntent } from "../generated/prisma/client";
 import { platformBalance, postFunds, recoverReceivable } from "./ledger";
 import { accrueFee } from "../payments/billing";
 import { merchantTerms } from "./terms";
-import { withheldFee } from "./execution";
+import { platformFees } from "./execution";
 import { platformAdapter, platformModule } from "./platforms/registry";
 
 const lines = (...l: Posting[]) =>
@@ -34,9 +34,12 @@ export async function recordPlatformPayment(
 ) {
   const platform = await tx.platformAccount.findUniqueOrThrow({ where: { id: binding.platformAccountId } });
   const { feeCollection } = platformModule(platform.provider).manifest;
-  await accrueFee(tx, intent, now, feeCollection);
+  const fees = platformFees(intent, platform);
+  await accrueFee(tx, intent, now, feeCollection, fees.partnerMinor);
   const gross = minor(intent.amount, intent.precision);
-  const fee = feeCollection === "withheld" ? withheldFee(intent) : 0n;
+  // Everything withheld (our fee and any partner fee we pay on the
+  // merchant's behalf) is booked as collected; PaymentFee holds the split.
+  const fee = feeCollection === "withheld" ? fees.totalMinor : 0n;
   const asset = assetKey(intent.asset as { kind: string; identifier: string; network: string });
   await postFunds(
     tx,
@@ -68,6 +71,7 @@ export async function recordPlatformPayment(
       reference,
       grossMinor: gross.toString(),
       feeMinor: fee.toString(),
+      partnerFeeMinor: fees.partnerMinor.toString(),
     },
     update: {},
   });

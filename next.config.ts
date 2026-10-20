@@ -29,6 +29,15 @@ const config: NextConfig = {
       },
       // Checkout never leaks its session path to providers or other sites.
       { source: "/checkout/:path*", headers: [{ key: "Referrer-Policy", value: "no-referrer" }] },
+      // The checkout button script is loaded by merchants' sites. Versioned
+      // path, short cache, so fixes reach every merchant within minutes.
+      {
+        source: "/js/v1/:file*",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=300, stale-while-revalidate=3600" },
+          { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
+        ],
+      },
     ];
   },
   async redirects() {

@@ -12,7 +12,8 @@ import {
   providerTypes,
 } from "@/lib/portal/domain";
 import { knownRails } from "@/lib/providers/normalized";
-import { Field, JsonView, Panel } from "./ui";
+import { Field, JsonView } from "./ui";
+import { Panel } from "./provider-ui";
 export type Execute = (data: Record<string, unknown>) => Promise<unknown>;
 export function CountrySelect({
   value,

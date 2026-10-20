@@ -4,16 +4,36 @@ import { json, atomic, audit } from "../portal/service";
 import { PortalError } from "../portal/domain";
 import { kybProfileSchema } from "../partners/kyb";
 import { screenProfile, screeningProvider } from "../partners/screening";
+import { manualReviewProviderId } from "../compliance/providers";
+// A manual screening decision by operations stays valid this long; automated
+// results are refreshed daily.
+export const manualScreeningValidDays = 30;
+const automatedValidMs = 86400000;
+const validFor = (provider: string) =>
+  provider === "manual-review" ? manualScreeningValidDays * 86400000 : automatedValidMs;
+
 export async function screenStablecoinMerchant(orgId: string, version: number) {
   const [org, profile] = await Promise.all([
     db.organization.findUniqueOrThrow({ where: { id: orgId } }),
     db.merchantKybProfile.findFirst({ where: { orgId, version } }),
   ]);
   if (!profile) throw new PortalError("MERCHANT_PROFILE_REQUIRED", 409);
-  const result = await screenProfile(
-    kybProfileSchema.parse(profile.data),
-    screeningProvider(localMode() && org.fictional),
-  );
+  const provider = screeningProvider(localMode() && org.fictional);
+  if (provider.id === manualReviewProviderId) {
+    // Without an automated vendor, the daily rescreen only asks for a manual
+    // review when there's no current decision and none is already waiting.
+    const latest = await db.merchantScreening.findFirst({
+      where: { orgId, profileVersion: version, provider: { not: "sandbox-fixture" } },
+      orderBy: { createdAt: "desc" },
+    });
+    if (
+      latest &&
+      (latest.provider === manualReviewProviderId ||
+        latest.createdAt.getTime() > Date.now() - validFor(latest.provider))
+    )
+      return latest;
+  }
+  const result = await screenProfile(kybProfileSchema.parse(profile.data), provider);
   return atomic(async (tx) => {
     const screening = await tx.merchantScreening.create({
       data: {
@@ -63,7 +83,7 @@ export async function currentMerchantScreening(
   if (
     !screening ||
     screening.verdict !== "clear" ||
-    screening.createdAt < new Date(now.getTime() - 86400000)
+    screening.createdAt.getTime() < now.getTime() - validFor(screening.provider)
   )
     throw new PortalError("MERCHANT_SCREENING_REQUIRED", 409);
   return screening;

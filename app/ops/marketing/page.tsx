@@ -1,16 +1,36 @@
 import React from "react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { MarketingDashboard } from "@/components/portal/marketing-dashboard";
+import { internal } from "@/lib/portal/access";
+import { PortalError } from "@/lib/portal/domain";
 import "@/components/portal/portal.css";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Email Marketing & Resend Dispatch | PayRouta Operations",
+  title: "Email marketing | PayRouta operations",
   robots: { index: false, follow: false },
 };
 
-export default function OpsMarketingPage() {
+export default async function OpsMarketingPage() {
+  try {
+    await internal(true);
+  } catch (e) {
+    if (e instanceof PortalError && e.status === 401)
+      redirect("/provider/sign-in?next=/provider/settings");
+    if (e instanceof PortalError)
+      return (
+        <div className="portal p-simple">
+          <h1>Operations admins only</h1>
+          <p>{e.message}</p>
+          <Link className="p-button" href="/provider/settings">
+            Open account security
+          </Link>
+        </div>
+      );
+    throw e;
+  }
   return (
     <div className="portal" style={{ minHeight: "100vh", background: "#0B0F19" }}>
       <header

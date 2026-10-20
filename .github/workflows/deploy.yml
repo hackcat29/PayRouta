@@ -53,6 +53,8 @@ jobs:
       - run: npm run test:payments
       - run: npm run test:merchant
       - run: npm run test:partners
+      - run: npm run test:treasury
+      - run: npm run test:intents
       - run: npm run build
 
   deploy:

@@ -1,12 +1,11 @@
-import { NextResponse } from "next/server";
 import { MarketingService } from "@/lib/email/marketing-service";
+import { errorResponse, json, requireMarketingAdmin } from "@/lib/email/http";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const stats = await MarketingService.getMarketingAnalytics();
-    return NextResponse.json(stats);
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to load stats";
-    return NextResponse.json({ error: message }, { status: 500 });
+    await requireMarketingAdmin(req);
+    return json(await MarketingService.getMarketingAnalytics());
+  } catch (error) {
+    return errorResponse(error, "Failed to load stats");
   }
 }

@@ -1,0 +1,52 @@
+---
+title: "Revolut Pay"
+description: "Revolut Pay enables fast, 1-click checkout for more than 45 million Revolut consumers across the UK, Europe, and international markets."
+---
+
+<Note>
+**Implementation status:** Provider code path: stripe. Not live-qualified by code alone. Merchant account enablement, credentials and sandbox qualification are required. See [current coverage](/partners/provider-coverage).
+</Note>
+
+**Category**: [Digital Wallets](/providers/digital-wallets)  
+**Provider**: Revolut Ltd / Revolut Bank UAB  
+**Method ID**: `digital-wallet`  
+**Integration Mode**: `STANDARD` / `CONFIGURABLE`
+
+Revolut Pay enables fast, 1-click checkout for more than 45 million Revolut consumers across the UK, Europe, and international markets.
+
+---
+
+## Technical Specifications
+
+- **Corridors**: United Kingdom (`GBP`), Eurozone (`EUR`), United States (`USD`), Switzerland (`CHF`), Poland (`PLN`), 25+ global currencies.
+- **Checkout Experience**:
+  - **Revolut Shopper**: 1-click biometric authorization inside the Revolut mobile app with face/fingerprint recognition.
+  - **Non-Revolut Shoppers**: Fast guest card checkout with saved delivery details.
+- **Settlement**: Rapid direct settlement into the merchant's Revolut Business multi-currency IBAN.
+
+---
+
+## Payment Intent Example
+
+```json
+{
+  "amount": "95.00",
+  "currency": "GBP",
+  "payer_context": {
+    "country": "GB"
+  },
+  "accepted_methods": [
+    "digital-wallet",
+    "bank-transfer"
+  ],
+  "metadata": {
+    "preferred_wallet": "revolut-pay"
+  }
+}
+```
+
+---
+
+## Failover Strategy
+
+PayRouta balances UK/EU wallet traffic between Revolut Pay, **Apple Pay**, **Google Pay**, and Faster Payments / SEPA Instant rails.

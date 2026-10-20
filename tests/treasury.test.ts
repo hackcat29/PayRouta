@@ -5,7 +5,7 @@ import { canTransition, permits } from "../lib/treasury/merchant-account";
 import { merchantTerms, termsBlockers } from "../lib/treasury/terms";
 import { validatePostings } from "../lib/payments/journal";
 import { stripeCustomPlatform } from "../lib/treasury/platforms/stripe-custom";
-import { withheldFee } from "../lib/treasury/execution";
+import { platformFees } from "../lib/treasury/execution";
 import { snapshotFees } from "../lib/payments/pricing";
 import { maskedSummary, verificationDetailsSchema } from "../lib/treasury/verification";
 import { accountNameMatches, paystackReference, paystackSplitPlatform } from "../lib/treasury/platforms/paystack-split";
@@ -293,16 +293,32 @@ test("stripe custom: status refuses sessions paying anyone else; availability re
   await assert.rejects(live.adapter.accountStatus("acct_1ABC"), /STRIPE_KEY_ENVIRONMENT_MISMATCH/);
 });
 
-test("withheld fee: taken in the payment's own currency, never converted", () => {
+test("platform fees: 1% plus the partner's standard fee where PayRouta pays the partner", () => {
   const usd = { kind: "fiat", identifier: "USD", network: "" };
   const feeSnapshot = snapshotFees({ orgId: "o", environment: "production", asset: usd, precision: 2 });
   const intent = { feeSnapshot, selectedMethod: "card", amount: "40.00", precision: 2, asset: usd };
-  assert.equal(withheldFee(intent as never), 10n, "0.25% of 40.00");
+  const stripe = {
+    provider: "stripe-custom",
+    config: { standardFees: { card: { bps: 290, fixedMinor: { USD: "30" }, source: "stripe.com/pricing" } } },
+  };
+  // 1% of 40.00 = 0.40; Stripe's standard 2.9% + 0.30 = 1.46.
+  assert.deepEqual(platformFees(intent as never, stripe), { payroutaMinor: 40n, partnerMinor: 146n, totalMinor: 186n });
+  // Paystack takes its own fee from the merchant's share: only PayRouta's 1% is withheld.
+  assert.deepEqual(platformFees(intent as never, { provider: "paystack-split", config: {} }), {
+    payroutaMinor: 40n,
+    partnerMinor: 0n,
+    totalMinor: 40n,
+  });
+  assert.throws(() => platformFees(intent as never, { provider: "stripe-custom", config: {} }), /PARTNER_STANDARD_FEE_REQUIRED/);
   const sandbox = snapshotFees({ orgId: "o", environment: "sandbox", asset: usd, precision: 2 });
-  assert.equal(withheldFee({ ...intent, feeSnapshot: sandbox } as never), 0n);
+  assert.equal(platformFees({ ...intent, feeSnapshot: sandbox } as never, stripe).totalMinor, 0n);
   assert.throws(
-    () => withheldFee({ ...intent, asset: { ...usd, identifier: "GBP" } } as never),
+    () => platformFees({ ...intent, asset: { ...usd, identifier: "GBP" } } as never, stripe),
     /PLATFORM_FEE_CURRENCY_MISMATCH/,
+  );
+  assert.throws(
+    () => platformFees({ ...intent, amount: "0.30" } as never, stripe),
+    /PLATFORM_FEE_EXCEEDS_PAYMENT/,
   );
 });
 

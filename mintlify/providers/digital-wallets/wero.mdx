@@ -1,0 +1,45 @@
+---
+title: "Wero (EPI)"
+description: "Wero is the pan-European digital wallet initiative backed by 16 major European banks (including BNP Paribas, Deutsche Bank, ING, BPCE, Cr\u00e9dit Agricole)\u2026"
+---
+
+<Note>
+**Implementation status:** Provider code path: adyen. Not live-qualified by code alone. Merchant account enablement, credentials and sandbox qualification are required. See [current coverage](/partners/provider-coverage).
+</Note>
+
+**Category**: [Digital Wallets](/providers/digital-wallets)  
+**Provider**: European Payments Initiative (EPI)  
+**Method ID**: `digital-wallet`, `ideal`  
+**Integration Mode**: `STANDARD`
+
+Wero is the pan-European digital wallet initiative backed by 16 major European banks (including BNP Paribas, Deutsche Bank, ING, BPCE, Crédit Agricole) designed to provide a unified European alternative to international card networks, succeeding schemes such as iDEAL in the Netherlands and Paylib in France.
+
+---
+
+## Technical Specifications
+
+- **Corridor**: Eurozone (`EUR`) across Germany, France, Belgium, Netherlands, Luxembourg.
+- **Underlying Rail**: Built on pan-European SEPA Instant Credit Transfer (SCT Inst) with guaranteed sub-3-second interbank clearing.
+- **Customer Experience**: QR code scanning or direct app redirection into the customer's native bank app or standalone Wero wallet.
+- **Zero Chargeback Risk**: Irrevocable bank payment without card scheme fees or chargeback penalties.
+
+---
+
+## Payment Intent Example
+
+```json
+{
+  "amount": "210.00",
+  "currency": "EUR",
+  "payer_context": {
+    "country": "DE"
+  },
+  "accepted_methods": [
+    "digital-wallet",
+    "sepa_instant"
+  ],
+  "metadata": {
+    "preferred_wallet": "wero"
+  }
+}
+```

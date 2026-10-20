@@ -61,12 +61,12 @@ const samples: Record<string, { file: string; tokens: Token[] }> = {
   },
 };
 
-export function CodeTabs({ events = true }: { events?: boolean }) {
+export function CodeTabs({ events = false }: { events?: boolean }) {
   const names = Object.keys(samples);
   const [active, setActive] = useState(names[0]);
   const sample = samples[active];
   return (
-    <div className="mk-card mk-code" data-reveal>
+    <div className="mk-code">
       <div className="mk-code-tabs" role="tablist" aria-label="Code language">
         {names.map((n) => (
           <button
@@ -98,7 +98,7 @@ export function CodeTabs({ events = true }: { events?: boolean }) {
       {events && (
         <div className="mk-events" aria-label="Example webhook events">
           <header>
-            <span className="mk-dot-live" /> Webhook events · signed
+            Webhook events, signed
           </header>
           {[
             ["12:04:31", "payment_intent.method_selected", "card"],

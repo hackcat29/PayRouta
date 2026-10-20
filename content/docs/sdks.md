@@ -1,6 +1,6 @@
 # SDKs
 
-TypeScript (`@payrouta/server`) and Python (`payrouta-server`) clients are private 0.1.0 releases, shared with early-access merchants. They wrap the [HTTP API](api-reference.md); anything they don't cover can be called directly.
+TypeScript (`@payrouta/server`) and Python (`payrouta-server`) server clients, and the browser [checkout button](checkout-button.md) (`@payrouta/checkout`, with a React component), are private 0.1.0 releases, shared with early-access merchants. They wrap the [HTTP API](api-reference.md); anything they don't cover can be called directly.
 
 Both SDKs:
 
@@ -21,6 +21,10 @@ const payrouta = new PayRouta({
   timeoutMs: 10000,
 });
 
+// One checkout for one order: every fiat method, credit, and crypto for USD.
+const checkout = await payrouta.createCheckout({ /* see POST /checkouts */ }, "order_1042-checkout");
+
+// Or build it from parts:
 const intent = await payrouta.createIntent({ /* see API reference */ }, "order_1042-intent");
 const session = await payrouta.createCheckoutSession(intent.id, "order_1042-session");
 const payment = await payrouta.getPayment(intent.id);
@@ -36,6 +40,7 @@ for await (const p of payrouta.paginate("payments", { state: "Confirmed" })) {
 from payrouta import PayRouta, verify_webhook
 
 payrouta = PayRouta("https://<your PayRouta host>/api/v1", secret_key, "sandbox")
+checkout = payrouta.create_checkout({...}, "order_1042-checkout")  # POST /checkouts
 intent = payrouta.create_intent({...}, "order_1042-intent")
 session = payrouta.create_checkout_session(intent["id"], "order_1042-session")
 payment = payrouta.get_payment(intent["id"])

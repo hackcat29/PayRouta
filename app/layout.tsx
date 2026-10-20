@@ -5,7 +5,7 @@ import "@fontsource/inter/600.css";
 import "@fontsource/inter/700.css";
 import "./globals.css";
 import "./marketing.css";
-import { Archivo, JetBrains_Mono } from "next/font/google";
+import { Archivo, JetBrains_Mono, Sora } from "next/font/google";
 import { SiteChrome } from "@/components/site-chrome";
 import { trustedOrigin } from "@/lib/site-config";
 const origin = trustedOrigin();
@@ -15,14 +15,18 @@ const archivo = Archivo({
   variable: "--font-archivo",
 });
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jb-mono" });
+const display = Sora({
+  subsets: ["latin", "latin-ext"],
+  variable: "--font-display",
+});
 export const metadata: Metadata = {
   metadataBase: origin ? new URL(origin) : undefined,
   title: {
-    default: "PayRouta — Every way your customers pay, one application",
+    default: "PayRouta",
     template: "%s · PayRouta",
   },
   description:
-    "Apply once to PayRouta and accept cards, bank transfers, mobile money and stablecoins through regulated processing partners, with same-method failover and payouts on your schedule. Stablecoins go straight to your wallet.",
+    "One checkout button for every way the world pays: cards, digital wallets, bank transfers, mobile money, credit from licensed lenders, and crypto from any wallet.",
   robots: { index: !!origin, follow: !!origin },
   icons: { icon: "/brand/favicon.svg" },
   ...(origin
@@ -44,7 +48,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${archivo.variable} ${mono.variable}`}
+      className={`${archivo.variable} ${mono.variable} ${display.variable}`}
     >
       <body>
         <a href="#main" className="skip-link">

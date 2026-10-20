@@ -4,6 +4,7 @@ import { importSimulatorReport } from "./reports";
 import { db } from "../portal/db";
 import { dispatch, poll, settle, reconcile, applyFact } from "./processing";
 import { deliver } from "./delivery";
+import { processRefund, resolveGroup } from "../integrations/shopify";
 export async function paymentJob(kind: string, p: Record<string, string>) {
   if(kind==='payment-wallet-relay') await relayWalletSubmission(p.submissionId);
   else if (kind === "payment-report") await importSimulatorReport(p.integrationId);
@@ -12,6 +13,8 @@ export async function paymentJob(kind: string, p: Record<string, string>) {
   else if (kind === "payment-settle") await settle(p.attemptId);
   else if (kind === "payment-reconcile") await reconcile(p.attemptId);
   else if (kind === "payment-delivery") await deliver(p.eventId);
+  else if (kind === "payment-shopify-resolve") await resolveGroup(p.checkoutGroup);
+  else if (kind === "payment-shopify-refund") await processRefund(p.refundSessionId);
   else if (kind === "payment-inbox") {
     const inbox = await db.paymentInbox.findUniqueOrThrow({
       where: { id: p.inboxId },

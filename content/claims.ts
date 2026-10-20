@@ -1,205 +1,207 @@
-// Every public-facing figure, rail name and commercial term on the marketing
-// site lives here. Edit this file (not the page components) when coverage,
-// pricing or product facts change. Keep each figure defensible: payments
-// buyers treat numbers on this site as commitments.
+// Every public-facing fact on the marketing site lives here: availability,
+// coverage and prices. Edit this file (not the page components) when they
+// change. Buyers of payment services read these as commitments, so keep each
+// line true today, not on the roadmap.
 
-export const headlineStats = [
-  { value: "1", label: "application for every provider you choose" },
-  { value: "0", label: "customer funds held by PayRouta" },
-  { value: "10", label: "payment method families in one schema" },
-  { value: "5", label: "normalized payment states, whatever the provider" },
-] as const;
-
-// Where the product is today. Shown wherever the site describes availability.
 export const status = {
   stage: "Early access",
-  sandbox: "Sandbox available now",
-  live: "Live processing opens provider by provider, after each integration passes qualification",
-  sdks: "TypeScript and Python SDKs for early-access merchants",
+  summary:
+    "Stablecoin and crypto payments are live. Cards, bank transfers, wallets and mobile money open region by region. Credit opens country by country as licensed lenders join.",
 } as const;
 
-// Method families, the transit-line colour each one uses across the site, and
-// the letter shown in its route bullet.
-export const lines = {
-  card: { label: "Cards", color: "var(--line-card)", bullet: "C" },
-  bank: { label: "Bank transfers", color: "var(--line-bank)", bullet: "B" },
-  mobile: { label: "Mobile money", color: "var(--line-mobile)", bullet: "M" },
-  wallet: {
-    label: "Digital wallets",
-    color: "var(--line-wallet)",
-    bullet: "W",
-  },
-  crypto: { label: "Stablecoins", color: "var(--line-crypto)", bullet: "S" },
-} as const;
-export type LineKey = keyof typeof lines;
+// "available": merchants in early access can use it live today.
+// "testing": built and working in test mode; live once the partner signs off.
+// "planned": on the roadmap, not built yet.
+export type Availability = "available" | "testing" | "planned";
 
-// Rails PayRouta's method schema is designed to route. Shown in the marquee and
-// the payment-method atlas. Actual availability depends on the provider
-// accounts each merchant holds; never present this list as live coverage.
-export const rails: { name: string; line: LineKey }[] = [
-  { name: "Visa", line: "card" },
-  { name: "Mastercard", line: "card" },
-  { name: "American Express", line: "card" },
-  { name: "Verve", line: "card" },
-  { name: "SEPA Instant", line: "bank" },
-  { name: "Pix", line: "bank" },
-  { name: "UPI", line: "bank" },
-  { name: "FedNow", line: "bank" },
-  { name: "Faster Payments", line: "bank" },
-  { name: "NIP", line: "bank" },
-  { name: "M-Pesa", line: "mobile" },
-  { name: "MTN MoMo", line: "mobile" },
-  { name: "Airtel Money", line: "mobile" },
-  { name: "Apple Pay", line: "wallet" },
-  { name: "Google Pay", line: "wallet" },
-  { name: "USDC on Base", line: "crypto" },
-];
-
-export const regions = [
+export const markets: {
+  name: string;
+  currencies: string;
+  methods: string;
+  availability: Availability;
+}[] = [
   {
-    name: "Europe",
-    methods: [
-      "Cards",
-      "SEPA Instant",
-      "SEPA Direct Debit",
-      "Apple Pay",
-      "Google Pay",
-    ],
-    currencies: ["EUR", "GBP", "CHF", "PLN"],
+    name: "Worldwide",
+    currencies: "USD, EUR, GBP, CAD, AUD, JPY, CHF, SEK, SGD, AED",
+    methods: "Visa, Mastercard, American Express, Apple Pay, Google Pay",
+    availability: "testing",
   },
   {
-    name: "North America",
-    methods: ["Cards", "FedNow / RTP", "ACH", "Apple Pay", "Google Pay"],
-    currencies: ["USD", "CAD"],
+    name: "Europe and the UK",
+    currencies: "EUR, GBP",
+    methods: "Pay by bank (SEPA, Faster Payments)",
+    availability: "testing",
   },
   {
     name: "Latin America",
-    methods: ["Pix", "Cards", "Cash vouchers", "Installments"],
-    currencies: ["BRL", "MXN", "COP"],
+    currencies: "BRL, MXN, COP",
+    methods: "Pix, cards, bank transfer, local wallets",
+    availability: "testing",
+  },
+  {
+    name: "Asia",
+    currencies: "INR, PHP, SGD, JPY",
+    methods: "Cards, bank transfer, local wallets",
+    availability: "testing",
   },
   {
     name: "Africa",
-    methods: [
-      "Bank transfer (NIP)",
-      "Cards",
-      "M-Pesa",
-      "MTN MoMo",
-      "Airtel Money",
-    ],
-    currencies: ["NGN", "KES", "GHS", "ZAR"],
+    currencies: "NGN, GHS, KES, ZAR, XOF",
+    methods: "Cards, bank transfer, USSD, M-Pesa, MTN MoMo",
+    availability: "testing",
   },
   {
-    name: "Asia-Pacific",
-    methods: ["UPI", "Cards", "Digital wallets", "Bank transfer"],
-    currencies: ["INR", "SGD", "IDR", "AUD"],
+    name: "Anywhere",
+    currencies: "USDC, USDT, EURC",
+    methods: "Stablecoins, paid straight to your own wallet",
+    availability: "available",
   },
   {
-    name: "On-chain",
-    methods: ["USDC on Base", "USDC on Ethereum"],
-    currencies: ["USDC"],
+    name: "Anywhere",
+    currencies: "ETH, SOL, XLM, AVAX, POL and major tokens",
+    methods: "Crypto from the customer's wallet, paid straight to yours",
+    availability: "available",
   },
+  {
+    name: "Anywhere",
+    currencies: "Binance Pay, Coinbase",
+    methods: "Paying from a crypto exchange account",
+    availability: "testing",
+  },
+];
+
+// What customers can pay with, by region, for the front page's coverage
+// grid. Must agree with `markets` above; "planned" is shown as "Coming" and
+// null means not offered there.
+export const methodFamilies = [
+  ["card", "Cards"],
+  ["wallet", "Digital wallets"],
+  ["bank", "Bank transfer"],
+  ["mobile", "Mobile money"],
+  ["ussd", "USSD"],
+  ["credit", "Pay with credit"],
+  ["crypto", "Stablecoins & crypto"],
 ] as const;
+export type MethodFamily = (typeof methodFamilies)[number][0];
+export const coverage: { region: string; examples: string; cells: Record<MethodFamily, Availability | null> }[] = [
+  {
+    region: "Africa",
+    examples: "Verve, M-Pesa, MTN MoMo, USSD",
+    cells: { card: "testing", wallet: "planned", bank: "testing", mobile: "testing", ussd: "testing", credit: "planned", crypto: "available" },
+  },
+  {
+    region: "Latin America",
+    examples: "Pix, local cards and wallets",
+    cells: { card: "testing", wallet: "testing", bank: "testing", mobile: null, ussd: null, credit: "planned", crypto: "available" },
+  },
+  {
+    region: "Asia",
+    examples: "Cards, bank transfer, local wallets",
+    cells: { card: "testing", wallet: "testing", bank: "testing", mobile: null, ussd: null, credit: "planned", crypto: "available" },
+  },
+  {
+    region: "Europe and the UK",
+    examples: "Cards, Apple Pay, pay by bank",
+    cells: { card: "testing", wallet: "testing", bank: "testing", mobile: null, ussd: null, credit: "planned", crypto: "available" },
+  },
+  {
+    region: "Everywhere else",
+    examples: "Visa, Mastercard, Amex, Apple Pay, Google Pay",
+    cells: { card: "testing", wallet: "testing", bank: null, mobile: null, ussd: null, credit: "planned", crypto: "available" },
+  },
+];
 
+// Where merchants can receive their money.
+export const payouts: { destination: string; detail: string; availability: Availability }[] = [
+  {
+    destination: "Bank account",
+    detail: "Local or international, on a schedule you set",
+    availability: "testing",
+  },
+  {
+    destination: "Crypto wallet",
+    detail: "Stablecoin and crypto payments arrive directly",
+    availability: "available",
+  },
+  {
+    destination: "Mobile money wallet",
+    detail: "M-Pesa, MTN MoMo and others",
+    availability: "planned",
+  },
+  {
+    destination: "Stablecoins from card and bank payments",
+    detail: "Your balance paid out as USDC or USDT",
+    availability: "planned",
+  },
+];
+
+// PayRouta's thesis (docs/THESIS.md), pillar by pillar, with what is true
+// today. "planned" here means built and testable in sandbox, not yet live
+// with real money; the note says what stands between it and live.
+export const pillars: {
+  id: "button" | "credit" | "anyChain" | "platforms";
+  title: string;
+  availability: Availability;
+  note: string;
+}[] = [
+  {
+    id: "button",
+    title: "One checkout button",
+    availability: "available",
+    note: "Works today with stablecoin and crypto checkout. Cards, digital wallets, bank transfers and mobile money join as they open in your region.",
+  },
+  {
+    id: "credit",
+    title: "Pay with credit",
+    availability: "planned",
+    note: "Built and testable in sandbox with a fictional lender. Live credit opens country by country as licensed lenders join PayRouta.",
+  },
+  {
+    id: "anyChain",
+    title: "Any wallet, any chain",
+    availability: "planned",
+    note: "Paying straight from a wallet is live on eight networks. Paying with any token on any chain, swapped on the way, opens after live qualification.",
+  },
+  {
+    id: "platforms",
+    title: "Shopify and WooCommerce",
+    availability: "planned",
+    note: "Both are built. The WooCommerce plugin is in private testing; Shopify listing waits on Shopify's payments-partner approval.",
+  },
+];
+
+// Where merchants can add the button.
+export const platforms: { name: string; detail: string; availability: Availability }[] = [
+  { name: "Any website or app", detail: "One script tag and a button, or the React component", availability: "available" },
+  { name: "Your own server", detail: "Node and Python SDKs, one call per order", availability: "available" },
+  { name: "WooCommerce", detail: "PayRouta Checkout plugin", availability: "planned" },
+  { name: "Shopify", detail: "PayRouta payments app at Shopify checkout", availability: "planned" },
+];
+
+// Credit at checkout. No lender is live yet; keep this list empty until one
+// is, and name lenders only with their agreement.
+export const creditLenders: { country: string; lender: string; availability: Availability }[] = [];
+
+export const availabilityLabel: Record<Availability, string> = {
+  available: "Live",
+  testing: "In testing",
+  planned: "Coming",
+};
+
+// PayRouta's fee per successful payment. Where a partner processes the
+// payment, its standard processing fee is charged as well. Where PayRouta is
+// the only processor (stablecoins and native crypto), there is no partner fee.
 export const pricing = {
-  rate: "0.25%",
-  lowerRate: "0.10%",
-  cardCap: "$2",
-  bankCap: "$1",
-  rateNote: "cards, digital wallets and BNPL; capped at $2 per USD payment",
-  lowerRateNote:
-    "bank transfers, direct debit, USSD, mobile money and crypto; capped at $1 per USD payment",
-  plusNote:
-    "your provider's processing fees are charged on your own account, under your contract with them",
-  sandbox: "Free, unlimited sandbox",
-  volumeThreshold: "$100,000 / month",
+  partnerProcessed: {
+    rate: "1%",
+    cap: "$5",
+    methods: "Cards, wallets, bank transfer, USSD, mobile money",
+    note: "plus the standard fee of the partner that processed the payment",
+  },
+  payroutaOnly: {
+    rate: "1.5%",
+    methods: "Stablecoins and crypto",
+    note: "all in: PayRouta is the only processor, so there is no partner fee",
+  },
+  volumeThreshold: "$100,000 a month",
 } as const;
-
-// Countries shown in the hero routing widget and the flag strip. Amounts are
-// illustrative; methods are those PayRouta's schema is built to route there.
-export const corridors = [
-  {
-    code: "BR",
-    name: "Brazil",
-    amount: "R$ 389,90",
-    methods: [
-      ["bank", "Pix"],
-      ["card", "Cards"],
-      ["wallet", "Google Pay"],
-    ],
-  },
-  {
-    code: "IN",
-    name: "India",
-    amount: "₹7,499",
-    methods: [
-      ["bank", "UPI"],
-      ["card", "Cards"],
-      ["wallet", "Digital wallets"],
-    ],
-  },
-  {
-    code: "KE",
-    name: "Kenya",
-    amount: "KSh 2,450",
-    methods: [
-      ["mobile", "M-Pesa"],
-      ["mobile", "Airtel Money"],
-      ["card", "Cards"],
-    ],
-  },
-  {
-    code: "DE",
-    name: "Germany",
-    amount: "€240.00",
-    methods: [
-      ["bank", "SEPA Instant"],
-      ["card", "Cards"],
-      ["wallet", "Apple Pay"],
-    ],
-  },
-  {
-    code: "US",
-    name: "United States",
-    amount: "$264.00",
-    methods: [
-      ["card", "Cards"],
-      ["wallet", "Apple Pay"],
-      ["crypto", "USDC"],
-    ],
-  },
-  {
-    code: "NG",
-    name: "Nigeria",
-    amount: "₦185,000",
-    methods: [
-      ["bank", "Bank transfer"],
-      ["card", "Cards"],
-      ["crypto", "USDC"],
-    ],
-  },
-  {
-    code: "GB",
-    name: "United Kingdom",
-    amount: "£205.00",
-    methods: [
-      ["bank", "Faster Payments"],
-      ["card", "Cards"],
-      ["wallet", "Apple Pay"],
-    ],
-  },
-  {
-    code: "MX",
-    name: "Mexico",
-    amount: "MX$4,590",
-    methods: [
-      ["card", "Cards"],
-      ["bank", "SPEI"],
-      ["wallet", "Google Pay"],
-    ],
-  },
-] as const satisfies readonly {
-  code: string;
-  name: string;
-  amount: string;
-  methods: readonly (readonly [LineKey, string])[];
-}[];

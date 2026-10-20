@@ -1,8 +1,10 @@
 import "dotenv/config";
+import { createHmac } from "node:crypto";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { db } from "../lib/portal/db";
 import {
+  esc,
   renderBaseTemplate,
   renderWelcomeEmail,
   renderDripRoutingTipsEmail,
@@ -11,328 +13,255 @@ import {
   renderMonthlyDigestEmail,
   renderTransactionReceiptEmail,
   renderSecurityAlertEmail,
+  renderVerifyEmail,
+  renderResetPasswordEmail,
+  renderInvitationEmail,
   stripHtmlToText,
 } from "../lib/email/templates";
-import {
-  sendEmail,
-  sendBatchEmails,
-  syncResendAudienceContact,
-} from "../lib/email/resend-client";
+import { sendEmail, sendBatchEmails, syncResendContact, verifyResendWebhook } from "../lib/email/resend-client";
 import { MarketingService } from "../lib/email/marketing-service";
 
-test("Email Templates: All templates render responsive HTML and clean plaintext", () => {
-  // Base & Plaintext
-  const baseHtml = renderBaseTemplate({
-    headline: "Test Heading",
-    bodyContent: "<p>Hello world from PayRouta routing</p>",
-    ctaText: "Check Dashboard",
+// These tests use the simulated sender; never let them reach real Resend.
+delete process.env.RESEND_API_KEY;
+
+const unique = (prefix: string) =>
+  `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}@payrouta.test`;
+
+async function confirmed(email: string, extra: Partial<Parameters<typeof MarketingService.subscribe>[0]> = {}) {
+  const sub = await MarketingService.subscribe({ email, ...extra });
+  return (await MarketingService.confirm(sub.unsubscribeToken))!;
+}
+
+test("templates render HTML and plain text, and escape user-supplied values", () => {
+  const html = renderBaseTemplate({
+    headline: "Test heading",
+    bodyContent: "<p>Hello from PayRouta</p>",
+    ctaText: "Open dashboard",
     ctaUrl: "https://payrouta.com/merchant",
-    unsubscribeUrl: "https://payrouta.com/email/preferences?token=test_tok&action=unsub",
-    preferencesUrl: "https://payrouta.com/email/preferences?token=test_tok",
+    unsubscribeUrl: "https://payrouta.com/email/preferences?token=t&action=unsub",
+    preferencesUrl: "https://payrouta.com/email/preferences?token=t",
   });
-  assert.ok(baseHtml.includes("PayRouta"));
-  assert.ok(baseHtml.includes("Hello world from PayRouta routing"));
-  assert.ok(baseHtml.includes("Check Dashboard"));
-  assert.ok(baseHtml.includes("Unsubscribe"));
+  assert.ok(html.includes("Hello from PayRouta"));
+  assert.ok(html.includes("Open dashboard"));
+  assert.ok(html.includes("Unsubscribe"));
+  const text = stripHtmlToText(html);
+  assert.ok(text.includes("Hello from PayRouta"));
+  assert.ok(!text.includes("<p>"));
+  assert.ok(text.includes("Open dashboard (https://payrouta.com/merchant)"));
 
-  const baseText = stripHtmlToText(baseHtml);
-  assert.ok(baseText.includes("Hello world from PayRouta routing"));
-  assert.ok(!baseText.includes("<p>"));
+  assert.equal(esc(`<img src=x onerror="alert(1)">`), "&lt;img src=x onerror=&quot;alert(1)&quot;&gt;");
+  const hostile = renderWelcomeEmail({ name: `<script>alert(1)</script> Smith`, role: "merchant" });
+  assert.ok(!hostile.html.includes("<script>alert(1)</script>"));
+  assert.ok(hostile.html.includes("&lt;script&gt;"));
 
-  // Welcome Onboarding
-  const welcome = renderWelcomeEmail({
-    name: "Alex",
-    role: "merchant",
-    siteUrl: "https://payrouta.com",
-    unsubscribeUrl: "https://payrouta.com/unsub",
-  });
-  assert.ok(welcome.subject.includes("Welcome to PayRouta"));
-  assert.ok(welcome.html.includes("Alex"));
-  assert.ok(welcome.html.includes("Open Merchant Dashboard"));
+  const welcome = renderWelcomeEmail({ name: "Ada Obi", role: "merchant", unsubscribeUrl: "https://x/u" });
+  assert.equal(welcome.subject, "Welcome to PayRouta");
+  assert.ok(welcome.html.includes("Hi Ada,"));
   assert.ok(welcome.text.length > 50);
 
-  // Drip Day 3: Routing tips
-  const dripDay3 = renderDripRoutingTipsEmail({
-    name: "Sarah",
-    siteUrl: "https://payrouta.com",
-  });
-  assert.ok(dripDay3.subject.includes("22%"));
-  assert.ok(dripDay3.html.includes("Multi-Provider Redundancy"));
+  // Onboarding mail makes no invented performance claims.
+  for (const email of [renderDripRoutingTipsEmail({}), renderDripSettlementEmail({})])
+    assert.ok(!/\d+(\.\d+)?%/.test(email.text), email.subject);
 
-  // Drip Day 7: Settlement
-  const dripDay7 = renderDripSettlementEmail({
-    name: "Jordan",
-    siteUrl: "https://payrouta.com",
-  });
-  assert.ok(dripDay7.subject.includes("Instant Global Settlement"));
-  assert.ok(dripDay7.html.includes("Ondo USDY"));
+  const broadcast = renderMarketingBroadcastEmail({ headline: "News", bodyHtml: "<p>Something shipped.</p>" });
+  assert.ok(broadcast.text.includes("Something shipped."));
 
-  // Marketing Broadcast
-  const broadcast = renderMarketingBroadcastEmail({
-    headline: "Solana Pay Rails Now Live",
-    bodyHtml: "<p>We have integrated Solana Pay for sub-cent gas fees.</p>",
-    ctaText: "Enable in Dashboard",
-    ctaUrl: "https://payrouta.com/merchant",
-  });
-  assert.ok(broadcast.html.includes("Solana Pay Rails Now Live"));
-  assert.ok(broadcast.text.includes("sub-cent gas fees"));
-
-  // Monthly Digest
   const digest = renderMonthlyDigestEmail({
-    merchantName: "Acme Payments",
+    merchantName: "Acme",
     month: "September 2026",
-    totalVolume: "$1,450,000.00",
-    totalTransactions: 12450,
+    totalVolume: "$1,450.00",
+    totalTransactions: 12,
     successRate: "99.4%",
-    recoveredVolume: "$78,300.00",
-    topRails: [
-      { rail: "Paystack (NGN Cards)", volumePercent: "52%" },
-      { rail: "Solana USDC", volumePercent: "31%" },
-      { rail: "Flutterwave (M-Pesa)", volumePercent: "17%" },
-    ],
+    recoveredVolume: "$78.00",
+    topRails: [{ rail: "Cards", volumePercent: "52%" }],
   });
   assert.ok(digest.subject.includes("September 2026"));
-  assert.ok(digest.html.includes("$1,450,000.00"));
-  assert.ok(digest.html.includes("Paystack (NGN Cards)"));
+  assert.ok(digest.html.includes("$1,450.00"));
 
-  // Transaction Receipt
   const receipt = renderTransactionReceiptEmail({
     intentId: "pi_test_987654",
     amount: "150.00",
     currency: "USD",
-    method: "USDC (Solana)",
-    provider: "Native Solana Program",
+    method: "Card",
+    provider: "sandbox",
     status: "succeeded",
     timestamp: "2026-10-08 00:00:00 UTC",
-    txHashOrRef: "5Knp78g...x9L",
   });
   assert.ok(receipt.subject.includes("Payment Receipt for USD 150.00"));
   assert.ok(receipt.html.includes("pi_test_987654"));
 
-  // Security Alert
-  const alert = renderSecurityAlertEmail({
-    name: "Operator",
-    actionTitle: "Production API Key Generated",
-    details: "A new live secret key (sec_live_...) was provisioned.",
-    timestamp: "2026-10-08 00:00:00 UTC",
-    ipAddress: "192.168.1.1",
-  });
+  const alert = renderSecurityAlertEmail({ actionTitle: "API key created", details: "A live key was created.", timestamp: "now" });
   assert.ok(alert.subject.includes("[Security Alert]"));
-  assert.ok(alert.html.includes("Production API Key Generated"));
+
+  const verify = renderVerifyEmail({ name: "Ada", url: "https://payrouta.com/api/auth/verify-email?token=abc" });
+  assert.ok(verify.text.includes("https://payrouta.com/api/auth/verify-email?token=abc"));
+  assert.ok(!verify.html.includes("Unsubscribe"));
+  const reset = renderResetPasswordEmail({ url: "https://payrouta.com/reset-password?token=abc" });
+  assert.ok(reset.subject.includes("Reset"));
+  const invite = renderInvitationEmail({ orgName: "Acme & Co", role: "Developer", url: "https://x/i", expires: "7 days" });
+  assert.ok(invite.html.includes("Acme &amp; Co"));
 });
 
-test("Resend Client: Mock & Fallback mode generates valid identifiers", async () => {
-  const single = await sendEmail({
-    to: "test@example.com",
-    subject: "Test Send",
-    html: "<p>Test</p>",
-    text: "Test",
-  });
+test("simulated sending works outside production and fails closed in production", async () => {
+  const single = await sendEmail({ to: "test@example.com", subject: "Test", html: "<p>Test</p>" });
   assert.equal(single.success, true);
-  assert.ok(single.id);
+  assert.equal(single.isMock, true);
 
   const batch = await sendBatchEmails([
-    { to: "a@example.com", subject: "Batch 1", html: "<p>1</p>" },
-    { to: "b@example.com", subject: "Batch 2", html: "<p>2</p>" },
+    { to: "a@example.com", subject: "1", html: "<p>1</p>" },
+    { to: "b@example.com", subject: "2", html: "<p>2</p>" },
   ]);
-  assert.equal(batch.success, true);
   assert.equal(batch.ids.length, 2);
+  assert.equal((await syncResendContact({ email: "c@example.com" })).skipped, true);
 
-  const contact = await syncResendAudienceContact({
-    email: "contact@example.com",
-    firstName: "Test",
-  });
-  assert.equal(contact.success, true);
+  const env = process.env as Record<string, string | undefined>;
+  const previous = env.NODE_ENV;
+  env.NODE_ENV = "production";
+  try {
+    const result = await sendEmail({ to: "test@example.com", subject: "Test", html: "<p>Test</p>" });
+    assert.equal(result.success, false);
+  } finally {
+    env.NODE_ENV = previous;
+  }
 });
 
-test("MarketingService: End-to-end subscriber lifecycle, drip, and campaign broadcast", async () => {
-  const testEmail = `merchant_${Date.now()}_${Math.random().toString(36).substring(2, 6)}@payrouta.test`;
+test("webhook verification rejects unsigned and wrongly signed requests", () => {
+  process.env.RESEND_API_KEY = "re_test_key_for_verification_only";
+  process.env.RESEND_WEBHOOK_SECRET = "whsec_" + Buffer.from("x".repeat(32)).toString("base64");
+  try {
+    assert.equal(verifyResendWebhook("{}", new Headers()), undefined);
+    const headers = new Headers({
+      "svix-id": "msg_1",
+      "svix-timestamp": String(Math.floor(Date.now() / 1000)),
+      "svix-signature": "v1,bm90LWEtcmVhbC1zaWduYXR1cmU=",
+    });
+    assert.equal(verifyResendWebhook(JSON.stringify({ type: "email.bounced", data: {} }), headers), undefined);
 
-  // 1. Subscribe
-  const sub = await MarketingService.subscribe({
-    email: testEmail,
-    name: "Test Merchant",
-    role: "merchant",
-    source: "unit_test",
-    topics: ["product_updates", "weekly_digest"],
-  });
+    // A correctly signed event (Standard Webhooks: HMAC-SHA256 of "id.timestamp.body").
+    const body = JSON.stringify({ type: "email.delivered", data: { email_id: "e_1" } });
+    const ts = String(Math.floor(Date.now() / 1000));
+    const key = Buffer.from(process.env.RESEND_WEBHOOK_SECRET!.slice(6), "base64");
+    const sig = createHmac("sha256", key).update(`msg_2.${ts}.${body}`).digest("base64");
+    const event = verifyResendWebhook(
+      body,
+      new Headers({ "svix-id": "msg_2", "svix-timestamp": ts, "svix-signature": `v1,${sig}` }),
+    );
+    assert.equal(event?.type, "email.delivered");
+    // The same signature on a different body fails.
+    assert.equal(
+      verifyResendWebhook(body.replace("e_1", "e_2"), new Headers({ "svix-id": "msg_2", "svix-timestamp": ts, "svix-signature": `v1,${sig}` })),
+      undefined,
+    );
+  } finally {
+    delete process.env.RESEND_API_KEY;
+    delete process.env.RESEND_WEBHOOK_SECRET;
+  }
+});
 
-  assert.equal(sub.email, testEmail);
-  assert.equal(sub.status, "active");
-  assert.ok(sub.unsubscribeToken);
+test("public sign-ups need confirmation; unsubscribes are never silently undone", async () => {
+  const email = unique("optin");
+  const sub = await MarketingService.subscribe({ email, name: "Test Merchant", role: "merchant", topics: ["product_updates", "bogus"] });
+  assert.equal(sub.status, "pending");
+  assert.deepEqual(sub.topics, ["product_updates"]);
+  assert.ok(sub.unsubscribeToken.length >= 32);
+  assert.ok(await db.marketingDeliveryLog.findFirst({ where: { subscriberId: sub.id, templateId: "confirm_subscription" } }));
+  assert.equal(await db.marketingDeliveryLog.count({ where: { subscriberId: sub.id, templateId: "welcome_onboarding" } }), 0);
 
-  // Verify Day 0 Welcome log was recorded
-  const welcomeLog = await db.marketingDeliveryLog.findFirst({
-    where: { subscriberId: sub.id, templateId: "welcome_onboarding" },
-  });
-  assert.ok(welcomeLog);
-  assert.equal(welcomeLog.email, testEmail);
+  const active = await MarketingService.confirm(sub.unsubscribeToken);
+  assert.equal(active?.status, "active");
+  assert.ok(await db.marketingDeliveryLog.findFirst({ where: { subscriberId: sub.id, templateId: "welcome_onboarding" } }));
+  // Clicking the link twice sends nothing more.
+  await MarketingService.confirm(sub.unsubscribeToken);
+  assert.equal(await db.marketingDeliveryLog.count({ where: { subscriberId: sub.id, templateId: "welcome_onboarding" } }), 1);
 
-  // Verify Day 0 Drip step scheduled Day 3
-  const dripStep0 = await db.marketingDripStep.findUnique({
-    where: {
-      subscriberId_sequence_step: {
-        subscriberId: sub.id,
-        sequence: "merchant_onboarding",
-        step: 0,
-      },
-    },
-  });
-  assert.ok(dripStep0);
-  assert.equal(dripStep0.completed, true);
-  assert.ok(dripStep0.nextStepAt);
+  const updated = await MarketingService.updateSubscriberPreferences(sub.unsubscribeToken, { topics: ["weekly_digest"] });
+  assert.deepEqual(updated.topics, ["weekly_digest"]);
 
-  // 2. Preferences & Unsubscribe
-  const fetchedSub = await MarketingService.getSubscriberByToken(sub.unsubscribeToken);
-  assert.equal(fetchedSub?.email, testEmail);
+  const gone = await MarketingService.updateSubscriberPreferences(sub.unsubscribeToken, { unsubscribeAll: true });
+  assert.equal(gone.status, "unsubscribed");
+  // A workspace sign-up (already-verified address) must not resubscribe them.
+  const again = await MarketingService.subscribe({ email, confirmed: true, source: "merchant_workspace_created" });
+  assert.equal(again.status, "unsubscribed");
 
-  // Update topics
-  const updatedTopics = await MarketingService.updateSubscriberPreferences(
-    sub.unsubscribeToken,
-    { topics: ["product_updates"] },
-  );
-  assert.deepEqual(updatedTopics.topics, ["product_updates"]);
+  // A verified account owner who never unsubscribed is active straight away.
+  const owner = await MarketingService.subscribe({ email: unique("owner"), role: "merchant", confirmed: true });
+  assert.equal(owner.status, "active");
+});
 
-  // 3. Campaign Drafting & Broadcasting
+test("campaigns reach active subscribers once, filtered by topic", async () => {
+  const a = await confirmed(unique("camp_a"), { role: "merchant", topics: ["developer_advisories"] });
+  const b = await confirmed(unique("camp_b"), { role: "merchant", topics: ["product_updates"] });
+  const pending = await MarketingService.subscribe({ email: unique("camp_pending"), role: "merchant", topics: ["developer_advisories"] });
+
   const campaign = await MarketingService.createCampaign({
-    name: "Automated Routing Update",
-    subject: "Introducing Intelligent Failover Rules",
-    previewText: "Zero downtime checkouts across African and global rails.",
-    contentHtml: "<p>Automatic failover between Paystack and Flutterwave is now live.</p>",
+    name: "API change",
+    subject: "A change to the payments API",
+    contentHtml: "<p>Details.</p>",
     targetAudience: "merchants",
+    targetTopics: ["developer_advisories"],
   });
   assert.equal(campaign.status, "draft");
+  assert.equal((await MarketingService.sendTestCampaign(campaign.id, "preview@payrouta.test")).success, true);
 
-  // Send test preview
-  const testPreview = await MarketingService.sendTestCampaign(campaign.id, "preview@payrouta.test");
-  assert.equal(testPreview.success, true);
-
-  // Launch campaign
-  const launchResult = await MarketingService.launchCampaign(campaign.id);
-  assert.ok(launchResult.sent >= 1);
-
-  const updatedCamp = await db.marketingCampaign.findUnique({
-    where: { id: campaign.id },
-  });
-  assert.equal(updatedCamp?.status, "sent");
-  assert.ok(updatedCamp?.sentAt);
-
-  // 4. Webhook Handling
-  // Find a delivery log for this campaign
-  const campLog = await db.marketingDeliveryLog.findFirst({
-    where: { campaignId: campaign.id },
-  });
-
-  if (campLog?.resendEmailId) {
-    // Simulate email.opened event
-    const openWebhook = await MarketingService.handleResendWebhookEvent({
-      type: "email.opened",
-      data: { email_id: campLog.resendEmailId },
-    });
-    assert.equal(openWebhook.processed, true);
-
-    const refreshedCamp = await db.marketingCampaign.findUnique({
-      where: { id: campaign.id },
-    });
-    assert.ok(refreshedCamp!.openCount >= 1);
-  }
-
-  // 5. Unsubscribe from all
-  const unsubscribed = await MarketingService.updateSubscriberPreferences(
-    sub.unsubscribeToken,
-    { unsubscribeAll: true },
+  const result = await MarketingService.launchCampaign(campaign.id);
+  assert.equal(result.failed, 0);
+  const reached = new Set(
+    (await db.marketingDeliveryLog.findMany({ where: { campaignId: campaign.id } })).map((l) => l.subscriberId),
   );
-  assert.equal(unsubscribed.status, "unsubscribed");
+  assert.ok(reached.has(a.id));
+  assert.ok(!reached.has(b.id));
+  assert.ok(!reached.has(pending.id));
+  assert.equal((await db.marketingCampaign.findUnique({ where: { id: campaign.id } }))?.status, "sent");
+  await assert.rejects(MarketingService.launchCampaign(campaign.id), /already been sent/);
 
-  // 6. Analytics check
+  // Webhook statuses only move forward; each recipient's open counts once.
+  const log = (await db.marketingDeliveryLog.findFirst({ where: { campaignId: campaign.id, subscriberId: a.id } }))!;
+  await MarketingService.handleResendWebhookEvent({ type: "email.opened", data: { email_id: log.resendEmailId! } });
+  await MarketingService.handleResendWebhookEvent({ type: "email.opened", data: { email_id: log.resendEmailId! } });
+  await MarketingService.handleResendWebhookEvent({ type: "email.delivered", data: { email_id: log.resendEmailId! } });
+  assert.equal((await db.marketingDeliveryLog.findUnique({ where: { id: log.id } }))?.status, "opened");
+  assert.equal((await db.marketingCampaign.findUnique({ where: { id: campaign.id } }))?.openCount, 1);
+
   const analytics = await MarketingService.getMarketingAnalytics();
-  assert.ok(analytics.subscribers.total >= 1);
-  assert.ok(analytics.campaigns.total >= 1);
+  assert.ok(analytics.subscribers.pending >= 1);
 });
 
-test("MarketingService: Drip Progression advances through Day 3 and Day 7", async () => {
-  const dripUser = `drip_${Date.now()}@payrouta.test`;
-  const sub = await MarketingService.subscribe({
-    email: dripUser,
-    name: "Drip Pioneer",
-    role: "merchant",
-    source: "drip_test",
-  });
-
-  // Fast forward nextStepAt for step 0 to the past
-  await db.marketingDripStep.update({
-    where: {
-      subscriberId_sequence_step: {
-        subscriberId: sub.id,
-        sequence: "merchant_onboarding",
-        step: 0,
-      },
-    },
-    data: { nextStepAt: new Date(Date.now() - 10000) },
-  });
-
-  // Run scheduled drips
-  const cycle1 = await MarketingService.processScheduledDrips();
-  assert.ok(cycle1.processed >= 1);
-
-  // Step 1 should now be recorded
-  const step1 = await db.marketingDripStep.findUnique({
-    where: {
-      subscriberId_sequence_step: {
-        subscriberId: sub.id,
-        sequence: "merchant_onboarding",
-        step: 1,
-      },
-    },
-  });
-  assert.ok(step1);
-  assert.equal(step1.completed, true);
-  assert.ok(step1.nextStepAt);
-
-  // Fast forward step 1 to test step 2 (Day 7)
-  await db.marketingDripStep.update({
-    where: { id: step1.id },
-    data: { nextStepAt: new Date(Date.now() - 10000) },
-  });
-
-  const cycle2 = await MarketingService.processScheduledDrips();
-  assert.ok(cycle2.processed >= 1);
-
-  const step2 = await db.marketingDripStep.findUnique({
-    where: {
-      subscriberId_sequence_step: {
-        subscriberId: sub.id,
-        sequence: "merchant_onboarding",
-        step: 2,
-      },
-    },
-  });
-  assert.ok(step2);
-  assert.equal(step2.completed, true);
-});
-
-test("Resend Webhooks: Bounce & spam complaints suppress recipient", async () => {
-  const bounceEmail = `bounce_${Date.now()}@payrouta.test`;
-  const sub = await MarketingService.subscribe({
-    email: bounceEmail,
-    role: "subscriber",
-  });
-
-  const log = await db.marketingDeliveryLog.findFirst({
-    where: { subscriberId: sub.id },
-  });
-
-  if (log?.resendEmailId) {
-    const bounceRes = await MarketingService.handleResendWebhookEvent({
-      type: "email.bounced",
-      data: { email_id: log.resendEmailId },
+test("onboarding emails advance on schedule and stop for unsubscribed people", async () => {
+  const sub = await confirmed(unique("drip"), { name: "Drip Pioneer", role: "merchant" });
+  const due = () => new Date(Date.now() - 10_000);
+  const step = (n: number) =>
+    db.marketingDripStep.findUnique({
+      where: { subscriberId_sequence_step: { subscriberId: sub.id, sequence: "merchant_onboarding", step: n } },
     });
-    assert.equal(bounceRes.processed, true);
 
-    const updatedSub = await db.marketingSubscriber.findUnique({
-      where: { id: sub.id },
-    });
-    assert.equal(updatedSub?.status, "bounced");
-  }
+  await db.marketingDripStep.update({ where: { id: (await step(0))!.id }, data: { nextStepAt: due() } });
+  assert.ok((await MarketingService.processScheduledDrips()).processed >= 1);
+  const step1 = await step(1);
+  assert.ok(step1?.nextStepAt);
+
+  await MarketingService.updateSubscriberPreferences(sub.unsubscribeToken, { unsubscribeAll: true });
+  await db.marketingDripStep.update({ where: { id: step1.id }, data: { nextStepAt: due() } });
+  await MarketingService.processScheduledDrips();
+  assert.equal(await step(2), null);
 });
 
+test("bounces and complaints suppress the address", async () => {
+  const sub = await confirmed(unique("bounce"));
+  const log = (await db.marketingDeliveryLog.findFirst({ where: { subscriberId: sub.id, templateId: "welcome_onboarding" } }))!;
+
+  // A temporary bounce (full mailbox) does not suppress.
+  await MarketingService.handleResendWebhookEvent({
+    type: "email.bounced",
+    data: { email_id: log.resendEmailId!, to: [sub.email], bounce: { type: "Transient" } },
+  });
+  assert.equal((await db.marketingSubscriber.findUnique({ where: { id: sub.id } }))?.status, "active");
+
+  await MarketingService.handleResendWebhookEvent({
+    type: "email.bounced",
+    data: { email_id: log.resendEmailId!, to: [sub.email], bounce: { type: "Permanent" } },
+  });
+  assert.equal((await db.marketingSubscriber.findUnique({ where: { id: sub.id } }))?.status, "bounced");
+  // Choosing topics again can't reactivate a bounced address.
+  const after = await MarketingService.updateSubscriberPreferences(sub.unsubscribeToken, { topics: ["product_updates"] });
+  assert.equal(after.status, "bounced");
+});

@@ -1,0 +1,45 @@
+---
+title: "Stripe Connect"
+description: "PayRouta integrates with Stripe via partner onboarding. Accounts are provisioned as full Standard accounts where the merchant directly controls their Stripe\u2026"
+---
+
+<Note>
+**Implementation status:** Provider code path: stripe, stripe-connect. Not live-qualified by code alone. Merchant account enablement, credentials and sandbox qualification are required. See [current coverage](/partners/provider-coverage).
+</Note>
+
+**Category**: [Cards](/providers/cards)  
+**Provider**: Stripe, Inc.  
+**Partner Module**: `stripe-connect`  
+**Integration Mode**: `NATIVE` (Standard Merchant-Owned Controller)
+
+PayRouta integrates with Stripe via partner onboarding. Accounts are provisioned as full Standard accounts where the merchant directly controls their Stripe dashboard, owns their customer data, bears chargeback liabilities, and receives payouts directly into their bank account.
+
+---
+
+## Ownership & Compliance Model
+
+| Requirement | PayRouta Implementation |
+| --- | --- |
+| **Contracting** | Direct contract between merchant and Stripe |
+| **Login Credentials** | Merchant uses their own credentials at dashboard.stripe.com |
+| **Losses / Liabilities** | Borne directly by merchant or Stripe; never PayRouta |
+| **Settlement** | Daily or scheduled rolling bank payouts from Stripe |
+| **Portability** | Merchant retains their Stripe account even if disconnecting PayRouta |
+
+---
+
+## Onboarding & Application
+
+1. Open **Payment Providers** in the PayRouta Dashboard.
+2. Select **Stripe Connect**. PayRouta pre-fills your verified legal entity name, address, business registration, and representative data.
+3. Click **Continue with Stripe** to complete Stripe's hosted onboarding flow.
+4. Once Stripe issues the authorization token, your account status becomes `Approved` in PayRouta and cards become routable immediately.
+
+---
+
+## Webhook Signature Verification
+
+Stripe sends signed webhook events verifying payment outcomes. PayRouta checks:
+- Header: `Stripe-Signature` (`t=...,v1=...`)
+- Tolerance: 300 seconds maximum clock skew
+- Replay Prevention: Duplicate `event_id` values are discarded idempotently.

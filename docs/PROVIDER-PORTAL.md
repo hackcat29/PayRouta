@@ -54,6 +54,14 @@ After sign-in, go to **Settings → Verify for sensitive actions** and enter a f
 
 New account verification, reset links and invitations are captured in `.local/portal/mail`. The loopback-only `/provider/dev-mail` viewer exposes these development messages. Nothing is emailed. Never expose this viewer or run `PORTAL_MODE=local` on a public host.
 
+## Provider access is by invitation
+
+Payment providers can't create their own accounts or organizations. They ask for access with the public form at `/partners#request` (linked from the front page, the footer and the provider integration guide), which stores a `ProviderAccessRequest` and emails an acknowledgement. Set `PROVIDER_REQUESTS_EMAIL` (falls back to `CONTACT_EMAIL`) to be told about new requests.
+
+An Operations admin reviews requests at `/ops/provider-requests`. Approving one creates the provider organization with an empty application and a 14-day owner invitation, and emails the contact a link to set up their login (`/provider/sign-up`, or `/provider/sign-in` if the email already has an account) that ends at the invitation. The invitation only works for that email address. Declining emails the applicant, including the note if one was entered.
+
+`/provider/sign-up` without an invitation link redirects to the request form, and provider sign-in points new visitors there too. Signed-in users with no provider organization see a "no provider access" page; `/provider/settings` still works for them so merchants and operators can manage their authenticator.
+
 ## Review the complete journey
 
 1. Sign in as Harbor's owner. The seeded draft has company, coverage, a directional NGN bank pay-in capability, settlement settings and a sandbox connection.
@@ -93,7 +101,8 @@ Better Auth supplies password hashing, verified email, TOTP, recovery codes and 
 
 `POST /api/portal/command` accepts JSON with an `action`, selected `orgId` for provider actions, and action-specific validated fields. The origin must match `BETTER_AUTH_URL`; bodies are limited to 64 KiB and read under a deadline. Safe errors use 400, 401, 403, 404, 409, 413, 429 or 503. No client-supplied role grants permission.
 
-- `create-organization`, `save-section`, `save-capability`, `remove-capability`.
+- `save-section`, `save-capability`, `remove-capability`.
+- `ops-provider-access` (Operations admin with step-up): approve or decline a provider access request.
 - `submit` requires a draft `version` and UUID `key`. Retry the same key to recover the same submission.
 - `respond` appends the response and an audit event; recorded responses cannot silently be overwritten.
 - `sandbox-run` requires a scenario and UUID `key`; duplicate requests share one run.

@@ -72,11 +72,11 @@ test("stablecoin wallet quotes use exact registered assets, independent market v
   assert.equal(eur.amount, "8.000000");
   assert.equal(
     calculateFee(usd.feeSnapshot, "stablecoin", usd.amount, 6).amountMinor,
-    "1",
+    "15",
   );
   assert.equal(
     calculateFee(eur.feeSnapshot, "stablecoin", eur.amount, 6).amountMinor,
-    "1",
+    "15",
   );
   assert.equal(
     quoteAsset(
@@ -106,9 +106,10 @@ test("CoinGecko exact numeric source, tiny scientific PEPE quotes and upward ato
   assert.ok(units * p >= (1000n * 10n ** 39n) / 100n);
   assert.equal(
     calculateFee(terms.feeSnapshot, "crypto-app", terms.amount, 18).amountMinor,
-    "1",
+    "15",
+    "1.5% of $10.00",
   );
-  const capped = cryptoPaymentTerms(
+  const large = cryptoPaymentTerms(
     a,
     "10000.00",
     price,
@@ -116,9 +117,10 @@ test("CoinGecko exact numeric source, tiny scientific PEPE quotes and upward ato
     new Date(now.getTime() + 120000),
   );
   assert.equal(
-    calculateFee(capped.feeSnapshot, "crypto-app", capped.amount, 18)
+    calculateFee(large.feeSnapshot, "crypto-app", large.amount, 18)
       .amountMinor,
-    "100",
+    "15000",
+    "crypto is not capped",
   );
 });
 test("quotes reject missing, stale, future, zero and malformed market data", () => {
@@ -150,7 +152,7 @@ test("very small native token prices retain full source precision and bill with 
   assert.equal(
     calculateFee(terms.feeSnapshot, "crypto-app", terms.amount, a.decimals)
       .amountMinor,
-    "1",
+    "15",
   );
   const eth = cryptoAsset("eip155:1", "native:ETH")!;
   const tiny = cryptoPaymentTerms(
@@ -163,7 +165,7 @@ test("very small native token prices retain full source precision and bill with 
   assert.ok(tiny.feeSnapshot.schedule!.conversionDenominator.length > 40);
   assert.equal(
     calculateFee(tiny.feeSnapshot, "crypto-app", tiny.amount, 18).amountMinor,
-    "1",
+    "15",
   );
 });
 test("price transport uses reviewed CoinGecko IDs and fails on rate limits without invented rates", async () => {

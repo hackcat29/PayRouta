@@ -347,90 +347,245 @@ export function Providers({
       )}
     </section>
   );
-  const profileSection = (
-    <section>
-      <h2>
-        {profileOnly
-          ? "Business profile"
-          : "One business profile for every provider"}
-      </h2>
-      {!profileOnly && (
-        <p>
-          Enter your business details once. When you choose providers, we
-          pre-fill their applications with only the fields each one needs. Each
-          provider verifies you itself, and the account it opens belongs to you.
-        </p>
-      )}
-      {profileOnly && (
-        <p>
-          Save your business details. We use them to review your business and
-          set up your PayRouta payments account. Identity and bank details are
-          collected separately and stored encrypted.
-        </p>
-      )}
-      {!profileOnly && (
-        <p>
-          <strong>For accounts in your own name, PayRouta never asks for</strong>{" "}
-          ID document numbers, dates of birth, bank account numbers or card
-          details. Providers collect those directly on their own secure pages.
-        </p>
-      )}
-      {overview.profile && (
-        <p>Saved profile version {overview.profile.version}.</p>
-      )}
-      <details open={!saved}>
-        <summary>
-          {saved ? "Edit business profile" : "Business profile"}
-        </summary>
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            saveProfile(new FormData(event.currentTarget));
-          }}
-        >
-          <fieldset disabled={!canConfigure || busy}>
-            <legend>Business</legend>
+  const profileForm = (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        saveProfile(new FormData(event.currentTarget));
+      }}
+    >
+      <fieldset disabled={!canConfigure || busy}>
+        <legend>Business</legend>
+        <label>
+          Legal business name
+          <input
+            name="legalName"
+            required
+            maxLength={200}
+            defaultValue={profile.legalName}
+          />
+        </label>
+        <label>
+          Trading name (optional)
+          <input
+            name="tradingName"
+            maxLength={200}
+            defaultValue={profile.tradingName}
+          />
+        </label>
+        <label>
+          Business type
+          <select
+            name="businessType"
+            required
+            defaultValue={profile.businessType ?? "company"}
+          >
+            {businessTypes.map(([id, label]) => (
+              <option key={id} value={id}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Country of registration
+          <select name="country" required defaultValue={profile.country ?? ""}>
+            <option value="" disabled>
+              Choose a country
+            </option>
+            {countries.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Company registration number
+          <input
+            name="registrationNumber"
+            maxLength={60}
+            defaultValue={profile.registrationNumber}
+          />
+        </label>
+        <label>
+          Tax ID (optional)
+          <input name="taxId" maxLength={60} defaultValue={profile.taxId} />
+        </label>
+        <label>
+          Website
+          <input
+            name="website"
+            type="url"
+            required
+            placeholder="https://"
+            defaultValue={profile.website}
+          />
+        </label>
+        <label>
+          What you sell
+          <textarea
+            name="productDescription"
+            required
+            minLength={20}
+            maxLength={1000}
+            defaultValue={profile.productDescription}
+          />
+        </label>
+        <label>
+          Industry
+          <input
+            name="industry"
+            required
+            maxLength={100}
+            defaultValue={profile.industry}
+          />
+        </label>
+        <label>
+          Customer support email
+          <input
+            name="supportEmail"
+            type="email"
+            required
+            defaultValue={profile.supportEmail}
+          />
+        </label>
+        <label>
+          Expected monthly volume
+          <select
+            name="monthlyVolume"
+            required
+            defaultValue={profile.monthlyVolume ?? "under-10k"}
+          >
+            {volumes.map(([id, label]) => (
+              <option key={id} value={id}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          {profileOnly ? "Billing currency" : "Settlement currency"}
+          <input
+            name="settlementCurrency"
+            required
+            pattern="[A-Za-z]{3}"
+            maxLength={3}
+            defaultValue={profile.settlementCurrency}
+          />
+        </label>
+      </fieldset>
+      <fieldset disabled={!canConfigure || busy}>
+        <legend>Registered address</legend>
+        <label>
+          Address line 1
+          <input
+            name="line1"
+            required
+            maxLength={200}
+            defaultValue={profile.address?.line1}
+          />
+        </label>
+        <label>
+          Address line 2 (optional)
+          <input
+            name="line2"
+            maxLength={200}
+            defaultValue={profile.address?.line2}
+          />
+        </label>
+        <label>
+          City
+          <input
+            name="city"
+            required
+            maxLength={100}
+            defaultValue={profile.address?.city}
+          />
+        </label>
+        <label>
+          State or region (optional)
+          <input
+            name="region"
+            maxLength={100}
+            defaultValue={profile.address?.region}
+          />
+        </label>
+        <label>
+          Postal code (optional)
+          <input
+            name="postalCode"
+            maxLength={20}
+            defaultValue={profile.address?.postalCode}
+          />
+        </label>
+      </fieldset>
+      <fieldset disabled={!canConfigure || busy}>
+        <legend>Representative</legend>
+        <label>
+          First name
+          <input
+            name="repGiven"
+            required
+            maxLength={100}
+            defaultValue={profile.representative?.givenName}
+          />
+        </label>
+        <label>
+          Last name
+          <input
+            name="repFamily"
+            required
+            maxLength={100}
+            defaultValue={profile.representative?.familyName}
+          />
+        </label>
+        <label>
+          Email
+          <input
+            name="repEmail"
+            type="email"
+            required
+            defaultValue={profile.representative?.email}
+          />
+        </label>
+        <label>
+          Job title
+          <input
+            name="repTitle"
+            required
+            maxLength={100}
+            defaultValue={profile.representative?.title}
+          />
+        </label>
+      </fieldset>
+      <fieldset disabled={!canConfigure || busy}>
+        <legend>Owners with 25% or more (names only)</legend>
+        {Array.from({ length: ownerRows }, (_, i) => (
+          <div key={i} role="group" aria-label={`Owner ${i + 1}`}>
             <label>
-              Legal business name
+              First name
               <input
-                name="legalName"
-                required
-                maxLength={200}
-                defaultValue={profile.legalName}
+                name={`owner${i}Given`}
+                maxLength={100}
+                defaultValue={owners[i]?.givenName}
               />
             </label>
             <label>
-              Trading name (optional)
+              Last name
               <input
-                name="tradingName"
-                maxLength={200}
-                defaultValue={profile.tradingName}
+                name={`owner${i}Family`}
+                maxLength={100}
+                defaultValue={owners[i]?.familyName}
               />
             </label>
             <label>
-              Business type
+              Country
               <select
-                name="businessType"
-                required
-                defaultValue={profile.businessType ?? "company"}
+                name={`owner${i}Country`}
+                defaultValue={owners[i]?.country ?? ""}
               >
-                {businessTypes.map(([id, label]) => (
-                  <option key={id} value={id}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Country of registration
-              <select
-                name="country"
-                required
-                defaultValue={profile.country ?? ""}
-              >
-                <option value="" disabled>
-                  Choose a country
-                </option>
+                <option value="">—</option>
                 {countries.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -439,221 +594,69 @@ export function Providers({
               </select>
             </label>
             <label>
-              Company registration number
+              Ownership %
               <input
-                name="registrationNumber"
-                maxLength={60}
-                defaultValue={profile.registrationNumber}
+                name={`owner${i}Percent`}
+                type="number"
+                min={25}
+                max={100}
+                defaultValue={owners[i]?.ownershipPercent}
               />
             </label>
-            <label>
-              Tax ID (optional)
-              <input name="taxId" maxLength={60} defaultValue={profile.taxId} />
-            </label>
-            <label>
-              Website
-              <input
-                name="website"
-                type="url"
-                required
-                placeholder="https://"
-                defaultValue={profile.website}
-              />
-            </label>
-            <label>
-              What you sell
-              <textarea
-                name="productDescription"
-                required
-                minLength={20}
-                maxLength={1000}
-                defaultValue={profile.productDescription}
-              />
-            </label>
-            <label>
-              Industry
-              <input
-                name="industry"
-                required
-                maxLength={100}
-                defaultValue={profile.industry}
-              />
-            </label>
-            <label>
-              Customer support email
-              <input
-                name="supportEmail"
-                type="email"
-                required
-                defaultValue={profile.supportEmail}
-              />
-            </label>
-            <label>
-              Expected monthly volume
-              <select
-                name="monthlyVolume"
-                required
-                defaultValue={profile.monthlyVolume ?? "under-10k"}
-              >
-                {volumes.map(([id, label]) => (
-                  <option key={id} value={id}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              {profileOnly ? "Billing currency" : "Settlement currency"}
-              <input
-                name="settlementCurrency"
-                required
-                pattern="[A-Za-z]{3}"
-                maxLength={3}
-                defaultValue={profile.settlementCurrency}
-              />
-            </label>
-          </fieldset>
-          <fieldset disabled={!canConfigure || busy}>
-            <legend>Registered address</legend>
-            <label>
-              Address line 1
-              <input
-                name="line1"
-                required
-                maxLength={200}
-                defaultValue={profile.address?.line1}
-              />
-            </label>
-            <label>
-              Address line 2 (optional)
-              <input
-                name="line2"
-                maxLength={200}
-                defaultValue={profile.address?.line2}
-              />
-            </label>
-            <label>
-              City
-              <input
-                name="city"
-                required
-                maxLength={100}
-                defaultValue={profile.address?.city}
-              />
-            </label>
-            <label>
-              State or region (optional)
-              <input
-                name="region"
-                maxLength={100}
-                defaultValue={profile.address?.region}
-              />
-            </label>
-            <label>
-              Postal code (optional)
-              <input
-                name="postalCode"
-                maxLength={20}
-                defaultValue={profile.address?.postalCode}
-              />
-            </label>
-          </fieldset>
-          <fieldset disabled={!canConfigure || busy}>
-            <legend>Representative</legend>
-            <label>
-              First name
-              <input
-                name="repGiven"
-                required
-                maxLength={100}
-                defaultValue={profile.representative?.givenName}
-              />
-            </label>
-            <label>
-              Last name
-              <input
-                name="repFamily"
-                required
-                maxLength={100}
-                defaultValue={profile.representative?.familyName}
-              />
-            </label>
-            <label>
-              Email
-              <input
-                name="repEmail"
-                type="email"
-                required
-                defaultValue={profile.representative?.email}
-              />
-            </label>
-            <label>
-              Job title
-              <input
-                name="repTitle"
-                required
-                maxLength={100}
-                defaultValue={profile.representative?.title}
-              />
-            </label>
-          </fieldset>
-          <fieldset disabled={!canConfigure || busy}>
-            <legend>Owners with 25% or more (names only)</legend>
-            {Array.from({ length: ownerRows }, (_, i) => (
-              <div key={i} role="group" aria-label={`Owner ${i + 1}`}>
-                <label>
-                  First name
-                  <input
-                    name={`owner${i}Given`}
-                    maxLength={100}
-                    defaultValue={owners[i]?.givenName}
-                  />
-                </label>
-                <label>
-                  Last name
-                  <input
-                    name={`owner${i}Family`}
-                    maxLength={100}
-                    defaultValue={owners[i]?.familyName}
-                  />
-                </label>
-                <label>
-                  Country
-                  <select
-                    name={`owner${i}Country`}
-                    defaultValue={owners[i]?.country ?? ""}
-                  >
-                    <option value="">—</option>
-                    {countries.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Ownership %
-                  <input
-                    name={`owner${i}Percent`}
-                    type="number"
-                    min={25}
-                    max={100}
-                    defaultValue={owners[i]?.ownershipPercent}
-                  />
-                </label>
-              </div>
-            ))}
-            {ownerRows < 4 && (
-              <button type="button" onClick={() => setOwnerRows((n) => n + 1)}>
-                Add owner
-              </button>
-            )}
-          </fieldset>
-          {canConfigure && (
-            <button disabled={busy}>Save business profile</button>
-          )}
-        </form>
-      </details>
+          </div>
+        ))}
+        {ownerRows < 4 && (
+          <button type="button" onClick={() => setOwnerRows((n) => n + 1)}>
+            Add owner
+          </button>
+        )}
+      </fieldset>
+      {canConfigure && <button disabled={busy}>Save business profile</button>}
+    </form>
+  );
+  const profileSection = (
+    <section>
+      {(!profileOnly || saved) && (
+        <h2>
+          {profileOnly
+            ? "Business profile"
+            : "One business profile for every provider"}
+        </h2>
+      )}
+      {!profileOnly && (
+        <p>
+          Enter your business details once. When you choose providers, we
+          pre-fill their applications with only the fields each one needs. Each
+          provider verifies you itself, and the account it opens belongs to you.
+        </p>
+      )}
+      {profileOnly && saved && (
+        <p>
+          Save your business details. We use them to review your business and
+          set up your PayRouta payments account. Identity and bank details are
+          collected separately and stored encrypted.
+        </p>
+      )}
+      {!profileOnly && (
+        <p>
+          <strong>
+            For accounts in your own name, PayRouta never asks for
+          </strong>{" "}
+          ID document numbers, dates of birth, bank account numbers or card
+          details. Providers collect those directly on their own secure pages.
+        </p>
+      )}
+      {overview.profile && (
+        <p>Saved profile version {overview.profile.version}.</p>
+      )}
+      {saved ? (
+        <details>
+          <summary>Edit business profile</summary>
+          {profileForm}
+        </details>
+      ) : (
+        profileForm
+      )}
     </section>
   );
   if (profileOnly)

@@ -14,7 +14,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { PortalError } from "./domain";
 import { databaseSecretStore } from "./secret-store";
-import { sendSmtp } from "./mail-smtp";
+import { sendSmtp, smtpConfigured } from "./mail-smtp";
 import { clamdConfigured, scanWithClamd } from "./scanner-clamd";
 export function localMode() {
   return (
@@ -36,32 +36,44 @@ const root = () =>
   );
 import { isResendConfigured, sendEmail } from "@/lib/email/resend-client";
 
+// Account mail (verification, password reset, invitations). Production sends
+// through Resend, with SMTP as a fallback only when SMTP_URL is configured.
+// Local mode captures messages to disk for the /provider/dev-mail viewer.
+export interface MailMessage {
+  subject: string;
+  text: string;
+  html?: string;
+  // A tag for Resend analytics, e.g. "verify_email".
+  tag?: string;
+  // Stops a retried request from sending the same email twice.
+  idempotencyKey?: string;
+}
 export interface MailAdapter {
-  send(
-    to: string,
-    subject: string,
-    text: string,
-  ): Promise<"captured" | "delivered">;
+  send(to: string, message: MailMessage): Promise<"captured" | "delivered">;
 }
 export const mail: MailAdapter = {
-  async send(to, subject, text) {
+  async send(to, message) {
     if (!localMode()) {
       if (isResendConfigured()) {
         const res = await sendEmail({
           to,
-          subject,
-          text,
-          html: `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1e293b; max-width: 600px; margin: 0 auto; padding: 24px;">${text.replace(/\n/g, "<br/>")}</div>`,
+          subject: message.subject,
+          text: message.text,
+          html: message.html ?? `<p>${message.text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/\n/g, "<br>")}</p>`,
+          tags: message.tag ? [{ name: "type", value: message.tag }] : undefined,
+          idempotencyKey: message.idempotencyKey,
         });
-        if (res.success) return "delivered";
+        if (res.success && !res.isMock) return "delivered";
+        if (!smtpConfigured())
+          throw new PortalError("We couldn't send the email. Try again in a few minutes.", 503);
       }
-      return sendSmtp(to, subject, text);
+      return sendSmtp(to, message.subject, message.text);
     }
     const dir = path.join(root(), "mail");
     await mkdir(dir, { recursive: true, mode: 0o700 });
     await writeFile(
       path.join(dir, `${Date.now()}-${randomUUID()}.json`),
-      JSON.stringify({ to, subject, text, at: new Date().toISOString() }),
+      JSON.stringify({ to, subject: message.subject, text: message.text, at: new Date().toISOString() }),
       { mode: 0o600 },
     );
     return "captured";
@@ -148,13 +160,35 @@ function validKey(key: string) {
   if (!/^[a-f0-9-]{36}$/.test(key)) throw new PortalError("Invalid object key");
   return key;
 }
+// Cloudflare R2 (https://<account>.r2.cloudflarestorage.com) speaks the S3
+// API with region "auto" and always encrypts at rest, so the AWS
+// server-side-encryption header isn't sent there.
+export function isR2(endpoint = process.env.S3_ENDPOINT) {
+  try {
+    return !!endpoint && new URL(endpoint).hostname.endsWith(".r2.cloudflarestorage.com");
+  } catch {
+    return false;
+  }
+}
+// The endpoint is the store's origin. Dashboards often show it with the
+// bucket appended (".../payrouta"); the bucket comes from S3_BUCKET, so any
+// path is dropped rather than doubled.
+export function s3Endpoint(endpoint = process.env.S3_ENDPOINT) {
+  if (!endpoint) return undefined;
+  try {
+    return new URL(endpoint).origin;
+  } catch {
+    throw new PortalError("S3_ENDPOINT must be a URL", 503);
+  }
+}
 function s3() {
   if (!process.env.S3_BUCKET)
     throw new PortalError("Private object storage is not configured", 503);
+  const endpoint = s3Endpoint();
   return new S3Client({
-    region: process.env.S3_REGION || "us-east-1",
-    endpoint: process.env.S3_ENDPOINT,
-    forcePathStyle: !!process.env.S3_ENDPOINT,
+    region: process.env.S3_REGION || (isR2() ? "auto" : "us-east-1"),
+    endpoint,
+    forcePathStyle: !!endpoint,
   });
 }
 export const storage: PrivateStorage = {
@@ -171,7 +205,7 @@ export const storage: PrivateStorage = {
           Key: key,
           Body: bytes,
           ContentType: mime,
-          ServerSideEncryption: "AES256",
+          ...(isR2() ? {} : { ServerSideEncryption: "AES256" as const }),
         }),
       );
   },

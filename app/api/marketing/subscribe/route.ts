@@ -1,46 +1,36 @@
-import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { MarketingService } from "@/lib/email/marketing-service";
+import { errorResponse, json, limitByClient, sameOrigin } from "@/lib/email/http";
 
-export async function POST(req: NextRequest) {
+const schema = z.object({
+  email: z.email().max(254),
+  name: z.string().trim().max(120).optional(),
+  role: z.enum(["merchant", "developer", "provider"]).optional(),
+  topics: z.array(z.string()).max(10).optional(),
+  source: z.string().trim().max(60).optional(),
+  website_url_hp: z.string().optional(),
+});
+
+// The response is identical for new, pending and existing addresses, so the
+// endpoint can't be used to find out who is subscribed.
+const accepted = { success: true, message: "Check your inbox and click the link to confirm." };
+
+export async function POST(req: Request) {
   try {
-    const body = await req.json().catch(() => ({}));
-
-    // Simple anti-spam honeypot
-    if (body.website_url_hp) {
-      return NextResponse.json({ success: true, message: "Subscribed" });
-    }
-
-    const { email, name, role, topics, source } = body;
-
-    if (!email || typeof email !== "string" || !email.includes("@")) {
-      return NextResponse.json(
-        { error: "A valid email address is required" },
-        { status: 400 },
-      );
-    }
-
-    const subscriber = await MarketingService.subscribe({
-      email,
-      name: typeof name === "string" ? name : undefined,
-      role: ["merchant", "developer", "provider"].includes(role)
-        ? role
-        : "subscriber",
-      source: typeof source === "string" ? source : "landing_page",
-      topics: Array.isArray(topics) ? topics : undefined,
-      sendWelcome: true,
+    if (!sameOrigin(req)) return json({ error: "Request origin is not allowed." }, 403);
+    await limitByClient(req, "subscribe", 5);
+    const parsed = schema.safeParse(await req.json().catch(() => ({})));
+    if (!parsed.success) return json({ error: "Enter a valid email address." }, 400);
+    const { website_url_hp, ...input } = parsed.data;
+    // Honeypot: bots fill the hidden field; pretend it worked.
+    if (website_url_hp) return json(accepted);
+    await MarketingService.subscribe({
+      ...input,
+      role: input.role ?? "subscriber",
+      source: input.source ?? "website",
     });
-
-    return NextResponse.json({
-      success: true,
-      message: "You're all set! Check your inbox for your welcome guide.",
-      subscriber: {
-        id: subscriber.id,
-        email: subscriber.email,
-        status: subscriber.status,
-      },
-    });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to subscribe";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return json(accepted);
+  } catch (error) {
+    return errorResponse(error, "We couldn't sign you up just now. Please try again.");
   }
 }

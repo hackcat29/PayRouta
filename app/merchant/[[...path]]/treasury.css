@@ -24,12 +24,13 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin: 0 0 20px;
+  margin: 0;
   padding: 16px 20px;
   border-radius: 10px;
   border: 1px solid #cfe3ea;
-  background: #f1f8fb;
+  background: #f3f8fb;
 }
+.portal .tr-banner p { margin: 2px 0 0; }
 .tr-banner.warn { border-color: #f1d6a6; background: #fff8ec; }
 .tr-banner.bad { border-color: #efc3cb; background: #fdf3f5; }
 .tr-banner.good { border-color: #bfe6d6; background: #f0faf5; }
@@ -90,8 +91,9 @@
 .tr-step-mark {
   display: inline-grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
+  font-size: 13px;
   border-radius: 50%;
   border: 2px solid var(--mist);
   font-weight: 700;
@@ -130,16 +132,17 @@
 .tr-stat {
   display: grid;
   gap: 4px;
+  align-content: start;
   padding: 14px 16px;
   border: 1px solid var(--mist);
   border-radius: 8px;
-  background: var(--cloud);
+  background: white;
 }
-.tr-stat span { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--slate); }
-.tr-stat strong { font-size: 22px; font-variant-numeric: tabular-nums; }
+.tr-stat span { font-size: 12.5px; font-weight: 500; color: var(--slate); }
+.tr-stat strong { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .tr-stat small { color: var(--slate); font-size: 12px; }
-.tr-stat.primary { grid-column: span 2; background: white; border-color: #bfe6d6; }
-.tr-stat.primary strong { font-size: 30px; color: #00594f; }
+.tr-stat.primary { grid-column: span 2; background: #f6fbfa; border-color: #c9e6e0; }
+.tr-stat.primary strong { font-size: 30px; color: var(--ink); }
 .tr-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
 .tr-inline { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; margin: 12px 0 20px; }
 .tr-inline .tr-message { flex-basis: 100%; }
