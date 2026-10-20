@@ -159,8 +159,8 @@ export const pillars: {
   {
     id: "anyChain",
     title: "Any wallet, any chain",
-    availability: "planned",
-    note: "Paying straight from a wallet is live on eight networks. Paying with any token on any chain, swapped on the way, opens after live qualification.",
+    availability: "available",
+    note: "Pay from a wallet on eight networks, or with any of 125+ assets on 36+ chains through NEAR Intents (swaps from about $100).",
   },
   {
     id: "platforms",
@@ -172,7 +172,8 @@ export const pillars: {
 
 // Where merchants can add the button.
 export const platforms: { name: string; detail: string; availability: Availability }[] = [
-  { name: "Any website or app", detail: "One script tag and a button, or the React component", availability: "available" },
+  { name: "No website", detail: "A payment link you share on WhatsApp, Instagram, SMS or an invoice", availability: "available" },
+  { name: "Any website or app", detail: "One script tag and a button", availability: "available" },
   { name: "Your own server", detail: "Node and Python SDKs, one call per order", availability: "available" },
   { name: "WooCommerce", detail: "PayRouta Checkout plugin", availability: "planned" },
   { name: "Shopify", detail: "PayRouta payments app at Shopify checkout", availability: "planned" },

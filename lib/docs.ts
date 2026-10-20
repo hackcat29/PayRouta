@@ -12,6 +12,7 @@ export const docEntries: readonly DocEntryTuple[] = [
   // Core Guides & Concepts
   ["overview", "Overview", "Getting Started", "Concepts"],
   ["quickstart", "Quickstart", "Getting Started", "Concepts"],
+  ["payment-links", "Payment Links", "Getting Started", "Concepts"],
   ["checkout-button", "Checkout Button", "Getting Started", "Concepts"],
   ["provider-accounts", "Provider Accounts", "Core Concepts", "Concepts"],
   ["payment-intents", "Payment Intents", "Core Concepts", "Concepts"],

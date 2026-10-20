@@ -27,6 +27,9 @@ import { MerchantEvidence } from "./evidence";
 import { applicationRequirements } from "@/lib/merchant/evidence";
 import { merchantMetrics } from "@/lib/merchant/metrics";
 import { WebhookControls } from "./webhooks";
+import { PaymentLinks } from "./payment-links";
+import { linkMethodsOn } from "@/lib/merchant/payment-links";
+import { platformCandidates } from "@/lib/treasury/routes";
 import { Keys } from "./keys";
 import { BrandLogo } from "@/components/brand-logo";
 import { CreateWorkspace } from "./create-workspace";
@@ -594,33 +597,79 @@ export default async function Page({
   } else if (section === "providers" || section === "payment-methods") {
     const configuration = await merchantConfiguration(orgId, env);
     const accounts = await stablecoinOverview(orgId, env);
+    const offered = new Set((await platformCandidates(orgId, env)).map((c) => c.method));
+    const stableNetworks = configuration.stablecoinAssets.filter((a) => a.configured).length;
+    const activate = <Link href={href("activation")}>Activate payments →</Link>;
+    const methodsOverview: { name: string; detail: string; on: boolean; next: ReactNode }[] = [
+      { name: "Cards", detail: "Visa, Mastercard, Amex, Verve and local schemes", on: offered.has("card"), next: activate },
+      { name: "Digital wallets", detail: "Apple Pay, Google Pay, PayPal and local wallets", on: offered.has("digital-wallet"), next: activate },
+      { name: "Bank transfer", detail: "Bank apps, pay by bank, Pix, UPI", on: offered.has("bank-transfer"), next: activate },
+      { name: "Mobile money", detail: "M-Pesa, MTN MoMo, Airtel Money", on: offered.has("mobile-money"), next: activate },
+      { name: "USSD", detail: "A short code, no data needed", on: offered.has("ussd"), next: activate },
+      {
+        name: "Pay with credit",
+        detail: "Instalments from a licensed lender; you're paid in full",
+        on: offered.has("bnpl"),
+        next: <Link href="/docs/credit">Lenders are joining country by country →</Link>,
+      },
+      {
+        name: "Stablecoins",
+        detail: stableNetworks ? `USDC, USDT, EURC · ${stableNetworks} networks set up` : "USDC, USDT, EURC to your own wallet",
+        on: stableNetworks > 0,
+        next: <a href="#receive">Add receive addresses ↓</a>,
+      },
+      {
+        name: "Any token, any chain",
+        detail: "125+ assets on 36+ chains through NEAR Intents, paid out as your stablecoin",
+        on: stableNetworks > 0 && env === "production",
+        next: env === "production" ? <a href="#receive">Add receive addresses ↓</a> : <span>Live mode only</span>,
+      },
+    ];
     content = (
       <>
-        {(
+        <section className="ms-flush">
+          <div className="ms-card-head">
+            <div>
+              <h2>Ways customers pay</h2>
+              <p>Every method that&apos;s on appears in your payment links, checkout button and store plugins.</p>
+            </div>
+          </div>
+          <ul className="ms-methods">
+            {methodsOverview.map((m) => (
+              <li key={m.name} className={m.on ? "on" : undefined}>
+                <span className="ms-methods-dot" aria-hidden="true" />
+                <span>
+                  <strong>{m.name}</strong>
+                  <small>{m.detail}</small>
+                </span>
+                <span className="ms-methods-state">{m.on ? "On" : m.next}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+        <div id="receive">
           <Stablecoins
             orgId={orgId}
             environment={env}
             accounts={accounts.filter(
               (a) => onchainMethod(a.network, a.identifier) === "stablecoin",
             )}
-            country={config.country}
             readiness={configuration.stablecoinAssets}
             canConfigure={configure}
           />
-        )}
-        {(
+        </div>
+        <details className="ms-details">
+          <summary>Volatile coins: ETH, SOL, XLM and others</summary>
           <CryptoPayments
             orgId={orgId}
             environment={env}
-            country={config.country}
             assets={configuration.cryptoAssets}
-            stablecoinAssets={configuration.stablecoinAssets}
             accounts={accounts.filter(
               (a) => onchainMethod(a.network, a.identifier) === "crypto-app",
             )}
             canConfigure={configure}
           />
-        )}
+        </details>
         {section === "providers" && (
           <Providers
             profileOnly
@@ -818,6 +867,38 @@ export default async function Page({
           type: e.type,
           state: deliveries.find((d) => d.eventId === e.id)?.state || "Pending",
           created: when(e.createdAt),
+        }))}
+      />
+    );
+  } else if (section === "payment-links") {
+    const links = await db.paymentLink.findMany({ where: scope, orderBy: { createdAt: "desc" }, take: 100 });
+    const linkMethods = await linkMethodsOn(orgId, env);
+    const linkCrypto = enabled
+      ? await merchantConfiguration(orgId, env)
+          .then((c) => c.stablecoinAssets.some((a) => a.configured && a.executionEnabled))
+          .catch(() => false)
+      : false;
+    const currencyFor: Record<string, string> = { NG: "NGN", KE: "KES", GH: "GHS", ZA: "ZAR", GB: "GBP", US: "USD", BR: "BRL", MX: "MXN", IN: "INR" };
+    content = (
+      <PaymentLinks
+        orgId={orgId}
+        origin={new URL(process.env.BETTER_AUTH_URL || "http://127.0.0.1:3000").origin}
+        canManage={configure && enabled}
+        defaultCountry={config.country}
+        defaultCurrency={linkMethods.size ? (currencyFor[config.country] ?? "USD") : "USD"}
+        methodsOn={[...linkMethods]}
+        cryptoReady={linkCrypto}
+        links={links.map((l) => ({
+          id: l.id,
+          slug: l.slug,
+          title: l.title,
+          amount: l.amount,
+          currency: l.currency,
+          methods: l.methods as string[],
+          crypto: l.crypto,
+          active: l.active,
+          checkouts: l.checkouts,
+          created: day(l.createdAt),
         }))}
       />
     );
@@ -1235,6 +1316,25 @@ export default async function Page({
       }),
     ]);
     const treasury = await merchantTreasury(orgId, env);
+    const [linkStats, offered, stablecoinsReady] = await Promise.all([
+      db.paymentLink.aggregate({ where: { ...scope, active: true }, _count: true, _sum: { checkouts: true } }),
+      platformCandidates(orgId, env).then((c) => new Set(c.map((x) => x.method))),
+      enabled
+        ? merchantConfiguration(orgId, env)
+            .then((c) => c.stablecoinAssets.some((a) => a.configured))
+            .catch(() => false)
+        : Promise.resolve(false),
+    ]);
+    const ways: [string, boolean][] = [
+      ["Card", offered.has("card")],
+      ["Digital wallets", offered.has("digital-wallet")],
+      ["Bank transfer", offered.has("bank-transfer")],
+      ["Mobile money", offered.has("mobile-money")],
+      ["USSD", offered.has("ussd")],
+      ["Pay with credit", offered.has("bnpl")],
+      ["Stablecoins", stablecoinsReady],
+      ["Any token, any chain", stablecoinsReady && env === "production"],
+    ];
     const setup = [
       {
         done: !!treasury.account && treasury.account.state !== "Returned",
@@ -1242,19 +1342,14 @@ export default async function Page({
         path: "activation",
       },
       {
-        done: keyCount > 0,
-        label: "Create an API key",
-        path: "developers/api-keys",
-      },
-      {
-        done: !!config.webhookUrl,
-        label: "Add a webhook endpoint",
-        path: "developers/webhooks",
+        done: linkStats._count > 0 || keyCount > 0,
+        label: "Create a payment link or add the button",
+        path: "payment-links",
       },
       {
         done: count > 0,
         label: "Take a test payment",
-        path: "payment-methods",
+        path: "payment-links",
       },
       {
         done: approvedAccounts > 0 || treasury.account?.state === "Live",
@@ -1282,6 +1377,53 @@ export default async function Page({
     content = (
       <>
         <TreasuryBanner view={treasury} href={href} />
+        <div className="ms-getpaid" role="list" aria-label="Ways to get paid">
+          <Link role="listitem" className="ms-gp ms-gp-main" href={href("payment-links")}>
+            <span className="ms-gp-kicker">No website needed</span>
+            <strong>Payment link</strong>
+            <span>
+              {linkStats._count
+                ? `${linkStats._count} active · ${linkStats._sum.checkouts ?? 0} checkouts`
+                : "Share on WhatsApp, Instagram or SMS"}
+            </span>
+            <span className="ms-gp-go">{linkStats._count ? "Manage links →" : "Create a link →"}</span>
+          </Link>
+          <Link role="listitem" className="ms-gp" href={href("developers/integrations")}>
+            <span className="ms-gp-kicker">Your website or app</span>
+            <strong>Checkout button</strong>
+            <span>One script tag and a button</span>
+            <span className="ms-gp-go">Get the code →</span>
+          </Link>
+          <Link role="listitem" className="ms-gp" href={href("developers/integrations")}>
+            <span className="ms-gp-kicker">Your store</span>
+            <strong>Shopify or WooCommerce</strong>
+            <span>PayRouta at your store&apos;s checkout</span>
+            <span className="ms-gp-go">Connect →</span>
+          </Link>
+        </div>
+        <section className="ms-ways" aria-label="Ways your customers can pay">
+          <h2>Ways your customers can pay</h2>
+          <ul>
+            {ways.map(([label, on]) => (
+              <li key={label} className={on ? "on" : undefined}>
+                <span aria-hidden="true" />
+                {label}
+                <small>
+                  {on
+                    ? "On"
+                    : label === "Pay with credit"
+                      ? "As lenders join"
+                      : label === "Any token, any chain" && env !== "production"
+                        ? "Live mode only"
+                        : label === "Stablecoins" || label === "Any token, any chain"
+                          ? "Add receive addresses"
+                          : "After activation"}
+                </small>
+              </li>
+            ))}
+          </ul>
+          <Link href={href("payment-methods")}>Payment methods →</Link>
+        </section>
         <div className="ms-kpis">
           <div className="ms-kpi">
             <span>Payments received</span>
@@ -1400,7 +1542,7 @@ export default async function Page({
             </div>
           ) : (
             <Empty title="No payments yet">
-              Create a checkout from <Link href={href("payment-methods")}>Payment methods</Link> or the API to see it here.
+              <Link href={href("payment-links")}>Create a payment link</Link> and open it to take your first test payment.
             </Empty>
           )}
         </section>

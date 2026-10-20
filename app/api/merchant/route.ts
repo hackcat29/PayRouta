@@ -1,3 +1,4 @@
+import { createPaymentLink, setPaymentLinkActive } from "@/lib/merchant/payment-links";
 import { createMerchantCryptoCheckout } from "@/lib/merchant/crypto-checkout";
 import { setFeeBearer } from "@/lib/merchant/fees";
 import { createStablecoinCheckout } from "@/lib/merchant/stablecoin-checkout";
@@ -68,6 +69,15 @@ export async function POST(request: Request) {
       ].includes(raw?.action)
     )
       return liveScopeCommand(raw, request.headers);
+    if (raw?.action === "payment-link")
+      return createPaymentLink(z.string().min(1).parse(raw.orgId), raw.input, request.headers);
+    if (raw?.action === "payment-link-active")
+      return setPaymentLinkActive(
+        z.string().min(1).parse(raw.orgId),
+        z.string().min(1).parse(raw.id),
+        z.boolean().parse(raw.active),
+        request.headers,
+      );
     if (raw?.action === "crypto-checkout")
       return createMerchantCryptoCheckout(
         z.string().min(1).parse(raw.orgId),

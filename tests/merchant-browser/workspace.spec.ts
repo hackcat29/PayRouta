@@ -112,7 +112,7 @@ test("merchant workspace: auth, environment isolation, payment table and mobile 
     .getByLabel("Operating country", { exact: true })
     .selectOption("NG");
   await page
-    .getByLabel("Business website", { exact: true })
+    .getByLabel(/Website or social page/)
     .fill("https://merchant.example.test");
   await page
     .getByLabel("Business activity", { exact: true })

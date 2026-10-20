@@ -21,7 +21,7 @@ function Arrow({ label }: { label?: string }) {
 export function PaymentFlow() {
   const networks = ["Card networks", "Wallets", "Banks", "Mobile money", "Lenders", "Blockchains"];
   return (
-    <figure className="dg dg-flow" aria-labelledby="dg-flow-cap">
+    <figure className="dg dg-flow" aria-label="A payment from your checkout to your account">
       <div className="dg-flow-row">
         <div className="dg-node">
           <span className="dg-step">1</span>
@@ -60,9 +60,6 @@ export function PaymentFlow() {
           <span className="dg-chip">Bank account or crypto wallet</span>
         </div>
       </div>
-      <figcaption id="dg-flow-cap" className="dg-cap">
-        One integration. If a partner fails before charging, the same payment goes through another, never twice.
-      </figcaption>
     </figure>
   );
 }
@@ -84,7 +81,7 @@ export function CreditTimeline() {
   });
   const weeks = ["Today", "Week 2", "Week 4", "Week 6"];
   return (
-    <figure className="dg dg-credit" aria-labelledby="dg-credit-cap">
+    <figure className="dg dg-credit" aria-label={`A ${naira(price)} phone on a 4-payment plan`}>
       <div className="dg-lanes">
         <div className="dg-lane-head" aria-hidden="true" />
         {weeks.map((w) => (
@@ -115,10 +112,6 @@ export function CreditTimeline() {
           </div>
         ))}
       </div>
-      <figcaption id="dg-credit-cap" className="dg-cap">
-        Example: a {naira(price)} phone on a 4-payment plan. The lender approves the customer and carries the risk. A
-        missed payment never comes back to you.
-      </figcaption>
     </figure>
   );
 }
@@ -128,7 +121,7 @@ export function CreditTimeline() {
 export function CryptoRoute() {
   const chains = ["Bitcoin", "Ethereum", "Solana", "Tron", "BNB Chain", "TON", "Base", "Arbitrum", "Polygon", "Avalanche", "Stellar", "NEAR"];
   return (
-    <figure className="dg dg-crypto" aria-labelledby="dg-crypto-cap">
+    <figure className="dg dg-crypto" aria-label="Paying a USDC invoice on Base with USDT on Tron">
       <div className="dg-crypto-row">
         <div className="dg-chains">
           <span className="dg-node-title">Customer pays from</span>
@@ -157,9 +150,6 @@ export function CryptoRoute() {
           <span className="dg-chip">on Base, in your own wallet</span>
         </div>
       </div>
-      <figcaption id="dg-crypto-cap" className="dg-cap">
-        No one holds the funds along the way. If a swap can&apos;t complete, the customer is refunded on their own chain.
-      </figcaption>
     </figure>
   );
 }
@@ -289,7 +279,7 @@ export function JoinSteps() {
 // Partners: where each kind of partner sits between merchants and customers.
 export function PartnerMap() {
   return (
-    <figure className="dg dg-partners" aria-labelledby="dg-partners-cap">
+    <figure className="dg dg-partners" aria-label="Where providers and lenders sit">
       <div className="dg-pm">
         <div className="dg-node">
           <span className="dg-node-title">Merchants</span>
@@ -312,9 +302,6 @@ export function PartnerMap() {
           </div>
         </div>
       </div>
-      <figcaption id="dg-partners-cap" className="dg-cap">
-        You plug in once and reach every merchant using PayRouta in the countries you&apos;re licensed for.
-      </figcaption>
     </figure>
   );
 }

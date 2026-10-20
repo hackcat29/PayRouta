@@ -200,7 +200,6 @@ export function HeroDemo() {
         )}
         <span className="hd-pay">Continue</span>
       </div>
-      <figcaption className="hd-caption">Preview. What customers see depends on your account and their country.</figcaption>
     </figure>
   );
 }

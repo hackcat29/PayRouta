@@ -35,21 +35,3 @@ export function PageHeader({ title, lead, children }: { title: React.ReactNode; 
   );
 }
 
-// A status label from content/claims.ts availability, with an optional note.
-export function Status({
-  availability,
-  children,
-  tone = "light",
-}: {
-  availability: import("@/content/claims").Availability;
-  children?: React.ReactNode;
-  tone?: "light" | "night";
-}) {
-  const label = { available: "Live", testing: "In testing", planned: "Coming" }[availability];
-  return (
-    <span className={`mk-status mk-status-${availability} mk-status-${tone}`}>
-      {label}
-      {children ? <span className="mk-status-note"> · {children}</span> : null}
-    </span>
-  );
-}

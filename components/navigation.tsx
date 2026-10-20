@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BrandLogo } from "./brand-logo";
-import { navLinks, paths } from "@/lib/site-config";
+import { createLinkHref, navLinks, navSections, paths } from "@/lib/site-config";
 
 export function Navigation() {
   const path = usePathname();
@@ -13,6 +13,11 @@ export function Navigation() {
           <BrandLogo />
         </Link>
         <nav aria-label="Main navigation" className="mk-nav">
+          {navSections.map(([href, label]) => (
+            <Link key={href} href={href} className="mk-nav-link mk-nav-section">
+              {label}
+            </Link>
+          ))}
           {navLinks.map(([href, label]) => (
             <Link
               key={href}
@@ -30,8 +35,9 @@ export function Navigation() {
           <Link className="mk-btn soft" href={paths.signIn}>
             Sign in
           </Link>
-          <Link className="mk-btn primary" href={paths.signUp}>
-            Start
+          <Link className="mk-btn primary" href={createLinkHref}>
+            <span className="mk-nav-cta-long">Create a payment link</span>
+            <span className="mk-nav-cta-short">Get started</span>
           </Link>
         </nav>
       </div>

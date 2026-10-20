@@ -46,7 +46,11 @@ test("merchant stablecoins: authenticated receive setup, future methods, busines
   await expect(
     page.getByRole("heading", { name: "Stablecoin payments", exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("Coming soon", { exact: true })).toHaveCount(8);
+  // Every way to pay is listed with its state for this account.
+  const overview = page.getByRole("heading", { name: "Ways customers pay", exact: true }).locator("../../..");
+  for (const name of ["Cards", "Digital wallets", "Bank transfer", "Mobile money", "USSD", "Pay with credit", "Stablecoins", "Any token, any chain"])
+    await expect(overview.getByText(name, { exact: true })).toBeVisible();
+  await page.getByText("Volatile coins: ETH, SOL, XLM and others", { exact: true }).click();
   const cryptoSection = page
     .getByRole("heading", { name: "Crypto wallet payments", exact: true })
     .locator("..");
@@ -131,7 +135,7 @@ test("merchant stablecoins: authenticated receive setup, future methods, busines
   expect(axe.violations).toEqual([]);
 });
 
-test("merchant creates a multistablecoin checkout; a lost response retrieves the same link", async ({
+test("merchant creates a payment link; every customer who pays gets their own checkout", async ({
   page,
   context,
 }) => {
@@ -146,114 +150,50 @@ test("merchant creates a multistablecoin checkout; a lost response retrieves the
       trustDevice: false,
     },
   });
-  await page.request.post("/api/portal/command", {
-    headers: { Origin: origin },
-    data: {
-      action: "step-up",
-      code: await createOTP("payrouta-fictional-totp-secret").totp(),
-    },
-  });
   await page.goto(`/merchant/payment-methods?orgId=${orgId}`);
-  await expect(
-    page.getByRole("heading", { name: "Supported stablecoins", exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("cell", { name: "Mainnet only", exact: true }),
-  ).toHaveCount(2);
-  const reference = "Browser stablecoin invoice " + Date.now();
-  await page.getByLabel("Checkout reference", { exact: true }).fill(reference);
-  await page
-    .getByLabel("Payer country (two-letter code)", { exact: true })
-    .fill("NG");
-  await page
-    .getByLabel("USDC on Base Sepolia amount", { exact: true })
-    .fill("1.000001");
-  await page
-    .getByLabel("EURC on Base Sepolia amount", { exact: true })
-    .fill("2.000002");
-  let drop = true;
-  await page.route("**/api/merchant", async (route) => {
-    if (
-      drop &&
-      route.request().postDataJSON()?.action === "stablecoin-checkout"
-    ) {
-      drop = false;
-      const result = await route.fetch();
-      expect(result.ok()).toBeTruthy();
-      await route.abort("failed");
-    } else await route.continue();
-  });
-  await page
-    .getByRole("button", { name: "Create checkout link", exact: true })
-    .click();
-  await expect(
-    page.getByRole("button", { name: "Retry checkout creation", exact: true }),
-  ).toBeEnabled();
-  await page
-    .getByRole("button", { name: "Retry checkout creation", exact: true })
-    .click();
-  const link = page.getByRole("link", {
-    name: "Open customer checkout",
-    exact: true,
-  });
-  await expect(link).toBeVisible();
-  const intents = await db.paymentIntent.findMany({
-    where: { orgId, reference },
-  });
-  expect(intents).toHaveLength(1);
-  expect(
-    await db.checkoutSession.count({ where: { intentId: intents[0].id } }),
-  ).toBe(1);
+  await expect(page.getByRole("heading", { name: "Ways customers pay", exact: true })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "Mainnet only", exact: true })).toHaveCount(1);
+
+  await page.goto(`/merchant/payment-links?orgId=${orgId}`);
+  const title = "Browser link " + Date.now();
+  await page.getByLabel("What it's for", { exact: true }).fill(title);
+  await page.getByLabel("Amount", { exact: true }).fill("3");
+  await page.getByLabel("Currency", { exact: true }).fill("USD");
+  // Methods that aren't on for this account can't be chosen.
+  await expect(page.getByRole("checkbox", { name: /Card/ })).toBeDisabled();
+  await page.getByRole("checkbox", { name: /Stablecoins/ }).check();
+  await page.getByRole("button", { name: "Create link", exact: true }).click();
+  const url = await page.locator(".ms-link-created code").innerText();
+  expect(url).toMatch(/\/pay\/[A-Za-z0-9]{10}$/);
+
+  // Opening the link creates nothing; pressing Pay creates one checkout.
+  const link = await db.paymentLink.findFirstOrThrow({ where: { orgId, title } });
   const customer = await context.newPage();
-  await customer.goto((await link.getAttribute("href"))!);
-  const picker = customer.getByRole("combobox", {
-    name: "Token and network",
-    exact: true,
-  });
-  await expect(picker).toBeVisible();
-  const eurcOption = await picker
-    .locator("option")
-    .filter({ hasText: "EURC" })
-    .getAttribute("value");
-  await picker.selectOption(eurcOption!);
-  await expect(
-    customer.getByText("2.000002", { exact: false }).first(),
-  ).toBeVisible();
+  await customer.goto(url);
+  expect((await db.paymentLink.findUniqueOrThrow({ where: { id: link.id } })).checkouts).toBe(0);
+  await customer.getByRole("button", { name: "Pay $3", exact: true }).click();
+  await customer.waitForURL(/\/checkout\//);
+  await expect(customer.getByRole("combobox", { name: "Token and network", exact: true })).toBeVisible();
+  expect((await db.paymentLink.findUniqueOrThrow({ where: { id: link.id } })).checkouts).toBe(1);
+
+  // Another merchant's workspace, and methods that aren't on, are refused.
   const forbidden = await page.request.post("/api/merchant", {
     headers: { Origin: origin },
     data: {
-      action: "stablecoin-checkout",
+      action: "payment-link",
       orgId: "foreign-merchant",
-      input: {
-        key: "foreign-key",
-        environment: "sandbox",
-        payerCountry: "NG",
-        reference: "Unauthorized checkout",
-        options: [],
-      },
+      input: { title: "x", amount: "1", currency: "USD", country: "NG", crypto: true },
     },
   });
   expect(forbidden.status()).toBe(403);
-  const mismatch = await page.request.post("/api/merchant", {
+  const notOn = await page.request.post("/api/merchant", {
     headers: { Origin: origin },
     data: {
-      action: "stablecoin-checkout",
+      action: "payment-link",
       orgId,
-      input: {
-        key: "mainnet-in-sandbox",
-        environment: "sandbox",
-        payerCountry: "NG",
-        reference: "Wrong environment",
-        options: [
-          {
-            network: "eip155:1",
-            identifier: "erc20:0xdac17f958d2ee523a2206206994597c13d831ec7",
-            amount: "1",
-          },
-        ],
-      },
+      input: { title: "Card link", amount: "1", currency: "USD", country: "NG", methods: ["card"] },
     },
   });
-  expect(mismatch.status()).toBe(409);
+  expect(notOn.status()).toBe(409);
   await customer.close();
 });

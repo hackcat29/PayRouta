@@ -1,84 +1,91 @@
 "use client";
-// "Add it where you sell": one panel per place a merchant can put the
-// button. Code for sites and apps; a three-step strip for store platforms.
+// Where a merchant can take payments: a shared link (no website), the
+// button on a site, or a store plugin.
 import { useState } from "react";
 import Link from "next/link";
 import type { Availability } from "@/content/claims";
 
 type Tab = {
-  id: string;
+  id: "link" | "html" | "shopify" | "woocommerce";
   label: string;
-  status: Availability;
-  code?: string;
   steps?: [string, string][];
   link: [string, string];
 };
 
-export function AddAnywhere({ origin, statuses }: { origin: string; statuses: Record<string, Availability> }) {
-  const tabs: Tab[] = [
-    {
-      id: "html",
-      label: "Any website",
-      status: statuses.html,
-      code: `<script src="${origin}/js/v1/payrouta.js" async></script>
+const tabs: Tab[] = [
+  { id: "link", label: "Payment link", link: ["/docs/payment-links", "Payment links guide"] },
+  { id: "html", label: "Website", link: ["/docs/checkout-button", "Checkout button guide"] },
+  {
+    id: "shopify",
+    label: "Shopify",
+    steps: [
+      ["Connect", "Link your store from your PayRouta dashboard."],
+      ["Activate", "Turn PayRouta on in Shopify payments."],
+      ["Sell", "Buyers pick PayRouta at checkout. Orders complete in Shopify."],
+    ],
+    link: ["/docs/shopify", "Shopify guide"],
+  },
+  {
+    id: "woocommerce",
+    label: "WooCommerce",
+    steps: [
+      ["Install", "Add the PayRouta Checkout plugin."],
+      ["Paste your key", "API key and webhook secret in settings."],
+      ["Sell", "Orders are marked paid only after PayRouta confirms."],
+    ],
+    link: ["/docs/woocommerce", "WooCommerce guide"],
+  },
+];
 
-<button data-payrouta-checkout="/create-checkout">
-  Checkout
-</button>`,
-      link: ["/docs/checkout-button", "Checkout button guide"],
-    },
-    {
-      id: "react",
-      label: "React app",
-      status: statuses.react,
-      code: `import { PayRoutaButton } from "@payrouta/checkout";
+function LinkPicture({ origin }: { origin: string }) {
+  const host = origin.replace(/^https?:\/\//, "");
+  return (
+    <div className="aa-link" aria-label="A payment link sent in a chat, and the page it opens">
+      <div className="aa-chat">
+        <p className="aa-bubble">
+          Hi Amaka, here&apos;s the link for the phone 👇
+          <span className="aa-url">{host}/pay/k3Fd92xQ</span>
+        </p>
+      </div>
+      <div className="aa-page">
+        <span className="aa-page-shop">Kora Phones</span>
+        <strong>Smartphone, 128 GB</strong>
+        <span className="aa-page-price">₦150,000</span>
+        <span className="aa-page-ways">
+          <i>Card</i>
+          <i>Bank</i>
+          <i>USSD</i>
+          <i className="aa-credit">Pay with credit</i>
+        </span>
+        <span className="aa-page-pay">Pay ₦150,000</span>
+      </div>
+    </div>
+  );
+}
 
-<PayRoutaButton
-  origin="${origin}"
-  session="/create-checkout"
-  onEvent={(e) => e === "confirmed" && showReceipt()}
-/>`,
-      link: ["/docs/checkout-button", "React guide"],
-    },
-    {
-      id: "shopify",
-      label: "Shopify",
-      status: statuses.shopify,
-      steps: [
-        ["Connect", "Link your store from your PayRouta dashboard."],
-        ["Activate", "Turn PayRouta on in Shopify payments."],
-        ["Sell", "Buyers pick PayRouta at checkout. Orders complete in Shopify."],
-      ],
-      link: ["/docs/shopify", "Shopify guide"],
-    },
-    {
-      id: "woocommerce",
-      label: "WooCommerce",
-      status: statuses.woocommerce,
-      steps: [
-        ["Install", "Add the PayRouta Checkout plugin."],
-        ["Paste your key", "API key and webhook secret in settings."],
-        ["Sell", "Orders are marked paid only after PayRouta confirms."],
-      ],
-      link: ["/docs/woocommerce", "WooCommerce guide"],
-    },
-  ];
-  const [id, setId] = useState(tabs[0].id);
+export function AddAnywhere({ origin, statuses }: { origin: string; statuses: Record<Tab["id"], Availability> }) {
+  const [id, setId] = useState<Tab["id"]>("link");
   const tab = tabs.find((t) => t.id === id)!;
   return (
     <div className="aa">
-      <div className="aa-tabs" role="tablist" aria-label="Where to add PayRouta">
+      <div className="aa-tabs" role="tablist" aria-label="Where to take payments">
         {tabs.map((t) => (
           <button key={t.id} role="tab" type="button" aria-selected={t.id === id} className="aa-tab" onClick={() => setId(t.id)}>
             {t.label}
-            <span className={`aa-status aa-status-${t.status}`}>{t.status === "available" ? "Live" : "Coming"}</span>
+            {statuses[t.id] !== "available" && <span className="aa-status">Coming</span>}
           </button>
         ))}
       </div>
       <div className="aa-panel" role="tabpanel" aria-label={tab.label}>
-        {tab.code ? (
+        {tab.id === "link" ? (
+          <LinkPicture origin={origin} />
+        ) : tab.id === "html" ? (
           <pre className="aa-code" tabIndex={0}>
-            <code>{tab.code}</code>
+            <code>{`<script src="${origin}/js/v1/payrouta.js" async></script>
+
+<button data-payrouta-checkout="/create-checkout">
+  Checkout
+</button>`}</code>
           </pre>
         ) : (
           <ol className="aa-steps">

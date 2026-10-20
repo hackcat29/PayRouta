@@ -13,6 +13,7 @@ import {
   House,
   KeyRound,
   Landmark,
+  Link2,
   Plus,
   Settings,
   ShieldAlert,
@@ -30,6 +31,7 @@ export const routeTitles = {
   disputes: "Disputes",
   overview: "Home",
   payments: "Transactions",
+  "payment-links": "Payment links",
   customers: "Customers",
   "payment-methods": "Payment methods",
   providers: "Providers",
@@ -51,6 +53,7 @@ type Item = { label: string; path: MerchantRoute; icon: ReactNode; also?: Mercha
 const s = 16;
 const main: Item[] = [
   { label: "Home", path: "overview", icon: <House size={s} /> },
+  { label: "Payment links", path: "payment-links", icon: <Link2 size={s} /> },
   { label: "Balances", path: "balances", icon: <Wallet size={s} /> },
   { label: "Transactions", path: "payments", icon: <ArrowLeftRight size={s} /> },
   { label: "Customers", path: "customers", icon: <Users size={s} /> },

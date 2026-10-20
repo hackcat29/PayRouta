@@ -210,53 +210,6 @@ body:has(.mk-header) {
   outline-offset: 3px;
 }
 
-/* Status label (content/claims.ts availability) */
-.mk-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 4px 11px;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.4;
-  background: var(--mk-surface);
-  border: 1px solid var(--mk-line);
-  color: var(--mk-ink);
-}
-.mk-status::before {
-  content: "";
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--mk-line-strong);
-}
-.mk-status-available::before {
-  background: var(--mk-teal);
-}
-.mk-status-testing::before {
-  background: var(--mk-saffron);
-}
-.mk-status-planned::before {
-  background: transparent;
-  box-shadow: inset 0 0 0 1.5px var(--mk-quiet);
-}
-.mk-status-note {
-  font-weight: 400;
-  color: var(--mk-quiet);
-}
-.mk-status-night {
-  background: var(--mk-night-2);
-  border-color: var(--mk-night-line);
-  color: #fff;
-}
-.mk-status-night .mk-status-note {
-  color: var(--mk-night-text);
-}
-.mk-status-night.mk-status-planned::before {
-  box-shadow: inset 0 0 0 1.5px var(--mk-night-text);
-}
-
 /* Header ------------------------------------------------------------- */
 .mk-header {
   position: sticky;
@@ -299,6 +252,14 @@ body:has(.mk-header) {
   min-height: 40px;
   padding: 0 18px;
   font-size: 14.5px;
+}
+.mk-nav-cta-short {
+  display: none;
+}
+@media (max-width: 1000px) {
+  .mk-nav-section {
+    display: none;
+  }
 }
 
 /* Front page ------------------------------------------------------------ */
@@ -629,12 +590,6 @@ body:has(.mk-header) {
   font-weight: 600;
   font-size: 15px;
 }
-.hd-caption {
-  margin-top: 12px;
-  font-size: 12.5px;
-  color: var(--mk-quiet);
-}
-
 /* Diagrams (components/marketing/diagrams.tsx) ------------------------- */
 .dg {
   margin: 0;
@@ -1173,6 +1128,89 @@ body:has(.mk-header) {
   color: var(--mk-ink);
 }
 
+/* Payment link picture (add-anywhere.tsx) */
+.aa-link {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  min-height: 210px;
+  padding: 20px;
+  border-radius: var(--mk-radius);
+  background: var(--mk-sand);
+  border: 1px solid var(--mk-line);
+}
+.aa-chat {
+  align-self: start;
+}
+.aa-bubble {
+  margin: 0 !important;
+  padding: 12px 14px;
+  border-radius: 14px 14px 14px 4px;
+  background: #dcf8c6;
+  color: #10261c;
+  font-size: 14.5px;
+  line-height: 1.45;
+}
+.aa-url {
+  display: block;
+  margin-top: 6px;
+  color: #0b6bcb;
+  text-decoration: underline;
+  word-break: break-all;
+}
+.aa-page {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid var(--mk-line);
+  box-shadow: 0 16px 32px -20px rgba(15, 39, 51, 0.3);
+}
+.aa-page-shop {
+  font-size: 12.5px;
+  color: var(--mk-quiet);
+}
+.aa-page strong {
+  color: var(--mk-ink);
+  font-size: 15px;
+}
+.aa-page-price {
+  font-family: var(--mk-display);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--mk-ink);
+}
+.aa-page-ways {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.aa-page-ways i {
+  font-style: normal;
+  font-size: 11.5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--mk-line);
+  color: var(--mk-ink);
+}
+.aa-page-ways i.aa-credit {
+  background: var(--mk-saffron-wash);
+  border-color: var(--mk-saffron);
+}
+.aa-page-pay {
+  margin-top: 6px;
+  padding: 9px;
+  border-radius: 999px;
+  background: var(--mk-ink);
+  color: #fff;
+  text-align: center;
+  font-weight: 600;
+  font-size: 13.5px;
+}
+
 /* Tables ---------------------------------------------------------------- */
 .mk-table-wrap {
   overflow-x: auto;
@@ -1676,6 +1714,15 @@ body:has(.mk-header) {
   }
   .mk-nav .mk-btn.soft {
     display: none;
+  }
+  .mk-nav-cta-long {
+    display: none;
+  }
+  .mk-nav-cta-short {
+    display: inline;
+  }
+  .aa-link {
+    grid-template-columns: minmax(0, 1fr);
   }
   .hp-hero-grid {
     padding-top: 40px;

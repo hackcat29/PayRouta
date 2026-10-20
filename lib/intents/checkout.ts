@@ -8,8 +8,8 @@
 // changes: the payment is confirmed only when the existing on-chain checks
 // see the exact transfer to the receive address before the quote deadline.
 //
-// Off unless CROSS_CHAIN_PAYMENTS=near-intents, and only for production
-// intents: 1Click has no testnet, and sandbox never moves real money.
+// On for production checkouts (1Click has no testnet, and sandbox never moves
+// real money). CROSS_CHAIN_PAYMENTS=off is the kill switch.
 import { db } from "../portal/db";
 import { json } from "../portal/service";
 import { PortalError } from "../portal/domain";
@@ -18,7 +18,7 @@ import { minor } from "../payments/contracts";
 import { chainNames, destinationFor, quote, status, tokens, type Http } from "./oneclick";
 import { providerRequest } from "../providers/adapters/http";
 
-export const crossChainEnabled = () => process.env.CROSS_CHAIN_PAYMENTS === "near-intents";
+export const crossChainEnabled = () => process.env.CROSS_CHAIN_PAYMENTS !== "off";
 const provider = "near-intents";
 // The swap must be able to land well before the checkout's deadline.
 const minimumWindowMs = 5 * 60000;

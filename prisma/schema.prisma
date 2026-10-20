@@ -1651,3 +1651,29 @@ model ShopifyRefundSession {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
+
+// Payment link (lib/merchant/payment-links.ts): a shareable URL for merchants
+// with no website or store. Each visit that presses Pay opens a fresh
+// universal checkout for the link's amount; nothing is created by previews.
+model PaymentLink {
+  id          String   @id @default(cuid())
+  orgId       String
+  environment String
+  slug        String   @unique
+  title       String
+  description String?
+  amount      String
+  currency    String
+  // Fiat methods offered, and whether stablecoins are offered (USD links).
+  methods     Json
+  crypto      Boolean  @default(false)
+  // Where most customers are; a visitor's own country is used when known.
+  country     String
+  active      Boolean  @default(true)
+  checkouts   Int      @default(0)
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([orgId, environment, createdAt])
+}

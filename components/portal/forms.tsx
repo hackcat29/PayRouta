@@ -99,6 +99,7 @@ const providerTypeLabels: Record<(typeof providerTypes)[number], string> = {
   "Crypto payment provider": "Crypto payment provider",
   "Stablecoin / on-ramp / off-ramp provider": "Stablecoin / on-ramp / off-ramp provider",
   "BNPL provider": "BNPL provider",
+  "Lender / consumer-credit provider": "Lender (pay with credit)",
   "Cash / voucher provider": "Cash / voucher provider",
   "FX / conversion provider": "FX / conversion provider",
   "Other payment service": "Other payment service",

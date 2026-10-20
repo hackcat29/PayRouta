@@ -70,13 +70,14 @@ test("every route renders; internal links, assets and page metadata resolve", as
   expect(errors).toEqual([]);
 });
 test("header links work on desktop and mobile", async ({ page }) => {
-  const { navLinks } = await import("../../lib/site-config");
+  const { navLinks, navSections, createLinkHref } = await import("../../lib/site-config");
   await page.goto("/");
   const nav = page.getByRole("navigation", { name: "Main navigation" });
-  for (const [href, label] of navLinks)
+  for (const [href, label] of [...navLinks, ...navSections])
     await expect(nav.getByRole("link", { name: label, exact: true })).toHaveAttribute("href", href);
+  await expect(nav.getByRole("link", { name: "Create a payment link", exact: true })).toHaveAttribute("href", createLinkHref);
   await page.setViewportSize({ width: 390, height: 900 });
-  await expect(nav.getByRole("link", { name: "Start", exact: true })).toBeVisible();
+  await expect(nav.getByRole("link", { name: "Get started", exact: true })).toBeVisible();
   await nav.getByRole("link", { name: "Pricing", exact: true }).click();
   await expect(page).toHaveURL(/\/pricing$/);
 });

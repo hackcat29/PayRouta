@@ -4,7 +4,7 @@ With the checkout button, customers can pay crypto checkouts from any wallet. Th
 
 This runs on [NEAR Intents](https://docs.near-intents.org), a universal liquidity layer that supports over 125 assets across 36+ blockchain networks, including Bitcoin, Ethereum, Solana, Tron, BNB Chain, TON, Base, Arbitrum, Polygon, Avalanche and Stellar.
 
-> **Status.** Paying straight from a wallet is live on eight networks ([crypto wallet payments](crypto-payments.md)). Paying from another chain or token is built and off until it passes live qualification; it works only on production checkouts, because the intents network it uses has no testnet.
+> **Status.** Live on production checkouts. NEAR Intents has no testnet, so sandbox checkouts don't show it.
 
 ## How it works
 
@@ -28,4 +28,4 @@ PayRouta only accepts a quote whose output equals your invoice amount exactly; a
 
 ## Operations
 
-Set `CROSS_CHAIN_PAYMENTS=near-intents` to turn it on, and store a 1Click partner API key in the vault with its reference in `ONECLICK_API_KEY_REF`. Destination token IDs are pinned in `lib/intents/oneclick.ts` and re-checked against 1Click's live token list (symbol, decimals, contract) before every quote. Quotes and swap status are recorded in `CrossChainPayment`.
+It is on by default; set `CROSS_CHAIN_PAYMENTS=off` to turn it off. Store a 1Click partner API key in the vault with its reference in `ONECLICK_API_KEY_REF`. Destination token IDs are pinned in `lib/intents/oneclick.ts` and re-checked against 1Click's live token list (symbol, decimals, contract) before every quote. Quotes and swap status are recorded in `CrossChainPayment`.

@@ -26,6 +26,15 @@ export const navLinks = [
   [paths.docs, "Docs"],
 ] as const satisfies readonly (readonly [CanonicalPath, string])[];
 
+// Front-page sections named in the header: the two things merchants come for.
+export const navSections = [
+  ["/#links", "Payment links"],
+  ["/#credit", "Pay with credit"],
+] as const;
+
+// Where "Create a payment link" sends a new merchant after sign-up.
+export const createLinkHref = `${paths.signUp}?next=${encodeURIComponent("/merchant/payment-links")}`;
+
 export const footerColumns = [
   {
     title: "Product",

@@ -1,0 +1,90 @@
+import { notFound } from "next/navigation";
+import { publicPaymentLink } from "@/lib/merchant/payment-links";
+import { currencyExponent } from "@/lib/partners/money";
+import "../pay.css";
+
+export const dynamic = "force-dynamic";
+
+const methodNames: Record<string, string> = {
+  card: "Card",
+  "digital-wallet": "Wallet",
+  "bank-transfer": "Bank transfer",
+  "mobile-money": "Mobile money",
+  ussd: "USSD",
+  "direct-debit": "Direct debit",
+  bnpl: "Pay with credit",
+};
+
+function formatMoney(amount: string, currency: string) {
+  const exp = currencyExponent(currency) ?? 2;
+  try {
+    return new Intl.NumberFormat("en", {
+      style: "currency",
+      currency,
+      minimumFractionDigits: Number(amount) % 1 ? exp : 0,
+      maximumFractionDigits: exp,
+    }).format(Number(amount));
+  } catch {
+    return `${amount} ${currency}`;
+  }
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const link = await publicPaymentLink((await params).slug);
+  return {
+    title: link ? `${link.title} · ${link.merchant}` : "Payment link",
+    description: link ? `Pay ${link.merchant} ${formatMoney(link.amount, link.currency)}.` : undefined,
+    robots: { index: false, follow: false },
+    // "same-origin": no referrer to other sites, but the Pay form still
+    // sends its Origin (with "no-referrer" browsers send Origin: null).
+    referrer: "same-origin" as const,
+  };
+}
+
+export default async function PaymentLinkPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { slug } = await params;
+  const link = await publicPaymentLink(slug);
+  if (!link) notFound();
+  const failed = (await searchParams).error === "1";
+  const ways = [...link.methods.map((m) => methodNames[m] ?? m), ...(link.crypto ? ["Stablecoins"] : [])];
+  return (
+    <main className="pl">
+      {link.environment === "sandbox" && <div className="pl-test">Test mode · no real money moves</div>}
+      <form className="pl-card" method="post" action={`/api/pay/${link.slug}`}>
+        <p className="pl-merchant">
+          <span className="pl-avatar" aria-hidden="true">
+            {link.merchant.slice(0, 1).toUpperCase()}
+          </span>
+          {link.merchant}
+        </p>
+        <h1 className="pl-title">{link.title}</h1>
+        {link.description && <p className="pl-desc">{link.description}</p>}
+        <p className="pl-amount">{formatMoney(link.amount, link.currency)}</p>
+        <ul className="pl-ways" aria-label="Ways to pay">
+          {ways.map((w) => (
+            <li key={w} className={w === "Pay with credit" ? "pl-credit" : undefined}>
+              {w}
+            </li>
+          ))}
+        </ul>
+        {failed && (
+          <p className="pl-error" role="alert">
+            We couldn&apos;t open the checkout. Please try again.
+          </p>
+        )}
+        <button className="pl-pay" type="submit">
+          Pay {formatMoney(link.amount, link.currency)}
+        </button>
+        <p className="pl-foot">
+          Secured by <strong>PayRouta</strong>
+        </p>
+      </form>
+    </main>
+  );
+}

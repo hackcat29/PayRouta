@@ -31,6 +31,7 @@
             "pages": [
               "index",
               "quickstart",
+              "guides/payment-links",
               "guides/checkout-button"
             ]
           },

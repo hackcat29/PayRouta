@@ -260,34 +260,42 @@ export function AuthScreen({
         <Link href="/" className="p-auth-logo">
           <BrandLogo />
         </Link>
-        {signUp && (
-          <ul className="p-auth-points">
-            {(merchant
-              ? [
-                  ["Start in test mode today", "No paperwork until you're ready to take real payments."],
-                  ["Every way your customers pay", "Cards, bank transfers, wallets, mobile money, stablecoins and crypto."],
-                  ["A backup behind every method", "If a processor fails, the same payment goes through another."],
-                ]
-              : [
-                  ["Describe what you support", "Methods, markets and currencies, in one application."],
-                  ["Test in the sandbox", "Run scenarios against your integration before review."],
-                  ["Follow your review", "See every decision and request in one place."],
-                ]
-            ).map(([title, text]) => (
-              <li key={title}>
-                <span aria-hidden>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                    <path d="m5 12.5 4.5 4.5L19 7.5" />
-                  </svg>
+        {signUp &&
+          (merchant ? (
+            <div className="p-auth-pitch">
+              <p className="p-auth-line">Your first payment link is two minutes away.</p>
+              <div className="p-auth-link" aria-hidden="true">
+                <span className="p-auth-link-shop">Your business</span>
+                <strong>Order #1042</strong>
+                <span className="p-auth-link-price">₦150,000</span>
+                <span className="p-auth-link-ways">
+                  <i>Card</i>
+                  <i>Wallet</i>
+                  <i>Bank</i>
+                  <i>Mobile money</i>
+                  <i className="credit">Pay with credit</i>
+                  <i>Crypto</i>
                 </span>
-                <div>
-                  <strong>{title}</strong>
-                  <p>{text}</p>
-                </div>
+                <span className="p-auth-link-pay">Pay ₦150,000</span>
+              </div>
+              <p className="p-auth-small">Share it on WhatsApp, Instagram or SMS. Test mode is free.</p>
+            </div>
+          ) : (
+            <ol className="p-auth-steps">
+              <li>
+                <strong>Describe what you offer</strong>
+                <span>Payment methods or credit plans, markets and currencies.</span>
               </li>
-            ))}
-          </ul>
-        )}
+              <li>
+                <strong>Test in the sandbox</strong>
+                <span>Run scenarios against your integration before review.</span>
+              </li>
+              <li>
+                <strong>Go live with every merchant</strong>
+                <span>Reach every PayRouta checkout where you&apos;re licensed.</span>
+              </li>
+            </ol>
+          ))}
       </div>
       <div className="p-auth-form">
         <div className="p-auth-card">

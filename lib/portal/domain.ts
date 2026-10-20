@@ -64,6 +64,7 @@ export const providerTypes = [
   "Crypto payment provider",
   "Stablecoin / on-ramp / off-ramp provider",
   "BNPL provider",
+  "Lender / consumer-credit provider",
   "Cash / voucher provider",
   "FX / conversion provider",
   "Other payment service",

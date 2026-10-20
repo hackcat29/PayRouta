@@ -83,14 +83,19 @@ export type StoredPaymentOption = {
   baseAmount?: string;
   customerFeeMinor?: string;
 };
-// PayRouta's own return pages for commerce-platform integrations (Shopify
-// sends the customer back to the store from there), which are not on the
-// merchant's registered return origin.
+// PayRouta's own return pages, which are not on the merchant's registered
+// return origin: Shopify's return (it sends the buyer back to the store) and
+// the payment-link thank-you page (merchants without a website).
 export function platformReturnUrl(value: string) {
   const base = process.env.BETTER_AUTH_URL;
   if (!base) return false;
   const url = new URL(value);
-  return url.origin === new URL(base).origin && url.pathname === "/api/integrations/shopify/return";
+  return (
+    url.origin === new URL(base).origin &&
+    (url.pathname === "/api/integrations/shopify/return" ||
+      // Payment links: PayRouta's own thank-you page.
+      /^\/pay\/[A-Za-z0-9]{6,20}\/done$/.test(url.pathname))
+  );
 }
 export async function queue(
   tx: Tx,

@@ -566,6 +566,17 @@ export function Workspace({
                       <p>Review decisions and change requests will appear here.</p>
                     )}
                   </Panel>
+                  {(draft.company as { providerType?: string } | undefined)?.providerType === "Lender / consumer-credit provider" && (
+                    <Panel title="Lending through PayRouta">
+                      <p>
+                        Your credit plans appear at every PayRouta checkout in the countries you lend in. You price each
+                        plan, approve the customer and pay the merchant; the customer repays you.
+                      </p>
+                      <p>
+                        <Link href="/docs/credit">Read the credit partner contract →</Link>
+                      </p>
+                    </Panel>
+                  )}
                   <Panel title="Test before you submit">
                     <p>Run fictional scenarios and see how your integration handles timeouts and uncertain outcomes.</p>
                     <p>

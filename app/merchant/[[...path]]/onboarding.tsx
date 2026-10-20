@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { countries, fiat } from "@/lib/portal/domain";
 import { labelOf } from "@/lib/providers/normalized";
 
-const supportedMethods = ["stablecoin"] as const;
+// Crypto is set up here; cards, wallets, bank transfer, mobile money, USSD
+// and credit turn on through Activate payments.
+const supportedMethods = ["stablecoin", "crypto-app"] as const;
 type SupportedMethod = (typeof supportedMethods)[number];
 
 type ApplicationValues = {
@@ -35,7 +37,7 @@ const steps = [
   {
     id: "methods",
     title: "How customers pay",
-    description: "Choose the payment methods you want to offer.",
+    description: "Choose how customers can pay you in crypto. Everything else turns on with activation.",
   },
   {
     id: "settlement",
@@ -102,7 +104,7 @@ function validateStep(step: number, form: ApplicationValues) {
     if (!countries.some((country) => country.id === form.country))
       errors.push("Select an operating country from the list.");
     if (!validWebsite(form.website))
-      errors.push("Enter a valid business website address.");
+      errors.push("Enter your website or social page address, starting with https://.");
     if (form.activity.trim().length < 10)
       errors.push("Describe the business activity in at least 10 characters.");
     if (!validEmail(form.businessContact))
@@ -410,12 +412,13 @@ export function Onboarding({
               onChange={(next) => update("country", next)}
             />
             <label htmlFor="merchant-website">
-              Business website
+              Website or social page
+              <small>No website? Use your Instagram, Facebook or WhatsApp Business link.</small>
               <input
                 id="merchant-website"
                 type="url"
                 inputMode="url"
-                placeholder="https://example.com"
+                placeholder="https://instagram.com/yourshop"
                 value={form.website}
                 onChange={(event) => update("website", event.target.value)}
                 required
@@ -459,7 +462,11 @@ export function Onboarding({
 
         {step === 1 && (
           <fieldset>
-            <legend>How do you want customers to pay?</legend>
+            <legend>Crypto your customers can pay with</legend>
+            <p className="ms-hint">
+              Cards, digital wallets, bank transfer, mobile money, USSD and pay with credit turn on when you{" "}
+              <Link href="/merchant/activation">activate payments</Link>.
+            </p>
             {supportedMethods.map((method) => (
               <label key={method}>
                 <input

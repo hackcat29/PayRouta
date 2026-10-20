@@ -530,3 +530,62 @@ button.sc-method { cursor: pointer; font-weight: 600; justify-content: center; m
 .sc-cross-form { display: grid; gap: 8px; margin-top: 10px; }
 .sc-cross-form select, .sc-cross-form input { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid var(--ck-line, #e3e8ea); border-radius: 8px; font: inherit; background: #fff; }
 .sc-cross-form label { font-size: 13px; font-weight: 600; }
+
+/* Brand (matches the marketing site and payment links): navy actions, pill
+   buttons, display figures, saffron for credit. */
+.fiat-checkout,
+.stablecoin-checkout {
+  --ck-ink: #0f2733;
+  --ck-muted: #5d727c;
+  --ck-line: #e4e0d8;
+  --ck-accent: #0f2733;
+  --ck-accent-ink: #006159;
+  background: linear-gradient(90deg, #f6f4ef 0 50%, #ffffff 50% 100%);
+}
+.fc-total,
+.sc-summary h1 {
+  font-family: var(--font-display), Inter, sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+.fc-pay,
+.sc-primary {
+  border-radius: 999px !important;
+  background: #0f2733 !important;
+  color: #fff !important;
+}
+.fc-pay:hover,
+.sc-primary:hover {
+  background: #1d3c49 !important;
+  filter: none;
+}
+.fc-method.selected {
+  background: #fff;
+  box-shadow: inset 0 0 0 1.5px #0f2733;
+}
+.fc-plan.selected {
+  background: #fff2d9;
+  box-shadow: inset 0 0 0 1.5px #f2a62b;
+}
+.fc-method input,
+.fc-plan input {
+  accent-color: #0f2733;
+}
+.fc-test,
+.sc-test {
+  background: #f2a62b;
+}
+.fc-switch {
+  border-style: solid;
+  border-color: #e4e0d8;
+}
+.fc-check {
+  background: #e2f2ef;
+  color: #006159;
+}
+@media (max-width: 760px) {
+  .fiat-checkout,
+  .stablecoin-checkout {
+    background: #ffffff;
+  }
+}

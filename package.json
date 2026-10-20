@@ -27,7 +27,7 @@
     "test:merchant-browser": "playwright test --config playwright.merchant.config.ts",
     "test:partners": "tsx --test tests/partners/database.test.ts",
     "test:intents": "tsx --test tests/intents/database.test.ts",
-    "test:treasury": "tsx --test tests/treasury/database.test.ts tests/treasury/launch.test.ts tests/treasury/credit.test.ts tests/treasury/universal.test.ts tests/treasury/shopify.test.ts",
+    "test:treasury": "tsx --test tests/treasury/database.test.ts tests/treasury/launch.test.ts tests/treasury/credit.test.ts tests/treasury/universal.test.ts tests/treasury/shopify.test.ts tests/treasury/payment-links.test.ts",
     "treasury:sandbox": "tsx scripts/treasury-sandbox.ts",
     "sdk:build": "npm run build --prefix sdks/node",
     "docs:openapi": "tsx scripts/mintlify-openapi.ts",

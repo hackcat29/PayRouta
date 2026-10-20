@@ -2,6 +2,7 @@
 
 * [Overview](README.md)
 * [Quickstart](quickstart.md)
+* [Payment links](payment-links.md)
 * [Checkout button](checkout-button.md)
 
 ## Concepts
