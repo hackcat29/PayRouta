@@ -87,10 +87,10 @@ async function main() {
     "Optional: shows Continue with Google on sign-in",
   );
   add(
-    "Merchant screening",
+    "OPENSANCTIONS_API_KEY",
+    !!env.OPENSANCTIONS_API_KEY,
     true,
-    false,
-    "Manual: no automated sanctions vendor; ops decide each business in /ops (valid 30 days)",
+    "Merchant screening (sanctions, PEPs, watchlists) before any partner disclosure; without it every business waits for a manual decision in /ops",
   );
   add(
     "CONTACT_WEBHOOK_URL",

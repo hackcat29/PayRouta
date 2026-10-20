@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { currencyExponent, fromMinorUnits, toMinorUnits } from "../lib/partners/money";
 import { entityScreeningProvider } from "../lib/compliance/providers";
+import { openSanctionsScreening, openSanctionsVerdict } from "../lib/compliance/opensanctions";
 import { parseKeyring } from "../lib/portal/secret-store";
 import { parseClamdReply } from "../lib/portal/scanner-clamd";
 import { safeNext } from "../lib/portal/next-path";
@@ -27,11 +28,55 @@ test("money: amounts reach providers only when precision matches the currency", 
   assert.equal(fromMinorUnits(1000, "JPY"), "1000");
 });
 
-test("screening: without an automated vendor every business goes to manual review", async () => {
-  const provider = entityScreeningProvider();
-  assert.equal(provider.id, "manual-review-required");
-  const r = await provider.screenEntity({ name: "Acme Ltd", country: "GB", kind: "organization" });
-  assert.equal(r.verdict, "review", "never an automatic clear");
+test("screening: sanctions matches stop, PEP-only matches go to review, weak hits are clear", async () => {
+  assert.equal(openSanctionsVerdict([]), "clear");
+  assert.equal(openSanctionsVerdict([{ match: false, properties: { topics: ["sanction"] } }]), "clear");
+  assert.equal(openSanctionsVerdict([{ match: true, properties: { topics: ["role.pep"] } }]), "review");
+  assert.equal(openSanctionsVerdict([{ match: true, properties: { topics: ["sanction"] } }]), "match");
+  let sent: { path: string; headers?: Record<string, string>; body?: string } | undefined;
+  const screening = openSanctionsScreening({ apiKey: "k" }, async (_base, options) => {
+    sent = options;
+    return {
+      status: 200,
+      headers: {},
+      body: JSON.stringify({
+        responses: { q: { results: [{ id: "NK-1", match: true, properties: { topics: ["sanction"] } }] } },
+      }),
+    };
+  });
+  const r = await screening.screenEntity({ name: "Acme Ltd", country: "GB", kind: "organization" });
+  assert.equal(r.verdict, "match");
+  assert.equal(r.reference, "NK-1");
+  assert.equal(sent?.headers?.Authorization, "ApiKey k");
+  assert.match(sent!.path, /^\/match\/default\?threshold=0\.7$/);
+  assert.deepEqual(JSON.parse(sent!.body!).queries.q, {
+    schema: "LegalEntity",
+    properties: { name: ["Acme Ltd"], country: ["gb"] },
+  });
+  await assert.rejects(
+    openSanctionsScreening({}, async () => ({ status: 200, headers: {}, body: "{}" })).screenEntity({ name: "x" }),
+    /NOT_CONFIGURED/,
+  );
+  await assert.rejects(
+    openSanctionsScreening({ apiKey: "k" }, async () => ({ status: 500, headers: {}, body: "" })).screenEntity({ name: "x" }),
+    /UNAVAILABLE/,
+  );
+});
+
+test("screening: OpenSanctions when a key is set, otherwise manual review (never an automatic clear)", async () => {
+  const saved = process.env.OPENSANCTIONS_API_KEY;
+  try {
+    process.env.OPENSANCTIONS_API_KEY = "k";
+    assert.equal(entityScreeningProvider().id, "opensanctions");
+    delete process.env.OPENSANCTIONS_API_KEY;
+    const provider = entityScreeningProvider();
+    assert.equal(provider.id, "manual-review-required");
+    const r = await provider.screenEntity({ name: "Acme Ltd", country: "GB", kind: "organization" });
+    assert.equal(r.verdict, "review");
+  } finally {
+    if (saved === undefined) delete process.env.OPENSANCTIONS_API_KEY;
+    else process.env.OPENSANCTIONS_API_KEY = saved;
+  }
 });
 
 test("secret store keyring: 32-byte keys, known active key, malformed input refused", () => {
