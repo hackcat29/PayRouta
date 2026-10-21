@@ -42,7 +42,7 @@ ${detailTable([
   ["Reference", props.txHashOrRef],
   ["Date", props.timestamp],
 ])}
-<p style="font-size:13px;color:#6b7a80;">Questions about this payment? Contact ${esc(merchantName)} directly. PayRouta processes payments on their behalf.</p>`;
+<p style="font-size:13px;color:#62668a;">Questions about this payment? Contact ${esc(merchantName)} directly. PayRouta processes payments on their behalf.</p>`;
 
   const html = renderBaseTemplate({
     previewText: `${props.currency} ${props.amount} to ${merchantName}: ${statusLabel[status]}.`,

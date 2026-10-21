@@ -18,10 +18,10 @@ function render(
 }
 
 const ignore = (what: string) =>
-  `<p style="color:#6b7a80;font-size:13px;margin:24px 0 0;">If you didn't ${what}, you can ignore this email.</p>`;
+  `<p style="color:#62668a;font-size:13px;margin:24px 0 0;">If you didn't ${what}, you can ignore this email.</p>`;
 
 const linkFallback = (url: string) =>
-  `<p style="color:#6b7a80;font-size:13px;margin:16px 0 0;">Or paste this link into your browser:<br><a href="${esc(url)}" style="word-break:break-all;">${esc(url)}</a></p>`;
+  `<p style="color:#62668a;font-size:13px;margin:16px 0 0;">Or paste this link into your browser:<br><a href="${esc(url)}" style="word-break:break-all;">${esc(url)}</a></p>`;
 
 export function renderVerifyEmail(p: { name?: string | null; url: string }): RenderedEmail {
   return render("Confirm your email for PayRouta", {
@@ -102,8 +102,8 @@ export function renderOneTimeCodeEmail(p: { code: string; type: keyof typeof cod
     previewText: `${intro} It expires in ${p.minutes} minutes.`,
     headline,
     bodyContent: `<p>${intro} It expires in ${p.minutes} minutes and works once.</p>
-<p style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:30px;letter-spacing:6px;font-weight:700;color:#0b1b22;margin:8px 0 20px;">${esc(p.code)}</p>
-<p style="color:#6b7a80;font-size:13px;">Never share this code. PayRouta will never ask you for it.</p>`,
+<p style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:30px;letter-spacing:6px;font-weight:700;color:#1e2466;margin:8px 0 20px;">${esc(p.code)}</p>
+<p style="color:#62668a;font-size:13px;">Never share this code. PayRouta will never ask you for it.</p>`,
     afterCta: ignore(action),
   });
 }

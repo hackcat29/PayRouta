@@ -95,12 +95,12 @@
     root.innerHTML =
       "<style>" +
       ":host,div.o{all:initial}" +
-      ".o{position:fixed;inset:0;z-index:2147483646;display:grid;place-items:center;background:rgba(9,22,27,.72);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#fff;text-align:center;padding:16px}" +
+      ".o{position:fixed;inset:0;z-index:2147483646;display:grid;place-items:center;background:rgba(30,36,102,.78);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#fff;text-align:center;padding:16px}" +
       ".b{max-width:340px;display:grid;gap:14px;justify-items:center}" +
       "strong{font-size:17px;font-weight:600}" +
-      "button{font:inherit;cursor:pointer;border-radius:8px;padding:10px 18px;border:1px solid rgba(255,255,255,.4);background:#fff;color:#0e1f25;font-weight:600}" +
+      "button{font:inherit;cursor:pointer;border-radius:8px;padding:10px 18px;border:1px solid rgba(255,255,255,.4);background:#fff;color:#1e2466;font-weight:600}" +
       "button.l{background:none;color:#fff;border:0;text-decoration:underline;font-weight:400;padding:4px}" +
-      "button:focus-visible{outline:3px solid #7fd6cd;outline-offset:2px}" +
+      "button:focus-visible{outline:3px solid #ff9257;outline-offset:2px}" +
       "</style>" +
       '<div class="o" role="dialog" aria-modal="true" aria-label="PayRouta checkout"><div class="b">' +
       "<strong>Complete your payment in the secure PayRouta window</strong>" +

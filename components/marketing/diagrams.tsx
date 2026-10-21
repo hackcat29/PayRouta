@@ -137,7 +137,7 @@ export function CryptoRoute() {
         </div>
         <Arrow label="swapped on the way" />
         <div className="dg-node dg-hub">
-          <span className="dg-node-title">NEAR Intents</span>
+          <span className="dg-node-title">PayRouta</span>
           <span className="dg-hub-stats">
             <b>125+</b> assets
             <b>36+</b> chains
