@@ -3,6 +3,7 @@ import { networkName, isTestnet, chain } from "@/lib/blockchain/chains";
 import type { CheckoutAsset } from "./stablecoin-checkout";
 import { useState } from "react";
 import { tokenAssets } from "@/lib/blockchain/assets";
+import { errorText, offline } from "@/lib/error-copy";
 type Account = {
   id: string;
   symbol: string;
@@ -164,8 +165,8 @@ export function Stablecoins({
                     },
                   }),
                 });
-                const b = await response.json();
-                if (!response.ok) throw new Error(b.error);
+                const b = await response.json().catch(() => null);
+                if (!response.ok) throw new Error(errorText(b, response.status));
                 form.reset();
                 setMessage(
                   b.reviewRequired
@@ -174,7 +175,7 @@ export function Stablecoins({
                 );
                 location.reload();
               } catch (e) {
-                setMessage((e as Error).message);
+                setMessage(e instanceof TypeError ? offline : (e as Error).message);
               } finally {
                 setBusy(false);
               }

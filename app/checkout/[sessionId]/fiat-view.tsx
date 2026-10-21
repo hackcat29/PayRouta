@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { checkoutCountdown } from "@/lib/payments/checkout-display";
 import { currencyExponent } from "@/lib/partners/money";
 import { returnHandler, switchCheckout, usePopupBridge } from "./popup";
+import { errorText, shown } from "@/lib/error-copy";
 
 type Action = { kind: string; url?: string; text?: string; provider?: string };
 type Progress = {
@@ -169,8 +170,8 @@ export function FiatCheckout({ id, initial }: { id: string; initial: Progress })
           ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(action) }
           : { cache: "no-store" },
       );
-      const b = await r.json();
-      if (!r.ok) throw new Error(messages[b.error] ?? "Something went wrong. Please try again.");
+      const b = await r.json().catch(() => null);
+      if (!r.ok) throw new Error(messages[b?.error] ?? errorText(b, r.status));
       return b;
     },
     [id],
@@ -210,7 +211,7 @@ export function FiatCheckout({ id, initial }: { id: string; initial: Progress })
     let alive = true;
     api({ action: "methods" })
       .then((m) => alive && applyMethods(m))
-      .catch((e) => alive && setError((e as Error).message));
+      .catch((e) => alive && setError(shown(e)));
     return () => {
       alive = false;
     };
@@ -234,7 +235,7 @@ export function FiatCheckout({ id, initial }: { id: string; initial: Progress })
         setOffers(r.offers);
         setPlan((p) => (r.offers.some((o) => o.key === p) ? p : r.offers[0]?.key || ""));
       })
-      .catch((e) => alive && setError((e as Error).message));
+      .catch((e) => alive && setError(shown(e)));
     return () => {
       alive = false;
     };
@@ -250,7 +251,7 @@ export function FiatCheckout({ id, initial }: { id: string; initial: Progress })
       await api({ action: "confirm", routeId: route.routeId });
       await reload();
     } catch (e) {
-      setError((e as Error).message);
+      setError(shown(e));
       setOffers(null);
       await loadMethods().catch(() => {});
     } finally {
@@ -267,7 +268,7 @@ export function FiatCheckout({ id, initial }: { id: string; initial: Progress })
       await api({ action: "refresh" }).catch(() => {});
       await reload();
     } catch (e) {
-      setError((e as Error).message);
+      setError(shown(e));
     } finally {
       setBusy(false);
     }
@@ -412,7 +413,7 @@ export function FiatCheckout({ id, initial }: { id: string; initial: Progress })
             onClick={() => {
               setBusy(true);
               switchCheckout(id, "crypto").catch((e) => {
-                setError((e as Error).message);
+                setError(shown(e));
                 setBusy(false);
               });
             }}

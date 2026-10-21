@@ -6,6 +6,7 @@ import {
   accessRequestSchema,
 } from "@/lib/portal/access-request-schema";
 import { track } from "@/lib/analytics";
+import { errorText } from "@/lib/error-copy";
 
 type Errors = Record<string, string[] | undefined>;
 
@@ -53,9 +54,9 @@ export function ProviderAccessForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(parsed.data),
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
       if (data.errors) setErrors(data.errors);
-      setStatus(data.message || data.error || "We couldn't confirm your request was saved.");
+      setStatus(response.ok ? data.message : errorText(data, response.status));
       setDone(response.ok);
       track("provider_access_request", { outcome: response.ok ? "accepted" : "rejected" });
     } catch {

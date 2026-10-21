@@ -37,6 +37,7 @@
     "preflight:production": "tsx scripts/preflight-production.ts",
     "resend:setup": "tsx scripts/resend-setup.ts",
     "secrets:rotate": "tsx scripts/rotate-secrets.ts",
+    "secrets:put": "tsx scripts/put-secret.ts",
     "sandbox:providers": "tsx scripts/sandbox-providers.ts",
     "billing:close": "tsx scripts/close-billing.ts",
     "test:stablecoins": "tsx --test tests/stablecoins/database.test.ts",

@@ -6,15 +6,15 @@
   align-content: center;
   gap: 0;
   padding: 24px 16px;
-  background: #f6f4ef;
-  color: #0f2733;
+  background: #f7f4ee;
+  color: #1e2466;
   font-family: Inter, Arial, sans-serif;
 }
 .pl-test {
   position: fixed;
   inset: 0 0 auto;
   padding: 6px 12px;
-  background: #f2a62b;
+  background: #f5b700;
   color: #3d2a05;
   text-align: center;
   font-size: 13px;
@@ -25,10 +25,10 @@
   display: grid;
   gap: 14px;
   padding: 32px;
-  border: 1px solid #e4e0d8;
+  border: 1px solid #e6e1d8;
   border-radius: 18px;
   background: #fff;
-  box-shadow: 0 24px 48px -28px rgba(15, 39, 51, 0.3);
+  box-shadow: 0 24px 48px -28px rgba(30, 36, 102, 0.3);
 }
 .pl-merchant {
   display: flex;
@@ -43,7 +43,7 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: #0f2733;
+  background: #1e2466;
   color: #fff;
   font-size: 14px;
 }
@@ -61,7 +61,7 @@
 }
 .pl-amount {
   margin: 4px 0 0;
-  color: #0f2733 !important;
+  color: #1e2466 !important;
   font-family: var(--font-display), Inter, sans-serif;
   font-size: 40px;
   font-weight: 600;
@@ -78,12 +78,12 @@
 }
 .pl-ways li {
   padding: 4px 10px;
-  border: 1px solid #e4e0d8;
+  border: 1px solid #e6e1d8;
   border-radius: 999px;
   font-size: 13px;
 }
 .pl-ways li.pl-credit {
-  border-color: #f2a62b;
+  border-color: #f5b700;
   background: #fff2d9;
   font-weight: 600;
 }
@@ -92,7 +92,7 @@
   min-height: 52px;
   border: 0;
   border-radius: 999px;
-  background: #0f2733;
+  background: #1e2466;
   color: #fff;
   font: inherit;
   font-size: 16px;
@@ -100,10 +100,10 @@
   cursor: pointer;
 }
 .pl-pay:hover {
-  background: #1d3c49;
+  background: #272e7c;
 }
 .pl-pay:focus-visible {
-  outline: 3px solid #007f73;
+  outline: 3px solid #2e37a4;
   outline-offset: 3px;
 }
 .pl-error {
@@ -118,7 +118,7 @@
   margin: 0;
   text-align: center;
   font-size: 13px;
-  color: #5d727c;
+  color: #62668a;
 }
 .pl-check {
   display: grid;
@@ -126,6 +126,6 @@
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  background: #e2f2ef;
-  color: #006159;
+  background: #ebecf8;
+  color: #252c8a;
 }

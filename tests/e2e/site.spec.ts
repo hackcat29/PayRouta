@@ -69,17 +69,32 @@ test("every route renders; internal links, assets and page metadata resolve", as
   for (const h of links) expect((await request.get(h)).status(), h).toBe(200);
   expect(errors).toEqual([]);
 });
-test("header links work on desktop and mobile", async ({ page }) => {
-  const { navLinks, navSections, createLinkHref } = await import("../../lib/site-config");
+test("header menus list real pages, and the menu works on mobile", async ({ page }) => {
+  const { navLinks, navMenus, paths } = await import("../../lib/site-config");
   await page.goto("/");
   const nav = page.getByRole("navigation", { name: "Main navigation" });
-  for (const [href, label] of [...navLinks, ...navSections])
-    await expect(nav.getByRole("link", { name: label, exact: true })).toHaveAttribute("href", href);
-  await expect(nav.getByRole("link", { name: "Create a payment link", exact: true })).toHaveAttribute("href", createLinkHref);
+  for (const menu of navMenus) {
+    await nav.getByRole("button", { name: menu.label }).click();
+    const panel = page.getByRole("region", { name: menu.label });
+    for (const item of menu.groups.flatMap((g) => g.items)) {
+      expect(item.href.startsWith("/#")).toBe(false);
+      await expect(panel.getByRole("link", { name: new RegExp(item.label) })).toHaveAttribute("href", item.href);
+      if (item.href.startsWith("/")) expect((await page.request.get(item.href.split("#")[0])).status(), item.href).toBe(200);
+    }
+    await page.keyboard.press("Escape");
+    await expect(panel).toHaveCount(0);
+  }
+  for (const [href, label] of navLinks) await expect(nav.getByRole("link", { name: label, exact: true })).toHaveAttribute("href", href);
+  const header = page.locator("header.mk-header");
+  await expect(header.getByRole("link", { name: "Get started", exact: true })).toHaveAttribute("href", paths.signUp);
+  await expect(header.getByRole("link", { name: "Create a payment link" })).toHaveCount(0);
   await page.setViewportSize({ width: 390, height: 900 });
-  await expect(nav.getByRole("link", { name: "Get started", exact: true })).toBeVisible();
-  await nav.getByRole("link", { name: "Pricing", exact: true }).click();
-  await expect(page).toHaveURL(/\/pricing$/);
+  await page.getByRole("button", { name: "Open menu" }).click();
+  const menu = page.getByRole("navigation", { name: "Menu" });
+  await menu.getByRole("button", { name: "Platform" }).click();
+  await menu.getByRole("link", { name: /Pay with credit/ }).click();
+  await expect(page).toHaveURL(/\/credit$/);
+  await expect(menu).toHaveCount(0);
 });
 test("docs searches real content and copies code", async ({
   page,
@@ -281,7 +296,7 @@ test("marketing editorial review screenshots", async ({ page }) => {
   const { primaryRoutes } = await import("../../lib/site-config");
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
-    for (const [path] of primaryRoutes.filter(([p]) => p !== "/docs")) {
+    for (const [path] of primaryRoutes) {
       await page.goto(path);
       await page.screenshot({
         path: `test-results/editorial-${width}-${path.replaceAll("/", "-") || "home"}.png`,

@@ -1,15 +1,15 @@
 .portal {
-  --ink: #0e1f25;
-  --ink-2: #33454d;
-  --muted: #5f7079;
-  --faint: #66767d;
-  --line: #e3e8ea;
-  --line-2: #cfd8dc;
-  --canvas: #f7f9f9;
+  --ink: #1e2466;
+  --ink-2: #2f3352;
+  --muted: #62668a;
+  --faint: #666a8c;
+  --line: #e6e3dc;
+  --line-2: #cec8bc;
+  --canvas: #f7f4ee;
   --card: #ffffff;
-  --accent: #00857a;
-  --accent-ink: #006b62;
-  --accent-bg: #e7f4f2;
+  --accent: #2e37a4;
+  --accent-ink: #252c8a;
+  --accent-bg: #ebecf8;
   --test: #b45309;
   --test-bg: #fff4e0;
   --good: #067647;
@@ -86,7 +86,7 @@
 .portal textarea {
   max-width: 100%;
   background: white;
-  border: 1px solid #81939c;
+  border: 1px solid #8d90ab;
   border-radius: 7px;
   padding: 10px 12px;
   min-height: 42px;
@@ -164,7 +164,7 @@
   background: #1f4353;
 }
 .p-sidebar nav a.active {
-  background: #bdf4dc;
+  background: #f26b1d;
   color: var(--navy);
   font-weight: 600;
 }
@@ -489,7 +489,7 @@
 }
 .p-badge.good {
   background: #e6f4ee;
-  color: #006653;
+  color: #252c8a;
 }
 .p-badge.bad {
   background: #f9e9ec;
@@ -589,7 +589,10 @@
   color: var(--navy) !important;
   font-weight: 500;
 }
+/* Positioned so visually hidden labels inside (.sr-only is absolute) are
+   clipped by the scroll box instead of widening the page. */
 .p-table-wrap {
+  position: relative;
   max-width: 100%;
   overflow-x: auto;
   margin-top: 12px;
@@ -811,7 +814,7 @@
 .p-overlay {
   position: fixed;
   inset: 0;
-  background: #102c3a99;
+  background: #1e246699;
   z-index: 90;
 }
 .p-dialog {
@@ -843,7 +846,7 @@
 .p-dialog select,
 .p-dialog textarea {
   width: 100%;
-  border: 1px solid #81939c;
+  border: 1px solid #8d90ab;
   border-radius: 6px;
   padding: 10px;
   font-size: 14px;
@@ -1404,7 +1407,7 @@
 .portal textarea:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(0, 133, 122, 0.16);
+  box-shadow: 0 0 0 3px rgba(46, 55, 164, 0.18);
 }
 .p-field {
   gap: 6px;
@@ -1533,8 +1536,8 @@
   grid-template-columns: minmax(0, 1fr);
   min-height: 100vh;
   background:
-    radial-gradient(900px 420px at 85% -10%, rgba(0, 133, 122, 0.09), transparent 70%),
-    radial-gradient(700px 380px at -10% 110%, rgba(245, 158, 11, 0.06), transparent 70%),
+    radial-gradient(900px 420px at 85% -10%, rgba(46, 55, 164, 0.08), transparent 70%),
+    radial-gradient(700px 380px at -10% 110%, rgba(242, 107, 29, 0.07), transparent 70%),
     var(--canvas);
 }
 .p-auth-brand {
@@ -1593,8 +1596,8 @@
   inset: 0;
   z-index: -1;
   background:
-    radial-gradient(900px 420px at 85% -10%, rgba(0, 133, 122, 0.09), transparent 70%),
-    radial-gradient(700px 380px at -10% 110%, rgba(245, 158, 11, 0.06), transparent 70%),
+    radial-gradient(900px 420px at 85% -10%, rgba(46, 55, 164, 0.08), transparent 70%),
+    radial-gradient(700px 380px at -10% 110%, rgba(242, 107, 29, 0.07), transparent 70%),
     var(--canvas);
 }
 .is-signup .p-auth-logo {
@@ -1669,21 +1672,26 @@
 
 /* Sign-up side panel */
 .p-auth-pitch { display: grid; gap: 18px; max-width: 380px; margin-top: 56px; }
-.p-auth-line { margin: 0; font-size: 26px; line-height: 1.2; font-weight: 600; letter-spacing: -0.02em; color: #0f2733; }
-.p-auth-small { margin: 0; font-size: 14px; color: #5d727c; }
-.p-auth-link { display: grid; gap: 6px; padding: 20px; border-radius: 16px; background: #fff; border: 1px solid #e4e0d8; box-shadow: 0 24px 48px -28px rgba(15, 39, 51, 0.35); }
-.p-auth-link-shop { font-size: 12.5px; color: #5d727c; }
-.p-auth-link strong { color: #0f2733; }
-.p-auth-link-price { font-size: 30px; font-weight: 600; letter-spacing: -0.03em; color: #0f2733; }
+.p-auth-line { margin: 0; font-size: 26px; line-height: 1.2; font-weight: 600; letter-spacing: -0.02em; color: #1e2466; }
+.p-auth-small { margin: 0; font-size: 14px; color: #62668a; }
+.p-auth-link { display: grid; gap: 6px; padding: 20px; border-radius: 16px; background: #fff; border: 1px solid #e6e1d8; box-shadow: 0 24px 48px -28px rgba(30, 36, 102, 0.35); }
+.p-auth-link-shop { font-size: 12.5px; color: #62668a; }
+.p-auth-link strong { color: #1e2466; }
+.p-auth-link-price { font-size: 30px; font-weight: 600; letter-spacing: -0.03em; color: #1e2466; }
 .p-auth-link-ways { display: flex; flex-wrap: wrap; gap: 5px; }
-.p-auth-link-ways i { font-style: normal; font-size: 12px; padding: 2px 9px; border: 1px solid #e4e0d8; border-radius: 999px; color: #0f2733; }
-.p-auth-link-ways i.credit { background: #fff2d9; border-color: #f2a62b; font-weight: 600; }
-.p-auth-link-pay { margin-top: 8px; padding: 11px; border-radius: 999px; background: #0f2733; color: #fff; text-align: center; font-weight: 600; font-size: 14px; }
+.p-auth-link-ways i { font-style: normal; font-size: 12px; padding: 2px 9px; border: 1px solid #e6e1d8; border-radius: 999px; color: #1e2466; }
+.p-auth-link-ways i.credit { background: #fff2d9; border-color: #f5b700; font-weight: 600; }
+.p-auth-link-pay { margin-top: 8px; padding: 11px; border-radius: 999px; background: #1e2466; color: #fff; text-align: center; font-weight: 600; font-size: 14px; }
 .p-auth-steps { margin: 56px 0 0; padding: 0; list-style: none; counter-reset: step; display: grid; gap: 22px; max-width: 380px; }
 .p-auth-steps li { counter-increment: step; display: grid; grid-template-columns: 30px 1fr; column-gap: 12px; }
-.p-auth-steps li::before { content: counter(step); grid-row: span 2; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: #0f2733; color: #fff; font-size: 13px; font-weight: 700; }
-.p-auth-steps strong { color: #0f2733; }
-.p-auth-steps span { color: #5d727c; font-size: 14px; }
+.p-auth-steps li::before { content: counter(step); grid-row: span 2; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: #1e2466; color: #fff; font-size: 13px; font-weight: 700; }
+.p-auth-steps strong { color: #1e2466; }
+.p-auth-steps span { color: #62668a; font-size: 14px; }
 @media (max-width: 900px) { .p-auth-pitch, .p-auth-steps { display: none; } }
-.p-auth .p-auth-pitch .p-auth-line { color: #0f2733 !important; font-size: 26px; font-weight: 600; }
+.p-auth .p-auth-pitch .p-auth-line { color: #1e2466 !important; font-size: 26px; font-weight: 600; }
 .p-auth .p-auth-pitch .p-auth-small { color: #3d5561 !important; }
+
+.p-local-note a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

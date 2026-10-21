@@ -54,6 +54,7 @@ import { Empty, Pill, StatePill, amountText, currencyCode, day, when } from "./f
 import "@/components/portal/portal.css";
 import "./workspace.css";
 import "./treasury.css";
+import { docsUrl } from "@/lib/site-config";
 export const dynamic = "force-dynamic";
 export const metadata = {
   title: "Dashboard",
@@ -610,7 +611,7 @@ export default async function Page({
         name: "Pay with credit",
         detail: "Instalments from a licensed lender; you're paid in full",
         on: offered.has("bnpl"),
-        next: <Link href="/docs/credit">Lenders are joining country by country →</Link>,
+        next: <a href={docsUrl("credit")}>Lenders are joining country by country →</a>,
       },
       {
         name: "Stablecoins",
@@ -918,7 +919,7 @@ export default async function Page({
 <button data-payrouta-checkout="/create-checkout">Checkout</button>`}</pre>
           <p className="ms-dim">
             <code>/create-checkout</code> is your server: it calls <code>POST /checkouts</code> with your secret key and
-            answers <code>{"{ \"checkoutUrl\": \"…\" }"}</code>. <Link href="/docs/checkout-button">Checkout button guide</Link>
+            answers <code>{"{ \"checkoutUrl\": \"…\" }"}</code>. <a href={docsUrl("checkout-button")}>Checkout button guide</a>
           </p>
         </section>
         <section>
@@ -969,7 +970,7 @@ export default async function Page({
             </li>
           </ol>
           <p className="ms-dim">
-            <Link href="/docs/woocommerce">WooCommerce guide</Link>
+            <a href={docsUrl("woocommerce")}>WooCommerce guide</a>
           </p>
         </section>
       </>

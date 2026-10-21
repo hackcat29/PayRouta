@@ -3,6 +3,7 @@ import { useState } from "react";
 import { cryptoAssets, cryptoAsset } from "@/lib/blockchain/crypto-assets";
 import { isTestnet, networkName } from "@/lib/blockchain/chains";
 import type { CheckoutAsset } from "./stablecoin-checkout";
+import { errorText, offline } from "@/lib/error-copy";
 type Account = {
   id: string;
   symbol: string;
@@ -38,9 +39,8 @@ export function CryptoPayments({
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ action, orgId, input }),
     });
-    const body = await response.json();
-    if (!response.ok)
-      throw new Error(body.error || "Unable to complete request");
+    const body = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(errorText(body, response.status));
     return body;
   };
   return (
@@ -170,7 +170,7 @@ export function CryptoPayments({
                   });
                   location.reload();
                 } catch (error) {
-                  setMessage((error as Error).message);
+                  setMessage(error instanceof TypeError ? offline : (error as Error).message);
                 } finally {
                   setBusy(false);
                 }

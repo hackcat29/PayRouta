@@ -101,6 +101,7 @@ Live payments go through accounts **the merchant owns** at each provider. They o
 | Health | `GET /api/health`; `pm2 status`; `pm2 logs payrouta-worker` |
 | Failed jobs | The preflight reports them. Inspect the `Job` table (`state = 'Failed'`, `error`) |
 | Rotate the secret master key | Add a new key to `SECRET_MASTER_KEYS`, set `SECRET_ACTIVE_KEY_ID` to it, run `npm run secrets:rotate`, reload, then remove the old key |
+| Set a `*_REF` variable (`ONECLICK_API_KEY_REF`, `COINGECKO_API_KEY_REF`, ...) | On the server, `pbpaste \| npm run -s secrets:put` (or `< key.txt`) prints a reference; put it in `.env` and reload |
 | Rotate a partner credential | Save the connection again with the new secret; the old reference stays until you revoke it |
 | Pause a partner | Disable its connection. Status reads pause, merchant state is unchanged, and it stops being offered at checkout |
 | Restore a backup | `gunzip -c backup.sql.gz \| sudo -u postgres psql payrouta` into an empty database, then redeploy the matching release |

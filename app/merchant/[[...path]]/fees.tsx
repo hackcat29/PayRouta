@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { errorText, offline } from "@/lib/error-copy";
 
 // Who pays fees by default. Each payment can override it via the API
 // (`feeBearer`), so a merchant can absorb fees on some products only.
@@ -31,12 +32,12 @@ export function FeeBearerSetting({
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ action: "fee-bearer", orgId, input: { feeBearer: value } }),
             });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error || "Request failed");
+            const data = await response.json().catch(() => null);
+            if (!response.ok) throw new Error(errorText(data, response.status));
             setMessage("Saved. New payments use this setting.");
             router.refresh();
           } catch (error) {
-            setMessage(error instanceof Error ? error.message : "Request failed");
+            setMessage(error instanceof TypeError ? offline : error instanceof Error ? error.message : offline);
           } finally {
             setBusy(false);
           }

@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { errorText, offline } from "@/lib/error-copy";
 const roles = ["Owner", "Admin", "Developer", "Finance", "Analyst"];
 export function MerchantTeam({
   orgId,
@@ -18,11 +19,11 @@ export function MerchantTeam({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const result = await response.json();
-      setMessage(response.ok ? "Saved." : result.error || "Unable to save");
+      const result = await response.json().catch(() => null);
+      setMessage(response.ok ? "Saved." : errorText(result, response.status));
       if (response.ok) router.refresh();
     } catch {
-      setMessage("Request unavailable");
+      setMessage(offline);
     }
   }
   return (
@@ -106,14 +107,14 @@ export function AcceptMerchantInvitation({ token }: { token: string }) {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ action: "accept-invitation", token }),
             });
-            const result = await response.json();
+            const result = await response.json().catch(() => null);
             if (response.ok)
               router.replace(
                 `/merchant/team?orgId=${encodeURIComponent(result.orgId)}`,
               );
-            else setMessage(result.error || "Unable to accept");
+            else setMessage(errorText(result, response.status));
           } catch {
-            setMessage("Request unavailable");
+            setMessage(offline);
           }
         }}
       >

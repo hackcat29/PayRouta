@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { errorText, offline } from "@/lib/error-copy";
 export function Keys({
   orgId,
   environment,
@@ -30,13 +31,13 @@ export function Keys({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Request failed");
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(errorText(data, response.status));
       if (data.secret) setSecret(data.secret);
       setMessage("Saved.");
       router.refresh();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Request failed");
+      setMessage(error instanceof TypeError ? offline : error instanceof Error ? error.message : offline);
     } finally {
       setBusy(false);
     }

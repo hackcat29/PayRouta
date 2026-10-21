@@ -1,21 +1,21 @@
 @import "tailwindcss";
 :root {
-  --navy: #102c3a;
-  --teal: #007f73;
-  --mint: #bdf4dc;
+  --navy: #1e2466;
+  --teal: #2e37a4;
+  --mint: #f26b1d;
   --blue: #4c6fff;
   --amber: #f5bd63;
-  --cloud: #f5f7f8;
+  --cloud: #f7f4ee;
   --white: #fff;
-  --slate: #526572;
-  --mist: #dce5e9;
+  --slate: #62668a;
+  --mist: #e6e1d8;
   --background: var(--white);
   --surface: var(--cloud);
   --text: var(--navy);
   --muted: var(--slate);
   --action: var(--teal);
-  --focus: #007f73;
-  --border: #81939c;
+  --focus: #2e37a4;
+  --border: #8d90ab;
   --error: #ad243a;
   --warning: #80520b;
 }
@@ -267,7 +267,7 @@ p {
   background: white;
   color: var(--navy);
   border: 1px solid var(--mist);
-  box-shadow: 0 12px 25px #102c3a13;
+  box-shadow: 0 12px 25px #1e246613;
   border-radius: 10px;
 }
 .dropdown a {
@@ -479,7 +479,7 @@ select {
   transition: all 0.15s ease;
 }
 .method:hover {
-  border-color: #81939c;
+  border-color: #8d90ab;
 }
 .method svg {
   color: var(--teal);
@@ -1587,7 +1587,7 @@ summary {
     color: var(--navy);
     padding: 20px 32px;
     border-bottom: 1px solid var(--mist);
-    box-shadow: 0 12px 20px #102c3a15;
+    box-shadow: 0 12px 20px #1e246615;
   }
   .nav-links.mobile-open {
     display: block;

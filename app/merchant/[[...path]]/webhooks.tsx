@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { errorText, offline } from "@/lib/error-copy";
 export function WebhookControls({
   orgId,
   url,
@@ -25,11 +26,11 @@ export function WebhookControls({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orgId, ...data }),
       });
-      const body = await response.json();
-      setMessage(response.ok ? "Saved." : body.error || "Unable to save.");
+      const body = await response.json().catch(() => null);
+      setMessage(response.ok ? "Saved." : errorText(body, response.status));
       if (response.ok) router.refresh();
     } catch {
-      setMessage("Unable to save.");
+      setMessage(offline);
     } finally {
       setBusy(false);
     }

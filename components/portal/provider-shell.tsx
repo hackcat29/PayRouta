@@ -19,6 +19,7 @@ import {
 import { allowedRoute } from "@/lib/portal/domain";
 import { SignOutButton } from "./sign-out";
 import { NavToggle } from "./nav-toggle";
+import { docsUrl } from "@/lib/site-config";
 
 type Item = { label: string; path: string; icon: ReactNode; also?: string[] };
 type Tab = { label: string; path: string };
@@ -178,9 +179,9 @@ export function ProviderShell({
             <ShieldCheck size={13} aria-hidden /> Provider
           </span>
           <div className="ms-top-right">
-            <Link className="ms-top-link" href="/docs/provider-integration">
+            <a className="ms-top-link" href={docsUrl("provider-integration")}>
               <BookOpen size={15} aria-hidden /> Docs
-            </Link>
+            </a>
             <Link
               className="ms-switch"
               role="switch"

@@ -126,8 +126,8 @@ const places: Place[] = [
   },
 ];
 
-export function HeroDemo() {
-  const [id, setId] = useState(places[0].id);
+export function HeroDemo({ initial = places[0].id }: { initial?: string }) {
+  const [id, setId] = useState(initial);
   const place = places.find((p) => p.id === id)!;
   const plan = credit(place.price, 4, "two-weeks", 0);
   const fmt = (m: bigint | string) => money(BigInt(m), place.currency, place.locale);

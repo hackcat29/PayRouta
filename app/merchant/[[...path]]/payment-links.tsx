@@ -2,7 +2,9 @@
 // Payment links: get paid without a website. Create a link, share it
 // anywhere; every customer who opens it gets their own checkout.
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { errorText, offline } from "@/lib/error-copy";
 
 type Link = {
   id: string;
@@ -33,15 +35,6 @@ function money(amount: string, currency: string) {
     return `${amount} ${currency}`;
   }
 }
-
-const errors: Record<string, string> = {
-  PAYMENT_LINK_CRYPTO_REQUIRES_USD: "Stablecoins are offered on USD links only.",
-  PAYMENT_LINK_CRYPTO_NOT_CONFIGURED: "Add stablecoin receive addresses under Payment methods first.",
-  INVALID_AMOUNT: "Check the amount: it has more decimal places than the currency allows, or is zero.",
-  UNSUPPORTED_CURRENCY: "That currency isn't supported.",
-  MERCHANT_ACCESS_DENIED: "An owner or admin can create payment links.",
-  PAYMENT_LINK_METHOD_NOT_ON: "One of those ways to pay isn't on for your account yet. Activate payments first.",
-};
 
 export function PaymentLinks({
   orgId,
@@ -77,15 +70,15 @@ export function PaymentLinks({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orgId, ...data }),
       });
-      const body = await response.json();
+      const body = await response.json().catch(() => null);
       if (!response.ok) {
-        setMessage(errors[body.error] ?? "Couldn't save. Try again.");
+        setMessage(errorText(body, response.status));
         return null;
       }
       router.refresh();
       return body;
     } catch {
-      setMessage("Couldn't save. Try again.");
+      setMessage(offline);
       return null;
     } finally {
       setBusy(false);
@@ -102,10 +95,29 @@ export function PaymentLinks({
   }
 
   const url = (slug: string) => `${origin}/pay/${slug}`;
+  const nothingOn = !methodsOn.length && !cryptoReady;
+  const go = (path: string) => `/merchant/${path}?${new URLSearchParams({ orgId })}`;
 
   return (
     <>
-      {canManage && (
+      {canManage && nothingOn && (
+        <section>
+          <h2>Turn on a way to pay first</h2>
+          <p>
+            A link needs at least one way for customers to pay. Activate payments to accept cards, bank transfers and
+            mobile money, or add a stablecoin receive address to take USD links in crypto today.
+          </p>
+          <div className="ms-link-actions">
+            <Link className="ms-btn primary" href={go("activation")}>
+              Activate payments
+            </Link>
+            <Link className="ms-btn" href={go("payment-methods")}>
+              Add a stablecoin address
+            </Link>
+          </div>
+        </section>
+      )}
+      {canManage && !nothingOn && (
         <section>
           <h2>New payment link</h2>
           <p>Share it on WhatsApp, Instagram, by SMS or on an invoice. Each customer gets their own checkout.</p>
@@ -114,12 +126,21 @@ export function PaymentLinks({
             onSubmit={async (event) => {
               event.preventDefault();
               const form = new FormData(event.currentTarget);
+              const amount = String(form.get("amount") || "").replace(/[,\s]/g, "");
+              if (!/^\d{1,13}(\.\d{1,8})?$/.test(amount) || Number(amount) === 0) {
+                setMessage("Enter the amount as a number above zero, like 150000 or 49.99.");
+                return;
+              }
+              if (!form.getAll("methods").length && form.get("crypto") !== "on") {
+                setMessage("Choose at least one way to pay.");
+                return;
+              }
               const result = await send({
                 action: "payment-link",
                 input: {
                   title: form.get("title"),
                   description: form.get("description") || undefined,
-                  amount: String(form.get("amount") || "").replace(/,/g, ""),
+                  amount,
                   currency: String(form.get("currency") || "").toUpperCase(),
                   country: String(form.get("country") || "").toUpperCase(),
                   methods: form.getAll("methods"),
@@ -139,11 +160,11 @@ export function PaymentLinks({
             </label>
             <label>
               Currency
-              <input name="currency" required maxLength={3} defaultValue={defaultCurrency} />
+              <input name="currency" required minLength={3} maxLength={3} pattern="[A-Za-z]{3}" title="A three-letter currency code, like NGN or USD" defaultValue={defaultCurrency} />
             </label>
             <label>
               Customers mostly in
-              <input name="country" required maxLength={2} defaultValue={defaultCountry} />
+              <input name="country" required minLength={2} maxLength={2} pattern="[A-Za-z]{2}" title="A two-letter country code, like NG or KE" defaultValue={defaultCountry} />
             </label>
             <label className="ms-link-wide">
               Note for the customer (optional)

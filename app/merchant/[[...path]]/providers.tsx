@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { countries } from "@/lib/portal/domain";
 import { labelOf } from "@/lib/providers/normalized";
+import { errorText, offline } from "@/lib/error-copy";
 
 type Profile = {
   legalName?: string;
@@ -122,13 +123,13 @@ export function Providers({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orgId, ...body }),
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Request failed");
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(errorText(data, response.status));
       setMessage(done);
       router.refresh();
       return data;
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Request failed");
+      setMessage(error instanceof TypeError ? offline : error instanceof Error ? error.message : offline);
       return null;
     } finally {
       setBusy(false);

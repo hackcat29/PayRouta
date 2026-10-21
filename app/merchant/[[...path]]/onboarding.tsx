@@ -4,6 +4,7 @@ import { ReactNode, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { countries, fiat } from "@/lib/portal/domain";
 import { labelOf } from "@/lib/providers/normalized";
+import { errorText, offline } from "@/lib/error-copy";
 
 // Crypto is set up here; cards, wallets, bank transfer, mobile money, USSD
 // and credit turn on through Activate payments.
@@ -328,17 +329,17 @@ export function Onboarding({
           submit: submitting,
         }),
       });
-      const body = await response.json();
+      const body = await response.json().catch(() => null);
       setMessage(
         response.ok
           ? submitting
             ? "Application submitted for review."
             : "Draft saved."
-          : body.error || "Unable to save.",
+          : errorText(body, response.status),
       );
       if (response.ok) router.refresh();
     } catch {
-      setMessage("Unable to save. Check your connection.");
+      setMessage(offline);
     } finally {
       setBusy(false);
     }

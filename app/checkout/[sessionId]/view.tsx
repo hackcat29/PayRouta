@@ -14,6 +14,7 @@ import { chain, networkName } from "@/lib/blockchain/chains";
 import { returnHandler, switchCheckout, usePopupBridge } from "./popup";
 import { CrossChain } from "./cross-chain";
 import "./checkout.css";
+import { errorText, shown } from "@/lib/error-copy";
 type Action = {
   kind: string;
   text: string;
@@ -108,14 +109,14 @@ export function Checkout({ id }: { id: string }) {
             }
           : { cache: "no-store" },
       );
-      const b = await r.json();
+      const b = await r.json().catch(() => null);
       if (!r.ok)
         throw new Error(
-          b.error === "CHECKOUT_EXPIRED_OR_UNAUTHORIZED"
+          b?.error === "CHECKOUT_EXPIRED_OR_UNAUTHORIZED"
             ? "This checkout link is incomplete, expired or no longer available. Open the full checkout link from the merchant. To switch browsers, use ‘Copy link for wallet browser’ in the original checkout."
-            : b.error === "CHECKOUT_EXPIRED"
+            : b?.error === "CHECKOUT_EXPIRED"
               ? "This quote has expired. Return to the merchant for a new checkout with an updated rate."
-              : b.error || "Unable to load checkout",
+              : errorText(b, r.status),
         );
       return b;
     },
@@ -168,7 +169,7 @@ export function Checkout({ id }: { id: string }) {
           if (alive) setOptions(m.methods);
         }
       } catch (e) {
-        if (alive) setError((e as Error).message);
+        if (alive) setError(shown(e));
       }
     }
     void start();
@@ -220,7 +221,7 @@ export function Checkout({ id }: { id: string }) {
       await api({ action: "confirm", routeId: selected.routeId });
       await refresh();
     } catch (e) {
-      setError((e as Error).message);
+      setError(shown(e));
     } finally {
       mutating.current = false;
       setBusy(false);
@@ -237,7 +238,7 @@ export function Checkout({ id }: { id: string }) {
       const methods = await api({ action: "methods" });
       setOptions(methods.methods);
     } catch (e) {
-      setError((e as Error).message);
+      setError(shown(e));
       await refresh().catch(() => {});
     } finally {
       mutating.current = false;
@@ -256,7 +257,7 @@ export function Checkout({ id }: { id: string }) {
           : "No payment attempt is awaiting a transfer. Return to the merchant for a new checkout.",
       );
     } catch (e) {
-      setError((e as Error).message);
+      setError(shown(e));
     } finally {
       setBusy(false);
     }
@@ -278,7 +279,7 @@ export function Checkout({ id }: { id: string }) {
       setWalletLink(link);
       await copy(link, "Wallet browser link");
     } catch (e) {
-      setError((e as Error).message);
+      setError(shown(e));
     } finally {
       setBusy(false);
     }
@@ -467,7 +468,7 @@ export function Checkout({ id }: { id: string }) {
                 onClick={() => {
                   setBusy(true);
                   switchCheckout(id, "fiat").catch((e) => {
-                    setError((e as Error).message);
+                    setError(shown(e));
                     setBusy(false);
                   });
                 }}

@@ -5,17 +5,13 @@ import "@fontsource/inter/600.css";
 import "@fontsource/inter/700.css";
 import "./globals.css";
 import "./marketing.css";
-import { Archivo, JetBrains_Mono, Sora } from "next/font/google";
+import { JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import { SiteChrome } from "@/components/site-chrome";
 import { trustedOrigin } from "@/lib/site-config";
 const origin = trustedOrigin();
-const archivo = Archivo({
-  subsets: ["latin"],
-  axes: ["wdth"],
-  variable: "--font-archivo",
-});
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jb-mono" });
-const display = Sora({
+// Brand display face (headings, figures); Inter carries body text and UI.
+const display = Space_Grotesk({
   subsets: ["latin", "latin-ext"],
   variable: "--font-display",
 });
@@ -28,7 +24,7 @@ export const metadata: Metadata = {
   description:
     "One checkout button for every way the world pays: cards, digital wallets, bank transfers, mobile money, credit from licensed lenders, and crypto from any wallet.",
   robots: { index: !!origin, follow: !!origin },
-  icons: { icon: "/brand/favicon.svg" },
+  icons: { icon: "/brand/favicon.svg", apple: "/brand/payrouta-app-icon.png" },
   ...(origin
     ? {
         openGraph: {
@@ -48,7 +44,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${archivo.variable} ${mono.variable} ${display.variable}`}
+      className={`${mono.variable} ${display.variable}`}
     >
       <body>
         <a href="#main" className="skip-link">

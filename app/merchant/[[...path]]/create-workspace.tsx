@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { countries } from "@/lib/portal/domain";
+import { errorText, offline } from "@/lib/error-copy";
 
 export function CreateWorkspace() {
   const router = useRouter();
@@ -34,12 +35,12 @@ export function CreateWorkspace() {
                 },
               }),
             });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error || "Request failed");
+            const data = await response.json().catch(() => null);
+            if (!response.ok) throw new Error(errorText(data, response.status));
             router.push(`/merchant/overview?orgId=${encodeURIComponent(data.orgId)}`);
             router.refresh();
           } catch (error) {
-            setMessage(error instanceof Error ? error.message : "Request failed");
+            setMessage(error instanceof TypeError ? offline : error instanceof Error ? error.message : offline);
           } finally {
             setBusy(false);
           }

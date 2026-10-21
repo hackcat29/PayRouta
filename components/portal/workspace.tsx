@@ -13,6 +13,8 @@ import { PasskeySettings, SecuritySettings } from "./auth-screen";
 import { Compliance, Credentials, Team } from "./workspace-tools";
 import { ProviderShell } from "./provider-shell";
 import { SignOutButton } from "./sign-out";
+import { errorText, offline } from "@/lib/error-copy";
+import { docsUrl } from "@/lib/site-config";
 
 const titles: Record<string, string> = {
   overview: "Home",
@@ -83,15 +85,15 @@ export function Workspace({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orgId: data.org?.id, ...payload }),
       });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.error);
+      const result = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(errorText(result, res.status));
       setNotice(result.message || "Saved");
       if (result.oneTimeSecret) setOneTime(result.oneTimeSecret);
       if (result.orgId) router.push(`/provider/overview?org=${result.orgId}`);
       router.refresh();
       return result;
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : "Action failed");
+      setNotice(e instanceof TypeError ? offline : e instanceof Error ? e.message : offline);
       return null;
     }
   };
@@ -573,7 +575,7 @@ export function Workspace({
                         plan, approve the customer and pay the merchant; the customer repays you.
                       </p>
                       <p>
-                        <Link href="/docs/credit">Read the credit partner contract →</Link>
+                        <a href={docsUrl("credit")}>Read the credit partner contract →</a>
                       </p>
                     </Panel>
                   )}
