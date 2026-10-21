@@ -7,6 +7,7 @@ import "./globals.css";
 import "./marketing.css";
 import { JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import { SiteChrome } from "@/components/site-chrome";
+import { brandVersion } from "@/components/brand-logo";
 import { trustedOrigin } from "@/lib/site-config";
 const origin = trustedOrigin();
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jb-mono" });
@@ -24,7 +25,13 @@ export const metadata: Metadata = {
   description:
     "One checkout button for every way the world pays: cards, digital wallets, bank transfers, mobile money, credit from licensed lenders, and crypto from any wallet.",
   robots: { index: !!origin, follow: !!origin },
-  icons: { icon: "/brand/favicon.svg", apple: "/brand/payrouta-app-icon.png" },
+  icons: {
+    icon: [
+      { url: `/brand/favicon.svg?v=${brandVersion}`, type: "image/svg+xml" },
+      { url: `/brand/favicon.ico?v=${brandVersion}`, sizes: "48x48" },
+    ],
+    apple: `/brand/payrouta-app-icon.png?v=${brandVersion}`,
+  },
   ...(origin
     ? {
         openGraph: {

@@ -55,6 +55,8 @@ export function LinkPicture({ origin }: { origin: string }) {
           <i>Card</i>
           <i>Bank</i>
           <i>USSD</i>
+          <i>Crypto</i>
+          <i> Digital Wallet</i>
           <i className="aa-credit">Pay with credit</i>
         </span>
         <span className="aa-page-pay">Pay ₦150,000</span>

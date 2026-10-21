@@ -3,6 +3,7 @@
 // needed for a decision, PayRouta's companies and platform accounts, and a
 // risk view of disputes, reconciliation mismatches, money owed and failures.
 import Link from "next/link";
+import { BrandLogo } from "@/components/brand-logo";
 import { notFound, redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { internal } from "@/lib/portal/access";
@@ -77,8 +78,8 @@ export default async function Page({
   return (
     <div className="portal p-shell ot-shell">
       <aside className="p-sidebar">
-        <Link href="/ops/applications" className="p-logo">
-          PayRouta
+        <Link href="/ops/applications" className="p-logo" aria-label="PayRouta operations home">
+          <BrandLogo reverse />
         </Link>
         <div className="p-workspace-label">Internal operations</div>
         <nav aria-label="Treasury">

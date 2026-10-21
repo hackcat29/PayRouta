@@ -38,8 +38,7 @@ export default function Home() {
           <div className="hp-hero-copy">
             <h1 className="hp-h1">One checkout for every way the world pays.</h1>
             <p className="hp-sub">
-              Share a payment link or add one button. Customers pay by card, wallet, bank transfer, mobile money or
-              crypto from any chain, or spread the cost with a licensed lender while you&apos;re paid in full.
+              One link or one button. Customers pay by card, bank, mobile money, crypto or credit. You get paid in full.
             </p>
             <div className="hp-cta">
               <Link className="mk-btn primary" href={createLinkHref}>

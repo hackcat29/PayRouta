@@ -160,7 +160,7 @@ export const pillars: {
     id: "anyChain",
     title: "Any wallet, any chain",
     availability: "available",
-    note: "Pay from a wallet on eight networks, or with any of 125+ assets on 36+ chains through NEAR Intents.",
+    note: "Pay from a wallet on eight networks, or with any of 125+ assets on 36+ chains, converted on the way.",
   },
   {
     id: "platforms",

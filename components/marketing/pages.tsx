@@ -256,8 +256,8 @@ function Crypto() {
       </Feature>
       <Feature title="Whatever your customer holds" tone="paper">
         <p>
-          Through NEAR Intents, customers can pay with any of 125+ assets on 36+ chains. It&apos;s swapped on the way and
-          you receive exactly the amount you asked for. If a swap can&apos;t complete, the customer is refunded.
+          Customers can pay with any of 125+ assets on 36+ chains. PayRouta converts it on the way and you receive
+          exactly the amount you asked for. If a payment can&apos;t complete, the customer is refunded.
         </p>
         <TextLink href={docsUrl("cross-chain")}>Paying from another chain</TextLink>
       </Feature>
@@ -622,7 +622,7 @@ function OnlineStores() {
             </Btn>
           </>
         }
-        visual={<HeroDemo initial="london" />}
+        visual={<HeroDemo initial="gb" />}
       />
       <Feature title="Add it to the store you have" tone="paper">
         <p>One button on any site today; Shopify and WooCommerce plugins are on the way.</p>
