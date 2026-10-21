@@ -5,6 +5,7 @@ import { can, roles } from "@/lib/portal/domain";
 import { Action, DateText, Field, Modal, Table } from "./ui";
 import { Badge, Empty, Panel } from "./provider-ui";
 import type { Execute } from "./forms";
+import { errorText, offline } from "@/lib/error-copy";
 export function Compliance({
   data,
   execute,
@@ -56,11 +57,11 @@ export function Compliance({
                   `/api/portal/evidence?org=${data.org!.id}`,
                   { method: "POST", body: form },
                 );
-                const result = await res.json();
-                setNotice(result.message || result.error);
+                const result = await res.json().catch(() => null);
+                setNotice(res.ok ? result?.message : errorText(result, res.status));
                 router.refresh();
               } catch {
-                setNotice("Upload failed. Try again.");
+                setNotice(offline);
               }
             }}
           >
@@ -166,9 +167,9 @@ export function Compliance({
                       const res = await fetch(`/api/portal/evidence/${e.id}`, {
                         method: "POST",
                       });
-                      const r = await res.json();
-                      if (r.url) window.open(r.url, "_blank", "noopener");
-                      else setNotice(r.error);
+                      const r = await res.json().catch(() => null);
+                      if (r?.url) window.open(r.url, "_blank", "noopener");
+                      else setNotice(errorText(r, res.status));
                     }}
                   />
                   <Action
@@ -178,8 +179,8 @@ export function Compliance({
                       const res = await fetch(`/api/portal/evidence/${e.id}`, {
                         method: "DELETE",
                       });
-                      const r = await res.json();
-                      setNotice(r.message || r.error);
+                      const r = await res.json().catch(() => null);
+                      setNotice(res.ok ? r?.message : errorText(r, res.status));
                       router.refresh();
                     }}
                   />

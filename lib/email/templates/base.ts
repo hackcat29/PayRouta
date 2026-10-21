@@ -14,11 +14,11 @@ export interface BaseEmailProps {
   footerNote?: string;
 }
 
-const INK = "#0b1b22";
-const BODY = "#33434a";
-const MUTED = "#6b7a80";
-const RULE = "#e3e7e8";
-const ACCENT = "#00756b";
+const INK = "#1e2466";
+const BODY = "#3b3f5c";
+const MUTED = "#62668a";
+const RULE = "#e6e1d8";
+const ACCENT = "#2e37a4";
 
 // Escapes text for HTML element content and quoted attribute values.
 export function esc(value: unknown): string {
@@ -73,12 +73,12 @@ export function renderBaseTemplate(props: BaseEmailProps): string {
 <meta name="color-scheme" content="light only">
 <title>${esc(headline || "PayRouta")}</title>
 <style>
-  body { margin:0; padding:0; background:#f4f5f5; }
+  body { margin:0; padding:0; background:#f7f4ee; }
   a { color:${ACCENT}; }
   p { margin:0 0 16px; }
   ul, ol { margin:0 0 16px; padding-left:20px; }
   li { margin-bottom:6px; }
-  .code-block { background:#f4f5f5; border:1px solid ${RULE}; border-radius:6px; padding:12px 14px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:13px; color:${INK}; margin:0 0 16px; white-space:pre-wrap; }
+  .code-block { background:#f7f4ee; border:1px solid ${RULE}; border-radius:6px; padding:12px 14px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:13px; color:${INK}; margin:0 0 16px; white-space:pre-wrap; }
   .metric-grid { width:100%; margin:0 0 16px; border-collapse:separate; border-spacing:0 8px; }
   .metric-card { border:1px solid ${RULE}; border-radius:6px; padding:12px; }
   .metric-val { font-size:20px; font-weight:600; color:${INK}; }
@@ -86,9 +86,9 @@ export function renderBaseTemplate(props: BaseEmailProps): string {
   @media (max-width:620px) { .card { padding:28px 20px !important; } }
 </style>
 </head>
-<body style="margin:0;padding:0;background:#f4f5f5;">
+<body style="margin:0;padding:0;background:#f7f4ee;">
 ${previewText ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${esc(previewText)}&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;</div>` : ""}
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f5f5;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f7f4ee;">
   <tr>
     <td align="center" style="padding:32px 12px;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;">

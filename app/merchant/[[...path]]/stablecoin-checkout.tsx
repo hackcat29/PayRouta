@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { networkName } from "@/lib/blockchain/chains";
+import { errorText, offline } from "@/lib/error-copy";
 export type CheckoutAsset = {
   network: string;
   identifier: string;
@@ -39,13 +40,12 @@ export function StablecoinCheckout({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ action: "stablecoin-checkout", orgId, input }),
       });
-      const body = await response.json();
-      if (!response.ok)
-        throw new Error(body.error || "Checkout could not be created");
+      const body = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(errorText(body, response.status));
       setResult(body);
     } catch (error) {
       setMessage(
-        (error as Error).message + ". Retry to retrieve the same checkout.",
+        error instanceof TypeError ? `${offline} Retrying returns the same checkout.` : (error as Error).message,
       );
     } finally {
       setBusy(false);

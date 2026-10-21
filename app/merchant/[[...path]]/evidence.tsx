@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { errorText, offline } from "@/lib/error-copy";
 export function MerchantEvidence({
   orgId,
   country,
@@ -57,11 +58,11 @@ export function MerchantEvidence({
                 `/api/portal/evidence?org=${encodeURIComponent(orgId)}&audience=merchant`,
                 { method: "POST", body: data },
               );
-              const body = await response.json();
-              setMessage(response.ok ? body.message : body.error);
+              const body = await response.json().catch(() => null);
+              setMessage(response.ok ? body.message : errorText(body, response.status));
               if (response.ok) router.refresh();
             } catch {
-              setMessage("Upload unavailable");
+              setMessage(offline);
             } finally {
               setBusy(false);
             }
@@ -107,11 +108,11 @@ export function MerchantEvidence({
                       `/api/portal/evidence/${e.id}`,
                       { method: "POST" },
                     );
-                    const body = await response.json();
+                    const body = await response.json().catch(() => null);
                     if (response.ok) window.location.assign(body.url);
-                    else setMessage(body.error);
+                    else setMessage(errorText(body, response.status));
                   } catch {
-                    setMessage("Download unavailable");
+                    setMessage(offline);
                   }
                 }}
               >

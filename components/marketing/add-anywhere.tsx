@@ -2,8 +2,8 @@
 // Where a merchant can take payments: a shared link (no website), the
 // button on a site, or a store plugin.
 import { useState } from "react";
-import Link from "next/link";
 import type { Availability } from "@/content/claims";
+import { docsUrl } from "@/lib/site-config";
 
 type Tab = {
   id: "link" | "html" | "shopify" | "woocommerce";
@@ -13,8 +13,8 @@ type Tab = {
 };
 
 const tabs: Tab[] = [
-  { id: "link", label: "Payment link", link: ["/docs/payment-links", "Payment links guide"] },
-  { id: "html", label: "Website", link: ["/docs/checkout-button", "Checkout button guide"] },
+  { id: "link", label: "Payment link", link: [docsUrl("payment-links"), "Payment links guide"] },
+  { id: "html", label: "Website", link: [docsUrl("checkout-button"), "Checkout button guide"] },
   {
     id: "shopify",
     label: "Shopify",
@@ -23,7 +23,7 @@ const tabs: Tab[] = [
       ["Activate", "Turn PayRouta on in Shopify payments."],
       ["Sell", "Buyers pick PayRouta at checkout. Orders complete in Shopify."],
     ],
-    link: ["/docs/shopify", "Shopify guide"],
+    link: [docsUrl("shopify"), "Shopify guide"],
   },
   {
     id: "woocommerce",
@@ -33,11 +33,11 @@ const tabs: Tab[] = [
       ["Paste your key", "API key and webhook secret in settings."],
       ["Sell", "Orders are marked paid only after PayRouta confirms."],
     ],
-    link: ["/docs/woocommerce", "WooCommerce guide"],
+    link: [docsUrl("woocommerce"), "WooCommerce guide"],
   },
 ];
 
-function LinkPicture({ origin }: { origin: string }) {
+export function LinkPicture({ origin }: { origin: string }) {
   const host = origin.replace(/^https?:\/\//, "");
   return (
     <div className="aa-link" aria-label="A payment link sent in a chat, and the page it opens">
@@ -63,8 +63,16 @@ function LinkPicture({ origin }: { origin: string }) {
   );
 }
 
-export function AddAnywhere({ origin, statuses }: { origin: string; statuses: Record<Tab["id"], Availability> }) {
-  const [id, setId] = useState<Tab["id"]>("link");
+export function AddAnywhere({
+  origin,
+  statuses,
+  initial = "link",
+}: {
+  origin: string;
+  statuses: Record<Tab["id"], Availability>;
+  initial?: Tab["id"];
+}) {
+  const [id, setId] = useState<Tab["id"]>(initial);
   const tab = tabs.find((t) => t.id === id)!;
   return (
     <div className="aa">
@@ -98,9 +106,9 @@ export function AddAnywhere({ origin, statuses }: { origin: string; statuses: Re
             ))}
           </ol>
         )}
-        <Link className="hp-link" href={tab.link[0]}>
+        <a className="hp-link" href={tab.link[0]}>
           {tab.link[1]} <span aria-hidden="true">→</span>
-        </Link>
+        </a>
       </div>
     </div>
   );

@@ -580,7 +580,7 @@
 .ms-body textarea:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(0, 133, 122, 0.16);
+  box-shadow: 0 0 0 3px rgba(46, 55, 164, 0.18);
 }
 .ms-body input[type="checkbox"],
 .ms-body input[type="radio"] {
@@ -1280,7 +1280,7 @@
 .ms-solo select:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(0, 133, 122, 0.16);
+  box-shadow: 0 0 0 3px rgba(46, 55, 164, 0.18);
 }
 .ms-solo form button {
   min-height: 40px;
@@ -1545,45 +1545,48 @@
 .ms-link-form fieldset { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 8px 18px; }
 .ms-link-form legend { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
 .ms-check { display: inline-flex !important; grid-auto-flow: column; align-items: center; gap: 8px !important; font-weight: 400 !important; }
-.ms-link-created { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 16px; padding: 14px; border-radius: 10px; background: #e2f2ef; }
+.ms-link-created { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 16px; padding: 14px; border-radius: 10px; background: #ebecf8; }
 .ms-link-created code { font-size: 14px; word-break: break-all; }
-.ms-link-actions { display: flex; gap: 6px; justify-content: flex-end; }
+.ms-link-actions { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+td.ms-link-actions { display: table-cell; text-align: right; white-space: nowrap; }
+td.ms-link-actions > * + * { margin-left: 6px; }
 .ms-empty-line { padding: 0 24px 24px; }
 @media (max-width: 720px) { .ms-link-form { grid-template-columns: minmax(0, 1fr); } }
 
 /* Home: ways to get paid, and ways customers can pay */
 .ms-getpaid { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 12px; margin-bottom: 16px; }
 .ms-gp { display: grid; align-content: start; gap: 4px; padding: 18px 20px; border: 1px solid var(--line, #e2e7e8); border-radius: 12px; background: #fff; color: inherit; text-decoration: none; }
-.ms-gp:hover { border-color: #0f2733; }
-.ms-gp strong { font-size: 17px; color: #0f2733; }
-.ms-gp > span { font-size: 13.5px; color: #5d727c; }
-.ms-gp .ms-gp-kicker { font-size: 12px; font-weight: 600; text-transform: none; color: #5d727c; }
-.ms-gp .ms-gp-go { margin-top: 8px; font-weight: 600; color: #006159; }
-.ms-gp-main { background: #0f2733; border-color: #0f2733; }
+.ms-gp:hover { border-color: #1e2466; }
+.ms-gp strong { font-size: 17px; color: #1e2466; }
+.ms-gp > span { font-size: 13.5px; color: #62668a; }
+.ms-gp .ms-gp-kicker { font-size: 12px; font-weight: 600; text-transform: none; color: #62668a; }
+.ms-gp .ms-gp-go { margin-top: 8px; font-weight: 600; color: #252c8a; }
+.ms-gp-main { background: #1e2466; border-color: #1e2466; }
 .ms-gp-main strong, .ms-gp-main > span, .ms-gp-main .ms-gp-kicker { color: #fff; }
-.ms-gp-main .ms-gp-go { color: #8ce0d3; }
+.ms-gp-main .ms-gp-go { color: #ff9257; }
 .ms-ways ul { list-style: none; margin: 12px 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
-.ms-ways li { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border: 1px solid var(--line, #e2e7e8); border-radius: 999px; font-size: 13.5px; color: #0f2733; }
+.ms-ways li { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border: 1px solid var(--line, #e2e7e8); border-radius: 999px; font-size: 13.5px; color: #1e2466; }
 .ms-ways li > span { width: 8px; height: 8px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px #8a9ba3; }
-.ms-ways li.on > span { background: #007f73; box-shadow: none; }
-.ms-ways li small { color: #5d727c; font-size: 12px; }
+.ms-ways li.on > span { background: #2e37a4; box-shadow: none; }
+.ms-ways li small { color: #62668a; font-size: 12px; }
 @media (max-width: 900px) { .ms-getpaid { grid-template-columns: 1fr; } }
 
 /* Payment methods overview */
 .ms-methods { list-style: none; margin: 0; padding: 0; }
 .ms-methods li { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 14px 24px; border-top: 1px solid var(--line, #e2e7e8); }
-.ms-methods li strong { display: block; color: #0f2733; }
-.ms-methods li small { color: #5d727c; font-size: 13px; }
+.ms-methods li strong { display: block; color: #1e2466; }
+.ms-methods li small { color: #62668a; font-size: 13px; }
 .ms-methods-dot { width: 10px; height: 10px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px #8a9ba3; }
-.ms-methods li.on .ms-methods-dot { background: #007f73; box-shadow: none; }
-.ms-methods-state { font-size: 13.5px; font-weight: 600; color: #0f2733; text-align: right; }
-.ms-methods li.on .ms-methods-state { color: #006159; }
+.ms-methods li.on .ms-methods-dot { background: #2e37a4; box-shadow: none; }
+.ms-methods-state { font-size: 13.5px; font-weight: 600; color: #1e2466; text-align: right; }
+.ms-methods li.on .ms-methods-state { color: #252c8a; }
 .ms-details { margin-top: 16px; border: 1px solid var(--line, #e2e7e8); border-radius: 12px; background: #fff; }
-.ms-details > summary { padding: 16px 24px; cursor: pointer; font-weight: 600; color: #0f2733; }
+.ms-details > summary { padding: 16px 24px; cursor: pointer; font-weight: 600; color: #1e2466; }
 .ms-details[open] > summary { border-bottom: 1px solid var(--line, #e2e7e8); }
 @media (max-width: 720px) { .ms-methods li { grid-template-columns: 12px minmax(0, 1fr); } .ms-methods-state { grid-column: 2; text-align: left; } }
 
-.ms-hint { margin: 0 0 12px; font-size: 13.5px; color: #5d727c; }
+.ms-hint { margin: 0 0 12px; font-size: 13.5px; color: #62668a; }
 
 .ms-check-off { color: #8a9ba3; }
 .ms-check small { color: #8a9ba3; font-size: 12px; font-weight: 400; }
+

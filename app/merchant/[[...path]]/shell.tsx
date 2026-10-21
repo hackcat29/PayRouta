@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { SignOutButton } from "@/components/portal/sign-out";
 import { NavToggle } from "@/components/portal/nav-toggle";
+import { docsUrl } from "@/lib/site-config";
 
 export const routeTitles = {
   onboarding: "Business setup",
@@ -207,9 +208,9 @@ export function MerchantShell({
             {orgName}
           </Link>
           <div className="ms-top-right">
-            <Link className="ms-top-link" href="/docs">
+            <a className="ms-top-link" href={docsUrl("overview")}>
               <BookOpen size={15} aria-hidden /> Docs
-            </Link>
+            </a>
             <form className="ms-mode" action={`/merchant/${section}`}>
               <input type="hidden" name="orgId" value={orgId} />
               <input type="hidden" name="environment" value={test ? "production" : "sandbox"} />

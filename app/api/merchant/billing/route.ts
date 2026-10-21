@@ -7,6 +7,7 @@ import { rateLimit } from "@/lib/portal/access";
 import { PortalError } from "@/lib/portal/domain";
 import { billingWindow } from "@/lib/payments/billing";
 import { formatFee } from "@/lib/payments/pricing";
+import { failure } from "@/lib/payments/http";
 export async function GET(request: Request) {
   try {
     const q = z
@@ -68,22 +69,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (e) {
-    return Response.json(
-      {
-        error:
-          e instanceof PortalError
-            ? e.message
-            : "INVALID_OR_UNAVAILABLE_BILLING_EXPORT",
-      },
-      {
-        status:
-          e instanceof PortalError
-            ? e.status
-            : e instanceof z.ZodError
-              ? 400
-              : 503,
-        headers: { "Cache-Control": "no-store" },
-      },
-    );
+    const { body, status } = failure(e);
+    return Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
   }
 }

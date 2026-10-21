@@ -14,6 +14,7 @@ import {
 import { knownRails } from "@/lib/providers/normalized";
 import { Field, JsonView } from "./ui";
 import { Panel } from "./provider-ui";
+import { docsUrl } from "@/lib/site-config";
 export type Execute = (data: Record<string, unknown>) => Promise<unknown>;
 export function CountrySelect({
   value,
@@ -966,9 +967,9 @@ export function IntegrationForm({
             {(connection as ConnectionChoice) === "standard" && (
               <p>
                 Read the{" "}
-                <Link href="/docs/provider-integration">
+                <a href={docsUrl("provider-integration")}>
                   Provider API documentation
-                </Link>
+                </a>
                 , store API secrets separately under API credentials, then
                 certify the sandbox connection under Sandbox tests.
               </p>

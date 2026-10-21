@@ -10,7 +10,7 @@
 .ot-muted { color: var(--slate); }
 .ot-block { display: block; margin-top: 2px; }
 .ot-pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; background: #eef2f4; color: var(--slate); white-space: nowrap; }
-.ot-pill.good { background: #e3f6ee; color: #006653; }
+.ot-pill.good { background: #e3f6ee; color: #252c8a; }
 .ot-pill.bad { background: #fbe9ec; color: #98283b; }
 .ot-pill.warn { background: #fdf1dc; color: #7a4d06; }
 .ot-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; }
@@ -41,7 +41,7 @@ a.ot-stat:hover { border-color: var(--teal); }
 .ot-content button.ot-secondary { background: white; color: var(--navy); border: 1px solid var(--mist); }
 .ot-content button.ot-danger { background: #98283b; }
 .ot-content button:disabled { opacity: 0.5; cursor: default; }
-.ot-note { margin: 4px 0 0; font-size: 13px; color: #006653; flex-basis: 100%; }
+.ot-note { margin: 4px 0 0; font-size: 13px; color: #252c8a; flex-basis: 100%; }
 .ot-note.error { color: var(--error); }
 .ot-blockers { padding: 10px 12px; border-radius: 8px; background: #fff8ec; border: 1px solid #f1d6a6; font-size: 14px; }
 .ot-blockers.clear { background: #f0faf5; border-color: #bfe6d6; }

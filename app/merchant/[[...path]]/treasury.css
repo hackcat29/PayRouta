@@ -15,7 +15,7 @@
   background: #eef2f4;
   color: var(--slate);
 }
-.tr-pill.good { background: #e3f6ee; color: #006653; }
+.tr-pill.good { background: #e3f6ee; color: #252c8a; }
 .tr-pill.bad { background: #fbe9ec; color: #98283b; }
 .tr-pill.warn { background: #fdf1dc; color: #7a4d06; }
 
@@ -119,7 +119,7 @@
 .tr-check input { margin-top: 3px; }
 .tr-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
 .tr-hint { color: var(--slate); font-size: 14px; margin: 4px 0; }
-.tr-message { margin: 8px 0 0; font-size: 14px; color: #006653; }
+.tr-message { margin: 8px 0 0; font-size: 14px; color: #252c8a; }
 .tr-message.error { color: var(--error); }
 .tr-saved { display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
 

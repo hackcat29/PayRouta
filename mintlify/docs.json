@@ -3,9 +3,9 @@
   "theme": "mint",
   "name": "PayRouta",
   "colors": {
-    "primary": "#007F73",
-    "light": "#3CC4B3",
-    "dark": "#006159"
+    "primary": "#2E37A4",
+    "light": "#F26B1D",
+    "dark": "#1E2466"
   },
   "logo": {
     "light": "/logo/light.svg",
@@ -15,7 +15,7 @@
   "fonts": {
     "family": "Inter",
     "heading": {
-      "family": "Sora"
+      "family": "Space Grotesk"
     }
   },
   "appearance": {

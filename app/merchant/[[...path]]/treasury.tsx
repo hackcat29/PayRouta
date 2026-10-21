@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { countries } from "@/lib/portal/domain";
+import { errorText, offline } from "@/lib/error-copy";
 
 function useTreasury(orgId: string) {
   const router = useRouter();
@@ -20,17 +21,17 @@ function useTreasury(orgId: string) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orgId, ...body }),
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => null);
       if (!response.ok) {
-        const text = String(data.error || "Request failed");
-        setMessage({ text: friendly(text), error: true, stepUp: /authenticator/i.test(text) });
+        const code = String(data?.error || "");
+        setMessage({ text: errors[code] ?? errorText(data, response.status), error: true, stepUp: /authenticator/i.test(code) });
         return null;
       }
       setMessage({ text: done, error: false });
       router.refresh();
       return data;
     } catch {
-      setMessage({ text: "We couldn't reach PayRouta. Check your connection and try again.", error: true });
+      setMessage({ text: offline, error: true });
       return null;
     } finally {
       setBusy(false);
@@ -58,7 +59,6 @@ const errors: Record<string, string> = {
   EVIDENCE_CUSTOMER_DETAILS_REQUIRED: "Add the customer's name, email and phone number.",
   EVIDENCE_NOT_SUPPORTED_ON_RAIL: "This payment's provider doesn't accept evidence online. Our team will contact you.",
 };
-const friendly = (code: string) => errors[code] ?? (code.includes(" ") ? code : "Something went wrong. Please try again.");
 
 function Message({ message }: { message: { text: string; error: boolean; stepUp?: boolean } | null }) {
   if (!message) return null;

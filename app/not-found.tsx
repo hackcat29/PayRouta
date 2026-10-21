@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { docsUrl } from "@/lib/site-config";
 
 export default function NotFound() {
   return (
@@ -10,7 +11,7 @@ export default function NotFound() {
           <p className="mk-cta">
             <Link href="/">Front page</Link>
             <span aria-hidden="true"> · </span>
-            <Link href="/docs">Documentation</Link>
+            <a href={docsUrl("overview")}>Documentation</a>
           </p>
         </header>
       </div>
