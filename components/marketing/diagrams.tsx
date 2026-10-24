@@ -305,3 +305,91 @@ export function PartnerMap() {
     </figure>
   );
 }
+
+// 5. Continental credit switches & 4-stage asynchronous credit lifecycle.
+export function ContinentalCreditMap() {
+  const continents = [
+    { region: "North America", currencies: "USD · CAD", rails: ["Affirm", "Afterpay", "Klarna", "Zip", "Visa Installments"] },
+    { region: "Europe & UK", currencies: "EUR · GBP · SEK", rails: ["Klarna", "Clearpay", "Alma", "PayPal Credit", "PSD2 Overdraft"] },
+    { region: "Latin America", currencies: "BRL · MXN · COP", rails: ["Mercado Crédito", "Kueski Pay", "Addi", "NuPay", "Open Finance"] },
+    { region: "Africa", currencies: "NGN · KES · GHS · ZAR", rails: ["Migo Credit", "Carbon POS", "CredPal", "Wallet Credit Draw"] },
+    { region: "Asia-Pacific", currencies: "IDR · SGD · MYR · INR · AUD", rails: ["Kredivo", "Akulaku", "Atome", "Grab PayLater", "UPI Credit Line"] },
+  ];
+  return (
+    <figure className="dg dg-credit-mesh" aria-label="Continental credit coverage and 4-stage credit lifecycle">
+      <div className="dg-mesh-grid">
+        {continents.map((c) => (
+          <div key={c.region} className="dg-node">
+            <span className="dg-node-title">{c.region}</span>
+            <span className="dg-chip">{c.currencies}</span>
+            <span className="dg-network">
+              {c.rails.map((r) => (
+                <i key={r}>{r}</i>
+              ))}
+            </span>
+          </div>
+        ))}
+      </div>
+      <ol className="dg dg-steps" style={{ marginTop: 20 }}>
+        <li>
+          <span className="dg-step">1</span>
+          <b>checkout.initiated</b>
+          <span>Localized plans priced for the exact basket.</span>
+        </li>
+        <li>
+          <span className="dg-step">2</span>
+          <b>credit.pending_approval</b>
+          <span>Inventory locked while lender underwrites.</span>
+        </li>
+        <li>
+          <span className="dg-step">3</span>
+          <b>credit.disbursed</b>
+          <span>Lender approves and disburses full principal.</span>
+        </li>
+        <li>
+          <span className="dg-step">4</span>
+          <b>payment.succeeded</b>
+          <span>Principal settles in fiat or USDC.</span>
+        </li>
+      </ol>
+    </figure>
+  );
+}
+
+// 6. SaaS Global Billing: FX Splicing, Millisecond Metering & Payday Dunning.
+export function SaasBillingDiagram() {
+  return (
+    <figure className="dg dg-saas-grid" aria-label="Triple-entry FX splicing, millisecond usage metering, and payday-synced dunning">
+      <div className="dg-mesh-grid">
+        <div className="dg-node">
+          <span className="dg-node-title">Any-to-Any FX Splicing</span>
+          <span className="dg-chip dg-chip-ink">Presentment → Settlement</span>
+          <span className="dg-network">
+            <i>¥15,000 JPY</i>
+            <i>KSh 12,900 KES</i>
+            <i className="dg-hl">→ 100.00 USDC / €92.00</i>
+          </span>
+        </div>
+        <div className="dg-node">
+          <span className="dg-node-title">Millisecond Metering & Tax</span>
+          <span className="dg-chip">UTC Proration · VIES Reverse Charge</span>
+          <span className="dg-network">
+            <i>Exact ms seat proration</i>
+            <i>Idempotent usage meters</i>
+            <i>EU VAT / US Sales Tax / GST</i>
+          </span>
+        </div>
+        <div className="dg-node">
+          <span className="dg-node-title">Payday-Synced Dunning</span>
+          <span className="dg-chip">Salary-cycle retries</span>
+          <span className="dg-network">
+            <i>NG · ZA: 25th</i>
+            <i>BR: 5th business day</i>
+            <i>US · CA: 1st &amp; 15th</i>
+            <i>EU · GB: Last business day</i>
+          </span>
+        </div>
+      </div>
+    </figure>
+  );
+}

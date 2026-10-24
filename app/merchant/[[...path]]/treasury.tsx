@@ -113,11 +113,11 @@ function Address({ prefix, country }: { prefix: string; country?: string }) {
         <input name={`${prefix}City`} required autoComplete="address-level2" />
       </label>
       <label>
-        State or region <small>(optional)</small>
+        State or region
         <input name={`${prefix}Region`} autoComplete="address-level1" />
       </label>
       <label>
-        Postal code <small>(optional)</small>
+        Postal code
         <input name={`${prefix}Postal`} autoComplete="postal-code" />
       </label>
       <Country name={`${prefix}Country`} label="Country" defaultValue={country} />
@@ -135,11 +135,11 @@ function Person({ prefix, title, country }: { prefix: string; title: string; cou
           <input type="date" name={`${prefix}Dob`} required />
         </label>
         <label>
-          Phone <small>(international format)</small>
+          Phone
           <input name={`${prefix}Phone`} placeholder="+234 801 234 5678" autoComplete="tel" />
         </label>
         <label>
-          Nationality <small>(optional)</small>
+          Nationality
           <select name={`${prefix}Nationality`} defaultValue="">
             <option value="">—</option>
             {countries.map((c) => (
@@ -150,13 +150,13 @@ function Person({ prefix, title, country }: { prefix: string; title: string; cou
           </select>
         </label>
         <label>
-          ID document <small>(where your country requires one)</small>
+          ID document
           <select name={`${prefix}IdType`} defaultValue="">
             <option value="">—</option>
             <option value="national-id">National ID</option>
             <option value="passport">Passport</option>
             <option value="drivers-licence">Driver&apos;s licence</option>
-            <option value="tax-id">Tax ID (e.g. SSN, BVN, NIN)</option>
+            <option value="tax-id">Tax ID (SSN, BVN, NIN)</option>
           </select>
         </label>
         <label>
@@ -167,7 +167,6 @@ function Person({ prefix, title, country }: { prefix: string; title: string; cou
           <input type="checkbox" name={`${prefix}Pep`} /> Politically exposed person
         </label>
       </div>
-      <p className="tr-hint">Home address</p>
       <Address prefix={prefix} country={country} />
     </fieldset>
   );
@@ -249,33 +248,35 @@ export function VerificationForm({
         ).then((ok) => ok && setOpen(false));
       }}
     >
-      <p className="tr-hint">
-        We use these to verify your business with our banking partners and to pay you. They are encrypted and only
-        shared for verification.
-      </p>
       <div className="tr-grid">
         <label>
           Business phone
           <input name="businessPhone" required placeholder="+44 20 7123 4567" autoComplete="tel" />
         </label>
         <label>
-          Date of incorporation <small>(optional)</small>
+          Incorporation date
           <input type="date" name="incorporationDate" />
         </label>
         <label>
-          Merchant category code <small>(optional, 4 digits)</small>
+          MCC (4 digits)
           <input name="mcc" inputMode="numeric" pattern="\d{4}" />
         </label>
       </div>
-      <Person prefix="rep" title="Your details (account representative)" country={country} />
+      <Person prefix="rep" title="Account representative" country={country} />
       {owners.map((o, i) => (
         <Person key={i} prefix={`owner${i}`} title={`Owner: ${o.name}`} country={country} />
       ))}
       <fieldset className="tr-fieldset">
         <legend>Payout bank account</legend>
         <div className="tr-grid">
+          <label className="tr-check">
+            <input type="radio" name="settlementMode" value="bank" defaultChecked /> Local bank payout
+          </label>
+          <label className="tr-check">
+            <input type="radio" name="settlementMode" value="stablecoin" /> Auto-liquidate fiat to USDC / USDT wallet
+          </label>
           <label className="tr-wide">
-            Account holder name <small>(must match your business or your own name)</small>
+            Account holder name
             <input name="holderName" required />
           </label>
           <label>
@@ -295,7 +296,7 @@ export function VerificationForm({
             <input name="accountNumber" required autoComplete="off" />
           </label>
           <label>
-            Routing / sort code / bank code <small>(if your country uses one)</small>
+            Routing / sort / bank code
             <input name="routingNumber" autoComplete="off" />
           </label>
         </div>

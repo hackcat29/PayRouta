@@ -8,6 +8,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { checkoutCountdown } from "@/lib/payments/checkout-display";
+import { localizeCheckoutMethods, type LocalizedMethodDescriptor } from "@/lib/payments/localization";
+import { calculateCheckoutTax } from "@/lib/payments/tax";
 import { currencyExponent } from "@/lib/partners/money";
 import { returnHandler, switchCheckout, usePopupBridge } from "./popup";
 import { errorText, shown } from "@/lib/error-copy";
@@ -20,6 +22,9 @@ type Progress = {
   // Set when the merchant passes fees to the customer.
   baseAmount?: string | null;
   customerFee?: string | null;
+  taxAmount?: string | null;
+  taxLabel?: string | null;
+  payerCountry?: string | null;
   asset: { kind: string; identifier: string };
   state: string;
   selectedMethod?: string | null;
@@ -32,7 +37,7 @@ type Progress = {
   expiresAt: string;
   returnUrl: string;
 };
-type Method = { method: string; label?: string; status: string; explanation?: string };
+type Method = { method: string; label?: string; status: string; explanation?: string } & Partial<LocalizedMethodDescriptor>;
 
 const labels: Record<string, string> = {
   card: "Card",
@@ -150,6 +155,8 @@ export function FiatCheckout({ id, initial }: { id: string; initial: Progress })
   // Credit plans, loaded when the customer chooses "Pay with credit".
   const [offers, setOffers] = useState<CreditOffer[] | null>(null);
   const [plan, setPlan] = useState("");
+  const [buyerTaxId, setBuyerTaxId] = useState("");
+  const [taxIdInvalid, setTaxIdInvalid] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [clock, setClock] = useState(() => Date.now());
@@ -178,11 +185,17 @@ export function FiatCheckout({ id, initial }: { id: string; initial: Progress })
   );
   const reload = useCallback(async () => setData(await api()), [api]);
 
-  const applyMethods = useCallback((m: { methods: Method[] }) => {
-    const available = m.methods.filter((x) => x.status === "AVAILABLE" && labels[x.method]);
-    setMethods(available);
-    setChoice((c) => (available.some((x) => x.method === c) ? c : available[0]?.method || ""));
-  }, []);
+  const applyMethods = useCallback(
+    (m: { methods: Method[]; payerCountry?: string }) => {
+      const available = localizeCheckoutMethods(
+        m.methods.filter((x) => x.status === "AVAILABLE" && labels[x.method]),
+        { payerCountry: m.payerCountry ?? data.payerCountry, currency: data.asset.identifier },
+      );
+      setMethods(available);
+      setChoice((c) => (available.some((x) => x.method === c) ? c : available[0]?.method || ""));
+    },
+    [data.payerCountry, data.asset.identifier],
+  );
   const loadMethods = useCallback(async () => applyMethods(await api({ action: "methods" })), [api, applyMethods]);
 
   const confirmed = data.state === "Confirmed";
@@ -275,6 +288,26 @@ export function FiatCheckout({ id, initial }: { id: string; initial: Progress })
   }
 
   const currency = data.asset.identifier;
+  const exp = currencyExponent(currency) ?? 2;
+  const liveTax =
+    buyerTaxId.trim().length >= 7 && data.payerCountry
+      ? calculateCheckoutTax({
+          amountMinor: BigInt(Math.max(0, Math.round(Number(data.baseAmount || data.amount) * 10 ** exp))),
+          currency,
+          buyerAddress: { country: data.payerCountry },
+          sellerCountry: "IE",
+          buyerTaxId: buyerTaxId.trim(),
+          productCategory: "saas",
+        })
+      : null;
+  const effectiveTaxLabel = liveTax?.reverseCharge
+    ? `${liveTax.lineItems[0]?.name ?? "VAT"} (0%)`
+    : data.taxLabel || "Estimated tax";
+  const effectiveTaxAmount = liveTax?.reverseCharge
+    ? formatAmount("0", currency)
+    : data.taxAmount
+      ? formatAmount(data.taxAmount, currency)
+      : null;
   const total = formatAmount(data.amount, currency);
   const action = data.action;
 
@@ -389,7 +422,7 @@ export function FiatCheckout({ id, initial }: { id: string; initial: Progress })
                 </span>
                 <span className="fc-method-text">
                   <strong>{labels[m.method]}</strong>
-                  <small>{blurbs[m.method]}</small>
+                  <small>{m.localizedBlurb || blurbs[m.method]}</small>
                 </span>
                 {m.method === "card" && (
                   <span className="fc-brands" aria-hidden>
@@ -468,7 +501,6 @@ export function FiatCheckout({ id, initial }: { id: string; initial: Progress })
             </span>
             <span>{data.merchant}</span>
           </a>
-          <p className="fc-label">Pay {data.merchant}</p>
           <p className="fc-total">{total}</p>
           <dl className="fc-lines">
             <div>
@@ -481,11 +513,47 @@ export function FiatCheckout({ id, initial }: { id: string; initial: Progress })
                 <dd>{formatAmount(data.customerFee, currency)}</dd>
               </div>
             )}
+            {effectiveTaxAmount && (
+              <div>
+                <dt>{effectiveTaxLabel}</dt>
+                <dd>{effectiveTaxAmount}</dd>
+              </div>
+            )}
             <div className="fc-sum">
               <dt>Total due</dt>
               <dd>{total}</dd>
             </div>
           </dl>
+          {(data.taxAmount || data.payerCountry) && !confirmed && !inFlight && !expired && (
+            <div className="fc-tax-box">
+              <label htmlFor="fc-tax-id-input">Business VAT / Tax ID</label>
+              <span id="fc-tax-id-hint" className="fc-tax-hint">
+                Country prefix + ID (e.g. DE123456789) for B2B reverse charge
+              </span>
+              <input
+                id="fc-tax-id-input"
+                name="buyerTaxId"
+                type="text"
+                autoComplete="off"
+                pattern="[A-Za-z]{2}[A-Za-z0-9]{5,15}"
+                aria-describedby="fc-tax-id-hint"
+                aria-invalid={taxIdInvalid ? "true" : undefined}
+                value={buyerTaxId}
+                onChange={(e) => {
+                  setBuyerTaxId(e.target.value);
+                  if (taxIdInvalid && e.currentTarget.checkValidity()) setTaxIdInvalid(false);
+                }}
+                onBlur={(e) => {
+                  setTaxIdInvalid(Boolean(e.currentTarget.value) && !e.currentTarget.checkValidity());
+                }}
+              />
+              {liveTax?.reverseCharge && (
+                <p className="fc-tax-ok" role="status">
+                  ✓ {liveTax.exemptionReason} applied
+                </p>
+              )}
+            </div>
+          )}
           {!confirmed && !inFlight && !expired && (
             <p className="fc-small" role="timer" aria-live="off">
               Expires in {checkoutCountdown(data.expiresAt, clock)}
@@ -570,9 +638,14 @@ function CreditPlans({
           );
         })}
       </div>
+      <ol className="fc-credit-steps" aria-label="Asynchronous credit stages">
+        <li aria-current="step">1. Choose plan</li>
+        <li>2. Lender approval</li>
+        <li>3. Disbursed</li>
+        <li>4. Confirmed</li>
+      </ol>
       <p className="fc-small">
-        Credit is provided by {lenders.join(" or ")}, not by {merchant} or PayRouta. The lender checks your
-        eligibility and you repay the lender. {merchant} is paid in full today.{" "}
+        Provided by {lenders.join(" or ")} · {merchant} is paid in full today.{" "}
         {offers[0] && (
           <a href={offers.find((o) => o.key === plan)?.termsUrl || offers[0].termsUrl} target="_blank" rel="noreferrer">
             Lender terms

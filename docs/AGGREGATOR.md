@@ -124,12 +124,14 @@ Each partner fits only through a platform programme that lets PayRouta onboard m
 | Airwallex | Connected accounts and payments for platforms | Yes (native API) | partner-held | Sales contract | FX and multi-currency payouts |
 | dLocal | dLocal for Platforms (User accounts, split payments) | Yes (`POST /v2/accounts`, with KYC and consents) | partner-held: funds stay in the User account until PayRouta requests settlement | Platform credentials from dLocal's technical account manager | `dlocal` built. Processing fees are configured as liable-account fees (PayRouta pays). Redirect hosts must be set from the sandbox (fails closed until then). |
 | Antom | Marketplace sub-merchant registration (4–17 day review) | Yes | partner-held | Sales contract | Alipay, WeChat Pay, Asian wallets |
-| Monnify | Split / sub-accounts | To be confirmed | split-settlement | To be confirmed | Research needed |
+| Monnify (NG) | Subaccounts and `incomeSplitConfig` split payments | Yes (`POST /api/v1/sub-accounts`, with NIBSS name enquiry via `/api/v2/disbursements/account/validate`) | split-settlement | Self-serve | `monnify-split` built and sandbox-verified. Routes `amount − feeMinor` to the merchant's subaccount while the subaccount bears Monnify's processing fee (`feeBearer: true, feePercentage: 100`). |
+| Bridge (US, GB, EU, MX, BR) | Stablecoin-to-fiat orchestration (`POST /v0/customers`, `/v0/customers/:id/external_accounts`, `/v0/transfers`) | Yes (KYB, representative, UBOs and external bank account by API) | split-settlement | Self-serve sandbox | `bridge-split` built. Liquefies USDC/fiat transfers directly to the merchant's verified bank account (ACH, SEPA, Faster Payments, SPEI, Pix) with PayRouta's fee withheld as `developer_fee`. |
+| Yellow Card (Pan-African) | Licensed stablecoin-to-fiat collections & settlement (`/business/subaccounts`, `/business/collections`) | Yes (`POST /business/details/bank` name check + `/business/subaccounts`) | split-settlement | Self-serve sandbox | `yellowcard-split` built. Converts via USDC liquidity rails and settles local currency (NGN, GHS, KES, ZAR, UGX, TZS, RWF, ZMW, XAF, XOF) directly to the merchant's bank account. |
 | Tink | One-time payments under Tink's PISP licence, Merchants API for partners | Yes (merchant registration with instant screening) | The payer's bank pays the merchant's own verified account; PayRouta never holds funds | Self-serve Console sandbox; Tink provisions merchants | `tink` built (`feeCollection: "invoice"`). The Merchants API path and the payment request's merchant field must be confirmed in Tink's API reference (`merchantsPath` is required config). |
 | Onafriq | B2B payments hub | No sub-merchant programme found | Would be PayRouta-held | Enterprise | Needs licensing (mode D) |
 | Stablecoins | Merchant-owned receive addresses (existing) | n/a | merchant-owned | Built | Unchanged |
 
-**Split-settlement rules** (Paystack and Flutterwave subaccounts):
+**Split-settlement rules** (Paystack, Flutterwave and Monnify subaccounts):
 - The provider pays the merchant's bank directly, so PayRouta can neither hold a rolling reserve nor schedule payouts.
 - Refunds after settlement come out of PayRouta's main balance, so PayRouta carries the risk.
 - The live gate allows such a rail only for merchants underwritten with a 0% reserve (`RESERVE_NOT_SUPPORTED_BY_PLATFORM`). In practice that means low and standard risk tiers.
@@ -197,7 +199,7 @@ PayRouta decides when merchants are paid out on fund-holding rails (Stripe Conne
 **Refunds:** `POST /api/treasury { action: "refund", orgId, intentId, amountMinor?, reason? }` (step-up). Partial refunds can never add up to more than the payment.
 - The merchant funds the whole refund: its available balance at that platform account first, the rest booked as owed. PayRouta's fee is not returned.
 - Stripe refunds use `reverse_transfer` (from the merchant's connected account) with `refund_application_fee: false`.
-- Paystack and Flutterwave refunds reverse the split. Once the subaccount was settled they may come from PayRouta's balance, which is why the shortfall is booked as owed.
+- Paystack, Flutterwave and Monnify refunds reverse the split. Once the subaccount was settled they may come from PayRouta's balance, which is why the shortfall is booked as owed.
 - dLocal refunds reuse the payment's split.
 - Tink has no refunds (pay by bank).
 - The refund id is the provider idempotency key. Pending refunds are re-read every 30 minutes and on webhooks.
@@ -228,6 +230,9 @@ Events are stored once per platform account and event id; the same id with a dif
 | Stripe | `Stripe-Signature` with a five-minute tolerance, using the platform and Connect endpoint secrets; events from the other mode are refused | `webhookSecretRef`, `connectWebhookSecretRef` |
 | Paystack | `x-paystack-signature`, HMAC-SHA512 of the body with the secret key | `secretKeyRef` |
 | Flutterwave | `verif-hash` equals the dashboard secret hash | `webhookHashRef` |
+| Monnify | `monnify-signature`, HMAC-SHA512 of the body with the secret key | `secretKeyRef` |
+| Bridge | `x-webhook-signature` t/v0, HMAC-SHA256 of `t.body`, five-minute tolerance | `webhookSecretRef` |
+| Yellow Card | `x-yc-signature`, base64 HMAC-SHA256 of the body with the secret key | `secretKeyRef` |
 | dLocal | `Authorization: V2-HMAC-SHA256` over X-Login + X-Date + body; the login must be PayRouta's and X-Date within five minutes | `loginRef`, `secretKeyRef` |
 | Tink | `X-Tink-Signature` t/v1, HMAC-SHA256 of `t.body`, five-minute tolerance | `webhookSecretRef` |
 

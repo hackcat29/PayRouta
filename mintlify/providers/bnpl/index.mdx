@@ -13,12 +13,15 @@ PayRouta integrates with leading installment providers, absorbing zero credit or
 
 ---
 
-## Supported BNPL Providers
+## Supported BNPL Providers & Continental Switches
 
-| Provider | Regions | Plans Supported |
-| --- | --- | --- |
-| [**Klarna**](/providers/bnpl/klarna) | Europe, United States, United Kingdom | Pay in 4, Pay in 30 days (Rechnung), Financing |
-| [**Affirm**](/providers/bnpl/affirm) | United States, Canada | Real-time underwriting, 3–36 month installments |
+| Provider / Continental Switch | Platform ID | Regions | Networks & Open-Banking Rails Supported |
+| --- | --- | --- | --- |
+| [**Klarna**](/providers/bnpl/klarna) | `adyen-klarna-bnpl` | Europe, United Kingdom, United States | Klarna (Pay in 3, Pay in 30 days, 6–12m Financing), Clearpay, PayPal Credit, Alma, plus Tink PSD2 Open Banking overdraft mandates |
+| [**Affirm**](/providers/bnpl/affirm) | `stripe-bnpl` | United States, Canada | Affirm (3–36m installments), Afterpay, Klarna, Zip, plus Visa Installment Solutions (VIS) & Mastercard Send |
+| **Mercado Pago & LatAm BNPL** | `mercadopago-bnpl` | Brazil, Mexico, Colombia, Argentina, Chile | Mercado Crédito, Kueski Pay, Addi, NuPay (Nubank Installments), plus Belvo Open Finance neobank credit draw |
+| **Migo & Africa Credit Mesh** | `migo-bnpl` | Nigeria, Kenya, Ghana, South Africa | Migo Credit, Carbon Point-of-Sale, CredPal, CDL Rails, plus Mono Open Banking / Wallet Relay (OPay/EaseMoni, FairMoney, Kuda) |
+| **Xendit & APAC BNPL Switch** | `xendit-bnpl` | Indonesia, Singapore, Malaysia, Philippines, Thailand, India, Australia | Kredivo, Akulaku, Atome, Grab PayLater, plus NPCI UPI Credit Line (RuPay Credit on UPI) |
 
 ---
 

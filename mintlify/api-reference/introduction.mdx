@@ -43,6 +43,8 @@ Keys are created in the dashboard under **Developers → API keys**, and each ke
 | `GET`, `PUT`, `DELETE /webhook-endpoint` | webhooks:read / webhooks:write | Read, set or rotate, and disable your endpoint |
 | `GET /webhook-deliveries`, `GET /webhook-deliveries/{eventId}` | webhooks:read | Delivery status and attempts |
 | `POST /webhook-deliveries/{eventId}/redeliver` | webhooks:write | Redeliver the same event |
+| `POST /credit-intents` | payments:write | Evaluate continental BNPL / Open-Banking offers, initiate a credit intent, or transition its 4-stage asynchronous state machine |
+| `GET /credit-intents` | payments:read | Inspect an existing credit intent (`?intentId=…`) or preview continental BNPL offers (`?country=…&currency=…&amountMinor=…`) |
 
 Creation returns `201`; other successes return `200`. Every response carries an `X-Request-Id` header.
 
@@ -166,3 +168,39 @@ Send the customer to your PayRouta origin + `checkoutPath` (or hand it to the ch
 ## Create a quoted crypto checkout
 
 `POST /crypto-checkouts` accepts a USD invoice and 1–20 reviewed coin/network options. The server fixes exact coin amounts and two-minute expiry using CoinGecko. It requires `payments:write`, an environment header and an idempotency key. See [Crypto wallet payments](/guides/crypto-payments) for request fields, supported deployments, fees and retry rules. Manually priced crypto payment intents without this quote are rejected.
+
+## Global Credit Intents & Continental BNPL Switch
+
+`POST /credit-intents` and `GET /credit-intents` power PayRouta's [Universal BNPL & Open-Banking Switch](/guides/credit) across North America (`stripe-bnpl`), Europe (`adyen-klarna-bnpl`), Latin America (`mercadopago-bnpl`), Africa (`migo-bnpl`), and Asia-Pacific (`xendit-bnpl`).
+
+### Preview available credit plans (`GET /credit-intents`)
+
+```
+GET /api/v1/credit-intents?country=NG&currency=NGN&amountMinor=15000000
+```
+
+Returns the matched continental switch (`migo-bnpl`), available installment plans (`migo-ng-30d`, `migo-ng-3m`, `mono-ng-credit-draw`), and open-banking backdoor capabilities.
+
+### Initiate & advance a credit intent (`POST /credit-intents`)
+
+```json
+{
+  "action": "initiate",
+  "intentId": "ci_latam_01",
+  "merchantId": "merch_01",
+  "reference": "ORD-MX-402",
+  "payerCountry": "MX",
+  "currency": "MXN",
+  "amountMinor": "250000",
+  "settlementCurrency": "USDC",
+  "selectedOfferId": "mp-latam-3m",
+  "customerEmail": "buyer@example.mx"
+}
+```
+
+Supported `action` values on `POST /credit-intents`:
+- `"evaluate"` — returns the continental BNPL route and calculated installment schedules without persisting state.
+- `"initiate"` — creates the credit intent (`checkout.initiated`) and transitions to `credit.pending_approval` with the lender's redirect URL.
+- `"mark_disbursed"` — records lender underwriting approval and principal disbursement (`credit.disbursed`) with `providerLoanId` and `lenderDiscountFeeMinor`.
+- `"mark_succeeded"` — settles the disbursed principal into the merchant's ledger (`payment.succeeded`), triggering Any-to-Any FX Splicing if `settlementCurrency` differs from `currency`.
+- `"mark_declined"` — records a lender decline or timeout (`credit.declined`), unlocking the checkout for an alternative payment method.

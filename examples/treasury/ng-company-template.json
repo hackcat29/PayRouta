@@ -1,16 +1,16 @@
 {
   "profile": {
-    "legalName": "Adaeze Foods Limited",
-    "tradingName": "Adaeze Foods",
+    "legalName": "Sherifat Bolanle Iyanda Limited",
+    "tradingName": "Iyanda Foods",
     "businessType": "company",
     "country": "NG",
     "registrationNumber": "RC1234567",
-    "website": "https://adaeze.example",
+    "website": "https://iyanda.example",
     "productDescription": "Packaged foods sold online and delivered in Lagos",
     "industry": "Food & Groceries",
-    "supportEmail": "support@adaeze.example",
+    "supportEmail": "support@payrouta.com",
     "address": { "line1": "1 Admiralty Way", "city": "Lagos", "country": "NG" },
-    "representative": { "givenName": "Adaeze", "familyName": "Okafor", "email": "adaeze@adaeze.example", "title": "Director" },
+    "representative": { "givenName": "Sherifat", "familyName": "Iyanda", "email": "sherifat@payrouta.com", "title": "Director" },
     "owners": [],
     "monthlyVolume": "under-10k",
     "settlementCurrency": "NGN"
@@ -25,10 +25,10 @@
     "payoutAccount": {
       "country": "NG",
       "currency": "NGN",
-      "holderName": "Adaeze Foods Limited",
+      "holderName": "Sherifat Bolanle Iyanda Limited",
       "holderType": "company",
-      "accountNumber": "0000000000",
-      "routingNumber": "000"
+      "accountNumber": "0690000032",
+      "routingNumber": "044"
     }
   }
 }

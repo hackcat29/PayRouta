@@ -673,10 +673,36 @@ async function Platforms() {
     db.legalEntity.findMany({ orderBy: { name: "asc" } }),
     db.platformAccount.findMany({ include: { legalEntity: true }, orderBy: [{ provider: "asc" }, { environment: "asc" }] }),
   ]);
-  const providers = ["stripe-custom", "paystack-split", "flutterwave-split", "dlocal", "tink", "sandbox-platform", "sandbox-split", "sandbox-credit"].flatMap((id) => {
+  const providers = [
+    "stripe-custom",
+    "paystack-split",
+    "flutterwave-split",
+    "monnify-split",
+    "bridge-split",
+    "yellowcard-split",
+    "dlocal",
+    "tink",
+    "stripe-bnpl",
+    "adyen-klarna-bnpl",
+    "mercadopago-bnpl",
+    "migo-bnpl",
+    "xendit-bnpl",
+    "sandbox-platform",
+    "sandbox-split",
+    "sandbox-credit",
+  ].flatMap((id) => {
     try {
       const m = platformModule(id).manifest;
-      return [{ id, name: m.name, custody: m.custody }];
+      return [
+        {
+          id,
+          name: m.name,
+          custody: m.custody,
+          methods: m.methods.join(", "),
+          countries: m.merchantCountries ? m.merchantCountries.join(", ") : "All",
+          lender: m.credit?.lender ?? "—",
+        },
+      ];
     } catch {
       return [];
     }
@@ -744,6 +770,35 @@ async function Platforms() {
           </tbody>
         </table>
         {entities.length > 0 ? <PlatformForm entities={entities.map((e) => ({ id: e.id, name: e.name }))} providers={providers} /> : <p className="ot-muted">Add a company first.</p>}
+      </section>
+      <section className="ot-panel">
+        <h2>Registered platform modules</h2>
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Module ID</th>
+              <th scope="col">Name</th>
+              <th scope="col">Custody</th>
+              <th scope="col">Methods</th>
+              <th scope="col">Countries</th>
+              <th scope="col">Credit lender</th>
+            </tr>
+          </thead>
+          <tbody>
+            {providers.map((p) => (
+              <tr key={p.id}>
+                <td>
+                  <code>{p.id}</code>
+                </td>
+                <td>{p.name}</td>
+                <td>{p.custody}</td>
+                <td>{p.methods}</td>
+                <td>{p.countries}</td>
+                <td>{p.lender}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </section>
     </>
   );

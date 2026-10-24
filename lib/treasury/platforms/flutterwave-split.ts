@@ -40,7 +40,7 @@ export const flutterwaveSplitManifest: PlatformManifest = {
   merchantCountries: Object.keys(countryCurrency),
   methods: ["card", "bank-transfer", "mobile-money", "ussd"],
   sharedFields: ["legalName", "tradingName", "country", "supportEmail", "representative"],
-  paymentHosts: ["checkout.flutterwave.com"],
+  paymentHosts: ["checkout.flutterwave.com", "checkout-v2.dev-flutterwave.com"],
   documentation: "https://developer.flutterwave.com/v3.0/docs/split-payments",
 };
 
@@ -113,7 +113,12 @@ function create(raw: unknown, deps: PartnerDeps): PlatformAdapter {
   };
   async function verify(reference: string) {
     if (!/^[A-Za-z0-9_-]{1,100}$/.test(reference)) return null;
-    return call("GET", `/transactions/verify_by_reference?tx_ref=${encodeURIComponent(reference)}`);
+    try {
+      return await call("GET", `/transactions/verify_by_reference?tx_ref=${encodeURIComponent(reference)}`);
+    } catch (error) {
+      if (error instanceof PortalError && error.status === 422) return null;
+      throw error;
+    }
   }
   // The payment carries the subaccount PayRouta attached in its metadata;
   // a payment echoing another subaccount is never this merchant's.
@@ -136,20 +141,35 @@ function create(raw: unknown, deps: PartnerDeps): PlatformAdapter {
       if (typeof resolved.account_name !== "string" || !accountNameMatches(bank.holderName, resolved.account_name))
         throw new PortalError("PAYOUT_ACCOUNT_NAME_MISMATCH", 422);
       const rep = input.profile.representative;
-      const created = await call("POST", "/subaccounts", {
-        account_bank: bank.routingNumber,
-        account_number: bank.accountNumber,
-        business_name: (input.profile.tradingName ?? input.profile.legalName ?? "").slice(0, 100),
-        country,
-        business_mobile: input.details.businessPhone,
-        business_email: input.profile.supportEmail,
-        business_contact: rep ? `${rep.givenName} ${rep.familyName}` : undefined,
-        business_contact_mobile: input.details.representative.phone ?? input.details.businessPhone,
-        // PayRouta's share is set per payment.
-        split_type: "flat",
-        split_value: 0,
-        meta: [{ meta_name: "payrouta_link", meta_value: input.linkId }],
-      });
+      let created: Record<string, unknown>;
+      try {
+        created = await call("POST", "/subaccounts", {
+          account_bank: bank.routingNumber,
+          account_number: bank.accountNumber,
+          business_name: (input.profile.tradingName ?? input.profile.legalName ?? "").slice(0, 100),
+          country,
+          business_mobile: input.details.businessPhone,
+          business_email: input.profile.supportEmail,
+          business_contact: rep ? `${rep.givenName} ${rep.familyName}` : undefined,
+          business_contact_mobile: input.details.representative.phone ?? input.details.businessPhone,
+          // PayRouta's share is set per payment.
+          split_type: "flat",
+          split_value: 0,
+          meta: [{ meta_name: "payrouta_link", meta_value: input.linkId }],
+        });
+      } catch (error) {
+        if (!(error instanceof PortalError) || error.status !== 422) throw error;
+        const list = await call("GET", `/subaccounts?account_number=${encodeURIComponent(bank.accountNumber)}`);
+        const match = Array.isArray(list)
+          ? (list.find(
+              (item) =>
+                (item as { account_number?: unknown; account_bank?: unknown }).account_number === bank.accountNumber &&
+                (item as { account_bank?: unknown }).account_bank === bank.routingNumber,
+            ) as Record<string, unknown> | undefined)
+          : undefined;
+        if (!match) throw error;
+        created = match;
+      }
       if (typeof created.subaccount_id !== "string" || !subaccountId.test(created.subaccount_id))
         throw new PortalError("PLATFORM_RESPONSE_INVALID", 502);
       return {

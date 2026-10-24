@@ -9,6 +9,9 @@ import { Stablecoins } from "./stablecoins";
 import { stablecoinOverview } from "@/lib/merchant/stablecoins";
 import { feeTotals } from "@/lib/payments/billing";
 import { formatFee } from "@/lib/payments/pricing";
+import { createSpliceQuote } from "@/lib/payments/fx-splicing";
+import { calculateCheckoutTax } from "@/lib/payments/tax";
+import { scheduleSmartDunning } from "@/lib/payments/subscriptions";
 import { pricing } from "@/content/claims";
 import { storedLiveScope } from "@/lib/merchant/live-scope";
 import { MerchantTeam, AcceptMerchantInvitation } from "./team";
@@ -306,7 +309,7 @@ export default async function Page({
                   }
                 >
                   <option value="">All</option>
-                  {["card", "bank-transfer", "mobile-money", "stablecoin", "crypto-app"].map(
+                  {["card", "digital-wallet", "bank-transfer", "direct-debit", "mobile-money", "ussd", "bnpl", "stablecoin", "crypto-app"].map(
                     (m) => (
                       <option key={m} value={m}>
                         {labelOf(m)}
@@ -406,6 +409,13 @@ export default async function Page({
         where: { attemptId: { in: attempts.map((a) => a.id) } },
       });
       const funds = await paymentFunds(result.id);
+      const presentmentCode = currencyCode(result.asset) || "USD";
+      const minorAmount = BigInt(Math.max(1, Math.round(Number(result.amount) * 100)));
+      const fxPreview = createSpliceQuote({
+        presentmentAmountMinor: minorAmount,
+        presentmentCurrency: presentmentCode,
+        settlementCurrency: "USDC",
+      });
       content = (
         <>
           <section>
@@ -432,6 +442,12 @@ export default async function Page({
               <dt>Payment ID</dt>
               <dd>
                 <code>{result.id}</code>
+              </dd>
+              <dt>Triple-entry ledger</dt>
+              <dd>
+                <code>{presentmentCode} {fxPreview.tripleEntry.presentment.formatted}</code> →{" "}
+                <code>USDC {fxPreview.tripleEntry.settlement.formattedNet}</code> (Base:{" "}
+                <code>USD {fxPreview.tripleEntry.systemBase.formattedPresentmentUsd}</code>)
               </dd>
               {chainClaims.map((c) => (
                 <div key={c.id} style={{ display: "contents" }}>
@@ -562,15 +578,12 @@ export default async function Page({
     );
     content = (
       <section className="ms-flush">
-        <div className="ms-card-head">
-          <p>Grouped by the first part of each payment reference, from your latest 100 payments.</p>
-        </div>
         {customerRows.length ? (
           <div className="p-table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th scope="col">Customer</th>
+                  <th scope="col">Customer reference</th>
                   <th scope="col" className="ms-num">Payments</th>
                   <th scope="col" className="ms-num">Total</th>
                   <th scope="col">Last payment</th>
@@ -694,9 +707,6 @@ export default async function Page({
     content = (
       <>
         <section className="ms-flush">
-          <div className="ms-card-head">
-            <p>Amounts are in minor units (for example, pence or cents) of each settlement&apos;s currency.</p>
-          </div>
           {rows.length ? (
             <div className="p-table-wrap">
               <table>
@@ -704,9 +714,9 @@ export default async function Page({
                   <tr>
                     <th scope="col">Settlement</th>
                     <th scope="col">Currency</th>
-                    <th scope="col" className="ms-num">Gross</th>
-                    <th scope="col" className="ms-num">Fees</th>
-                    <th scope="col" className="ms-num">Net</th>
+                    <th scope="col" className="ms-num">Gross (minor)</th>
+                    <th scope="col" className="ms-num">Fees (minor)</th>
+                    <th scope="col" className="ms-num">Net (minor)</th>
                     <th scope="col">Status</th>
                     <th scope="col">Matched</th>
                   </tr>
@@ -809,9 +819,6 @@ export default async function Page({
     });
     content = (
       <section className="ms-flush">
-        <div className="ms-card-head">
-          <p>Your latest 100 API requests. Request bodies, keys and customer data are never stored.</p>
-        </div>
         {logs.length ? (
           <div className="p-table-wrap">
             <table>
@@ -1129,6 +1136,57 @@ export default async function Page({
             payment.
           </p>
         </section>
+        <div className="ms-grid-2">
+          <section>
+            <h2>Indirect tax &amp; reverse-charge engine</h2>
+            <dl className="ms-props">
+              {(["DE", "US", "CA", "NG", "GB", "BR"] as const).map((iso) => {
+                const sample = calculateCheckoutTax({
+                  amountMinor: 10000n,
+                  currency: "USD",
+                  buyerAddress: {
+                    country: iso,
+                    stateOrProvince: iso === "US" ? "NY" : iso === "CA" ? "ON" : undefined,
+                  },
+                  productCategory: "saas",
+                });
+                return (
+                  <div key={iso} style={{ display: "contents" }}>
+                    <dt>{iso}</dt>
+                    <dd>
+                      {sample.lineItems[0]?.name ?? sample.filingRegime} · {sample.effectiveRatePercent}
+                    </dd>
+                  </div>
+                );
+              })}
+              <dt>EU B2B VIES</dt>
+              <dd>0% Reverse Charge (Art. 196)</dd>
+            </dl>
+          </section>
+          <section>
+            <h2>Subscriptions &amp; payday dunning</h2>
+            <dl className="ms-props">
+              <dt>Seat proration</dt>
+              <dd>Exact UTC millisecond ratio</dd>
+              <dt>Usage metering</dt>
+              <dd>Idempotent millisecond rollup</dd>
+              {(["NG", "BR", "US", "GB"] as const).map((region) => {
+                const dunning = scheduleSmartDunning({
+                  declineCode: "insufficient_funds",
+                  customerCountry: region,
+                  attemptNumber: 1,
+                  failedAtMs: Date.parse("2026-10-16T10:00:00.000Z"),
+                });
+                return (
+                  <div key={region} style={{ display: "contents" }}>
+                    <dt>{region} retry rule</dt>
+                    <dd>{dunning.paydayCalendarPattern}</dd>
+                  </div>
+                );
+              })}
+            </dl>
+          </section>
+        </div>
       </>
     );
   } else if (section === "analytics") {

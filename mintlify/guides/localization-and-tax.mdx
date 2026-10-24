@@ -1,0 +1,73 @@
+---
+title: "Localization & Global Tax Engine"
+description: "Adapt checkout payment methods to every buyer's country automatically and calculate real-time US State Sales Tax, EU 27-State VAT, B2B Reverse Charge, and global GST/VAT."
+---
+
+Converting customers globally requires a checkout that looks native in every market and calculates statutory indirect taxes in real time without external tools like TaxJar or Avalara.
+
+## 1. Localization-as-a-Service (LaaS) Checkout
+
+PayRouta's checkout localization engine (`lib/payments/localization.ts` and `app/checkout/[sessionId]/fiat-view.tsx`) inspects `payerCountry` and presentment currency to automatically rank, label, and badge the highest-converting local payment rails first:
+
+| Buyer Country / Region | Primary Prioritized Rails | Local Rail Badges |
+| --- | --- | --- |
+| **Germany (`DE`) & Austria (`AT`)** | `direct-debit` (SEPA-Lastschrift), `bank-transfer` (Giropay / EPS / SEPA Instant), `digital-wallet`, `card`, `bnpl` | `SEPA`, `IBAN`, `Giropay`, `Klarna` |
+| **Netherlands (`NL`)** | `bank-transfer` (iDEAL & SEPA Instant), `direct-debit` (SEPA Incasso), `digital-wallet`, `card` | `iDEAL`, `SEPA` |
+| **Indonesia (`ID`)** | `digital-wallet` (QRIS, GoPay, OVO, DANA), `bank-transfer` (BCA / Mandiri / BI-FAST Virtual Account), `card` | `QRIS`, `GoPay`, `OVO`, `BI-FAST` |
+| **United States (`US`) & Canada (`CA`)** | `digital-wallet` (Apple Pay & Google Pay), `card` (Visa, Mastercard, Amex), `direct-debit` (ACH / Interac), `bnpl` | `Apple Pay`, `Google Pay`, `ACH`, `FedNow` |
+| **United Kingdom (`GB`)** | `digital-wallet` (Apple Pay & Google Pay), `card`, `bank-transfer` (Faster Payments / Open Banking), `direct-debit` (Bacs) | `Apple Pay`, `Faster Payments`, `Bacs` |
+| **Nigeria (`NG`)** | `bank-transfer` (NIBSS Instant Transfer / Dedicated 10-Digit Virtual Account), `ussd`, `card` (Verve, Mastercard, Visa) | `NIBSS NIP`, `Virtual Account`, `*737#` |
+| **Kenya (`KE`) & Ghana (`GH`)** | `mobile-money` (M-Pesa STK Push, Airtel Money, MTN MoMo, Telecel Cash), `card`, `bank-transfer` (PesaLink) | `M-Pesa`, `MTN MoMo`, `PesaLink` |
+| **Brazil (`BR`) & Mexico (`MX`)** | `bank-transfer` (Pix Instant Payment / Banxico SPEI), `card` (Elo, Visa, Mastercard), `digital-wallet`, `bnpl` | `Pix`, `SPEI`, `Elo` |
+| **Japan (`JP`) & India (`IN`)** | `digital-wallet` (PayPay, Rakuten Pay / UPI QR, Google Pay, PhonePe), `card` (JCB, RuPay, Visa, Mastercard), `bank-transfer` | `PayPay`, `JCB`, `UPI`, `RuPay` |
+
+```ts
+import { localizeCheckoutMethods } from "@/lib/payments/localization";
+
+const ordered = localizeCheckoutMethods(availableMethods, {
+  payerCountry: "ID",
+  currency: "IDR",
+});
+// ordered[0] -> digital-wallet ("QRIS & E-Wallets (GoPay, OVO)", recommended: true)
+```
+
+---
+
+## 2. Real-Time Global Tax & Compliance Engine
+
+`calculateCheckoutTax` (`lib/payments/tax.ts`) computes tax-exclusive and tax-inclusive line items in exact `BigInt` minor units across major global tax regimes:
+
+### Supported Tax Regimes
+
+- **European Union (All 27 Member States)**:
+  - Full statutory standard VAT rates (`DE` 19%, `FR` 20%, `NL` 21%, `ES` 21%, `IT` 22%, `IE` 23%, `SE` 25%, `DK` 25%, `FI` 25.5%, `PL` 23%, `HU` 27%, `LU` 17%, etc.) with automatic `EU_OSS_VAT` vs. domestic filing classification.
+  - **Cross-Border B2B Reverse Charge (Article 196)**: `validateBusinessTaxId` validates VIES EU VAT numbers (`DE123456789`). When a verified business buyer is in a different EU member state from the seller, VAT is automatically zero-rated (`0%`, `reverseCharge: true`) with the mandatory Article 196 invoice notice.
+- **United States State & Local Sales Tax**:
+  - Combined state and local sales tax computation across US states (`NY`, `TX`, `CA`, `WA`, `MA`, `PA`, `IL`, `FL`, `OH`, `CT`, etc., plus zero-tax states `OR`, `DE`, `NH`, `MT`, `AK`).
+  - **SaaS & Digital Goods Taxability Matrix**: Automatically exempts SaaS in states where SaaS is non-taxable (`CA`, `FL`, `IL`, `VA`) while taxing SaaS in states where statutory rules apply (`NY`, `TX`, `WA`, `MA`, `PA`, `OH`, `CT`), alongside configurable `usNexusStates`.
+- **Canada Federal & Provincial Taxes**:
+  - Multi-component provincial breakdown: `ON` (13% HST), `QC` (5% Federal GST + 9.975% Québec QST), `BC` (5% GST + 7% PST), `NS`/`NB`/`NL`/`PE` (15% HST), `AB` (5% GST).
+- **United Kingdom, Africa, APAC & Latin America**:
+  - **UK (`GB`)**: 20% HMRC VAT (`UK_MTD_VAT`)
+  - **Nigeria (`NG`)**: 7.5% FIRS VAT (`NG_FIRS_TAXPRO_MAX`)
+  - **Kenya (`KE`)**: 16% KRA VAT (`KE_KRA_ITAX_TIMS`)
+  - **Ghana (`GH`) & South Africa (`ZA`)**: 15% VAT (`GH_GRA_EVAT`, `ZA_SARS_EFILING`)
+  - **Japan (`JP`)**: 10% Japanese Consumption Tax (`JP_QUALIFIED_INVOICE_JCT`)
+  - **Indonesia (`ID`)**: 11% PPN (`ID_PMSE_PPN`)
+  - **India (`IN`)**: 18% IGST / OIDAR (`IN_GSTN_OIDAR`)
+  - **Singapore (`SG`) & Australia (`AU`)**: 9% IRAS GST / 10% ATO GST
+  - **Brazil (`BR`) & Mexico (`MX`)**: 17% ICMS/ISS Digital / 16% SAT IVA
+
+```ts
+import { calculateCheckoutTax, buildTaxComplianceReport } from "@/lib/payments/tax";
+
+const tax = calculateCheckoutTax({
+  amountMinor: 10_000n, // €100.00
+  currency: "EUR",
+  buyerAddress: { country: "DE", postalCode: "10115" },
+  sellerCountry: "IE",
+  productCategory: "saas",
+  taxBehavior: "exclusive",
+});
+// tax.taxMinor -> "1900" (€19.00), tax.totalMinor -> "11900" (€119.00), tax.filingRegime -> "EU_OSS_VAT"
+```

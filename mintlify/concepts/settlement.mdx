@@ -44,3 +44,20 @@ Exceptions appear in the dashboard under **Payment issues** and are sent as `set
 ## Records
 
 PayRouta keeps an operational journal of what each provider reported for your payments. It is a record of your providers' activity, **not** a balance held by PayRouta.
+
+## Split-Settlement & Licensed Partner Architecture
+
+PayRouta operates strictly as a non-custodial software orchestration and ledger layer while physical fund holding, interbank clearing, card acquiring, and stablecoin liquidity run through licensed sponsor banks and regulated payment partners (`lib/treasury/platforms/`):
+
+| Partner Module (`id`) | Regulated Role | Settlement Mechanism |
+| --- | --- | --- |
+| `monnify-split` | CBN-Licensed NIBSS Dedicated Virtual Accounts & Split Settlement | Provisions 10-digit NGN virtual accounts (`incomeSplitConfig`) and splits merchant net vs. PayRouta fee at the NIBSS clearing layer. |
+| `paystack-split` | Licensed Subaccount Split Acquiring (`NG`, `GH`, `KE`, `ZA`) | Routes card, bank transfer, USSD, and mobile money into merchant subaccounts with atomic `transaction_charge` fee deduction. |
+| `flutterwave-split` | Pan-African Subaccount Split Acquiring | Splits multi-country card and mobile money (`M-Pesa`, `MTN MoMo`, `Airtel`) settlements directly to the merchant's subaccount. |
+| `stripe-custom` | Global Destination Charges (`US`, `CA`, `GB`, `EU`) | Routes funds via `transfer_data[destination]` and `application_fee_amount` directly into the merchant's connected Stripe account. |
+| `dlocal` | Emerging Markets Split Settlement (`BR`, `MX`, `AR`, `NG`, `ZA`, `IN`, `ID`) | Executes local acquiring (`Pix`, `SPEI`, `UPI`, cards) with native merchant split instructions. |
+| `tink` | European PSD2 Open Banking (`EUR`, `GBP`, `SEK`) | Initiates direct account-to-account (`PIS`) payments straight to the merchant's verified IBAN. |
+| `bridge-split` | Regulated USD/EUR Virtual Accounts to `USDC` / `USDT` Liquidation | Converts incoming ACH/Wire/SEPA transfers into on-chain `USDC` or `USDT` delivered to the merchant's non-custodial wallet, minus `developer_fee_percent`. |
+| `yellowcard-split` | Pan-African Fiat (`NGN`, `KES`, `GHS`, `ZAR`) to Stablecoin Ramp | Converts local African fiat collections into `USDC` / `USDT` settled directly to the merchant's self-custody wallet. |
+
+For multi-currency transactions where the buyer's presentment currency differs from the merchant's settlement currency, see [Triple-Entry Ledger & Any-to-Any FX Splicing](/concepts/fx-splicing-ledger).

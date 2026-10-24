@@ -38,6 +38,20 @@ Ask PayRouta to connect your sandbox business to **Sandbox Credit (fictional len
 
 Approve the test credit on the checkout to confirm the payment. A `reference` containing `[decline]` is declined by the fictional lender, so you can test that path. No credit check runs and nobody owes anything.
 
+## Continental Self-Serve BNPL & Open-Banking Switches
+
+PayRouta includes five continental BNPL & Open-Banking platform modules (`lib/treasury/platforms/`) alongside the Global Credit Intent state machine (`lib/payments/credit-intents.ts` and `POST /api/v1/credit-intents`):
+
+| Continent | Platform Module | Primary BNPL Networks | Open Banking / Card Scheme Backdoor |
+| --- | --- | --- | --- |
+| **North America** (`US`, `CA`) | `stripe-bnpl` | Affirm, Afterpay, Klarna, Zip | Visa Installment Solutions (VIS) / Mastercard Send |
+| **Europe** (`GB`, `EU`) | `adyen-klarna-bnpl` | Klarna, Clearpay, PayPal Credit, Alma | Tink (Visa Company) Open Banking PSD2 overdraft mandates |
+| **Latin America** (`BR`, `MX`, `CO`, `AR`, `CL`) | `mercadopago-bnpl` | Mercado Crédito, Kueski Pay, Addi, NuPay | Belvo Open Finance neobank credit draw |
+| **Africa** (`NG`, `KE`, `GH`, `ZA`) | `migo-bnpl` | Migo Credit, Carbon POS, CredPal, CDL | Mono Open Banking / Wallet Relay (OPay, FairMoney, Kuda) |
+| **Asia-Pacific** (`ID`, `SG`, `MY`, `PH`, `TH`, `IN`, `AU`) | `xendit-bnpl` | Kredivo, Akulaku, Atome, Grab PayLater | NPCI UPI Credit Line (RuPay Credit on UPI) |
+
+All credit intents progress through a 4-stage asynchronous state machine (`checkout.initiated` -> `credit.pending_approval` -> `credit.disbursed` -> `payment.succeeded`) so long-running credit underwriting and open-banking mandates never fail due to standard 30-second card timeouts.
+
 ## For lenders: the credit partner contract
 
 Licensed lenders and consumer-credit providers connect as PayRouta platform modules (`lib/treasury/platforms`). A credit module:

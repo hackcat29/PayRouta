@@ -86,28 +86,28 @@ export type MethodFamily = (typeof methodFamilies)[number][0];
 export const coverage: { region: string; examples: string; cells: Record<MethodFamily, Availability | null> }[] = [
   {
     region: "Africa",
-    examples: "Verve, M-Pesa, MTN MoMo, USSD",
-    cells: { card: "testing", wallet: "planned", bank: "testing", mobile: "testing", ussd: "testing", credit: "planned", crypto: "available" },
+    examples: "Verve, M-Pesa, MTN MoMo, USSD, Migo Credit",
+    cells: { card: "testing", wallet: "testing", bank: "testing", mobile: "testing", ussd: "testing", credit: "testing", crypto: "available" },
   },
   {
     region: "Latin America",
-    examples: "Pix, local cards and wallets",
-    cells: { card: "testing", wallet: "testing", bank: "testing", mobile: null, ussd: null, credit: "planned", crypto: "available" },
+    examples: "Pix, SPEI, Mercado Crédito, Kueski Pay",
+    cells: { card: "testing", wallet: "testing", bank: "testing", mobile: null, ussd: null, credit: "testing", crypto: "available" },
   },
   {
     region: "Asia",
-    examples: "Cards, bank transfer, local wallets",
-    cells: { card: "testing", wallet: "testing", bank: "testing", mobile: null, ussd: null, credit: "planned", crypto: "available" },
+    examples: "UPI, QRIS, GoPay, Kredivo, Atome",
+    cells: { card: "testing", wallet: "testing", bank: "testing", mobile: null, ussd: null, credit: "testing", crypto: "available" },
   },
   {
     region: "Europe and the UK",
-    examples: "Cards, Apple Pay, pay by bank",
-    cells: { card: "testing", wallet: "testing", bank: "testing", mobile: null, ussd: null, credit: "planned", crypto: "available" },
+    examples: "SEPA, Faster Payments, Apple Pay, Klarna",
+    cells: { card: "testing", wallet: "testing", bank: "testing", mobile: null, ussd: null, credit: "testing", crypto: "available" },
   },
   {
     region: "Everywhere else",
-    examples: "Visa, Mastercard, Amex, Apple Pay, Google Pay",
-    cells: { card: "testing", wallet: "testing", bank: null, mobile: null, ussd: null, credit: "planned", crypto: "available" },
+    examples: "Visa, Mastercard, Amex, Apple Pay, Affirm",
+    cells: { card: "testing", wallet: "testing", bank: null, mobile: null, ussd: null, credit: "testing", crypto: "available" },
   },
 ];
 
@@ -131,7 +131,7 @@ export const payouts: { destination: string; detail: string; availability: Avail
   {
     destination: "Stablecoins from card and bank payments",
     detail: "Your balance paid out as USDC or USDT",
-    availability: "planned",
+    availability: "testing",
   },
 ];
 
@@ -153,8 +153,8 @@ export const pillars: {
   {
     id: "credit",
     title: "Pay with credit",
-    availability: "planned",
-    note: "Built and testable in sandbox with a fictional lender. Live credit opens country by country as licensed lenders join PayRouta.",
+    availability: "testing",
+    note: "Built and testable in sandbox across 5 continental credit switches. Live credit opens country by country as licensed lenders join PayRouta.",
   },
   {
     id: "anyChain",

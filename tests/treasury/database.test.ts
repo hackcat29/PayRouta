@@ -23,6 +23,14 @@ import { processPlatformEvent, receivePlatformEvent } from "../../lib/treasury/e
 import { dispatchRefund, requestRefund } from "../../lib/treasury/refunds";
 import { applyDispute, submitDisputeEvidence } from "../../lib/treasury/disputes";
 import { reconcileLink } from "../../lib/treasury/reconciliation";
+import { createSpliceQuote, decodeTripleEntryPurpose, postSplicedCollection } from "../../lib/payments/fx-splicing";
+import {
+  createCreditIntent,
+  finalizeCreditPaymentSuccess,
+  postDisbursedCreditToLedger,
+  recordLenderDisbursal,
+  submitCreditForApproval,
+} from "../../lib/payments/credit-intents";
 import { secretManager } from "../../lib/portal/adapters";
 import { createHmac } from "node:crypto";
 import {
@@ -820,4 +828,79 @@ test("disputes: the merchant responds once, while the dispute is open and before
     /DISPUTE_NOT_FOUND/,
     "another merchant cannot answer this dispute",
   );
+});
+
+test("triple-entry FX splicing: posts balanced presentment, settlement, and platform accrual legs to PostgreSQL", async () => {
+  const m = await merchant();
+  const now = new Date();
+  const quote = createSpliceQuote({
+    pricingCurrency: "JPY",
+    pricingAmountMinor: 15_500n,
+    presentmentCurrency: "KES",
+    presentmentRail: "MPESA",
+    settlementCurrency: "USDC",
+    settlementNetwork: "solana",
+    providerFeeBps: 100,
+    platformFeeBps: 50,
+    now,
+  });
+
+  const sourcePrefix = `splice-test:${randomUUID()}`;
+  const posted = await atomic((tx) =>
+    postSplicedCollection(tx, {
+      orgId: m.orgId,
+      environment: "sandbox",
+      sourcePrefix,
+      quote,
+      effectiveAt: now,
+    }),
+  );
+
+  assert.equal(posted.entries.length, 3);
+  const storedSettlement = await db.journalEntry.findUniqueOrThrow({
+    where: { source: `${sourcePrefix}:settlement` },
+    include: { postings: true },
+  });
+  assert.equal(storedSettlement.asset, "USDC");
+  const stamp = decodeTripleEntryPurpose(storedSettlement.purpose);
+  assert.ok(stamp);
+  assert.equal(stamp.quoteId, quote.quoteId);
+  assert.match(stamp.presentment, /KES$/);
+  assert.match(stamp.settlement, /USDC$/);
+  assert.match(stamp.systemBaseUsd, /USD$/);
+});
+
+test("global credit intent ledger state machine: posts lender disbursal to PostgreSQL only after payment.succeeded", async () => {
+  const m = await merchant();
+  const initiated = createCreditIntent({
+    amount: 250000,
+    currency: "NGN",
+    customer: {
+      phone: "+2348031234567",
+      bvn_hash: "22113344556",
+      country: "NG",
+    },
+    credit_type: "bnpl",
+  });
+  const pending = submitCreditForApproval(initiated, {
+    offerId: "af-migo-30d",
+    lenderApplicationRef: "migo_app_db_1",
+  });
+  const disbursed = recordLenderDisbursal(pending, {
+    lenderDisbursementRef: "migo_disb_db_1",
+    disbursedPrincipalMinor: 25_000_000n,
+  });
+
+  // Cannot post to PostgreSQL before finalizeCreditPaymentSuccess transitions to payment.succeeded
+  await assert.rejects(
+    atomic((tx) => postDisbursedCreditToLedger(tx, { orgId: m.orgId, environment: "sandbox", intent: disbursed })),
+    /CANNOT_POST_UNFINALIZED_CREDIT_INTENT/,
+  );
+
+  const succeeded = finalizeCreditPaymentSuccess(disbursed);
+  const posted = await atomic((tx) =>
+    postDisbursedCreditToLedger(tx, { orgId: m.orgId, environment: "sandbox", intent: succeeded }),
+  );
+  assert.equal(posted.operationalEntry.asset, "NGN");
+  assert.ok(posted.accrualEntry);
 });

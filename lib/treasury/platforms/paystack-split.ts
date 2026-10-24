@@ -120,12 +120,21 @@ function create(raw: unknown, deps: PartnerDeps): PlatformAdapter {
       if (countryCurrency[country] !== bank.currency || bank.country !== country || !bank.routingNumber)
         throw new PortalError("PAYOUT_ACCOUNT_NOT_SUPPORTED", 422);
       // Name enquiry: settlement may only go to an account in the merchant's name.
-      const resolved = await call(
-        "GET",
-        `/bank/resolve?account_number=${encodeURIComponent(bank.accountNumber)}&bank_code=${encodeURIComponent(bank.routingNumber)}`,
-      );
-      if (typeof resolved.account_name !== "string" || !accountNameMatches(bank.holderName, resolved.account_name))
-        throw new PortalError("PAYOUT_ACCOUNT_NAME_MISMATCH", 422);
+      // In Paystack test mode, /bank/resolve is capped at 3 live resolves per day
+      // (HTTP 429), while POST /subaccount still resolves and returns account_name.
+      let resolvedName: string | undefined;
+      try {
+        const resolved = await call(
+          "GET",
+          `/bank/resolve?account_number=${encodeURIComponent(bank.accountNumber)}&bank_code=${encodeURIComponent(bank.routingNumber)}`,
+        );
+        if (typeof resolved.account_name !== "string" || !accountNameMatches(bank.holderName, resolved.account_name))
+          throw new PortalError("PAYOUT_ACCOUNT_NAME_MISMATCH", 422);
+        resolvedName = resolved.account_name;
+      } catch (error) {
+        if (c.environment !== "sandbox" || !(error instanceof PortalError) || error.message !== "PAYSTACK_UNAVAILABLE")
+          throw error;
+      }
       const rep = input.profile.representative;
       const sub = await call("POST", "/subaccount", {
         business_name: (input.profile.tradingName ?? input.profile.legalName ?? "").slice(0, 100),
@@ -140,6 +149,8 @@ function create(raw: unknown, deps: PartnerDeps): PlatformAdapter {
         primary_contact_phone: input.details.businessPhone,
         metadata: { payrouta_link: input.linkId },
       });
+      if (!resolvedName && (typeof sub.account_name !== "string" || !accountNameMatches(bank.holderName, sub.account_name)))
+        throw new PortalError("PAYOUT_ACCOUNT_NAME_MISMATCH", 422);
       if (typeof sub.subaccount_code !== "string" || !subaccountCode.test(sub.subaccount_code))
         throw new PortalError("PLATFORM_RESPONSE_INVALID", 502);
       return {

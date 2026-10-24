@@ -1,0 +1,71 @@
+---
+title: "Subscriptions, Metering & Smart Dunning"
+description: "Run multi-currency subscriptions with UTC millisecond proration, high-throughput usage metering, and payday-synced smart dunning across global markets."
+---
+
+Scaling recurring revenue globally requires deterministic proration math across time zones, idempotent usage metering down to the millisecond, and retry logic that adapts to regional payroll cycles (`lib/payments/subscriptions.ts`).
+
+## 1. Subscriptions & UTC Millisecond Proration
+
+`createSubscription`, `calculateMillisecondProration`, and `changeSubscriptionPlan` manage recurring lifecycles (`Trialing`, `Active`, `PastDueRetrying`, `PastDueActionRequired`, `Paused`, `Canceled`) across `weekly`, `monthly`, `quarterly`, and `annual` intervals.
+
+When a customer upgrades, downgrades, or changes seat quantities mid-cycle, PayRouta computes the exact unused credit and remaining period charge down to the **UTC millisecond**:
+
+$$\text{unusedCreditMinor} = \text{roundHalfUp}\!\left(\frac{\text{oldPlanMinor} \times (\text{periodEndMs} - \text{changeAtMs})}{\text{periodEndMs} - \text{periodStartMs}}\right)$$
+
+$$\text{newChargeMinor} = \text{roundHalfUp}\!\left(\frac{\text{newPlanMinor} \times (\text{periodEndMs} - \text{changeAtMs})}{\text{periodEndMs} - \text{periodStartMs}}\right)$$
+
+```ts
+import { createSubscription, changeSubscriptionPlan } from "@/lib/payments/subscriptions";
+
+const sub = createSubscription({
+  orgId: "org_1",
+  customerId: "cust_42",
+  customerCountry: "NG",
+  plan: { planId: "starter", name: "Starter", currency: "USD", interval: "monthly", unitAmountMinor: "10000" },
+  quantity: 2,
+});
+
+const { subscription, proration } = changeSubscriptionPlan(
+  sub,
+  { planId: "pro", name: "Pro", currency: "USD", interval: "monthly", unitAmountMinor: "30000" },
+  3,
+  Date.now(),
+);
+```
+
+---
+
+## 2. Timezone-Agnostic Millisecond Usage Metering
+
+`UsageMeterStream` ingests usage events from edge workers and application servers worldwide:
+
+- **Timezone Normalization**: Converts any ISO-8601 timestamp with regional offset (e.g. `+09:00` Tokyo, `+01:00` Lagos, `-03:00` São Paulo) into canonical UTC epoch milliseconds (`occurredAtEpochMs`) and records ingestion `clockDriftMs`.
+- **Idempotency Deduplication**: Duplicate `idempotencyKey` deliveries within a subscription are dropped automatically.
+- **Watermark Enforcement**: Rejects late events arriving after `windowEndMs + watermarkGraceMs`.
+- **Aggregation & Pricing Models**: Supports `sum`, `max`, `unique`, and `last` aggregations priced via `flat-per-unit`, `package`, `tiered-graduated`, or `tiered-volume` brackets.
+
+---
+
+## 3. Global Smart Dunning & Regional Payday Syncing
+
+Card and direct-debit declines happen for different economic reasons around the world. Retrying an `insufficient_funds` decline 24 hours later on the 11th of the month in a monthly-payroll market wastes retry quotas and triggers card-scheme penalties.
+
+`scheduleSmartDunning` classifies decline codes and adapts retry timing to regional payday calendars:
+
+| Decline Category | Example Codes | Smart Dunning Strategy |
+| --- | --- | --- |
+| **Transient Network Error** | `network_timeout`, `issuer_unavailable`, `switch_timeout` | **Immediate Exponential Cascade** (`30s`, `5m`, `30m`, `2h`) with `cascadeToSecondaryAcquirer: true` |
+| **Insufficient Funds / Balance** | `insufficient_funds`, `low_balance`, `exceeds_withdrawal_limit` | **Regional Payday Sync** — delays retry until the buyer's local salary credit window |
+| **Expired / Replaced Card** | `expired_card`, `card_expired` | **Network Account Updater** — triggers Visa VAU / Mastercard ABU token refresh + 24h verification retry |
+| **Soft Issuer Decline** | `do_not_honor`, `generic_decline` | **Cooling-Off Retry** (`24h`, `72h`, then synced to next regional payday) |
+| **Hard Permanent Decline** | `stolen_card`, `fraud_suspected`, `invalid_account_number` | **Immediate Halt** (`shouldRetry: false`, transitions to `PastDueActionRequired`) |
+
+### Regional Payday Calendars
+
+| Region / Countries | Payroll Pattern | Smart Dunning Sync Target |
+| --- | --- | --- |
+| **Africa & Europe** (`NG`, `GH`, `KE`, `ZA`, `DE`, `FR`, `NL`, `ID`) | `MONTHLY_25TH_TO_MONTH_END` | **25th of the month** at 09:00 local time (adjusted to preceding Friday if the 25th falls on a weekend), followed by the last business day of the month |
+| **Japan & Sweden** (`JP`, `SE`) | `MONTHLY_25TH_STRICT` | **25th Gotobi / Löning salary day** (or preceding Friday) |
+| **United Kingdom & India** (`GB`, `IN`) | `MONTHLY_LAST_WORKING_DAY` | **28th / last working day of the month** |
+| **Americas** (`US`, `CA`, `BR`, `MX`) | `SEMI_MONTHLY_15TH_AND_MONTH_END` | Next upcoming **15th** or **last business day of the month** |

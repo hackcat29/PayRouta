@@ -41,13 +41,16 @@
               "concepts/payment-methods",
               "guides/credit",
               "guides/crypto-payments",
-              "guides/cross-chain"
+              "guides/cross-chain",
+              "guides/localization-and-tax",
+              "guides/subscriptions-and-dunning"
             ]
           },
           {
             "group": "How payments work",
             "pages": [
               "concepts/payment-intents",
+              "concepts/fx-splicing-ledger",
               "concepts/settlement",
               "concepts/billing",
               "concepts/provider-accounts"

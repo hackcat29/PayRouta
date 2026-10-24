@@ -10,6 +10,9 @@ import { snapshotFees } from "../lib/payments/pricing";
 import { maskedSummary, verificationDetailsSchema } from "../lib/treasury/verification";
 import { accountNameMatches, paystackReference, paystackSplitPlatform } from "../lib/treasury/platforms/paystack-split";
 import { flutterwaveOption, flutterwaveSplitPlatform } from "../lib/treasury/platforms/flutterwave-split";
+import { monnifyReference, monnifySplitPlatform } from "../lib/treasury/platforms/monnify-split";
+import { bridgeFiatRail, bridgeSnapshot, bridgeSplitPlatform } from "../lib/treasury/platforms/bridge-split";
+import { yellowcardSignature, yellowcardSplitPlatform } from "../lib/treasury/platforms/yellowcard-split";
 import { dlocalPlatform, dlocalSignature, dlocalSnapshot } from "../lib/treasury/platforms/dlocal";
 import { tinkPlatform, tinkRecipient } from "../lib/treasury/platforms/tink";
 import { platformModule } from "../lib/treasury/platforms/registry";
@@ -456,7 +459,21 @@ function fake(mod: PlatformModule, config: Record<string, unknown>, keys: Record
 }
 
 test("platform registry: every module's custody, funds and fee rules are consistent", () => {
-  for (const id of ["stripe-custom", "paystack-split", "flutterwave-split", "dlocal", "tink"]) {
+  for (const id of [
+    "stripe-custom",
+    "paystack-split",
+    "flutterwave-split",
+    "monnify-split",
+    "bridge-split",
+    "yellowcard-split",
+    "dlocal",
+    "tink",
+    "stripe-bnpl",
+    "adyen-klarna-bnpl",
+    "mercadopago-bnpl",
+    "migo-bnpl",
+    "xendit-bnpl",
+  ]) {
     const m = platformModule(id).manifest;
     assert.equal(m.holdsFunds, m.custody === "partner-held", `${id}: only partner-held rails hold funds`);
     if (m.feeCollection === "invoice") assert.equal(m.holdsFunds, false, `${id}: invoiced fees mean the merchant was paid in full`);
@@ -517,6 +534,274 @@ test("flutterwave split: name-checked subaccount, flat PayRouta charge, estimate
   );
   const live = fw({}, "FLWSECK-live");
   await assert.rejects(live.adapter.createPayment({ providerAccountId: "RS_A1B2C3D4", attemptKey: "a", amount: "1.00", precision: 2, currency: "NGN", method: "card", feeMinor: 0n, reference: "r", returnUrl: "https://x.example", cancelUrl: "https://x.example", payerEmail: "b@example.com" }), /FLUTTERWAVE_KEY_ENVIRONMENT_MISMATCH/);
+});
+
+const mfyWrap = (responseBody: unknown) => ({ requestSuccessful: true, responseBody });
+const mfy = (routes: Record<string, unknown>, apiKey = "MK_TEST_abc123", secretKey = "sec_test_xyz") =>
+  fake(
+    monnifySplitPlatform,
+    { environment: "sandbox", apiKeyRef: "k", secretKeyRef: "s", contractCode: "1000200030" },
+    { k: apiKey, s: secretKey },
+    { "POST /api/v1/auth/login": mfyWrap({ accessToken: "mfy_tok_1" }), ...routes },
+  );
+
+test("monnify split: NIBSS name-checked subaccount, incomeSplitConfig with subaccount fee bearer, and availability", async () => {
+  const ok = mfy({
+    "GET /api/v2/disbursements/account/validate": mfyWrap({ accountNumber: "0123456789", accountName: "ADAEZE FOODS LIMITED", bankCode: "058" }),
+    "POST /api/v1/sub-accounts": mfyWrap([{ subAccountCode: "MFY_SUB_319452883968", accountNumber: "0123456789" }]),
+    "GET /api/v1/sub-accounts": mfyWrap([{ subAccountCode: "MFY_SUB_319452883968" }]),
+  });
+  const created = await ok.adapter.createAccount({ linkId: "l1", environment: "sandbox", profile: ngProfile, details: ngDetails, agreement });
+  assert.equal(created.providerAccountId, "MFY_SUB_319452883968");
+  assert.equal(created.snapshot.state, "Approved");
+  const subBody = JSON.parse(ok.calls[3].body!);
+  assert.deepEqual(subBody, [
+    {
+      currencyCode: "NGN",
+      bankCode: "058",
+      accountNumber: "0123456789",
+      email: "support@harbor.example",
+      defaultSplitPercentage: 99,
+    },
+  ]);
+  assert.equal((await ok.adapter.accountStatus("MFY_SUB_319452883968")).state, "Approved");
+
+  const mismatch = mfy({
+    "GET /api/v2/disbursements/account/validate": mfyWrap({ accountNumber: "0123456789", accountName: "OTHER COMPANY LTD", bankCode: "058" }),
+  });
+  await assert.rejects(
+    mismatch.adapter.createAccount({ linkId: "l2", environment: "sandbox", profile: ngProfile, details: ngDetails, agreement }),
+    /PAYOUT_ACCOUNT_NAME_MISMATCH/,
+  );
+
+  const pay = mfy({
+    "POST /api/v1/merchant/transactions/init-transaction": mfyWrap({
+      transactionReference: "MNFY|20261024|000001",
+      paymentReference: "attempt-11",
+      checkoutUrl: "https://sandbox.sdk.monnify.com/checkout/MNFY123",
+    }),
+  });
+  const r = await pay.adapter.createPayment({
+    providerAccountId: "MFY_SUB_319452883968",
+    attemptKey: "attempt:11",
+    amount: "5000.00",
+    precision: 2,
+    currency: "NGN",
+    method: "bank-transfer",
+    feeMinor: 2500n,
+    reference: "order-11",
+    returnUrl: "https://payrouta.example/r",
+    cancelUrl: "https://payrouta.example/c",
+    payerEmail: "buyer@example.com",
+  });
+  assert.equal(r.state, "Requires action");
+  assert.equal(r.reference, "attempt-11");
+  assert.equal(r.actionUrl, "https://sandbox.sdk.monnify.com/checkout/MNFY123");
+  const initBody = JSON.parse(pay.calls[1].body!);
+  assert.equal(initBody.amount, 5000);
+  assert.equal(initBody.contractCode, "1000200030");
+  assert.deepEqual(initBody.paymentMethods, ["ACCOUNT_TRANSFER"]);
+  assert.deepEqual(initBody.incomeSplitConfig, [
+    {
+      subAccountCode: "MFY_SUB_319452883968",
+      splitAmount: 4975,
+      feePercentage: 100,
+      feeBearer: true,
+    },
+  ]);
+  assert.equal(monnifyReference("attempt:a/b"), "attempt-a-b");
+
+  const verified = mfy({
+    "GET /api/v2/merchant/transactions/query": mfyWrap({
+      transactionReference: "MNFY|20261024|000001",
+      paymentReference: "attempt-11",
+      amountPaid: "5000.00",
+      totalPayable: "5000.00",
+      fee: "75.00",
+      currency: "NGN",
+      paymentStatus: "PAID",
+      paidOn: "2026-10-09T10:00:00.000Z",
+      metaData: { payrouta_subaccount: "MFY_SUB_319452883968" },
+      incomeSplitConfig: [{ subAccountCode: "MFY_SUB_319452883968", splitAmount: 4975 }],
+    }),
+  });
+  assert.equal((await verified.adapter.paymentStatus({ reference: "attempt-11", providerAccountId: "MFY_SUB_319452883968" }))?.state, "Confirmed");
+  const funds = await verified.adapter.fundsAvailability({ reference: "attempt-11", providerAccountId: "MFY_SUB_319452883968", feeMinor: 2500n });
+  assert.deepEqual(funds, {
+    paymentRef: "MNFY|20261024|000001",
+    netMinor: 500000n - 2500n - 7500n,
+    availableAt: new Date("2026-10-10T10:00:00.000Z"),
+  });
+  await assert.rejects(
+    verified.adapter.paymentStatus({ reference: "attempt-11", providerAccountId: "MFY_SUB_999999999999" }),
+    /PLATFORM_DESTINATION_MISMATCH/,
+  );
+  const live = mfy({}, "MK_PROD_live");
+  await assert.rejects(live.adapter.accountStatus("MFY_SUB_319452883968"), /MONNIFY_KEY_ENVIRONMENT_MISMATCH/);
+});
+
+const br = (routes: Record<string, unknown>, apiKey = "sk-test-bridge123", webhookSecret = "whsec_bridge") =>
+  fake(
+    bridgeSplitPlatform,
+    { environment: "sandbox", apiKeyRef: "k", webhookSecretRef: "w" },
+    { k: apiKey, w: webhookSecret },
+    routes,
+  );
+
+test("bridge split: stablecoin-to-fiat customer + external bank account onboarding, USDC/fiat liquidation transfer, and availability", async () => {
+  const ok = br({
+    "POST /v0/customers/cust_bridge_1/external_accounts": { id: "ext_bank_1", currency: "usd" },
+    "POST /v0/customers": { id: "cust_bridge_1", status: "active" },
+    "GET /v0/customers/cust_bridge_1": { id: "cust_bridge_1", status: "active" },
+  });
+  const created = await ok.adapter.createAccount({ linkId: "l1", environment: "sandbox", profile, details, agreement });
+  assert.equal(created.providerAccountId, "cust_bridge_1:ext_bank_1");
+  assert.equal(created.snapshot.state, "Approved");
+  assert.equal(ok.calls[0].headers["Idempotency-Key"], "payrouta-bridge-customer-l1");
+  assert.equal(ok.calls[1].headers["Idempotency-Key"], "payrouta-bridge-ext-l1");
+  const custBody = JSON.parse(ok.calls[0].body!);
+  assert.equal(custBody.business_name, "Harbor Inc");
+  assert.equal(custBody.type, "business");
+  assert.equal((await ok.adapter.accountStatus("cust_bridge_1:ext_bank_1")).state, "Approved");
+  assert.equal(bridgeSnapshot({ status: "incomplete" }, "cust_bridge_1:ext_bank_1").state, "Action required");
+  assert.equal(bridgeFiatRail("EUR"), "sepa");
+
+  const pay = br({
+    "POST /v0/transfers": {
+      id: "tx_bridge_99",
+      state: "awaiting_funds",
+      hosted_url: "https://sandbox.checkout.bridge.xyz/pay/tx_bridge_99",
+    },
+  });
+  const r = await pay.adapter.createPayment({
+    providerAccountId: "cust_bridge_1:ext_bank_1",
+    attemptKey: "attempt:b1",
+    amount: "100.00",
+    precision: 2,
+    currency: "USD",
+    method: "digital-wallet",
+    feeMinor: 100n,
+    reference: "order-b1",
+    returnUrl: "https://payrouta.example/r",
+    cancelUrl: "https://payrouta.example/c",
+  });
+  assert.deepEqual(r, {
+    state: "Requires action",
+    reference: "tx_bridge_99",
+    actionUrl: "https://sandbox.checkout.bridge.xyz/pay/tx_bridge_99",
+  });
+  const txBody = JSON.parse(pay.calls[0].body!);
+  assert.equal(txBody.on_behalf_of, "cust_bridge_1");
+  assert.equal(txBody.developer_fee, "1.00");
+  assert.deepEqual(txBody.source, { payment_rail: "base", currency: "usdc" });
+  assert.deepEqual(txBody.destination, { payment_rail: "ach", currency: "usd", external_account_id: "ext_bank_1" });
+
+  const verified = br({
+    "GET /v0/transfers/tx_bridge_99": {
+      id: "tx_bridge_99",
+      state: "payment_processed",
+      amount: "100.00",
+      on_behalf_of: "cust_bridge_1",
+      destination: { currency: "usd", external_account_id: "ext_bank_1" },
+      receipt: { final_amount: "98.50", exchange_fee: "0.50", gas_fee: "0.00" },
+      updated_at: "2026-10-09T10:00:00.000Z",
+    },
+  });
+  assert.equal((await verified.adapter.paymentStatus({ reference: "tx_bridge_99", providerAccountId: "cust_bridge_1:ext_bank_1" }))?.state, "Confirmed");
+  const funds = await verified.adapter.fundsAvailability({ reference: "tx_bridge_99", providerAccountId: "cust_bridge_1:ext_bank_1", feeMinor: 100n });
+  assert.deepEqual(funds, {
+    paymentRef: "tx_bridge_99",
+    netMinor: 9850n,
+    availableAt: new Date("2026-10-10T10:00:00.000Z"),
+  });
+  await assert.rejects(
+    verified.adapter.paymentStatus({ reference: "tx_bridge_99", providerAccountId: "cust_other:ext_bank_1" }),
+    /PLATFORM_DESTINATION_MISMATCH/,
+  );
+  const live = br({}, "sk-live-bridge");
+  await assert.rejects(live.adapter.accountStatus("cust_bridge_1:ext_bank_1"), /BRIDGE_KEY_ENVIRONMENT_MISMATCH/);
+});
+
+const yc = (routes: Record<string, unknown>, apiKey = "yc_test_key1", secretKey = "yc_sec_1") =>
+  fake(
+    yellowcardSplitPlatform,
+    { environment: "sandbox", apiKeyRef: "k", secretKeyRef: "s" },
+    { k: apiKey, s: secretKey },
+    routes,
+  );
+
+test("yellowcard split: YcHmacV1 signed requests, bank-verified subaccount, USDC-backed African fiat settlement", async () => {
+  const ok = yc({
+    "POST /business/details/bank": { accountName: "ADAEZE FOODS LIMITED", accountNumber: "0123456789" },
+    "POST /business/subaccounts": { id: "yc_sub_ng001", status: "active" },
+    "GET /business/subaccounts/yc_sub_ng001": { id: "yc_sub_ng001", status: "active" },
+  });
+  const created = await ok.adapter.createAccount({ linkId: "l1", environment: "sandbox", profile: ngProfile, details: ngDetails, agreement });
+  assert.equal(created.providerAccountId, "yc_sub_ng001");
+  assert.equal(created.snapshot.state, "Approved");
+  const h = ok.calls[0].headers;
+  assert.equal(h["X-YC-Timestamp"], "2026-10-09T12:00:00.000Z");
+  assert.equal(
+    h.Authorization,
+    `YcHmacV1 yc_test_key1:${yellowcardSignature("yc_sec_1", h["X-YC-Timestamp"], "/business/details/bank", "POST", ok.calls[0].body)}`,
+  );
+  const subBody = JSON.parse(ok.calls[1].body!);
+  assert.equal(subBody.settlementAsset, "USDC");
+  assert.equal(subBody.payoutAccount.accountNumber, "0123456789");
+
+  const pay = yc({
+    "POST /business/collections": {
+      id: "yc_col_1",
+      sequenceId: "attempt-yc1",
+      checkoutUrl: "https://sandbox.widget.yellowcard.io/pay/yc_col_1",
+    },
+  });
+  const r = await pay.adapter.createPayment({
+    providerAccountId: "yc_sub_ng001",
+    attemptKey: "attempt:yc1",
+    amount: "5000.00",
+    precision: 2,
+    currency: "NGN",
+    method: "bank-transfer",
+    feeMinor: 2500n,
+    reference: "order-yc1",
+    payerCountry: "NG",
+    merchantCountry: "NG",
+    returnUrl: "https://payrouta.example/r",
+    cancelUrl: "https://payrouta.example/c",
+  });
+  assert.equal(r.state, "Requires action");
+  assert.equal(r.reference, "attempt-yc1");
+  const colBody = JSON.parse(pay.calls[0].body!);
+  assert.equal(colBody.subaccountId, "yc_sub_ng001");
+  assert.equal(colBody.feeAmount, 25);
+  assert.equal(colBody.settlementAsset, "USDC");
+
+  const verified = yc({
+    "GET /business/collections/reference/attempt-yc1": {
+      id: "yc_col_1",
+      sequenceId: "attempt-yc1",
+      subaccountId: "yc_sub_ng001",
+      amount: 5000,
+      serviceFeeAmount: 50,
+      currency: "NGN",
+      status: "complete",
+      updatedAt: "2026-10-09T10:00:00.000Z",
+    },
+  });
+  assert.equal((await verified.adapter.paymentStatus({ reference: "attempt-yc1", providerAccountId: "yc_sub_ng001" }))?.state, "Confirmed");
+  const funds = await verified.adapter.fundsAvailability({ reference: "attempt-yc1", providerAccountId: "yc_sub_ng001", feeMinor: 2500n });
+  assert.deepEqual(funds, {
+    paymentRef: "yc_col_1",
+    netMinor: 500000n - 2500n - 5000n,
+    availableAt: new Date("2026-10-10T10:00:00.000Z"),
+  });
+  await assert.rejects(
+    verified.adapter.paymentStatus({ reference: "attempt-yc1", providerAccountId: "yc_sub_other99" }),
+    /PLATFORM_DESTINATION_MISMATCH/,
+  );
+  const live = yc({}, "yc_live_key1");
+  await assert.rejects(live.adapter.accountStatus("yc_sub_ng001"), /YELLOWCARD_KEY_ENVIRONMENT_MISMATCH/);
 });
 
 const dl = (routes: Record<string, unknown>, extra: Record<string, unknown> = {}) =>
@@ -698,6 +983,46 @@ test("paystack, flutterwave, dlocal and tink events: each provider's own signatu
   assert.equal((await flutter.adapter.verifyEvent!({ rawBody: fBody, headers: new Headers({ "verif-hash": "my-hash" }) }))?.objectRef, "attempt-9");
   assert.equal(await flutter.adapter.verifyEvent!({ rawBody: fBody, headers: new Headers({ "verif-hash": "wrong-hash" }) }), null);
 
+  const monnify = mfy({});
+  const mBody = JSON.stringify({
+    eventType: "SUCCESSFUL_TRANSACTION",
+    eventData: { transactionReference: "MNFY|20261024|000001", paymentReference: "attempt-11" },
+  });
+  const mSig = createHmac("sha512", "sec_test_xyz").update(mBody).digest("hex");
+  assert.deepEqual(await monnify.adapter.verifyEvent!({ rawBody: mBody, headers: new Headers({ "monnify-signature": mSig }) }), {
+    eventId: "SUCCESSFUL_TRANSACTION:MNFY|20261024|000001",
+    type: "SUCCESSFUL_TRANSACTION",
+    kind: "payment",
+    objectRef: "attempt-11",
+  });
+  assert.equal(await monnify.adapter.verifyEvent!({ rawBody: mBody + " ", headers: new Headers({ "monnify-signature": mSig }) }), null);
+
+  const bridge = br({});
+  const bBody = JSON.stringify({
+    event_id: "evt_b1",
+    event_type: "transfer.updated.status_transitioned",
+    event_object_id: "tx_bridge_99",
+  });
+  const bTs = Math.floor(Date.parse("2026-10-09T12:00:00.000Z") / 1000);
+  const bSig = createHmac("sha256", "whsec_bridge").update(`${bTs}.${bBody}`).digest("hex");
+  assert.deepEqual(
+    await bridge.adapter.verifyEvent!({ rawBody: bBody, headers: new Headers({ "x-webhook-signature": `t=${bTs},v0=${bSig}` }) }),
+    { eventId: "evt_b1", type: "transfer.updated.status_transitioned", kind: "payment", objectRef: "tx_bridge_99" },
+  );
+  assert.equal(
+    await bridge.adapter.verifyEvent!({ rawBody: bBody, headers: new Headers({ "x-webhook-signature": `t=${bTs - 600},v0=${bSig}` }) }),
+    null,
+  );
+
+  const yellowcard = yc({});
+  const yBody = JSON.stringify({ event: "collection.complete", id: "yc_col_1", sequenceId: "attempt-yc1" });
+  const ySig = createHmac("sha256", "yc_sec_1").update(yBody).digest("base64");
+  assert.deepEqual(
+    await yellowcard.adapter.verifyEvent!({ rawBody: yBody, headers: new Headers({ "x-yc-signature": ySig }) }),
+    { eventId: "collection.complete:yc_col_1", type: "collection.complete", kind: "payment", objectRef: "attempt-yc1" },
+  );
+  assert.equal(await yellowcard.adapter.verifyEvent!({ rawBody: yBody + " ", headers: new Headers({ "x-yc-signature": ySig }) }), null);
+
   const local = dl({});
   const dBody = JSON.stringify({ id: "D-4-abc", status: "PAID" });
   const date = "2026-10-09T12:00:00.000Z";
@@ -778,6 +1103,56 @@ test("paystack, flutterwave and dlocal refunds; paystack disputes", async () => 
   const f = fw({ "POST /v3/transactions/3091255/refund": wrap({ id: 1234, status: "completed" }) });
   assert.deepEqual(await f.adapter.createRefund!({ providerAccountId: "RS_A1B2C3D4", reference: "attempt-9", paymentRef: "3091255", refundId: "rf", amountMinor: 250000n, currency: "NGN" }), { reference: "1234", state: "Succeeded" });
   assert.equal(JSON.parse(f.calls[0].body!).amount, 2500);
+
+  const m = mfy({
+    "POST /api/v1/refunds/initiate-refund": mfyWrap({ refundReference: "rf-1", refundStatus: "COMPLETED" }),
+    "GET /api/v1/refunds/rf-1": mfyWrap({ refundReference: "rf-1", refundStatus: "COMPLETED" }),
+  });
+  assert.deepEqual(
+    await m.adapter.createRefund!({
+      providerAccountId: "MFY_SUB_319452883968",
+      reference: "attempt-11",
+      paymentRef: "MNFY|20261024|000001",
+      refundId: "rf-1",
+      amountMinor: 250000n,
+      currency: "NGN",
+    }),
+    { reference: "rf-1", state: "Succeeded" },
+  );
+  assert.equal(JSON.parse(m.calls[1].body!).refundAmount, 2500);
+  assert.deepEqual(await m.adapter.refundStatus!({ providerAccountId: "MFY_SUB_319452883968", reference: "rf-1" }), { state: "Succeeded" });
+
+  const b = br({
+    "POST /v0/transfers/tx_bridge_99/refunds": { id: "brf_1", state: "completed" },
+    "GET /v0/refunds/brf_1": { id: "brf_1", state: "completed" },
+  });
+  assert.deepEqual(
+    await b.adapter.createRefund!({
+      providerAccountId: "cust_bridge_1:ext_bank_1",
+      reference: "tx_bridge_99",
+      refundId: "rf-b1",
+      amountMinor: 2000n,
+      currency: "USD",
+    }),
+    { reference: "brf_1", state: "Succeeded" },
+  );
+  assert.deepEqual(await b.adapter.refundStatus!({ providerAccountId: "cust_bridge_1:ext_bank_1", reference: "brf_1" }), { state: "Succeeded" });
+
+  const y = yc({
+    "POST /business/refunds": { id: "ycrf_1", status: "complete" },
+    "GET /business/refunds/ycrf_1": { id: "ycrf_1", status: "complete" },
+  });
+  assert.deepEqual(
+    await y.adapter.createRefund!({
+      providerAccountId: "yc_sub_ng001",
+      reference: "attempt-yc1",
+      refundId: "rf-y1",
+      amountMinor: 100000n,
+      currency: "NGN",
+    }),
+    { reference: "ycrf_1", state: "Succeeded" },
+  );
+  assert.deepEqual(await y.adapter.refundStatus!({ providerAccountId: "yc_sub_ng001", reference: "ycrf_1" }), { state: "Succeeded" });
 
   const d = dl({ "POST /refunds": { id: "REF-1", status: "PENDING" } });
   assert.deepEqual(await d.adapter.createRefund!({ providerAccountId: "d907f733-5e17-4470-b963-c2ac2c11a440", reference: "D-4-abc", refundId: "rf", amountMinor: 1050n, currency: "BRL" }), { reference: "REF-1", state: "Pending" });

@@ -10,8 +10,16 @@ import { sandboxCreditPlatform } from "./sandbox-credit";
 import { stripeCustomPlatform } from "./stripe-custom";
 import { paystackSplitPlatform } from "./paystack-split";
 import { flutterwaveSplitPlatform } from "./flutterwave-split";
+import { monnifySplitPlatform } from "./monnify-split";
+import { bridgeSplitPlatform } from "./bridge-split";
+import { yellowcardSplitPlatform } from "./yellowcard-split";
 import { dlocalPlatform } from "./dlocal";
 import { tinkPlatform } from "./tink";
+import { stripeBnplPlatform } from "./stripe-bnpl";
+import { adyenKlarnaBnplPlatform } from "./adyen-klarna-bnpl";
+import { mercadopagoBnplPlatform } from "./mercadopago-bnpl";
+import { migoBnplPlatform } from "./migo-bnpl";
+import { xenditBnplPlatform } from "./xendit-bnpl";
 
 const modules = new Map<string, PlatformModule>(
   [
@@ -21,8 +29,16 @@ const modules = new Map<string, PlatformModule>(
     stripeCustomPlatform,
     paystackSplitPlatform,
     flutterwaveSplitPlatform,
+    monnifySplitPlatform,
+    bridgeSplitPlatform,
+    yellowcardSplitPlatform,
     dlocalPlatform,
     tinkPlatform,
+    stripeBnplPlatform,
+    adyenKlarnaBnplPlatform,
+    mercadopagoBnplPlatform,
+    migoBnplPlatform,
+    xenditBnplPlatform,
   ].map((m) => [m.manifest.id, m]),
 );
 

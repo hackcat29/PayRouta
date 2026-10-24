@@ -60,8 +60,10 @@ The rows below describe code coverage, including partial/legacy paths. **They do
 | [mobile-money/airtel-money](/providers/mobile-money/airtel-money) | mobile-money | flutterwave | Supported local mobile-money checkout through Flutterwave; direct Airtel API requires approved portal access. |
 | [crypto-apps/binance-pay](/providers/crypto-apps/binance-pay) | crypto-app | binance-pay | No published public sandbox; no activation until an approved merchant contract and qualification path exist. |
 | [crypto-apps/coinbase-commerce](/providers/crypto-apps/coinbase-commerce) | crypto-app | coinbase-business | Replaced legacy Commerce with Coinbase Business Checkout; Base USDC only. |
-| [bnpl/klarna](/providers/bnpl/klarna) | bnpl | stripe, adyen | Enable this method on an eligible merchant account and qualify it. |
-| [bnpl/affirm](/providers/bnpl/affirm) | bnpl | stripe, adyen | Enable this method on an eligible merchant account and qualify it. |
+| [bnpl/klarna](/providers/bnpl/klarna) | bnpl | stripe, adyen, adyen-klarna-bnpl, stripe-bnpl | Enable this method on an eligible merchant account and qualify it. |
+| [bnpl/affirm](/providers/bnpl/affirm) | bnpl | stripe, adyen, stripe-bnpl | Enable this method on an eligible merchant account and qualify it. |
+| [guides/credit](/guides/credit) | bnpl | stripe-bnpl, adyen-klarna-bnpl, mercadopago-bnpl, migo-bnpl, xendit-bnpl, sandbox-credit | Continental self-serve BNPL & open-banking credit switches across NA, EU, LatAm, Africa, and APAC. |
+| [concepts/settlement](/concepts/settlement) | treasury-split | paystack-split, flutterwave-split, monnify-split, stripe-custom, dlocal, tink, bridge-split, yellowcard-split | Non-custodial split settlement and fiat-to-stablecoin (`USDC`/`USDT`) treasury modules. |
 | [real-world-assets/ondo-usdy](/providers/real-world-assets/ondo-usdy) | Excluded RWA | None | Reference only; explicitly excluded from the current product. |
 
 ## Native configuration

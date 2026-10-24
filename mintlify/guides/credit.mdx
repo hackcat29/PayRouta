@@ -72,6 +72,59 @@ Ask PayRouta to connect your sandbox business to **Sandbox Credit (fictional len
 
 Approve the test credit on the checkout to confirm the payment. A `reference` containing `[decline]` is declined, so you can test that path.
 
+## Continental Self-Serve BNPL & Open-Banking Switches
+
+PayRouta connects to five continental self-serve BNPL and open-banking switches so merchants can offer consumer financing across North America, Europe, Latin America, Africa, and Asia-Pacific without signing bespoke enterprise lender contracts:
+
+| Continent | Platform Module (`id`) | Primary BNPL Networks | Open Banking / Card Scheme Backdoor | Supported Countries & Currencies |
+| --- | --- | --- | --- | --- |
+| **North America** | `stripe-bnpl` | Affirm, Afterpay, Klarna, Zip | Visa Installment Solutions (VIS) & Mastercard Send via card BIN detection | `US`, `CA` (`USD`, `CAD`) |
+| **Europe** | `adyen-klarna-bnpl` | Klarna (Pay in 3 / Financing), Clearpay, PayPal Credit, Alma | Tink (Visa Company) Open Banking PSD2 overdraft mandates | `GB`, `DE`, `FR`, `NL`, `SE`, `ES`, `IT`, `IE`, `AT`, `BE` (`EUR`, `GBP`, `SEK`) |
+| **Latin America** | `mercadopago-bnpl` | Mercado Crédito, Kueski Pay, Addi, NuPay (Nubank Installments) | Belvo Open Finance neobank credit-line draw | `BR`, `MX`, `CO`, `AR`, `CL` (`BRL`, `MXN`, `COP`, `ARS`, `CLP`) |
+| **Africa** | `migo-bnpl` | Migo Credit, Carbon Point-of-Sale, CredPal, CDL Rails | Mono Open Banking / Wallet Relay (OPay/EaseMoni, FairMoney, Kuda) | `NG`, `KE`, `GH`, `ZA` (`NGN`, `KES`, `GHS`, `ZAR`) |
+| **Asia-Pacific** | `xendit-bnpl` | Kredivo, Akulaku, Atome, Grab PayLater | NPCI UPI Credit Line / RuPay Credit on UPI (`IN`) | `ID`, `SG`, `MY`, `PH`, `TH`, `IN`, `AU` (`IDR`, `SGD`, `MYR`, `PHP`, `THB`, `INR`, `AUD`) |
+
+## Global Credit Intents & 4-Stage Asynchronous State Machine
+
+Unlike instant card authorizations, consumer credit approvals and open-banking credit draws are **asynchronous**: a buyer may take several minutes to complete a Kueski Pay biometric check, an Affirm underwriting prompt, or a Mono/Belvo neobank mandate, and the lender may disburse the principal hours or days later (`T+0` to `T+2`).
+
+PayRouta's **Global Credit Intent Engine** (`POST /api/v1/credit-intents`) decouples the checkout session from instant card timeout rules using a 4-stage state machine:
+
+```mermaid
+stateDiagram-v2
+  [*] --> checkout_initiated: POST /api/v1/credit-intents
+  checkout_initiated --> credit_pending_approval: Buyer redirected to lender / open-banking flow
+  credit_pending_approval --> credit_disbursed: Lender underwrites & disburses principal (credit.disbursed)
+  credit_pending_approval --> credit_declined: Lender declines or expires
+  credit_disbursed --> payment_succeeded: Principal settles into merchant ledger (payment.succeeded)
+```
+
+| Stage | Webhook Event | Internal State | Meaning |
+| --- | --- | --- | --- |
+| **Stage 1** | `checkout.initiated` | `INITIATED` | Checkout session created and localized BNPL / Open-Banking offers computed for the buyer's country and currency. |
+| **Stage 2** | `credit.pending_approval` | `PENDING_APPROVAL` | Buyer redirected or prompted (e.g., Migo USSD/OTP, Klarna modal, Mercado Crédito app); cart inventory is locked without failing on standard 30-second card timeouts. |
+| **Stage 3** | `credit.disbursed` | `DISBURSED` | External credit provider confirms loan underwriting and disburses the full principal amount (`principalMinor` less `lenderDiscountFeeMinor`). |
+| **Stage 4** | `payment.succeeded` | `SUCCEEDED` | Principal hits the merchant's PayRouta settlement ledger (or triggers Any-to-Any FX Splicing into `USDC`/`EUR`/`USD`), releasing the goods/SaaS subscription to the buyer. |
+
+### Creating or advancing a Credit Intent
+
+Use `POST /api/v1/credit-intents` to evaluate continental BNPL routes, initiate a credit intent, or advance it through the 4-stage lifecycle:
+
+```json
+{
+  "action": "initiate",
+  "intentId": "ci_ng_01",
+  "merchantId": "merch_01",
+  "reference": "ORD-NG-9001",
+  "payerCountry": "NG",
+  "currency": "NGN",
+  "amountMinor": "15000000",
+  "settlementCurrency": "USDC",
+  "selectedOfferId": "migo-ng-3m",
+  "customerPhone": "+2348031234567"
+}
+```
+
 ## For lenders
 
 Licensed lenders and consumer-credit providers connect as PayRouta platform modules. A credit module:

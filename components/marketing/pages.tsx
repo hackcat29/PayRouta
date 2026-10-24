@@ -4,7 +4,17 @@ import { availabilityLabel, markets, payouts, pillars, platforms, pricing } from
 import { defaultPartnerCaps } from "@/lib/payments/pricing";
 import { createLinkHref, docsUrl, paths, trustedOrigin } from "@/lib/site-config";
 import { Btn, Feature, PageHero, Steps, TextLink } from "./ui";
-import { CoverageGrid, CreditTimeline, CryptoRoute, FeeBars, JoinSteps, PartnerMap, PaymentFlow } from "./diagrams";
+import {
+  ContinentalCreditMap,
+  CoverageGrid,
+  CreditTimeline,
+  CryptoRoute,
+  FeeBars,
+  JoinSteps,
+  PartnerMap,
+  PaymentFlow,
+  SaasBillingDiagram,
+} from "./diagrams";
 import { AddAnywhere, LinkPicture } from "./add-anywhere";
 import { HeroDemo } from "./hero-demo";
 import { ProviderAccessForm } from "./provider-access-form";
@@ -200,12 +210,8 @@ function Credit() {
           ]}
         />
       </Feature>
-      <Feature title="Most people in the world don't have a credit card">
-        <p>
-          Phones, laptops, school fees and annual plans are out of reach when they must be paid at once. Credit at
-          checkout lets more of your customers buy, without you lending a thing.
-        </p>
-        <p>Selling subscriptions? Sell the year upfront and let your customer repay monthly.</p>
+      <Feature title="Continental credit & asynchronous settlement">
+        <ContinentalCreditMap />
       </Feature>
       <Feature title="The lender carries the risk" tone="paper">
         <p>
@@ -669,6 +675,9 @@ function Saas() {
           price stops being a barrier. {!creditLive() && "Credit opens country by country as lenders join."}
         </p>
         <TextLink href={paths.credit}>Pay with credit</TextLink>
+      </Feature>
+      <Feature title="FX splicing, millisecond metering & payday dunning">
+        <SaasBillingDiagram />
       </Feature>
       <section className="pp-band pp-night">
         <div className="mk-wrap">
