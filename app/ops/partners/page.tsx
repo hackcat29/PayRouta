@@ -43,11 +43,6 @@ export default async function Page() {
     <div className="portal p-simple">
       <Link href="/ops/applications">← Operations</Link>
       <h1>Partner programmes</h1>
-      <p>
-        Every partner module is merchant-owned by construction; the registry
-        refuses any programme that would make PayRouta liable for merchant
-        funds. See docs/PARTNER-PROGRAM.md.
-      </p>
 
       <section>
         <h2>Connections</h2>

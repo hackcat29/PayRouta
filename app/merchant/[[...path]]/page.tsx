@@ -8,7 +8,7 @@ import { onchainMethod } from "@/lib/blockchain/crypto-assets";
 import { Stablecoins } from "./stablecoins";
 import { stablecoinOverview } from "@/lib/merchant/stablecoins";
 import { CryptoBalance } from "./intents";
-import { currentIntentsAccount, intentsOverview } from "@/lib/intents/account";
+import { intentsOverview } from "@/lib/intents/account";
 import { payouts } from "@/lib/intents/payouts";
 import { chainNames, destinations as intentsDestinations, tokens as oneClickTokens } from "@/lib/intents/oneclick";
 import { feeTotals } from "@/lib/payments/billing";
@@ -173,11 +173,9 @@ export default async function Page({
             ? "No live access yet"
             : "Sandbox is not configured"}
         </h2>
-        <p>
-          {env === "production"
-            ? "Live payments open once your business is activated. Until then, everything runs in test mode."
-            : `This business is set up for ${config.environment}. Contact support to review it.`}
-        </p>
+        {env !== "production" && (
+          <p>This business is set up for {config.environment}. Contact support to review it.</p>
+        )}
         {env === "production" && (
           <p>
             <Link className="ms-btn primary" href={`/merchant/activation?${new URLSearchParams({ orgId, environment: config.environment })}`}>
@@ -247,10 +245,6 @@ export default async function Page({
             ) : (
               <p>No live scope approved yet.</p>
             )}
-            <p>
-              Live processing also needs current screening, documents, billing
-              terms and unused receive addresses.
-            </p>
           </section>
         </>
       );
@@ -383,11 +377,7 @@ export default async function Page({
               </table>
             </div>
           ) : (
-            <Empty title={filtered ? "No payments match these filters" : "No payments yet"}>
-              {filtered
-                ? "Try a wider date range or clear the filters."
-                : "Payments you create with the API or a checkout link appear here."}
-            </Empty>
+            <Empty title={filtered ? "No payments match these filters" : "No payments yet"} />
           )}
           {result.nextCursor && (
             <div className="ms-foot">
@@ -630,7 +620,7 @@ export default async function Page({
             </table>
           </div>
         ) : (
-          <Empty title="No customers yet">Customers appear after their first payment.</Empty>
+          <Empty title="No customers yet" />
         )}
       </section>
     );
@@ -639,31 +629,25 @@ export default async function Page({
     const accounts = await stablecoinOverview(orgId, env);
     const offered = new Set((await platformCandidates(orgId, env)).map((c) => c.method));
     const stableNetworks = configuration.stablecoinAssets.filter((a) => a.configured).length;
-    const intentsAccount = await currentIntentsAccount(orgId, env);
     const activate = <Link href={href("activation")}>Activate payments →</Link>;
-    const methodsOverview: { name: string; detail: string; on: boolean; next: ReactNode }[] = [
-      { name: "Cards", detail: "Visa, Mastercard, Amex, Verve and local schemes", on: offered.has("card"), next: activate },
-      { name: "Digital wallets", detail: "Apple Pay, Google Pay, PayPal and local wallets", on: offered.has("digital-wallet"), next: activate },
-      { name: "Bank transfer", detail: "Bank apps, pay by bank, Pix, UPI", on: offered.has("bank-transfer"), next: activate },
-      { name: "Mobile money", detail: "M-Pesa, MTN MoMo, Airtel Money", on: offered.has("mobile-money"), next: activate },
-      { name: "USSD", detail: "A short code, no data needed", on: offered.has("ussd"), next: activate },
+    const methodsOverview: { name: string; on: boolean; next: ReactNode }[] = [
+      { name: "Cards", on: offered.has("card"), next: activate },
+      { name: "Digital wallets", on: offered.has("digital-wallet"), next: activate },
+      { name: "Bank transfer", on: offered.has("bank-transfer"), next: activate },
+      { name: "Mobile money", on: offered.has("mobile-money"), next: activate },
+      { name: "USSD", on: offered.has("ussd"), next: activate },
       {
         name: "Pay with credit",
-        detail: "Instalments from a licensed lender; you're paid in full",
         on: offered.has("bnpl"),
         next: <a href={docsUrl("credit")}>Lenders are joining country by country →</a>,
       },
       {
         name: "Stablecoins",
-        detail: stableNetworks ? `USDC, USDT, EURC via NEAR Intents · ${stableNetworks} networks set up` : "USDC, USDT, EURC via NEAR Intents to your own wallet",
         on: stableNetworks > 0,
         next: <a href="#receive">Add receive addresses ↓</a>,
       },
       {
         name: "Any token, any chain",
-        detail: intentsAccount
-          ? `125+ assets across 36+ chains, settled into ${intentsAccount.accountId} via NEAR Intents`
-          : "125+ assets across 36+ chains via NEAR Intents, into your receive addresses or your own NEAR Intents account",
         on: stableNetworks > 0 && env === "production",
         next:
           env === "production" ? <Link href={href("crypto-balance")}>Connect a NEAR Intents account →</Link> : <span>Live mode only</span>,
@@ -675,17 +659,13 @@ export default async function Page({
           <div className="ms-card-head">
             <div>
               <h2>Ways customers pay</h2>
-              <p>Every method that&apos;s on appears in your payment links, checkout button and store plugins.</p>
             </div>
           </div>
           <ul className="ms-methods">
             {methodsOverview.map((m) => (
               <li key={m.name} className={m.on ? "on" : undefined}>
                 <span className="ms-methods-dot" aria-hidden="true" />
-                <span>
-                  <strong>{m.name}</strong>
-                  <small>{m.detail}</small>
-                </span>
+                <strong>{m.name}</strong>
                 <span className="ms-methods-state">{m.on ? "On" : m.next}</span>
               </li>
             ))}
@@ -775,7 +755,7 @@ export default async function Page({
               </table>
             </div>
           ) : (
-            <Empty title="No settlements yet">Settlements appear after providers pay out confirmed payments.</Empty>
+            <Empty title="No settlements yet" />
           )}
           {"nextCursor" in result && result.nextCursor && (
             <div className="ms-foot">
@@ -881,7 +861,7 @@ export default async function Page({
             </table>
           </div>
         ) : (
-          <Empty title="No API requests yet">Requests made with your API keys appear here.</Empty>
+          <Empty title="No API requests yet" />
         )}
       </section>
     );
@@ -948,23 +928,14 @@ export default async function Page({
       <>
         <section>
           <h2>Checkout button</h2>
-          <p>
-            One button for any site or app. Customers pay in a secure PayRouta window with every method you accept,
-            including credit from licensed lenders and stablecoins from any wallet.
-          </p>
           <pre className="ms-code">{`<script src="${appOrigin}/js/v1/payrouta.js" async></script>
 <button data-payrouta-checkout="/create-checkout">Checkout</button>`}</pre>
           <p className="ms-dim">
-            <code>/create-checkout</code> is your server: it calls <code>POST /checkouts</code> with your secret key and
-            answers <code>{"{ \"checkoutUrl\": \"…\" }"}</code>. <a href={docsUrl("checkout-button")}>Checkout button guide</a>
+            <a href={docsUrl("checkout-button")}>Checkout button guide</a>
           </p>
         </section>
         <section>
           <h2>Shopify</h2>
-          <p>
-            Offer PayRouta at Shopify checkout. Shopify must approve PayRouta as a payments app before stores outside
-            development can install it.
-          </p>
           {query.shopifyError && <p className="p-notice error">The Shopify connection didn&apos;t complete. Try again.</p>}
           {shops.length > 0 && (
             <ul>
@@ -991,10 +962,6 @@ export default async function Page({
         </section>
         <section>
           <h2>WooCommerce</h2>
-          <p>
-            The PayRouta Checkout plugin adds one payment option that opens PayRouta checkout. Orders are marked paid only
-            after a signed webhook and a check against the PayRouta API.
-          </p>
           <ol>
             <li>Install the plugin (private 0.1.0; ask PayRouta for the package) and activate it.</li>
             <li>
@@ -1021,12 +988,6 @@ export default async function Page({
     });
     content = (
       <section className="ms-flush">
-        <div className="ms-card-head">
-          <p>
-            Payments where a provider&apos;s answer didn&apos;t match. We check
-            these against the provider&apos;s records; you don&apos;t need to act.
-          </p>
-        </div>
         {exceptions.length ? (
           <div className="p-table-wrap">
             <table>
@@ -1055,7 +1016,7 @@ export default async function Page({
             </table>
           </div>
         ) : (
-          <Empty title="No payment issues">When a provider&apos;s records don&apos;t match ours, the payment is listed here while we check it.</Empty>
+          <Empty title="No payment issues" />
         )}
       </section>
     );
@@ -1098,7 +1059,6 @@ export default async function Page({
           <div className="ms-card-head">
             <div>
               <h2>Usage</h2>
-              <p>Months run in UTC. Amounts exclude tax.</p>
             </div>
             <a
               className="ms-btn"
@@ -1230,34 +1190,26 @@ export default async function Page({
           <div className="ms-kpi">
             <span>Conversion</span>
             <strong>{rate(metrics.confirmed)}</strong>
-            <small>
-              {metrics.confirmed} paid of {metrics.checkout} checkouts
-            </small>
           </div>
           <div className="ms-kpi">
             <span>Chose a method</span>
             <strong>{rate(metrics.selected)}</strong>
-            <small>{metrics.selected} checkouts</small>
           </div>
           <div className="ms-kpi">
-            <span>Saved by a backup</span>
+            <span>Saved by a backup processor</span>
             <strong>{metrics.fallback}</strong>
-            <small>payments used a second processor</small>
           </div>
           <div className="ms-kpi">
             <span>Payments succeeded</span>
             <strong>{metrics.confirmed}</strong>
-            <small>last 30 days</small>
           </div>
         </div>
         <section className="ms-flush">
           <div className="ms-card-head">
             <div>
-              <h2>Attempt outcomes</h2>
-              <p>
-                Payments created {day(new Date(metrics.from))} to {day(new Date(metrics.to))}. Pending
-                attempts aren&apos;t counted as failures; late answers update these figures.
-              </p>
+              <h2>
+                Attempt outcomes, {day(new Date(metrics.from))} to {day(new Date(metrics.to))}
+              </h2>
             </div>
           </div>
           {metrics.attempts.length ? (
@@ -1461,32 +1413,26 @@ export default async function Page({
       };
     });
     const maxDay = Math.max(1, ...byDay.map((d) => d.count));
-    const weekTotal = byDay.reduce((n, d) => n + d.count, 0);
     const balance = treasury.balances[0];
     content = (
       <>
         <TreasuryBanner view={treasury} href={href} />
         <div className="ms-getpaid" role="list" aria-label="Ways to get paid">
           <Link role="listitem" className="ms-gp ms-gp-main" href={href("payment-links")}>
-            <span className="ms-gp-kicker">No website needed</span>
             <strong>Payment link</strong>
-            <span>
-              {linkStats._count
-                ? `${linkStats._count} active · ${linkStats._sum.checkouts ?? 0} checkouts`
-                : "Share on WhatsApp, Instagram or SMS"}
-            </span>
+            {!!linkStats._count && (
+              <span>
+                {linkStats._count} active · {linkStats._sum.checkouts ?? 0} checkouts
+              </span>
+            )}
             <span className="ms-gp-go">{linkStats._count ? "Manage links →" : "Create a link →"}</span>
           </Link>
           <Link role="listitem" className="ms-gp" href={href("developers/integrations")}>
-            <span className="ms-gp-kicker">Your website or app</span>
             <strong>Checkout button</strong>
-            <span>One script tag and a button</span>
             <span className="ms-gp-go">Get the code →</span>
           </Link>
           <Link role="listitem" className="ms-gp" href={href("developers/integrations")}>
-            <span className="ms-gp-kicker">Your store</span>
             <strong>Shopify or WooCommerce</strong>
-            <span>PayRouta at your store&apos;s checkout</span>
             <span className="ms-gp-go">Connect →</span>
           </Link>
         </div>
@@ -1497,17 +1443,6 @@ export default async function Page({
               <li key={label} className={on ? "on" : undefined}>
                 <span aria-hidden="true" />
                 {label}
-                <small>
-                  {on
-                    ? "On"
-                    : label === "Pay with credit"
-                      ? "As lenders join"
-                      : label === "Any token, any chain" && env !== "production"
-                        ? "Live mode only"
-                        : label === "Stablecoins" || label === "Any token, any chain"
-                          ? "Add receive addresses or connect NEAR Intents"
-                          : "After activation"}
-                </small>
               </li>
             ))}
           </ul>
@@ -1517,34 +1452,27 @@ export default async function Page({
           <div className="ms-kpi">
             <span>Payments received</span>
             <strong>{confirmed}</strong>
-            <small>{weekTotal} in the last 7 days</small>
           </div>
           <div className="ms-kpi">
             <span>Success rate</span>
             <strong>{successRate === null ? "—" : `${successRate}%`}</strong>
-            <small>of {count} payments</small>
           </div>
           <div className="ms-kpi">
             <span>Available to pay out</span>
-            <strong>{balance ? money(balance.asset, balance.available) : "—"}</strong>
-            <small>
-              {balance ? <Link href={href("balances")}>View balances</Link> : "After your first payment"}
-            </small>
+            <strong>
+              {balance ? <Link href={href("balances")}>{money(balance.asset, balance.available)}</Link> : "—"}
+            </strong>
           </div>
           <div className="ms-kpi">
             <span>Needs attention</span>
-            <strong>{attention}</strong>
-            <small>
-              {attention ? <Link href={href("reconciliation")}>Review payments</Link> : "All clear"}
-            </small>
+            <strong>{attention ? <Link href={href("reconciliation")}>{attention}</Link> : attention}</strong>
           </div>
         </div>
         <div className="ms-grid-2">
           <section>
             <div className="ms-card-head">
               <div>
-                <h2>Successful payments</h2>
-                <p>Last 7 days, UTC</p>
+                <h2>Successful payments, last 7 days</h2>
               </div>
             </div>
             <div
@@ -1570,9 +1498,6 @@ export default async function Page({
           </section>
           <section>
             <h2>{doneCount === setup.length ? "You're all set" : "Setup guide"}</h2>
-            <p>
-              {doneCount} of {setup.length} done
-            </p>
             <div className="ms-progress" aria-hidden>
               <span style={{ width: `${(doneCount / setup.length) * 100}%` }} />
             </div>
@@ -1631,7 +1556,7 @@ export default async function Page({
             </div>
           ) : (
             <Empty title="No payments yet">
-              <Link href={href("payment-links")}>Create a payment link</Link> and open it to take your first test payment.
+              <Link href={href("payment-links")}>Create a payment link</Link>
             </Empty>
           )}
         </section>

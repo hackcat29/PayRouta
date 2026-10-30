@@ -37,7 +37,7 @@ export function TreasuryBanner({ view, href }: { view: View; href: (p: string) =
     <div className={`tr-banner ${info?.tone ?? "neutral"}`}>
       <div>
         <strong>{!state ? "Activate payments" : info!.label === "Action needed" ? "Your account needs attention" : `Account ${info!.label.toLowerCase()}`}</strong>
-        <p>{!state ? "Tell us about your business to start accepting cards, digital wallets, bank transfers and mobile money." : info!.detail}</p>
+        {info?.detail && <p>{info.detail}</p>}
       </div>
       <Link className="tr-button" href={href("activation")}>
         {!state ? "Start activation" : "View details"}
@@ -105,14 +105,11 @@ export function ActivationSection({
         <section className="tr-status">
           <div>
             <Pill tone={info!.tone}>{info!.label}</Pill>
-            <p>{info!.detail}</p>
+            {info!.detail && <p>{info!.detail}</p>}
             {a.note && (
               <blockquote>
                 <strong>From our review team:</strong> {a.note}
               </blockquote>
-            )}
-            {(a.profileChanged || a.detailsChanged) && a.state !== "Returned" && (
-              <p className="tr-hint">You changed your details after submitting. They will be used when your account is next reviewed.</p>
             )}
           </div>
           {view.paymentsAccount && view.paymentsAccount.requirements.length > 0 && (
@@ -123,17 +120,14 @@ export function ActivationSection({
                   <li key={r}>{requirementText[r] ?? requirementText.review}</li>
                 ))}
               </ul>
-              <p className="tr-hint">Our team will contact you about any documents.</p>
             </div>
           )}
         </section>
       )}
       {!submitted && (
         <section>
-          <p>Complete these steps once. We review most businesses within one to two business days.</p>
           <ol className="tr-steps">
             <Step n={1} done={!!s.profile} title="Business details" current={firstOpen === 1}>
-              <p className="tr-hint">Legal name, registration, address, what you sell and who owns the business.</p>
               {profilePanel}
             </Step>
             <Step n={2} done={!!s.details} title="Identity and payout bank account" current={firstOpen === 2}>
@@ -153,7 +147,6 @@ export function ActivationSection({
               <AcceptTerms orgId={orgId} accepted={s.terms?.acceptedAt ?? null} />
             </Step>
             <Step n={4} done={false} title="Submit for review" current={firstOpen === 4}>
-              <p className="tr-hint">We check your business against public registers and sanctions lists, then set up your payments account.</p>
               <SubmitForReview orgId={orgId} ready={ready} resubmit={a?.state === "Returned"} />
             </Step>
           </ol>
@@ -163,12 +156,11 @@ export function ActivationSection({
   );
 }
 
-function Stat({ label, value, hint, tone }: { label: string; value: string; hint?: string; tone?: "primary" }) {
+function Stat({ label, value, tone }: { label: string; value: string; tone?: "primary" }) {
   return (
     <div className={`tr-stat ${tone ?? ""}`}>
       <span>{label}</span>
       <strong>{value}</strong>
-      {hint && <small>{hint}</small>}
     </div>
   );
 }
@@ -182,7 +174,7 @@ export function BalancesSection({ orgId, view, href }: { orgId: string; view: Vi
       {view.balances.length === 0 && (
         <section className="tr-empty">
           <h2>No balance yet</h2>
-          <p>Once customers pay you, your funds appear here: incoming first, then available to pay out.</p>
+          <p>No funds yet.</p>
         </section>
       )}
       {view.balances.map((b) => (
@@ -190,11 +182,11 @@ export function BalancesSection({ orgId, view, href }: { orgId: string; view: Vi
           <h2 className="tr-balance-title">{b.asset.slice(5, 8)} balance</h2>
           <div className="tr-stats">
             <Stat tone="primary" label="Available to pay out" value={money(b.asset, b.available)} />
-            <Stat label="Incoming" value={money(b.asset, b.pending)} hint="Becomes available on the payment's availability date" />
-            {b.reserve !== "0" && <Stat label="Reserve" value={money(b.asset, b.reserve)} hint="Released automatically after the hold period" />}
+            <Stat label="Incoming" value={money(b.asset, b.pending)} />
+            {b.reserve !== "0" && <Stat label="Reserve" value={money(b.asset, b.reserve)} />}
             {b.inTransit !== "0" && <Stat label="On the way to your bank" value={money(b.asset, b.inTransit)} />}
             {b.held !== "0" && <Stat label="On hold for disputes" value={money(b.asset, b.held)} />}
-            {b.owed !== "0" && <Stat label="Owed to PayRouta" value={money(b.asset, b.owed)} hint="Recovered from your next available funds" />}
+            {b.owed !== "0" && <Stat label="Owed to PayRouta" value={money(b.asset, b.owed)} />}
           </div>
         </section>
       ))}
@@ -226,7 +218,6 @@ export function BalancesSection({ orgId, view, href }: { orgId: string; view: Vi
       {view.paymentsAccount && !view.paymentsAccount.payoutsByPayRouta && (
         <section>
           <h2>Payouts</h2>
-          <p>Your share of each payment is paid straight to your bank account, usually the next business day.</p>
         </section>
       )}
     </>
@@ -297,13 +288,12 @@ export function DisputesSection({
             <strong>
               {open.length} open {open.length === 1 ? "dispute" : "disputes"}
             </strong>
-            <p>The disputed amount is on hold until the card network decides. Respond with your evidence before the deadline.</p>
           </div>
         </div>
       )}
       <section>
         {!view.disputes.length ? (
-          <p>No disputes. When a customer disputes a payment with their bank, it appears here.</p>
+          <p>No disputes.</p>
         ) : (
           <div className="p-table-wrap">
             <table>

@@ -40,11 +40,6 @@ export function Stablecoins({
       <section>
         <h2>Stablecoin payments</h2>
         <p>
-          Customers pay directly to your receive addresses. PayRouta verifies
-          the exact token, network and amount, then records settlement after
-          network finality.
-        </p>
-        <p>
           {environment === "sandbox"
             ? "Use test tokens on the supported test networks. Sandbox platform fees are zero."
             : "Live payments require approved business evidence, receive-address ownership and a current processing scope. Our fee is 1.5% of each payment, all in, billed separately."}
@@ -81,10 +76,6 @@ export function Stablecoins({
         ) : (
           <p>No stablecoin receive addresses configured yet.</p>
         )}
-        <p>
-          Each checkout permanently uses one unique receive address. Provision
-          fresh merchant-owned addresses before your pool runs out.
-        </p>
       </section>
       <section>
         <h2>Supported stablecoins</h2>
@@ -127,18 +118,10 @@ export function Stablecoins({
             </tbody>
           </table>
         </div>
-        <p>
-          Wrapped and bridged tokens are excluded. Customers can select only the
-          exact token and network options included in their checkout.
-        </p>
       </section>
       {canConfigure && (
         <section>
           <h2>Add receive addresses</h2>
-          <p>
-            Use addresses controlled by your business. Keep the wallet recovery
-            details in your own custody.
-          </p>
           <form
             onSubmit={async (e) => {
               e.preventDefault();
@@ -216,22 +199,15 @@ export function Stablecoins({
                 Alchemy API key (optional override)
                 <input name="rpcKey" type="password" autoComplete="off" />
               </label>
-              <p>
-                Your platform RPC connection is used when no override is
-                entered.
-              </p>
               {chain(network)?.family === "stellar" && (
                 <p>
-                  Each Stellar receive account must already be funded and have
-                  an authorized trustline for the selected token. Keep XLM
-                  available for account reserves.
+                  Stellar accounts must be funded and trust this token.
                 </p>
               )}
               <button disabled={busy}>
                 {busy ? "Saving…" : "Save receive addresses"}
               </button>
             </fieldset>
-            <p>Saving requires recent authenticator verification.</p>
           </form>
           <p role="status">{message}</p>
         </section>

@@ -266,10 +266,6 @@ export function Providers({
                       <li key={f.id}>{f.label}</li>
                     ))}
                   </ul>
-                  <p>
-                    {p.name} collects anything else it needs, such as identity
-                    documents and bank details, directly from you.
-                  </p>
                   <label>
                     <input
                       type="checkbox"
@@ -333,10 +329,6 @@ export function Providers({
       </ul>
       {canConfigure && overview.profile && applicable && (
         <>
-          <p>
-            Applying requires recent authenticator verification. We screen your
-            business before anything is shared.
-          </p>
           <button disabled={busy || !selected.length} onClick={apply}>
             Apply to {selected.length || "selected"} provider
             {selected.length === 1 ? "" : "s"}
@@ -624,32 +616,6 @@ export function Providers({
             : "One business profile for every provider"}
         </h2>
       )}
-      {!profileOnly && (
-        <p>
-          Enter your business details once. When you choose providers, we
-          pre-fill their applications with only the fields each one needs. Each
-          provider verifies you itself, and the account it opens belongs to you.
-        </p>
-      )}
-      {profileOnly && saved && (
-        <p>
-          Save your business details. We use them to review your business and
-          set up your PayRouta payments account. Identity and bank details are
-          collected separately and stored encrypted.
-        </p>
-      )}
-      {!profileOnly && (
-        <p>
-          <strong>
-            For accounts in your own name, PayRouta never asks for
-          </strong>{" "}
-          ID document numbers, dates of birth, bank account numbers or card
-          details. Providers collect those directly on their own secure pages.
-        </p>
-      )}
-      {overview.profile && (
-        <p>Saved profile version {overview.profile.version}.</p>
-      )}
       {saved ? (
         <details>
           <summary>Edit business profile</summary>
@@ -672,10 +638,6 @@ export function Providers({
       {sandboxAccount && (
         <section role="note">
           <h2>Fictional sandbox onboarding</h2>
-          <p>
-            This stands in for a provider&apos;s hosted onboarding. There is
-            nothing to complete; the sandbox account advances on its own.
-          </p>
         </section>
       )}
       {saved ? providersSection : profileSection}

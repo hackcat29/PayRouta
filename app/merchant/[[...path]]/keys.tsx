@@ -49,10 +49,6 @@ export function Keys({
         <div className="ms-card-head">
           <div>
             <h2>Create a secret key</h2>
-            <p>
-              Keys work in {environment === "production" ? "live mode" : "test mode"} only. Keep them on your
-              server; creating one needs a recent authenticator check.
-            </p>
           </div>
         </div>
         <form

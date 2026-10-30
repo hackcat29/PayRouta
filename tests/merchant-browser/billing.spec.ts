@@ -70,13 +70,13 @@ test("pricing: both rates, the cap and who pays fees are published", async ({
 }) => {
   await page.goto("/pricing");
   await expect(page.getByText("1.5%", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("1% capped at $5", { exact: false }).first()).toBeVisible();
+  await expect(page.getByText("1%", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(/max \$5/).first()).toBeVisible();
   await expect(
     page.getByText("Who pays the fees", { exact: true }),
   ).toBeVisible();
-  await expect(
-    page.getByText("Test mode and failed payments are free.", { exact: false }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Failed payments, backup retries, test mode" })).toBeVisible();
+  await expect(page.getByText("$0", { exact: true })).toBeVisible();
 });
 
 test("pricing: mobile rates fit the viewport", async ({ page }) => {

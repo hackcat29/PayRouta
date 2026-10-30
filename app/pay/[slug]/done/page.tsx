@@ -17,11 +17,7 @@ export default async function Done({ params }: { params: Promise<{ slug: string 
             <path d="m5 12.5 4.5 4.5L19 7.5" />
           </svg>
         </div>
-        <h1 className="pl-title">Thank you</h1>
-        <p className="pl-desc">
-          Your payment for {link.title} is with {link.merchant}. You&apos;ll get a receipt from them once it&apos;s
-          confirmed.
-        </p>
+        <h1 className="pl-title">Payment sent to {link.merchant}</h1>
         <p className="pl-foot">
           Secured by <strong>PayRouta</strong>
         </p>

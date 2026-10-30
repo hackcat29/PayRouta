@@ -29,15 +29,9 @@ export function MerchantEvidence({
   return (
     <section>
       <h2>Verification documents</h2>
-      <p>
-        Files use the existing private quarantine, scanner, review, and
-        expiring-download workflow. PDF, PNG, or JPEG; maximum 5 MB.
-      </p>
       {!requirements.length ? (
         <p>
-          No merchant requirements match the saved application yet. An operator
-          must configure the appropriate versioned requirements before live
-          review.
+          No documents are required yet.
         </p>
       ) : (
         <form

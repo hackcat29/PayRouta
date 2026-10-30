@@ -54,10 +54,6 @@ export default async function Page() {
       <Link href="/ops">← Operations</Link>
       <h1>Merchant readiness and review</h1>
       <Link href="/ops/coverage">Coverage qualification</Link>
-      <p>
-        Stopping new execution does not stop provider status checks, settlement
-        tracking, or merchant notifications.
-      </p>
       {merchants.map((m) => {
         const policy = riskPolicySchema.parse(m.riskPolicy);
         const scope = storedLiveScope.safeParse(m.liveScope);
@@ -113,8 +109,6 @@ export default async function Page() {
               {scope.success
                 ? `${scope.data.status} · review due ${scope.data.input.nextReviewAt}`
                 : "No live scope proposed"}
-              . Live processing also requires current evidence, screening,
-              billing terms and an available receive address.
             </p>
             {["Under review", "Approved"].includes(m.applicationState) && (
               <details>
@@ -246,11 +240,6 @@ export default async function Page() {
           </section>
         );
       })}
-      <p>
-        Live activation remains unavailable until provider integration and
-        account qualification are complete. Approval of an amount review cannot
-        override a pause, a limit, expired evidence, or live qualification.
-      </p>
     </div>
   );
 }

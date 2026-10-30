@@ -103,10 +103,6 @@ export function PaymentLinks({
       {canManage && nothingOn && (
         <section>
           <h2>Turn on a way to pay first</h2>
-          <p>
-            A link needs at least one way for customers to pay. Activate payments to accept cards, bank transfers and
-            mobile money, or add a stablecoin receive address to take USD links in crypto today.
-          </p>
           <div className="ms-link-actions">
             <Link className="ms-btn primary" href={go("activation")}>
               Activate payments
@@ -120,7 +116,6 @@ export function PaymentLinks({
       {canManage && !nothingOn && (
         <section>
           <h2>New payment link</h2>
-          <p>Share it on WhatsApp, Instagram, by SMS or on an invoice. Each customer gets their own checkout.</p>
           <form
             className="ms-link-form"
             onSubmit={async (event) => {
@@ -177,14 +172,12 @@ export function PaymentLinks({
                 return (
                   <label key={id} className={`ms-check ${on ? "" : "ms-check-off"}`}>
                     <input type="checkbox" name="methods" value={id} defaultChecked={on} disabled={!on} /> {label}
-                    {!on && <small>after activation</small>}
                   </label>
                 );
               })}
               <label className={`ms-check ${cryptoReady ? "" : "ms-check-off"}`}>
                 <input type="checkbox" name="crypto" defaultChecked={cryptoReady && !methodsOn.length} disabled={!cryptoReady} />{" "}
                 Stablecoins (USD links)
-                {!cryptoReady && <small>add receive addresses first</small>}
               </label>
             </fieldset>
             <button className="ms-btn primary" disabled={busy}>

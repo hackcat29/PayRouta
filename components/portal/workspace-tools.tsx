@@ -44,10 +44,6 @@ export function Compliance({
       </Panel>
       {allowed && (
         <Panel title="Upload evidence">
-          <p>
-            PDF, PNG, or JPEG · Maximum 5 MB. Use fictional documents during
-            development. Files are private and quarantined before review access.
-          </p>
           <form
             onSubmit={async (e) => {
               e.preventDefault();
@@ -118,10 +114,6 @@ export function Compliance({
       )}
       {allowed && data.local && data.org?.fictional && (
         <Panel title="Fictional review fixture">
-          <p>
-            Use a clearly marked fixture to exercise the local review workflow
-            while uploaded documents remain quarantined.
-          </p>
           {data.requirements
             ?.filter((r) => r.illustrative)
             .map((r) => (
@@ -246,7 +238,7 @@ export function Credentials({
         </Field>
         <Field
           label="External secret"
-          hint="Leave empty for a generated inbound API credential. External values cannot be retrieved after saving."
+          hint="Leave empty to generate one"
         >
           <input name="value" type="password" autoComplete="new-password" />
         </Field>
@@ -373,10 +365,6 @@ export function Team({
                       ))}
                   </select>
                 </Field>
-                <p>
-                  Invitations expire after 48 hours and can be accepted once by
-                  this email address. Fresh MFA is required to invite.
-                </p>
                 <button className="p-button">Create invitation</button>
               </form>
             </Modal>
@@ -444,28 +432,6 @@ export function Team({
             </tr>
           ))}
         </Table>
-      </Panel>
-      <Panel title="Role responsibilities">
-        <p>
-          <strong>Owner:</strong> organization, configuration, submission,
-          membership and ownership.
-        </p>
-        <p>
-          <strong>Admin:</strong> onboarding, operations and membership; no
-          ownership changes.
-        </p>
-        <p>
-          <strong>Developer:</strong> integration, credentials, sandbox and
-          technical events.
-        </p>
-        <p>
-          <strong>Compliance:</strong> company information, evidence and
-          reviewer responses.
-        </p>
-        <p>
-          <strong>Analyst:</strong> read-only operational records and
-          performance.
-        </p>
       </Panel>
     </>
   );

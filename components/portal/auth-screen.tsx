@@ -263,7 +263,6 @@ export function AuthScreen({
         {signUp &&
           (merchant ? (
             <div className="p-auth-pitch">
-              <p className="p-auth-line">Your first payment link is two minutes away.</p>
               <div className="p-auth-link" aria-hidden="true">
                 <span className="p-auth-link-shop">Your business</span>
                 <strong>Order #1042</strong>
@@ -278,7 +277,6 @@ export function AuthScreen({
                 </span>
                 <span className="p-auth-link-pay">Pay ₦150,000</span>
               </div>
-              <p className="p-auth-small">Share it on WhatsApp, Instagram or SMS. Test mode is free.</p>
             </div>
           ) : (
             <ol className="p-auth-steps">
@@ -316,7 +314,6 @@ export function AuthScreen({
                   </>
                 )}
               </p>
-              <p>Nothing arrived? Check your spam folder.</p>
               {message && (
                 <div
                   role="status"
@@ -352,12 +349,6 @@ export function AuthScreen({
                     : local
                       ? "Enter 123456 (local demo), or run npm run portal:code for a live code."
                       : "Enter the 6-digit code from your authenticator app."}
-                </p>
-              )}
-              {step === "credentials" && signUp && (
-                <p>
-                  Use your work email. You&apos;ll set up your business after
-                  confirming it.
                 </p>
               )}
               {step === "credentials" && (
@@ -636,10 +627,7 @@ export function SecuritySettings({
       )}
       {uri && (
         <div className="p-notice">
-          <p>
-            Add this secret to your authenticator. Keep your recovery codes
-            private.
-          </p>
+          <strong>Authenticator secret</strong>
           <code className="p-wrap">{uri}</code>
           <JsonViewCodes codes={codes} />
         </div>
@@ -714,10 +702,7 @@ export function ResetPassword({
         </h1>
         {invalid ? (
           <>
-            <p>
-              Reset links work once and expire after an hour. Ask for a new one
-              from the sign-in page.
-            </p>
+            <p>Ask for a new one from the sign-in page.</p>
             <Link className="p-button" href={`${base}/sign-in`}>
               Back to sign in
             </Link>
@@ -761,7 +746,7 @@ export function ResetPassword({
               else setDone(true);
             }}
           >
-            <Field label="New password" hint="At least 12 characters.">
+            <Field label="New password" hint="At least 12 characters">
               <input
                 type="password"
                 name="password"
@@ -817,10 +802,6 @@ export function PasskeySettings() {
   const [busy, setBusy] = useState(false);
   return (
     <div className="p-stack">
-      <p>
-        Sign in with Face ID, Touch ID, Windows Hello or a security key instead
-        of a password. Passkeys can&apos;t be phished or reused on another site.
-      </p>
       {rows.length > 0 && (
         <ul className="p-passkeys">
           {rows.map((p) => (
@@ -881,7 +862,7 @@ export function PasskeySettings() {
           }
         }}
       >
-        <Field label="Name (optional)" hint="For example, Work laptop">
+        <Field label="Name (optional)" hint="Work laptop">
           <input name="name" maxLength={60} />
         </Field>
         <button className="p-button" disabled={busy}>

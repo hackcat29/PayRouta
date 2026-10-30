@@ -148,10 +148,7 @@ export function CryptoBalance({
     return (
       <section>
         <h2>Crypto balance</h2>
-        <p>
-          Settlement into a NEAR Intents account runs on mainnet only. Switch this business to live mode to connect an
-          account you own; customers can then pay from 125+ tokens on 36+ chains and you receive the stablecoin you choose.
-        </p>
+<p>Live mode only.</p>
       </section>
     );
 
@@ -159,12 +156,6 @@ export function CryptoBalance({
     return (
       <section>
         <h2>Get paid into your own NEAR Intents account</h2>
-        <p>
-          Connect an account you control and customers can pay any crypto checkout or payment link from any token on any
-          chain. You receive the exact invoice amount, in the stablecoin you choose, without managing receive addresses.
-          Pay suppliers or staff and refund customers on any chain from the same balance. PayRouta never holds your funds
-          or keys.
-        </p>
         {canConfigure ? (
           <>
             <fieldset disabled={busy}>
@@ -193,10 +184,6 @@ export function CryptoBalance({
                 </button>
               ))}
             </div>
-            <p>
-              Your wallet signs a message to prove you control the account. It does not move funds. Connecting needs recent
-              authenticator verification.
-            </p>
           </>
         ) : (
           <p>Ask an owner or admin to connect an account.</p>
@@ -241,10 +228,6 @@ export function CryptoBalance({
         </div>
         {!account.keyRegistered && (
           <div className="p-notice">
-            <p>
-              Before you can pay out, NEAR Intents needs to know your wallet key. This is one transaction from your wallet
-              with a tiny NEAR network fee.
-            </p>
             <button
               className="ms-btn"
               disabled={busy || !canConfigure}
@@ -256,7 +239,7 @@ export function CryptoBalance({
                 })
               }
             >
-              Register wallet key
+              Register wallet key to pay out
             </button>
           </div>
         )}
@@ -264,7 +247,7 @@ export function CryptoBalance({
         {balances === null ? (
           <p className="ms-empty-line">The balance can&apos;t be read right now. Try again shortly.</p>
         ) : !balances?.length ? (
-          <p className="ms-empty-line">Nothing yet. Payments that settle here appear within a minute of confirmation.</p>
+          <p className="ms-empty-line">Nothing yet.</p>
         ) : (
           <div className="p-table-wrap">
             <table>
@@ -292,18 +275,13 @@ export function CryptoBalance({
       {canConfigure && !!balances?.length && (
         <section>
           <h2>{refunding ? `Refund ${refunding.reference}` : "Pay out"}</h2>
-          <p>
-            {refunding
-              ? `Back to the customer in ${refunding.paidWith}, the way they paid. Up to ${refunding.refundable} ${refunding.symbol}.`
-              : "Pay a supplier, staff or your own wallet on any chain. The swap runs on NEAR Intents and you pay no gas."}
-          </p>
           {quote ? (
             <div className="ms-link-created" role="status">
               <p>
                 Send <strong>{quote.payout.send}</strong> from your balance. <strong>{quote.payout.recipient}</strong> receives{" "}
                 <strong>{quote.payout.receive}</strong> on {quote.payout.chainName}.
               </p>
-              <p>Sign before {new Date(quote.deadline).toLocaleTimeString()}. Your wallet shows the transfer it authorises.</p>
+              <p>Sign before {new Date(quote.deadline).toLocaleTimeString()}.</p>
               <div className="ms-link-actions">
                 <button
                   className="ms-btn primary"
@@ -363,7 +341,13 @@ export function CryptoBalance({
               </label>
               <label>
                 Amount{origin ? ` in ${origin.symbol}` : ""}
-                <input required inputMode="decimal" value={form.amount} onChange={(e) => set({ amount: e.target.value })} placeholder="250" />
+                <input
+                  required
+                  inputMode="decimal"
+                  value={form.amount}
+                  onChange={(e) => set({ amount: e.target.value })}
+                  placeholder={refunding ? `Up to ${refunding.refundable}` : "250"}
+                />
               </label>
               <label>
                 Network they receive on
@@ -515,9 +499,11 @@ export function CryptoBalance({
               <thead>
                 <tr>
                   <th>Date</th>
+                  <th>Type</th>
                   <th>Sent</th>
                   <th>Received</th>
                   <th>To</th>
+                  <th>Note</th>
                   <th>Status</th>
                 </tr>
               </thead>
@@ -525,17 +511,15 @@ export function CryptoBalance({
                 {payouts.map((p) => (
                   <tr key={p.id}>
                     <td>{new Date(p.createdAt).toLocaleDateString()}</td>
-                    <td>
-                      {p.send}
-                      {p.purpose === "refund" && <small> refund</small>}
-                    </td>
+                    <td>{p.purpose === "refund" ? "Refund" : "Payout"}</td>
+                    <td>{p.send}</td>
                     <td>
                       {p.receive} on {p.chainName}
                     </td>
                     <td>
                       <code>{p.recipient}</code>
-                      {p.note && <small> {p.note}</small>}
                     </td>
+                    <td>{p.note}</td>
                     <td>
                       {p.explorerUrl ? (
                         <a href={p.explorerUrl} target="_blank" rel="noreferrer">

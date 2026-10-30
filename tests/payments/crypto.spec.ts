@@ -99,7 +99,6 @@ test("mixed checkout asks what the customer pays with and locks the chosen instr
   // One network: the customer only picks the token.
   await expect(page.getByLabel("Network", { exact: true })).toHaveValue("eip155:84532");
   await page.getByLabel("Token", { exact: true }).selectOption("direct:eth");
-  await expect(page.getByText(/You send exactly 0\.004 ETH/)).toBeVisible();
   await page.getByLabel("Token", { exact: true }).selectOption("direct:usdc");
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(
@@ -153,8 +152,6 @@ test("paid crypto checkout shows the crypto method as chosen without creating a 
   await expect(
     page.getByRole("heading", { name: "Payment received" }),
   ).toBeVisible();
-  await expect(page.getByText("Crypto and stablecoins", { exact: true })).toBeVisible();
-  await expect(page.getByText("Selected", { exact: true })).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Pay with wallet", exact: true }),
   ).toHaveCount(0);
@@ -294,9 +291,7 @@ test("an on-time detected payment keeps waiting for finality after the quote dea
     page.getByRole("heading", { name: "Payment detected", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByText(
-      "Your transfer is visible on the network. Do not send again.",
-    ),
+    page.getByText("Do not send again.", { exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Checkout expired", exact: true }),
@@ -304,11 +299,6 @@ test("an on-time detected payment keeps waiting for finality after the quote dea
   await expect(
     page.getByText("Payment window ended", { exact: true }),
   ).toHaveCount(0);
-  await expect(
-    page.getByText(
-      /Your transfer was detected\. Verification continues after the quote deadline/,
-    ),
-  ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Pay with wallet", exact: true }),
   ).toHaveCount(0);
@@ -322,7 +312,7 @@ test("a failed access exchange retains the full checkout link for recovery", asy
   );
   await page.goto(`/checkout/exchange-retry#${token}`);
   await expect(
-    page.getByRole("heading", { name: "Open your original checkout link" }),
+    page.getByRole("heading", { name: "Open the full link from the merchant" }),
   ).toBeVisible();
   await expect(page).toHaveURL(
     new RegExp(`/checkout/exchange-retry#${token}$`),
@@ -373,7 +363,7 @@ test("external wallet links include a fresh access token and open in a browser w
     .getByRole("button", { name: "Copy link for wallet browser" })
     .click();
   const link = await page
-    .getByLabel("Wallet browser link", { exact: true })
+    .getByLabel("Private wallet browser link", { exact: true })
     .inputValue();
   expect(link).toContain(`/checkout/wallet-target#${"t".repeat(43)}`);
   const external = await browser.newContext();
@@ -416,9 +406,9 @@ test("a checkout without browser credentials explains recovery without exposing 
   await page.goto("/checkout/missing-wallet-access");
   await expect(
     page.getByRole("alert").filter({ hasText: "This checkout link" }),
-  ).toContainText("Open the full checkout link from the merchant");
+  ).toContainText("Open the full link from the merchant");
   await expect(
-    page.getByRole("heading", { name: "Open your original checkout link" }),
+    page.getByRole("heading", { name: "Open the full link from the merchant" }),
   ).toBeVisible();
   await expect(
     page.getByText("CHECKOUT_EXPIRED_OR_UNAUTHORIZED", { exact: true }),

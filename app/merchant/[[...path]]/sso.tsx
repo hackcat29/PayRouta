@@ -63,11 +63,6 @@ export function SsoSettings({
   return (
     <section>
       <h2>Single sign-on</h2>
-      <p>
-        Let your team sign in with your company&apos;s identity provider (Okta,
-        Microsoft Entra ID, Google Workspace or any SAML 2.0 or OpenID Connect
-        provider). Changes need a recent authenticator check.
-      </p>
 
       {providers.length > 0 && (
         <table>

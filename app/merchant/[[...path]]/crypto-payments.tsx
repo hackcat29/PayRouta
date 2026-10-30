@@ -47,28 +47,6 @@ export function CryptoPayments({
     <>
       <section>
         <h2>Crypto wallet payments</h2>
-        <p>
-          Accept supported native coins and original token deployments directly
-          from Web3 wallets. You receive the chosen coin in your own wallet.
-          Rates are powered by CoinGecko.
-        </p>
-        <p>
-          Quotes last two minutes. Our fee is 1.5% of each payment, all in,
-          billed separately. Customers pay their wallet’s network fee. Exchange
-          app payments:{" "}
-          <span className="merchant-status-badge">Coming soon</span>
-        </p>
-        {environment === "sandbox" && (
-          <p>
-            Use test coins only. Mainnet tokens are not advertised on test
-            networks without an official test deployment.
-          </p>
-        )}
-        <p>
-          Only original or canonical native deployments are listed. Wrapped and
-          bridged copies are excluded. Stellar currently has 12 qualifying
-          crypto coins; its stablecoins are listed separately.
-        </p>
         <label>
           Filter crypto network
           <select
@@ -147,11 +125,6 @@ export function CryptoPayments({
         <>
           <section>
             <h2>Add crypto receive addresses</h2>
-            <p>
-              Use fresh merchant-owned addresses, one per checkout. Keep your
-              recovery phrases and private keys private. Saving requires recent
-              authenticator verification.
-            </p>
             <form
               onSubmit={async (e) => {
                 e.preventDefault();

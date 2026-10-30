@@ -1,5 +1,4 @@
 "use client";
-import Link from "next/link";
 import { ReactNode, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { countries, fiat } from "@/lib/portal/domain";
@@ -33,29 +32,22 @@ const steps = [
   {
     id: "business",
     title: "Your business",
-    description: "Tell us who you are and where your business operates.",
   },
   {
     id: "methods",
     title: "How customers pay",
-    description: "Choose how customers can pay you in crypto. Everything else turns on with activation.",
   },
   {
     id: "settlement",
     title: "Currencies and markets",
-    description:
-      "Tell us which currencies you expect and where your customers are. Your providers pay you directly into the account you set up with them.",
   },
   {
     id: "documents",
     title: "Verify your business",
-    description:
-      "Upload only the documents PayRouta asks for. The list below is based on your application.",
   },
   {
     id: "review",
     title: "Review",
-    description: "Check the details before asking for a live-access review.",
   },
 ] as const;
 
@@ -226,25 +218,25 @@ function SearchableMultiSelect({
         placeholder={`Search ${options.length} options`}
         autoComplete="off"
       />
-      <label htmlFor={id}>{label}</label>
-      <select
-        id={id}
-        multiple
-        size={6}
-        value={selected}
-        onChange={(event) =>
-          onChange(
-            Array.from(event.target.selectedOptions, (option) => option.value),
-          )
-        }
-      >
+      <fieldset className="ms-checklist">
+        <legend>{label}</legend>
         {shown.map((option) => (
-          <option key={option.value} value={option.value}>
+          <label key={option.value} className="ms-check">
+            <input
+              type="checkbox"
+              checked={selected.includes(option.value)}
+              onChange={(event) =>
+                onChange(
+                  event.target.checked
+                    ? [...selected, option.value]
+                    : selected.filter((value) => value !== option.value),
+                )
+              }
+            />{" "}
             {option.label}
-          </option>
+          </label>
         ))}
-      </select>
-      <p>Hold Ctrl or Command to choose more than one.</p>
+      </fieldset>
     </div>
   );
 }
@@ -363,7 +355,6 @@ export function Onboarding({
         aria-labelledby="merchant-setup-heading"
       >
         <p className="ms-step-meta">
-          Step {step + 1} of {steps.length}
           <span
             className={`ms-pill ${state === "Approved" ? "good" : state === "Draft" ? "" : "info"}`}
           >
@@ -371,7 +362,6 @@ export function Onboarding({
           </span>
         </p>
         <h2 id="merchant-setup-heading">{steps[step].title}</h2>
-        <p>{steps[step].description}</p>
         {typeof value.reviewFeedback === "string" && (
           <p>{value.reviewFeedback}</p>
         )}
@@ -414,7 +404,6 @@ export function Onboarding({
             />
             <label htmlFor="merchant-website">
               Website or social page
-              <small>No website? Use your Instagram, Facebook or WhatsApp Business link.</small>
               <input
                 id="merchant-website"
                 type="url"
@@ -464,10 +453,6 @@ export function Onboarding({
         {step === 1 && (
           <fieldset>
             <legend>Crypto your customers can pay with</legend>
-            <p className="ms-hint">
-              Cards, digital wallets, bank transfer, mobile money, USSD and pay with credit turn on when you{" "}
-              <Link href="/merchant/activation">activate payments</Link>.
-            </p>
             {supportedMethods.map((method) => (
               <label key={method}>
                 <input
@@ -491,13 +476,6 @@ export function Onboarding({
 
         {step === 2 && (
           <div>
-            <p>
-              Your payout bank account and identity details are collected
-              separately, encrypted, in{" "}
-              <Link href="/merchant/activation">Activate payments</Link>.
-              Payouts go to that account; regulated processing partners hold
-              your balance until then, never PayRouta&apos;s own bank accounts.
-            </p>
             <SearchableMultiSelect
               id="merchant-settlement-currencies"
               label="Currencies you expect to be paid in"
@@ -570,7 +548,7 @@ export function Onboarding({
           <div>
             {requirements.length ? (
               <>
-                <p>Based on this application, upload these documents:</p>
+                <h3>Documents to upload</h3>
                 <ul>
                   {requirements.map((requirement) => (
                     <li key={requirement}>{requirement}</li>
@@ -578,10 +556,7 @@ export function Onboarding({
                 </ul>
               </>
             ) : (
-              <p>
-                No documents are required yet. Save the earlier steps so
-                PayRouta can determine what is needed.
-              </p>
+              <p>No documents are required yet.</p>
             )}
             {evidencePanel}
           </div>

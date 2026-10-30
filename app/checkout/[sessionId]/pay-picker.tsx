@@ -94,7 +94,7 @@ export function PayPicker({
           setKey("");
         }}
       >
-        <option value="">Choose the network you pay from</option>
+        <option value="">Choose a network</option>
         {options.chains.map((c) => (
           <option key={c.id} value={c.id}>
             {c.name}
@@ -113,7 +113,7 @@ export function PayPicker({
       </select>
       {token?.route === "swap" && (
         <>
-          <label htmlFor="pay-refund">Your {network!.name} address, for refunds</label>
+          <label htmlFor="pay-refund">Refund address on {network!.name}</label>
           <input
             id="pay-refund"
             value={refundTo}
@@ -122,17 +122,7 @@ export function PayPicker({
             spellCheck={false}
             onChange={(e) => setRefundTo(e.target.value)}
           />
-          <p>
-            You&apos;ll get the exact {token.symbol} amount and a one-time address next. The merchant receives{" "}
-            {options.settle ? `${displayTokenAmount(options.settle.amount)} ${options.settle.symbol}` : "the full amount"}; the
-            swap runs on NEAR Intents and is refunded to this address if it can&apos;t complete.
-          </p>
         </>
-      )}
-      {token?.route === "direct" && token.amount && (
-        <p>
-          You send exactly {displayTokenAmount(token.amount)} {token.symbol} on {network!.name}, straight to the merchant.
-        </p>
       )}
       <button
         className="sc-primary"

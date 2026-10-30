@@ -48,15 +48,6 @@ const labels: Record<string, string> = {
   "direct-debit": "Direct debit",
   bnpl: "Pay with credit",
 };
-const blurbs: Record<string, string> = {
-  card: "Visa, Mastercard and more. Apple Pay and Google Pay where available.",
-  "bank-transfer": "Pay from your bank account or banking app.",
-  "mobile-money": "M-Pesa, MTN MoMo and other mobile wallets.",
-  ussd: "Dial a short code from your phone. No internet needed.",
-  "digital-wallet": "Pay with your digital wallet.",
-  "direct-debit": "Authorise a one-off debit from your bank account.",
-  bnpl: "Spread the cost with a licensed lender. See the full cost before you agree.",
-};
 
 // A plan a licensed lender offers for this payment (lib/treasury/credit-checkout).
 type CreditOffer = {
@@ -321,9 +312,6 @@ export function FiatCheckout({ id, initial }: { id: string; initial: Progress })
           </svg>
         </div>
         <h2>Payment successful</h2>
-        <p>
-          {total} paid to {data.merchant}. You can close this page or return to the merchant.
-        </p>
         <a className="fc-pay" href={data.returnUrl} onClick={toMerchant}>
           Return to {data.merchant}
         </a>
@@ -334,14 +322,13 @@ export function FiatCheckout({ id, initial }: { id: string; initial: Progress })
       <div className="fc-result" role="status">
         <div className="fc-spinner" aria-hidden />
         <h2>Confirming your payment</h2>
-        <p>Please don&apos;t pay again; this page updates automatically.</p>
+        <p>Don&apos;t pay again.</p>
       </div>
     );
   else if (inFlight && action?.kind === "redirect" && action.url)
     panel = (
       <div className="fc-result">
         <h2>Continue to secure payment</h2>
-        <p>You&apos;ll enter your details on our secure payment page and come straight back here.</p>
         <a
           className="fc-pay"
           href={action.url}
@@ -351,17 +338,12 @@ export function FiatCheckout({ id, initial }: { id: string; initial: Progress })
         >
           Continue to pay {total}
         </a>
-        <p className="fc-small">Already paid? This page updates automatically.</p>
       </div>
     );
   else if (inFlight && action?.kind === "sandbox" && data.selectedMethod === "bnpl")
     panel = (
       <div className="fc-result">
         <h2>Test credit approval</h2>
-        <p>
-          This is a sandbox checkout with a fictional lender: no credit check runs and nobody owes anything. A real
-          lender would confirm who you are and approve the plan here.
-        </p>
         <button className="fc-pay" disabled={busy} onClick={() => void completeTest()}>
           {busy ? "Approving…" : "Approve test credit"}
         </button>
@@ -371,7 +353,6 @@ export function FiatCheckout({ id, initial }: { id: string; initial: Progress })
     panel = (
       <div className="fc-result">
         <h2>Test payment</h2>
-        <p>This is a sandbox checkout: no real money moves. Complete the test payment to see what your customer sees.</p>
         <button className="fc-pay" disabled={busy} onClick={() => void completeTest()}>
           {busy ? "Completing…" : `Complete test payment of ${total}`}
         </button>
@@ -382,18 +363,13 @@ export function FiatCheckout({ id, initial }: { id: string; initial: Progress })
       <div className="fc-result" role="status">
         <div className="fc-spinner" aria-hidden />
         <h2>{data.attemptState === "Pending" ? "Confirming your payment" : "Preparing your payment"}</h2>
-        <p>
-          {data.attemptState === "Pending"
-            ? "Your bank or provider is confirming the payment. Please don't pay again; this page updates automatically."
-            : "This usually takes a few seconds."}
-        </p>
+        {data.attemptState === "Pending" && <p>Don&apos;t pay again.</p>}
       </div>
     );
   else if (expired)
     panel = (
       <div className="fc-result">
         <h2>This checkout has expired</h2>
-        <p>Return to {data.merchant} to start a new payment.</p>
         <a className="fc-pay" href={data.returnUrl} onClick={toMerchant}>
           Return to {data.merchant}
         </a>
@@ -422,7 +398,6 @@ export function FiatCheckout({ id, initial }: { id: string; initial: Progress })
                 </span>
                 <span className="fc-method-text">
                   <strong>{labels[m.method]}</strong>
-                  <small>{m.localizedBlurb || blurbs[m.method]}</small>
                 </span>
                 {m.method === "card" && (
                   <span className="fc-brands" aria-hidden>
@@ -459,13 +434,12 @@ export function FiatCheckout({ id, initial }: { id: string; initial: Progress })
             </span>
             <span className="fc-method-text">
               <strong>Stablecoins or crypto</strong>
-              <small>Pay from any wallet, on the network you already use.</small>
             </span>
             <span aria-hidden>→</span>
           </button>
         )}
         {credit && (
-          <CreditPlans offers={offers} plan={plan} onPlan={setPlan} merchant={data.merchant} />
+          <CreditPlans offers={offers} plan={plan} onPlan={setPlan} />
         )}
         {!!methods?.length && (
           <button className="fc-pay" disabled={busy || !choice || (credit && !chosenPlan)} onClick={() => void pay()}>
@@ -527,16 +501,13 @@ export function FiatCheckout({ id, initial }: { id: string; initial: Progress })
           {(data.taxAmount || data.payerCountry) && !confirmed && !inFlight && !expired && (
             <div className="fc-tax-box">
               <label htmlFor="fc-tax-id-input">Business VAT / Tax ID</label>
-              <span id="fc-tax-id-hint" className="fc-tax-hint">
-                Country prefix + ID (e.g. DE123456789) for B2B reverse charge
-              </span>
               <input
                 id="fc-tax-id-input"
                 name="buyerTaxId"
                 type="text"
                 autoComplete="off"
                 pattern="[A-Za-z]{2}[A-Za-z0-9]{5,15}"
-                aria-describedby="fc-tax-id-hint"
+                placeholder="DE123456789"
                 aria-invalid={taxIdInvalid ? "true" : undefined}
                 value={buyerTaxId}
                 onChange={(e) => {
@@ -591,12 +562,10 @@ function CreditPlans({
   offers,
   plan,
   onPlan,
-  merchant,
 }: {
   offers: CreditOffer[] | null;
   plan: string;
   onPlan: (key: string) => void;
-  merchant: string;
 }) {
   if (offers === null) return <div className="fc-skeleton fc-skeleton-short" aria-label="Loading credit plans" />;
   if (!offers.length)
@@ -638,14 +607,8 @@ function CreditPlans({
           );
         })}
       </div>
-      <ol className="fc-credit-steps" aria-label="Asynchronous credit stages">
-        <li aria-current="step">1. Choose plan</li>
-        <li>2. Lender approval</li>
-        <li>3. Disbursed</li>
-        <li>4. Confirmed</li>
-      </ol>
       <p className="fc-small">
-        Provided by {lenders.join(" or ")} · {merchant} is paid in full today.{" "}
+        Provided by {lenders.join(" or ")} ·{" "}
         {offers[0] && (
           <a href={offers.find((o) => o.key === plan)?.termsUrl || offers[0].termsUrl} target="_blank" rel="noreferrer">
             Lender terms

@@ -122,10 +122,6 @@ export function Ops({ data, route }: { data: OpsData; route: string }) {
               </Panel>
             </div>
             <Panel title="Evidence review">
-              <p>
-                Unscanned uploads stay quarantined. Fixture-only evidence is
-                usable solely for fictional sandbox review.
-              </p>
               <Table
                 headings={["Document", "Scan", "Decision", "Expiry", "Review"]}
               >
@@ -197,10 +193,6 @@ export function Ops({ data, route }: { data: OpsData; route: string }) {
                   </tr>
                 ))}
               </Table>
-              <p className="p-muted">
-                Simulator success does not establish readiness for a real
-                production integration.
-              </p>
             </Panel>
             <div className="p-columns">
               <Panel title="Record a decision">

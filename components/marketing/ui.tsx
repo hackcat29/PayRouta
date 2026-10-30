@@ -40,12 +40,10 @@ export function TextLink({ href, children }: { href: string; children: React.Rea
 // Top of a product page: what it is on the left, the product on the right.
 export function PageHero({
   title,
-  lead,
   actions,
   visual,
 }: {
   title: React.ReactNode;
-  lead: React.ReactNode;
   actions?: React.ReactNode;
   visual?: React.ReactNode;
 }) {
@@ -54,7 +52,6 @@ export function PageHero({
       <div className="mk-wrap pp-hero-grid">
         <div className="pp-hero-copy">
           <h1 className="mk-h1">{title}</h1>
-          <p className="mk-lead">{lead}</p>
           {actions && <div className="mk-actions">{actions}</div>}
         </div>
         {visual && <div className="pp-hero-visual">{visual}</div>}
@@ -89,14 +86,13 @@ export function Feature({
 }
 
 // Numbered steps, read left to right (top to bottom on phones).
-export function Steps({ steps }: { steps: [string, string][] }) {
+export function Steps({ steps }: { steps: string[] }) {
   return (
     <ol className="pp-steps">
-      {steps.map(([title, text], i) => (
+      {steps.map((title, i) => (
         <li key={title}>
           <span className="pp-step-n">{i + 1}</span>
           <b>{title}</b>
-          <span>{text}</span>
         </li>
       ))}
     </ol>

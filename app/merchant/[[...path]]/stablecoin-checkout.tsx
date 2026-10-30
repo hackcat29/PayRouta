@@ -54,14 +54,9 @@ export function StablecoinCheckout({
   return (
     <section>
       <h2>Create stablecoin checkout</h2>
-      <p>
-        Choose the tokens and networks your customer can pay with. Enter an
-        exact amount for each option; EURC amounts are priced separately.
-      </p>
       {!assets.some((a) => a.executionEnabled) ? (
         <p>
-          Configure receive addresses and complete the required approvals before
-          creating a checkout.
+          Add receive addresses first.
         </p>
       ) : (
         <form
@@ -132,10 +127,6 @@ export function StablecoinCheckout({
               })}
             <button>Create checkout link</button>
           </fieldset>
-          <p>
-            Checkout links expire after 30 minutes. Creating one requires recent
-            authenticator verification.
-          </p>
         </form>
       )}
       {pending && !result && (

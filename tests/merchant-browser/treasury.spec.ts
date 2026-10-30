@@ -40,7 +40,7 @@ test("merchant treasury: activation, balances, disputes and refunds, only in Pay
   // A submitted merchant sees where its review is.
   await page.goto(`/merchant/activation${q(submitted.orgId)}`);
   await expect(page.getByRole("list", { name: "Review progress" })).toBeVisible();
-  await expect(page.getByText("We have your details and will start the review shortly.")).toBeVisible();
+  await expect(page.getByText("Submitted", { exact: true }).first()).toBeVisible();
 
   // Balances: what can be paid out and what is reserved.
   await page.goto(`/merchant/balances${q(live.orgId)}`);

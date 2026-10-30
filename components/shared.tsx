@@ -16,10 +16,8 @@ export function Footer() {
         <div className="mk-footer-grid">
           <div className="mk-footer-brand">
             <BrandLogo reverse />
-            <p>One checkout for every way the world pays.</p>
             <div className="mk-letter">
               <h2>The monthly letter</h2>
-              <p>What shipped, and what&apos;s next.</p>
               <NewsletterSignup />
             </div>
           </div>

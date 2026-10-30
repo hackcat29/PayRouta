@@ -23,7 +23,7 @@ export function LegalPage({
         <header className="mk-article-head">
           <h1 className="mk-h1">{title}</h1>
           <p className="mk-dateline">Last updated {legal.updated}</p>
-          <p className="mk-lead">{intro}</p>
+          <p>{intro}</p>
         </header>
         <nav className="mk-contents" aria-label="Contents">
           <ol>

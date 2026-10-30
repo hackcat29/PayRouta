@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { pages, type PageSlug } from "@/content/marketing";
+import { type PageSlug } from "@/content/marketing";
 import { availabilityLabel, markets, payouts, pillars, platforms, pricing } from "@/content/claims";
 import { defaultPartnerCaps } from "@/lib/payments/pricing";
 import { createLinkHref, docsUrl, paths, trustedOrigin } from "@/lib/site-config";
@@ -65,7 +65,6 @@ function PaymentLinks() {
     <>
       <PageHero
         title="Get paid with a link."
-        lead={pages["payment-links"].intro}
         actions={
           <>
             <Btn href={createLinkHref}>Create a payment link</Btn>
@@ -79,9 +78,9 @@ function PaymentLinks() {
       <Feature title="Ready in a minute" tone="paper">
         <Steps
           steps={[
-            ["Create", "Say what it's for, the amount, and the ways customers can pay."],
-            ["Share", "Send it on WhatsApp, Instagram, by SMS, on an invoice or as a QR code."],
-            ["Get paid", "Every payment appears in your dashboard with the link's name on it."],
+            "Create a link",
+            "Share it on WhatsApp, Instagram or SMS",
+            "Get paid",
           ]}
         />
       </Feature>
@@ -127,7 +126,6 @@ function Checkout() {
     <>
       <PageHero
         title="One button. Every way to pay."
-        lead={pages.checkout.intro}
         actions={
           <>
             <Btn href={paths.signUp}>Get started</Btn>
@@ -181,7 +179,6 @@ function Credit() {
     <>
       <PageHero
         title="Customers pay over time. You're paid today."
-        lead={pages.credit.intro}
         actions={
           <>
             <Btn href={paths.signUp}>Get started</Btn>
@@ -196,17 +193,17 @@ function Credit() {
         <div className="mk-wrap">
           <p className="pp-notice">
             Credit opens country by country as licensed lenders join PayRouta. You can try it in test mode today with a
-            fictional lender.
+            test lender.
           </p>
         </div>
       )}
       <Feature title="How it works" tone="paper">
         <Steps
           steps={[
-            ["Choose", "Your customer picks Pay with credit and a plan at checkout."],
-            ["Approve", "The lender checks and approves them in the checkout."],
-            ["Get paid", "The lender pays you the full price."],
-            ["Repay", "Your customer repays the lender in instalments."],
+            "Customer picks a plan",
+            "Lender approves",
+            "You get the full price",
+            "Customer repays the lender",
           ]}
         />
       </Feature>
@@ -239,7 +236,6 @@ function Crypto() {
     <>
       <PageHero
         title="Take crypto from any wallet, on any chain."
-        lead={pages.crypto.intro}
         actions={
           <>
             <Btn href={paths.signUp}>Get started</Btn>
@@ -279,7 +275,7 @@ function Pricing() {
   const { partnerProcessed: partner, payroutaOnly: direct } = pricing;
   return (
     <>
-      <PageHero title="Pay only for payments that succeed" lead={pages.pricing.intro} />
+      <PageHero title="Pay only for payments that succeed" />
       <section className="pp-band pp-flush-top">
         <div className="mk-wrap">
           <div className="pr-plans">
@@ -316,7 +312,7 @@ function Pricing() {
               the fee as its own line before paying. Set a default in your dashboard and override it on any payment.
               Businesses in the EU and UK can&apos;t add card or bank fees for customers; the law there forbids it.
             </p>
-            <p className="mk-table-caption">A $100 card order, partner rate 2.9% + 30¢</p>
+            <h3 className="mk-h3">A $100 card order at 2.9% + 30¢</h3>
             <FeeBars />
           </div>
           <div>
@@ -348,7 +344,7 @@ function Pricing() {
 function Partners() {
   return (
     <>
-      <PageHero title="Reach every merchant on PayRouta" lead={pages.partners.intro} />
+      <PageHero title="Reach every merchant on PayRouta" />
       <section className="pp-band pp-flush-top" aria-labelledby="pa-where">
         <div className="mk-wrap">
           <h2 className="mk-h2" id="pa-where">
@@ -369,9 +365,6 @@ function Partners() {
         <div className="mk-wrap mk-contact">
           <div className="mk-contact-form" id="request">
             <h2 className="mk-box-title">Request provider access</h2>
-            <p className="mk-box-note mk-request-lead">
-              Access is by invitation. Tell us about your service and our partnerships team will review it.
-            </p>
             <ProviderAccessForm />
           </div>
           <aside className="mk-box">
@@ -433,7 +426,6 @@ function Integrations() {
     <>
       <PageHero
         title="Take payments wherever you sell."
-        lead={pages.integrations.intro}
         actions={
           <>
             <Btn href={paths.signUp}>Get started</Btn>
@@ -495,7 +487,6 @@ function PaymentMethods() {
     <>
       <PageHero
         title="The ways the world pays, in one checkout."
-        lead={pages["payment-methods"].intro}
         actions={
           <>
             <Btn href={paths.signUp}>Get started</Btn>
@@ -576,7 +567,6 @@ function SocialSellers() {
     <>
       <PageHero
         title="Sell in the chat. Get paid in the chat."
-        lead={pages["social-sellers"].intro}
         actions={
           <>
             <Btn href={createLinkHref}>Create a payment link</Btn>
@@ -590,9 +580,9 @@ function SocialSellers() {
       <Feature title="No website, no app, no problem" tone="paper">
         <Steps
           steps={[
-            ["Post", "Show the item on WhatsApp, Instagram or TikTok as you do now."],
-            ["Send the link", "Make a link for it once and send it to every buyer."],
-            ["Get paid", "Each buyer pays on their own checkout. You see every payment in one place."],
+            "Post the item",
+            "Send buyers the link",
+            "Each buyer pays on their own checkout",
           ]}
         />
       </Feature>
@@ -619,7 +609,6 @@ function OnlineStores() {
     <>
       <PageHero
         title="Every way to pay at your store's checkout."
-        lead={pages["online-stores"].intro}
         actions={
           <>
             <Btn href={paths.signUp}>Get started</Btn>
@@ -658,7 +647,6 @@ function Saas() {
     <>
       <PageHero
         title="Sell worldwide. Let every customer pay their way."
-        lead={pages.saas.intro}
         actions={
           <>
             <Btn href={paths.signUp}>Get started</Btn>
@@ -682,7 +670,6 @@ function Saas() {
       <section className="pp-band pp-night">
         <div className="mk-wrap">
           <h2 className="mk-h2">Customers with no card can pay in stablecoins</h2>
-          <p className="pp-night-lead">From any wallet on any chain. You receive the exact stablecoin you chose, in your own wallet.</p>
           <CryptoRoute />
         </div>
       </section>

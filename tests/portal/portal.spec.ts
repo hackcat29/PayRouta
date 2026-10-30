@@ -669,7 +669,7 @@ test("access request, ops approval, invited sign-up, MFA and recipient-bound inv
   await page.getByLabel("Current password").fill("New-Local-Account-123!");
   await page.getByRole("button", { name: "Set up authenticator" }).click();
   await expect(
-    page.getByText("Add this secret to your authenticator.", { exact: false }),
+    page.getByText("Authenticator secret", { exact: true }),
   ).toBeVisible();
   const factor = await db.twoFactor.findFirstOrThrow({
     where: { userId: user.id },

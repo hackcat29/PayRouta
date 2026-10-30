@@ -37,9 +37,6 @@ export default function Home() {
         <div className="mk-wrap hp-hero-grid">
           <div className="hp-hero-copy">
             <h1 className="hp-h1">One checkout for every way the world pays.</h1>
-            <p className="hp-sub">
-              One link or one button. Customers pay by card, bank, mobile money, crypto or credit. You get paid in full.
-            </p>
             <div className="hp-cta">
               <Link className="mk-btn primary" href={createLinkHref}>
                 Create a payment link
@@ -150,13 +147,11 @@ export default function Home() {
       <section className="hp-sec hp-doors" aria-label="For lenders and payment providers">
         <div className="mk-wrap hp-doors-grid">
           <Link className="hp-door" href={`${paths.partners}#request`}>
-            <span className="hp-door-kicker">Lenders</span>
-            <span className="hp-door-title">Offer instalments at every PayRouta checkout in the countries you lend in.</span>
+            <span className="hp-door-title">Lenders</span>
             <More>Become a credit partner</More>
           </Link>
           <Link className="hp-door" href={`${paths.partners}#request`}>
-            <span className="hp-door-kicker">Payment providers</span>
-            <span className="hp-door-title">Process payments for PayRouta merchants where you&apos;re licensed.</span>
+            <span className="hp-door-title">Payment providers</span>
             <More>Request provider access</More>
           </Link>
         </div>

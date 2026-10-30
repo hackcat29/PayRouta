@@ -29,10 +29,6 @@ export function MerchantTeam({
   return (
     <section>
       <h2>Merchant team</h2>
-      <p>
-        Merchant roles are separate from provider roles. Changes require recent
-        authenticator verification.
-      </p>
       <form
         onSubmit={(event) => {
           event.preventDefault();

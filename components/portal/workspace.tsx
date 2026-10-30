@@ -127,10 +127,6 @@ export function Workspace({
         <Solo>
           <section>
             <h1>Join your provider workspace</h1>
-            <p>
-              You&apos;ve been invited to a PayRouta provider workspace. Accept the invitation to open it, then
-              complete the application, connect your API and run the sandbox tests.
-            </p>
             <p>The invitation only works for the email address it was sent to.</p>
             {status}
             <div className="pv-primary">
@@ -166,10 +162,6 @@ export function Workspace({
       <Solo>
         <section>
           <h1>No provider access yet</h1>
-          <p>
-            The provider workspace is for payment providers approved by PayRouta. If you run a payment service,
-            request access and our partnerships team will review it. Approved providers get an email invitation.
-          </p>
           <p className="pv-solo-actions">
             <Link className="ms-btn primary" href="/partners#request">
               Request provider access
@@ -266,7 +258,6 @@ export function Workspace({
         <Panel
           flush
           title="Proposed payment methods"
-          description="Drafts stay separate from what's published. New corridors and permissions need review."
           action={
             permission("configure") && (
               <Modal label="Add payment method" title="Define a payment capability">
@@ -461,7 +452,6 @@ export function Workspace({
               <dt>Your role</dt>
               <dd>{role}</dd>
             </dl>
-            <p>To add another legal entity, ask your PayRouta partnerships contact. New provider organizations are set up by our team.</p>
           </Panel>
           {security}
           {data.internalRole && (
@@ -519,7 +509,6 @@ export function Workspace({
             <Panel
               flush
               title="Needs attention"
-              description="Executions that haven't confirmed."
               action={<Link href={href("transactions")}>All transactions →</Link>}
             >
               {exceptions.length ? (
@@ -548,7 +537,7 @@ export function Workspace({
           ) : (
             !limited && (
               <div className="ms-grid-2">
-                <Panel title={completed === steps.length ? "Ready to submit" : "Application checklist"} description={`${completed} of ${steps.length} done`}>
+                <Panel title={completed === steps.length ? "Ready to submit" : "Application checklist"}>
                   {guide()}
                 </Panel>
                 <div className="pv-stack">
@@ -571,16 +560,11 @@ export function Workspace({
                   {(draft.company as { providerType?: string } | undefined)?.providerType === "Lender / consumer-credit provider" && (
                     <Panel title="Lending through PayRouta">
                       <p>
-                        Your credit plans appear at every PayRouta checkout in the countries you lend in. You price each
-                        plan, approve the customer and pay the merchant; the customer repays you.
-                      </p>
-                      <p>
                         <a href={docsUrl("credit")}>Read the credit partner contract →</a>
                       </p>
                     </Panel>
                   )}
                   <Panel title="Test before you submit">
-                    <p>Run fictional scenarios and see how your integration handles timeouts and uncertain outcomes.</p>
                     <p>
                       <Link href={href("sandbox")}>Open sandbox tests →</Link>
                     </p>
@@ -598,12 +582,11 @@ export function Workspace({
           title={completed === steps.length ? "Everything's ready" : "Complete your application"}
           description={
             <>
-              {completed} of {steps.length} sections ready · Draft v{version} · Last saved <DateText value={app?.updatedAt} />
+              Draft v{version} · Last saved <DateText value={app?.updatedAt} />
             </>
           }
         >
           {guide(true)}
-          <p>Save sections in any order. Each save checks for changes made by your teammates in the meantime.</p>
         </Panel>
       );
     if (route === "onboarding/company")
@@ -626,7 +609,6 @@ export function Workspace({
           />
           <Panel
             title="Connection check"
-            description="Runs from a restricted worker. Reaching your endpoint doesn't prove the payment integration is ready."
           >
             <div>
               <Action
@@ -658,14 +640,10 @@ export function Workspace({
     if (route === "onboarding/review")
       return (
         <>
-          <Panel title="Checklist" description={`${completed} of ${steps.length} sections ready`}>
+          <Panel title="Checklist">
             {guide(true)}
           </Panel>
           <Panel title={app?.state === "Changes requested" ? "Resubmit your application" : "Submit your application"}>
-            <p>
-              Submitting freezes draft v{version} with its requirement versions, document references and integration
-              versions. Later edits go into a new draft.
-            </p>
             <p>Documents may still be waiting for scanning or review. Submitting isn&apos;t approval or activation.</p>
             <div>
               <Action
@@ -687,7 +665,7 @@ export function Workspace({
     if (route === "sandbox")
       return (
         <>
-          <Panel title="Run a scenario" description="Fictional scenarios against the local simulator. Passing them doesn't establish production readiness.">
+          <Panel title="Run a scenario">
             <form
               className="ms-inline"
               onSubmit={(e) => {
@@ -782,7 +760,6 @@ export function Workspace({
         <Panel
           flush
           title="Capability status"
-          description="Reports expire. A manual Available report can't override a suspension, missing documents or an unpublished capability."
         >
           {caps.length ? (
             <Table headings={["Capability", "You reported", "We observed", "Readiness", "Report status"]}>
@@ -973,7 +950,6 @@ export function Workspace({
         <Panel
           flush
           title="Settlement monitoring"
-          description="Execution and settlement are tracked separately. This workspace has no fund-transfer controls."
         >
           {data.settlements?.length ? (
             <Table headings={["Reconciliation reference", "Amount", "State", "Created", "Completed"]}>
@@ -1070,10 +1046,6 @@ export function Workspace({
                 <dt>Current health observations</dt>
                 <dd>{data.availability?.filter((a) => a.source !== "Provider reported" && current(a)).length || 0}</dd>
               </dl>
-              <p>
-                {sandbox ? "Fictional sandbox records." : "Stored production records."} Amounts stay in their original
-                assets; currencies aren&apos;t combined.
-              </p>
             </Panel>
           </div>
         </>
@@ -1081,7 +1053,7 @@ export function Workspace({
     }
     if (route === "integration/events")
       return (
-        <Panel flush title="Integration events" description="Only sanitized summaries are stored and shown.">
+        <Panel flush title="Integration events">
           {data.events?.length ? (
             <Table headings={["Event", "State", "Summary", "Created", ""]}>
               {data.events.map((e) => (

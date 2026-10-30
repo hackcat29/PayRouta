@@ -89,7 +89,6 @@ export function ProviderAccessForm() {
       <div className="contact-form" role="status">
         <h3 className="mk-box-title">Request received</h3>
         <p>{status}</p>
-        <p>We usually reply within five working days. Approved providers get an email invitation to set up their login.</p>
       </div>
     );
 

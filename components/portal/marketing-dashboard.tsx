@@ -338,9 +338,6 @@ export function MarketingDashboard() {
               {analytics?.resendStatus.configured ? "Resend Live API" : "Local Sandbox Simulator"}
             </span>
           </div>
-          <p style={{ margin: "6px 0 0 0", color: "#94A3B8", fontSize: "14px" }}>
-            Automated multi-rail onboarding drips, developer broadcasts, and transactional deliverability.
-          </p>
         </div>
         <button
           onClick={fetchAnalytics}
@@ -989,9 +986,6 @@ export function MarketingDashboard() {
               <h2 style={{ fontSize: "17px", fontWeight: 600, color: "#FFFFFF", margin: 0 }}>
                 Automated Merchant Onboarding Flow
               </h2>
-              <p style={{ margin: "4px 0 0 0", color: "#94A3B8", fontSize: "13px" }}>
-                3-stage lifecycle drip delivering guides, failover benchmarks, and stablecoin settlement tips.
-              </p>
             </div>
             <button
               onClick={handleTriggerDrips}
@@ -1022,9 +1016,6 @@ export function MarketingDashboard() {
               <h3 style={{ fontSize: "15px", color: "#FFFFFF", margin: "8px 0 6px 0" }}>
                 Welcome to PayRouta Routing
               </h3>
-              <p style={{ fontSize: "13px", color: "#94A3B8", lineHeight: 1.5, margin: 0 }}>
-                Sends API keys overview, curl test command, sandbox switch, and initial fallback configuration steps.
-              </p>
             </div>
 
             <div style={{ background: "#0B0F19", border: "1px solid #1E293B", borderRadius: "8px", padding: "18px" }}>
@@ -1034,9 +1025,6 @@ export function MarketingDashboard() {
               <h3 style={{ fontSize: "15px", color: "#FFFFFF", margin: "8px 0 6px 0" }}>
                 Multi-Rail Failover Masterclass
               </h3>
-              <p style={{ fontSize: "13px", color: "#94A3B8", lineHeight: 1.5, margin: 0 }}>
-                Explains how automatic failover recovers 22% of failed card transactions across Paystack and Flutterwave.
-              </p>
             </div>
 
             <div style={{ background: "#0B0F19", border: "1px solid #1E293B", borderRadius: "8px", padding: "18px" }}>
@@ -1046,9 +1034,6 @@ export function MarketingDashboard() {
               <h3 style={{ fontSize: "15px", color: "#FFFFFF", margin: "8px 0 6px 0" }}>
                 Instant Stablecoin &amp; USDY Settlement
               </h3>
-              <p style={{ fontSize: "13px", color: "#94A3B8", lineHeight: 1.5, margin: 0 }}>
-                Deep dive into sub-second Solana/Stellar settlement and yield-bearing tokenized US Treasuries.
-              </p>
             </div>
           </div>
         </div>

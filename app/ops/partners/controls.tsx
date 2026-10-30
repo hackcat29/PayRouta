@@ -177,11 +177,6 @@ export function QualifyForm({ partners }: { partners: { id: string; name: string
       }}
     >
       <h3>Record sandbox qualification</h3>
-      <p>
-        Only after an end-to-end run in the provider&apos;s own sandbox. Reference the test
-        account, event and payment IDs for each step. Production connections cannot be enabled
-        without this.
-      </p>
       <label>
         Partner
         <select name="partnerId" required>

@@ -1590,3 +1590,7 @@ td.ms-link-actions > * + * { margin-left: 6px; }
 .ms-check-off { color: #8a9ba3; }
 .ms-check small { color: #8a9ba3; font-size: 12px; font-weight: 400; }
 
+
+/* Searchable checkbox list (onboarding SearchableMultiSelect). */
+.ms-checklist { display: grid; gap: 6px; max-height: 220px; overflow-y: auto; padding: 8px 10px; border: 1px solid #dfe3e6; border-radius: 8px; }
+.ms-checklist legend { font-weight: 600; padding: 0 4px; }

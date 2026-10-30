@@ -43,7 +43,6 @@ export function WebhookControls({
         <div className="ms-card-head">
           <div>
             <h2>Endpoint</h2>
-            <p>We send signed events here when payments change.</p>
           </div>
           <span className={`ms-pill ${url ? "good" : ""}`}>{url ? "Enabled" : "Not set up"}</span>
         </div>
@@ -107,11 +106,6 @@ export function WebhookControls({
                 )}
               </div>
             </form>
-            <p>
-              When rotating, keep accepting the old secret until the new one is
-              live. Check the key ID, timestamp, event ID and raw body on every
-              event.
-            </p>
           </>
         )}
         <p role="status">{message}</p>

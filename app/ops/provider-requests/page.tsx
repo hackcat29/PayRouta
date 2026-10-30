@@ -45,12 +45,6 @@ export default async function Page({
     <div className="portal p-simple">
       <Link href="/ops/applications">← Operations</Link>
       <h1>Provider access requests</h1>
-      <p>
-        Approving a request creates the provider organization and emails the
-        contact an owner invitation (valid 14 days). They set up their login
-        with that email address, then complete and submit their application
-        for review as usual.
-      </p>
       <nav className="p-toolbar" style={{ justifyContent: "flex-start" }} aria-label="Request filters">
         <Link className={`p-button ${state === "pending" ? "" : "secondary"}`} href="/ops/provider-requests">
           Pending ({pending})

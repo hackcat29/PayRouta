@@ -145,8 +145,7 @@ export function CrossChain({
               <strong>
                 {payment.send} {payment.symbol}
               </strong>{" "}
-              on <strong>{payment.chainName}</strong> to this one-time address. The merchant receives the exact amount
-              above.
+              on <strong>{payment.chainName}</strong>.
             </p>
             <label>Deposit address ({payment.chainName})</label>
             <code>{payment.depositAddress}</code>
@@ -167,8 +166,7 @@ export function CrossChain({
             </button>
             <p role="status">{statusText[payment.status] ?? "Checking the swap…"}</p>
             <p className="sc-pending">
-              Send before {new Date(payment.deadline).toLocaleTimeString()}. If the swap can&apos;t complete, it is refunded to{" "}
-              <code>{payment.refundTo}</code>. Swaps run on NEAR Intents, a liquidity layer for 125+ assets across 36+ chains; PayRouta never holds your funds.
+              Send before {new Date(payment.deadline).toLocaleTimeString()}. Refunds go to <code>{payment.refundTo}</code>.
             </p>
             {["REFUNDED", "FAILED"].includes(payment.status) && (
               <button type="button" onClick={() => setPayment(null)}>
@@ -179,12 +177,7 @@ export function CrossChain({
         </div>
       ) : (
         <div className="sc-cross-form">
-          <p>
-            {primary
-              ? "Pick the network and token you hold. You'll get a one-time address and the exact amount to send."
-              : "Hold a different token, or on another network? Pay with it. The merchant still receives the amount above."}
-          </p>
-          <label htmlFor="cc-chain">Network you pay from</label>
+          <label htmlFor="cc-chain">Network</label>
           <select
             id="cc-chain"
             value={network}
@@ -209,7 +202,7 @@ export function CrossChain({
               </option>
             ))}
           </select>
-          <label htmlFor="cc-refund">Your address on this network, for refunds</label>
+          <label htmlFor="cc-refund">Refund address</label>
           <input
             id="cc-refund"
             value={refundTo}

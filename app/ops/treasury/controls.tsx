@@ -73,8 +73,8 @@ export function TransitionControls({
   return (
     <div className="ot-box">
       <label>
-        Reason <small>(at least 10 characters; the merchant sees it when returned)</small>
-        <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} />
+        Reason for the merchant
+        <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="At least 10 characters" />
       </label>
       <div className="ot-actions">
         {targets.map((to) => (
@@ -204,7 +204,7 @@ export function ApproveForm({
         </label>
       </div>
       <label>
-        Decision note <small>(recorded in the audit trail)</small>
+        Decision note
         <textarea name="reason" rows={2} minLength={10} required />
       </label>
       {blockers && (
@@ -333,8 +333,8 @@ export function EntityForm() {
           <input name="jurisdiction" required placeholder="US-DE" />
         </label>
         <label>
-          Licensed to hold funds in <small>(countries, comma separated)</small>
-          <input name="licensed" placeholder="none" />
+          Licensed to hold funds in
+          <input name="licensed" placeholder="NG, KE (or leave empty)" />
         </label>
         <label>
           Reason
@@ -431,14 +431,6 @@ export function PlatformForm({
       <label>
         Non-secret configuration (JSON)
         <textarea name="config" rows={3} defaultValue="{}" />
-        <small>
-          Where PayRouta pays the partner (Stripe, dLocal, Tink), add the partner&apos;s published standard fee per
-          method; merchants are charged it on top of PayRouta&apos;s 1%, and a live account can&apos;t be enabled
-          without it. Example:{" "}
-          <code>
-            {`{"standardFees": {"card": {"bps": 290, "fixedMinor": {"USD": "30"}, "source": "https://stripe.com/pricing"}}}`}
-          </code>
-        </small>
       </label>
       {Array.from({ length: secrets }, (_, i) => (
         <div className="ot-grid" key={i}>
@@ -447,7 +439,7 @@ export function PlatformForm({
             <input name={`secretName${i}`} placeholder="secretKeyRef" />
           </label>
           <label>
-            Secret value <small>(stored encrypted; never shown again)</small>
+            Secret value
             <input name={`secretValue${i}`} type="password" autoComplete="off" />
           </label>
         </div>

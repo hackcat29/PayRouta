@@ -28,9 +28,6 @@ export default async function Contact({
       <div className="mk-article mk-article-wide">
         <header className="mk-article-head">
           <h1 className="mk-h1">Contact</h1>
-          <p className="mk-lead">
-            Tell us where you sell and how your customers pay. A person reads every message.
-          </p>
         </header>
         <div className="mk-contact">
           <div className="mk-contact-form">

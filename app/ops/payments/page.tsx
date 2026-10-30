@@ -94,10 +94,6 @@ export default async function Page() {
         </details>
       ))}
       <h2>Immutable operational journal</h2>
-      <p>
-        Provider and merchant movements outside PayRouta custody. Amounts are
-        exact minor units.
-      </p>
       {journal.map((e) => (
         <details key={e.id}>
           <summary>

@@ -64,11 +64,6 @@ export function FeeBearerSetting({
             Card and bank payments will be refused while this is on; only stablecoin and crypto fees are passed on.
           </p>
         )}
-        <p>
-          Customers who pay the fees see them at checkout before paying. Changing this needs a recent authenticator
-          check and doesn&apos;t affect payments already created. You can override it per payment with{" "}
-          <code>feeBearer</code> in the API.
-        </p>
         <button disabled={busy || value === feeBearer}>{busy ? "Saving…" : "Save"}</button>
         {message && <p role="status">{message}</p>}
       </form>

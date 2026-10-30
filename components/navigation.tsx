@@ -111,10 +111,7 @@ function MenuPanel({ menu }: { menu: NavMenu }) {
                     <span className="mk-mega-icon" aria-hidden="true">
                       {Icon && <Icon size={18} strokeWidth={1.75} />}
                     </span>
-                    <span>
-                      <b>{item.label}</b>
-                      <small>{item.description}</small>
-                    </span>
+                    <b>{item.label}</b>
                   </Go>
                 </li>
               );
@@ -123,9 +120,7 @@ function MenuPanel({ menu }: { menu: NavMenu }) {
         </div>
       ))}
       <Go href={menu.feature.href} className="mk-mega-feature">
-        <span className="mk-mega-kicker">{menu.feature.kicker}</span>
         <b>{menu.feature.title}</b>
-        <span>{menu.feature.text}</span>
         <span className="hp-more">
           {menu.feature.cta} <span aria-hidden="true">→</span>
         </span>

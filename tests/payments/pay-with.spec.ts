@@ -69,10 +69,9 @@ test("paying with a token the merchant doesn't take directly goes straight to a 
   await page.goto(`/checkout/pay-with#${"w".repeat(43)}`);
   await page.getByLabel("Network", { exact: true }).selectOption("tron");
   await page.getByLabel("Token", { exact: true }).selectOption(`swap:${tronUsdt}`);
-  await expect(page.getByText(/The merchant receives 40\.00 USDC/)).toBeVisible();
   // A swap needs somewhere to refund to.
   await expect(page.getByRole("button", { name: "Continue", exact: true })).toBeDisabled();
-  await page.getByLabel("Your Tron address, for refunds").fill("TRefundAddress000000000000000000");
+  await page.getByLabel("Refund address on Tron").fill("TRefundAddress000000000000000000");
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Pay with USDT on Tron" })).toBeVisible();
   await expect(page.getByText("TDepositAddress1111111111111111111", { exact: true })).toBeVisible();

@@ -18,14 +18,15 @@ export const requirementText: Record<string, string> = {
   review: "Our team is reviewing your account",
 };
 
-export const accountState: Record<string, { label: string; tone: Tone; detail: string }> = {
-  Submitted: { label: "Submitted", tone: "neutral", detail: "We have your details and will start the review shortly." },
-  Underwriting: { label: "In review", tone: "neutral", detail: "We are verifying your business. This usually takes one to two business days." },
-  Returned: { label: "Action needed", tone: "warn", detail: "We need changes before we can continue." },
-  Live: { label: "Active", tone: "good", detail: "You can accept payments and receive payouts." },
+// `detail` only where it changes what the merchant does.
+export const accountState: Record<string, { label: string; tone: Tone; detail?: string }> = {
+  Submitted: { label: "Submitted", tone: "neutral" },
+  Underwriting: { label: "In review", tone: "neutral" },
+  Returned: { label: "Action needed", tone: "warn" },
+  Live: { label: "Active", tone: "good" },
   Restricted: { label: "Restricted", tone: "bad", detail: "New payments and payouts are paused. Refunds still work. Contact support." },
-  Offboarding: { label: "Closing", tone: "warn", detail: "Your remaining balance is being paid out." },
-  Closed: { label: "Closed", tone: "neutral", detail: "This account is closed." },
+  Offboarding: { label: "Closing", tone: "warn" },
+  Closed: { label: "Closed", tone: "neutral" },
 };
 
 export const payoutTone: Record<string, Tone> = { Queued: "neutral", "In transit": "neutral", Paid: "good", Failed: "bad" };

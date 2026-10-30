@@ -384,7 +384,7 @@ export function PayoutRequest({
         </label>
       )}
       <label>
-        Amount <small>(leave empty for everything available)</small>
+        Amount
         <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder={current?.label} />
       </label>
       <button disabled={busy || current?.available === "0"}>{busy ? "Sending…" : "Pay out now"}</button>
@@ -447,8 +447,8 @@ export function RefundPanel({
     >
       <div className="tr-grid">
         <label>
-          Amount <small>(up to {remainingLabel}; leave empty for the full amount)</small>
-          <input name="amount" inputMode="decimal" />
+          Amount
+          <input name="amount" inputMode="decimal" placeholder={`Up to ${remainingLabel}`} />
         </label>
         <label>
           Reason
@@ -461,7 +461,7 @@ export function RefundPanel({
           </select>
         </label>
       </div>
-      <p className="tr-hint">Refunds come out of your balance. PayRouta&apos;s fee for the original payment is not returned.</p>
+      <p className="tr-hint">PayRouta&apos;s fee isn&apos;t returned.</p>
       <div className="tr-actions">
         <button disabled={busy}>{busy ? "Refunding…" : "Refund"}</button>
         <button type="button" className="tr-secondary" onClick={() => setOpen(false)}>
@@ -505,11 +505,8 @@ export function DisputeResponse({ orgId, disputeId, reason }: { orgId: string; d
         );
       }}
     >
-      <p className="tr-hint">
-        You can respond once. Be specific and factual: the customer&apos;s bank decides based only on what you send.
-      </p>
       <label>
-        What did the customer buy? <small>(at least 20 characters)</small>
+        What did the customer buy? 
         <textarea name="productDescription" rows={3} required minLength={20} />
       </label>
       <div className="tr-grid">

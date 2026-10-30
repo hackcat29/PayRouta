@@ -5,16 +5,6 @@ import "../pay.css";
 
 export const dynamic = "force-dynamic";
 
-const methodNames: Record<string, string> = {
-  card: "Card",
-  "digital-wallet": "Wallet",
-  "bank-transfer": "Bank transfer",
-  "mobile-money": "Mobile money",
-  ussd: "USSD",
-  "direct-debit": "Direct debit",
-  bnpl: "Pay with credit",
-};
-
 function formatMoney(amount: string, currency: string) {
   const exp = currencyExponent(currency) ?? 2;
   try {
@@ -52,7 +42,6 @@ export default async function PaymentLinkPage({
   const link = await publicPaymentLink(slug);
   if (!link) notFound();
   const failed = (await searchParams).error === "1";
-  const ways = [...link.methods.map((m) => methodNames[m] ?? m), ...(link.crypto ? ["Stablecoins"] : [])];
   return (
     <main className="pl">
       {link.environment === "sandbox" && <div className="pl-test">Test mode · no real money moves</div>}
@@ -66,13 +55,6 @@ export default async function PaymentLinkPage({
         <h1 className="pl-title">{link.title}</h1>
         {link.description && <p className="pl-desc">{link.description}</p>}
         <p className="pl-amount">{formatMoney(link.amount, link.currency)}</p>
-        <ul className="pl-ways" aria-label="Ways to pay">
-          {ways.map((w) => (
-            <li key={w} className={w === "Pay with credit" ? "pl-credit" : undefined}>
-              {w}
-            </li>
-          ))}
-        </ul>
         {failed && (
           <p className="pl-error" role="alert">
             We couldn&apos;t open the checkout. Please try again.

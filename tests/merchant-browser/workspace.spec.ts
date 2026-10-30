@@ -142,12 +142,16 @@ test("merchant workspace: auth, environment isolation, payment table and mobile 
     .getByLabel("Search currencies you expect to be paid in", { exact: true })
     .fill("NGN");
   await page
-    .getByLabel("Currencies you expect to be paid in", { exact: true })
-    .selectOption("NGN");
+    .getByRole("group", { name: "Currencies you expect to be paid in", exact: true })
+    .getByRole("checkbox", { name: "NGN", exact: true })
+    .check();
   await page
     .getByLabel("Search payer countries", { exact: true })
     .fill("Nigeria");
-  await page.getByLabel("Payer countries", { exact: true }).selectOption("NG");
+  await page
+    .getByRole("group", { name: "Payer countries", exact: true })
+    .getByRole("checkbox", { name: "Nigeria (NG)", exact: true })
+    .check();
   await page
     .getByRole("radio", { name: "Under $10,000 per month", exact: true })
     .check();

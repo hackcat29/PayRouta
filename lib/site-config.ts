@@ -69,11 +69,11 @@ export const marketingPaths = {
 // The header, modelled on Ramp and Lemon Squeezy: a few menus of described
 // links, then plain links. Every entry is its own page (docs open on the
 // docs site). Icons are lucide-react names, mapped in components/navigation.
-export type NavItem = { href: string; label: string; description: string; icon: string };
+export type NavItem = { href: string; label: string; icon: string };
 export type NavMenu = {
   label: string;
   groups: { title: string; items: NavItem[] }[];
-  feature: { href: string; kicker: string; title: string; text: string; cta: string };
+  feature: { href: string; title: string; cta: string };
 };
 export const navMenus: NavMenu[] = [
   {
@@ -82,25 +82,23 @@ export const navMenus: NavMenu[] = [
       {
         title: "Get paid",
         items: [
-          { href: paths.paymentLinks, label: "Payment links", description: "Sell anywhere you can share a link", icon: "Link2" },
-          { href: paths.checkout, label: "Checkout button", description: "One button for your site or app", icon: "MousePointerClick" },
-          { href: paths.integrations, label: "Integrations", description: "Shopify, WooCommerce and your server", icon: "Blocks" },
+          { href: paths.paymentLinks, label: "Payment links", icon: "Link2" },
+          { href: paths.checkout, label: "Checkout button", icon: "MousePointerClick" },
+          { href: paths.integrations, label: "Integrations", icon: "Blocks" },
         ],
       },
       {
         title: "Ways to pay",
         items: [
-          { href: paths.paymentMethods, label: "Payment methods", description: "Cards, bank, mobile money and wallets", icon: "Globe" },
-          { href: paths.credit, label: "Pay with credit", description: "Instalments from licensed lenders", icon: "CalendarClock" },
-          { href: paths.crypto, label: "Crypto payments", description: "Any wallet, any chain, paid in stablecoins", icon: "Coins" },
+          { href: paths.paymentMethods, label: "Payment methods", icon: "Globe" },
+          { href: paths.credit, label: "Pay with credit", icon: "CalendarClock" },
+          { href: paths.crypto, label: "Crypto payments", icon: "Coins" },
         ],
       },
     ],
     feature: {
       href: "/sign-up",
-      kicker: "Test mode is free",
       title: "Take your first test payment today",
-      text: "Create an account, make a payment link and pay it yourself. No card or contract needed.",
       cta: "Create an account",
     },
   },
@@ -110,26 +108,24 @@ export const navMenus: NavMenu[] = [
       {
         title: "By business",
         items: [
-          { href: paths.socialSellers, label: "Social sellers", description: "Sell on WhatsApp and Instagram", icon: "MessageCircle" },
-          { href: paths.onlineStores, label: "Online stores", description: "Local ways to pay at your checkout", icon: "Store" },
-          { href: paths.saas, label: "SaaS and digital", description: "Sell worldwide, priced locally", icon: "AppWindow" },
+          { href: paths.socialSellers, label: "Social sellers", icon: "MessageCircle" },
+          { href: paths.onlineStores, label: "Online stores", icon: "Store" },
+          { href: paths.saas, label: "SaaS and digital", icon: "AppWindow" },
         ],
       },
       {
         title: "By region",
         items: [
-          { href: `${paths.paymentMethods}#africa`, label: "Africa", description: "Cards, bank, USSD, M-Pesa, MoMo", icon: "MapPin" },
-          { href: `${paths.paymentMethods}#latin-america`, label: "Latin America", description: "Pix, local cards and wallets", icon: "MapPin" },
-          { href: `${paths.paymentMethods}#asia`, label: "Asia", description: "Cards, bank transfer, local wallets", icon: "MapPin" },
-          { href: `${paths.paymentMethods}#europe`, label: "Europe and the UK", description: "Cards, Apple Pay, pay by bank", icon: "MapPin" },
+          { href: `${paths.paymentMethods}#africa`, label: "Africa", icon: "MapPin" },
+          { href: `${paths.paymentMethods}#latin-america`, label: "Latin America", icon: "MapPin" },
+          { href: `${paths.paymentMethods}#asia`, label: "Asia", icon: "MapPin" },
+          { href: `${paths.paymentMethods}#europe`, label: "Europe and the UK", icon: "MapPin" },
         ],
       },
     ],
     feature: {
       href: paths.credit,
-      kicker: "Only on PayRouta",
       title: "Let customers pay over time",
-      text: "Most people in the world don't have a credit card. Credit at checkout lets them buy; you're paid in full.",
       cta: "How credit works",
     },
   },
@@ -139,26 +135,24 @@ export const navMenus: NavMenu[] = [
       {
         title: "Developers",
         items: [
-          { href: `${docsOrigin}/quickstart`, label: "Quickstart", description: "A test payment in ten minutes", icon: "Rocket" },
-          { href: `${docsOrigin}/api-reference/introduction`, label: "API reference", description: "Checkouts, payments, refunds", icon: "Braces" },
-          { href: `${docsOrigin}/integrate/webhooks`, label: "Webhooks", description: "Signed events for every payment", icon: "Webhook" },
-          { href: `${docsOrigin}/integrate/sdks`, label: "SDKs", description: "Node and Python libraries", icon: "Package" },
+          { href: `${docsOrigin}/quickstart`, label: "Quickstart", icon: "Rocket" },
+          { href: `${docsOrigin}/api-reference/introduction`, label: "API reference", icon: "Braces" },
+          { href: `${docsOrigin}/integrate/webhooks`, label: "Webhooks", icon: "Webhook" },
+          { href: `${docsOrigin}/integrate/sdks`, label: "SDKs", icon: "Package" },
         ],
       },
       {
         title: "Company",
         items: [
-          { href: paths.contact, label: "Contact us", description: "A person reads every message", icon: "Mail" },
-          { href: paths.partners, label: "Partners", description: "For payment providers and lenders", icon: "Handshake" },
-          { href: paths.terms, label: "Legal", description: "Terms of service and privacy", icon: "Scale" },
+          { href: paths.contact, label: "Contact us", icon: "Mail" },
+          { href: paths.partners, label: "Partners", icon: "Handshake" },
+          { href: paths.terms, label: "Legal", icon: "Scale" },
         ],
       },
     ],
     feature: {
       href: docsOrigin,
-      kicker: "Documentation",
       title: "Everything you need to build",
-      text: "Guides for payment links, the checkout button, credit, crypto and store plugins.",
       cta: "Read the docs",
     },
   },

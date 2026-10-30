@@ -2,7 +2,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { comingSoonMethods } from "@/lib/payments/launch-catalog";
 import { WalletButton } from "./wallet-button";
 import {
   displayTokenAmount,
@@ -81,14 +80,6 @@ export function Checkout({ id }: { id: string }) {
   const [data, setData] = useState<Progress | undefined>(() =>
       id === "demo" ? demoData : undefined,
     ),
-    [options, setOptions] = useState<Method[]>(() =>
-      id === "demo"
-        ? [
-            { method: "stablecoin", label: "Stablecoins", status: "AVAILABLE" },
-            ...comingSoonMethods,
-          ]
-        : [],
-    ),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [copied, setCopied] = useState(""),
@@ -114,7 +105,7 @@ export function Checkout({ id }: { id: string }) {
       if (!r.ok)
         throw new Error(
           b?.error === "CHECKOUT_EXPIRED_OR_UNAUTHORIZED"
-            ? "This checkout link is incomplete, expired or no longer available. Open the full checkout link from the merchant. To switch browsers, use ‘Copy link for wallet browser’ in the original checkout."
+            ? "This checkout link is incomplete or has expired. Open the full link from the merchant."
             : b?.error === "CHECKOUT_EXPIRED"
               ? "This quote has expired. Return to the merchant for a new checkout with an updated rate."
               : errorText(b, r.status),
@@ -129,7 +120,6 @@ export function Checkout({ id }: { id: string }) {
     if (version !== mutationVersion.current) return;
     current.current = b;
     setData(b);
-    if (b.paymentMethods) setOptions(b.paymentMethods);
   }, [api]);
   useEffect(() => {
     let alive = true,
@@ -150,24 +140,6 @@ export function Checkout({ id }: { id: string }) {
           setClock(Date.now());
           current.current = b;
           setData(b);
-          if (b.paymentMethods) setOptions(b.paymentMethods);
-        }
-        if (b.attemptId || Date.parse(b.expiresAt) <= Date.now()) {
-          if (alive)
-            setOptions(
-              b.paymentMethods ?? [
-                {
-                  method: b.method || "stablecoin",
-                  label:
-                    b.method === "crypto-app" ? "Crypto wallet" : "Stablecoins",
-                  status: b.attemptId ? "AVAILABLE" : "UNAVAILABLE",
-                },
-                ...comingSoonMethods,
-              ],
-            );
-        } else {
-          const m = await api({ action: "methods" });
-          if (alive) setOptions(m.methods);
         }
       } catch (e) {
         if (alive) setError(shown(e));
@@ -195,7 +167,6 @@ export function Checkout({ id }: { id: string }) {
           setClock(Date.now());
           current.current = b;
           setData(b);
-          if (b.paymentMethods) setOptions(b.paymentMethods);
         }
       } catch {
         /* Worker recovery continues while the network is unavailable. */
@@ -325,25 +296,10 @@ export function Checkout({ id }: { id: string }) {
     method: data?.method,
   });
   const toMerchant = data ? returnHandler(id, { returnUrl: data.returnUrl, reference: data.reference }) : undefined;
-  // Stablecoins and other coins are one way to pay: the customer only says
-  // what they hold (pay-picker.tsx).
-  const crypto = options.filter((m) =>
-    ["stablecoin", "crypto-app"].includes(m.method),
-  );
-  const visibleMethods = [
-    {
-      method: "crypto",
-      label: "Crypto and stablecoins",
-      status: (["AVAILABLE", "LOCKED", "UNAVAILABLE"].find((s) =>
-        crypto.some((m) => m.status === s),
-      ) ?? "NOT_OFFERED") as string,
-    },
-    ...comingSoonMethods,
-  ];
   return (
     <div className="stablecoin-checkout">
       {data?.sandbox && (
-        <div className="sc-test">Testnet · test tokens only · no real money moves</div>
+        <div className="sc-test">Test mode · no real money moves</div>
       )}
       <div className="sc-layout">
         <aside className="sc-summary">
@@ -356,19 +312,26 @@ export function Checkout({ id }: { id: string }) {
                 (error ? "Checkout unavailable" : "Loading checkout…")}
             </span>
           </p>
-          {data && <p className="sc-label">Pay {data.merchant}</p>}
           <h1>
             {data
               ? `${displayTokenAmount(data.amount)} ${data.symbol || ""}`
               : "Your payment"}
           </h1>
-          <p className="sc-network">{networkName(data?.network)}</p>
           {data?.reference && (
             <dl className="sc-lines">
               <div>
                 <dt>Order</dt>
                 <dd>{data.reference}</dd>
               </div>
+              {data.cryptoQuote && (
+                <div>
+                  <dt>Value</dt>
+                  <dd>
+                    ${data.cryptoQuote.usdAmount} · Rate by{" "}
+                    {data.cryptoQuote.source}
+                  </dd>
+                </div>
+              )}
               {data.customerFee && (
                 <div>
                   <dt>Includes processing fee</dt>
@@ -379,18 +342,6 @@ export function Checkout({ id }: { id: string }) {
               )}
             </dl>
           )}
-            {data?.cryptoQuote && (
-              <p>
-                ${data.cryptoQuote.usdAmount} USD · Rate by{" "}
-                {data.cryptoQuote.source}.{" "}
-                {confirmed
-                  ? "Payment received."
-                  : data.attemptState === "Pending"
-                    ? "Your transfer was detected. Verification continues after the quote deadline."
-                    : "Send the exact coin amount before the quote expires."}{" "}
-                Network fees are separate.
-              </p>
-            )}
             {data?.expiresAt &&
               clock > 0 &&
               !confirmed &&
@@ -436,12 +387,7 @@ export function Checkout({ id }: { id: string }) {
           )}
           {!data && error && (
             <section>
-              <h2>Open your original checkout link</h2>
-              <p>
-                A link copied from the address bar may be missing its access
-                token. Your wallet browser needs the complete merchant link. If
-                its payment countdown has ended, request a new checkout.
-              </p>
+              <h2>Open the full link from the merchant</h2>
               <Link className="sc-primary" href="/">
                 Return to PayRouta
               </Link>
@@ -450,12 +396,6 @@ export function Checkout({ id }: { id: string }) {
           {confirmed ? (
             <section role="status">
               <h2>Payment received</h2>
-              <p>Your transfer was verified on the finalized chain.</p>
-              <p>
-                {data.settlement.length
-                  ? "Settled to the merchant’s receive address."
-                  : "Updating the settlement record…"}
-              </p>
               <a className="sc-primary" href={data.returnUrl} onClick={toMerchant}>
                 Return to merchant
               </a>
@@ -463,11 +403,7 @@ export function Checkout({ id }: { id: string }) {
           ) : data?.attemptState === "Pending" ? (
             <section role="status">
               <h2>Payment detected</h2>
-              <p>Your transfer is visible on the network. Do not send again.</p>
-              <p>
-                We are waiting for network finality before confirming payment.
-                This can take several minutes. You can keep this page open.
-              </p>
+              <p>Do not send again.</p>
               <button disabled={busy} onClick={() => void checkStatus()}>
                 Check payment status
               </button>
@@ -476,11 +412,6 @@ export function Checkout({ id }: { id: string }) {
           ) : expired ? (
             <section role="status">
               <h2>Checkout expired</h2>
-              <p>
-                {active
-                  ? "If you already sent the transfer, keep this page open. We are waiting for network finality and will show the verified outcome here."
-                  : "Return to the merchant to request a new checkout."}
-              </p>
               {active && (
                 <button disabled={busy} onClick={() => void checkStatus()}>
                   {busy ? "Checking…" : "Check payment status"}
@@ -490,10 +421,7 @@ export function Checkout({ id }: { id: string }) {
               <a className="sc-primary" href={data.returnUrl} onClick={toMerchant}>
                 Return to merchant for a new checkout
               </a>
-              <p>
-                Do not send to expired payment instructions. If you already
-                paid, check the status before starting another payment.
-              </p>
+              <p>Do not send to expired payment instructions.</p>
             </section>
           ) : a?.kind === "intents" && a.amount ? (
             <section>
@@ -502,11 +430,6 @@ export function Checkout({ id }: { id: string }) {
                   ? `Pay with ${swap.symbol} on ${swap.chainName}`
                   : `Pay ${displayTokenAmount(a.amount)} ${a.symbol}`}
               </h2>
-              <p>
-                {swap ? "" : "Pay with any token you hold, on any network. "}
-                The merchant receives exactly {displayTokenAmount(a.amount)}{" "}
-                {a.symbol}.
-              </p>
               <CrossChain
                 api={api}
                 primary
@@ -526,10 +449,6 @@ export function Checkout({ id }: { id: string }) {
               <h2>
                 Pay with {swap.symbol} on {swap.chainName}
               </h2>
-              <p>
-                The merchant receives exactly{" "}
-                {displayTokenAmount(payment.amount)} {a?.symbol}.
-              </p>
               <CrossChain
                 api={api}
                 primary
@@ -563,8 +482,7 @@ export function Checkout({ id }: { id: string }) {
                 Pay {displayTokenAmount(payment.amount)} {a?.symbol}
               </h2>
               <p>
-                Send the exact amount on{" "}
-                <strong>{networkName(payment.network)}</strong>. Your wallet
+                On <strong>{networkName(payment.network)}</strong>. Your wallet
                 also needs {data?.sandbox ? "test " : ""}
                 {chain(payment.network)?.nativeAssetSymbol} for the network fee.
               </p>
@@ -616,36 +534,22 @@ export function Checkout({ id }: { id: string }) {
                         payment.identifier.indexOf(":") + 1,
                       )}
                     </code>
-                    <p>
-                      Use the exact token and network above. Send once; multiple
-                      transfers and incorrect amounts need merchant review.
-                    </p>
+                    <p>Send once, exactly this token and amount.</p>
                   </div>
                 </div>
               </details>
               <CrossChain api={api} onCopy={(v, l) => void copy(v, l)} />
               <p role="status">{copied}</p>
-              <p className="sc-pending">
-                Waiting for your transfer. After it is detected, network
-                finality can take several minutes before confirmation. You can
-                keep this page open to see progress.
-              </p>
+              <p className="sc-pending">Waiting for your transfer.</p>
             </section>
           ) : active ? (
             <section role="status">
               <h2>Preparing payment instructions</h2>
-              <p>
-                This usually takes a few seconds. Your payment will only be
-                confirmed after the transfer is finalized.
-              </p>
             </section>
           ) : id === "demo" ? (
             <section>
               <h2>What do you want to pay with?</h2>
-              <p className="sc-preview">
-                This is a preview. Create a test checkout to get a real
-                receive address.
-              </p>
+              <p className="sc-preview">Preview only. Not payable.</p>
             </section>
           ) : data ? (
             <section>
@@ -659,18 +563,13 @@ export function Checkout({ id }: { id: string }) {
           {data && !expired && !confirmed && (
             <details>
               <summary>Open in an external wallet browser</summary>
-              <p>
-                Copy this secure link and paste it into your wallet’s browser.
-                The same amount, payment and countdown apply. Keep the link
-                private.
-              </p>
               <button disabled={busy} onClick={() => void copyWalletLink()}>
                 Copy link for wallet browser
               </button>
               {walletLink && (
                 <p>
                   <label htmlFor="wallet-checkout-link">
-                    Wallet browser link
+                    Private wallet browser link
                   </label>
                   <input
                     id="wallet-checkout-link"
@@ -680,40 +579,9 @@ export function Checkout({ id }: { id: string }) {
                   />
                 </p>
               )}
-              {walletLink &&
-                ["localhost", "127.0.0.1", "[::1]"].includes(
-                  new URL(walletLink).hostname,
-                ) && (
-                  <p>
-                    This local test link works only on this computer. A phone
-                    wallet needs a checkout hosted at a reachable web address.
-                  </p>
-                )}
               <p role="status">{copied}</p>
             </details>
           )}
-          <section className="sc-methods" aria-label="Payment methods">
-            <h2>Payment methods</h2>
-            <div className="sc-method-grid">
-              {visibleMethods
-                .filter((m) => m.status !== "COMING_SOON")
-                .map((m) => (
-                  <MethodTile key={m.method} m={m} selected={m.method === "crypto"} />
-                ))}
-            </div>
-            {visibleMethods.some((m) => m.status === "COMING_SOON") && (
-              <details className="sc-more">
-                <summary>Other payment methods</summary>
-                <div className="sc-method-grid">
-                  {visibleMethods
-                    .filter((m) => m.status === "COMING_SOON")
-                    .map((m) => (
-                      <MethodTile key={m.method} m={m} selected={false} />
-                    ))}
-                </div>
-              </details>
-            )}
-          </section>
           <footer className="sc-footer">
             <span>
               Powered by <strong>PayRouta</strong>
@@ -727,27 +595,6 @@ export function Checkout({ id }: { id: string }) {
           </footer>
         </section>
       </div>
-    </div>
-  );
-}
-
-function MethodTile({ m, selected }: { m: Method; selected: boolean }) {
-  return (
-    <div className={`sc-method ${m.status === "COMING_SOON" ? "sc-disabled" : ""}`}>
-      <span>{m.label || m.method}</span>
-      <span className="sc-tag">
-        {m.status === "COMING_SOON"
-          ? "Coming soon"
-          : m.status === "AVAILABLE"
-            ? "Available"
-            : m.status === "NOT_OFFERED"
-              ? "Not offered for this checkout"
-              : m.status === "LOCKED"
-                ? selected
-                  ? "Selected"
-                  : "Locked"
-                : "Unavailable"}
-      </span>
     </div>
   );
 }

@@ -55,6 +55,7 @@ export function Empty({
     </div>
   );
 }
+// `hint` is a short example or format, shown as the input's placeholder.
 export function Field({
   label,
   children,
@@ -72,11 +73,10 @@ export function Field({
         index === 0 && isValidElement(child)
           ? cloneElement(child as ReactElement<Record<string, unknown>>, {
               id,
-              "aria-describedby": hint ? `${id}-hint` : undefined,
+              ...(hint && !(child.props as { placeholder?: string }).placeholder ? { placeholder: hint } : {}),
             })
           : child,
       )}
-      {hint && <small id={`${id}-hint`}>{hint}</small>}
     </div>
   );
 }

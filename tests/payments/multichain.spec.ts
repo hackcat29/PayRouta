@@ -101,7 +101,6 @@ test("customer selects a merchant quote and the network locks when instructions 
   await page.goto("/checkout/multichain-ui#" + "a".repeat(43));
   await page.getByLabel("Network", { exact: true }).selectOption("solana:devnet");
   await page.getByLabel("Token", { exact: true }).selectOption("direct:solana");
-  await expect(page.getByText(/You send exactly 0\.90 EURC on Solana Devnet/)).toBeVisible();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "0.90 EURC", exact: true }),
@@ -113,7 +112,7 @@ test("customer selects a merchant quote and the network locks when instructions 
   expect(
     calls.some((c) => (c as { action: string }).action === "choose-network"),
   ).toBe(true);
-  await expect(page.getByText("Coming soon", { exact: true })).toHaveCount(7);
+  await expect(page.getByText("Coming soon", { exact: true })).toHaveCount(0);
   const violations = (
     await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze()
   ).violations;

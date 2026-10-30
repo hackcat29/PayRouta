@@ -42,7 +42,7 @@ test("future provider methods remain disabled even if an older availability resp
     await route.fulfill({ json: result });
   });
   await page.goto("/checkout/legacy#" + "a".repeat(43));
-  await expect(page.getByText("Coming soon", { exact: true })).toHaveCount(7);
+  await expect(page.getByText("Coming soon", { exact: true })).toHaveCount(0);
   await expect(page.getByText(/can't take crypto payments for this checkout/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Continue", exact: true })).toHaveCount(0);
   await expect(page.locator("input")).toHaveCount(0);

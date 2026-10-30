@@ -143,7 +143,7 @@ async function Underwriting() {
           </p>
         )}
         {!queue.length ? (
-          <p className="ot-muted">Nothing waiting. New submissions appear here, oldest first.</p>
+          <p className="ot-muted">Nothing waiting.</p>
         ) : (
           <table>
             <thead>
@@ -360,7 +360,7 @@ async function MerchantDetail({ orgId, environment }: { orgId: string; environme
           </section>
           <section className="ot-panel">
             <h2>Sub-accounts</h2>
-            {!links.length && <p className="ot-muted">None yet. Open one during review; the provider must approve it before the merchant can go live.</p>}
+            {!links.length && <p className="ot-muted">None yet.</p>}
             {links.length > 0 && (
               <table>
                 <thead>
@@ -587,7 +587,6 @@ async function Risk() {
       </section>
       <section className="ot-panel">
         <h2>Reconciliation mismatches</h2>
-        <p className="ot-muted">Payouts for these merchants are paused at that platform account until a re-run matches.</p>
         {!mismatches.length ? (
           <p className="ot-muted">None.</p>
         ) : (

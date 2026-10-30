@@ -11,11 +11,6 @@ export function CreateWorkspace() {
   return (
     <section>
       <h1>Create your merchant workspace</h1>
-      <p>
-        Your workspace starts in the sandbox, where every payment is simulated.
-        When you are ready, apply to payment providers from inside the
-        workspace; each account is opened in your own name.
-      </p>
       <form
         onSubmit={async (event) => {
           event.preventDefault();

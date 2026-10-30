@@ -43,8 +43,7 @@ export default async function Page({
         <button>Switch</button>
       </form>
       <p>
-        API observation window: {data.from} to {data.to}. Empty samples do not
-        establish reliability.
+        API observation window: {data.from} to {data.to}.
       </p>
       <h2>API requests</h2>
       <ul>

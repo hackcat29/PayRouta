@@ -142,10 +142,6 @@ export function CompanyForm({
   const currentCountry = useWatch({ control: f.control, name: "country" });
   return (
     <Panel title="Organization details">
-      <p>
-        Save an incomplete draft at any time. Required details are checked when
-        you submit.
-      </p>
       <form
         onSubmit={f.handleSubmit((v) =>
           execute({
@@ -231,11 +227,6 @@ export function CoverageForm({
   });
   return (
       <Panel title="Where you accept payments">
-        <p>
-          Tell us where customers pay you and where your business receives
-          money. PayRouta turns those answers into the detailed payment
-          capabilities it checks before routing.
-        </p>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -325,7 +316,7 @@ export function CapabilityForm({
       <div className="p-form-grid">
         <Field
           label="Capability identifier"
-          hint="Stable lowercase identifier, e.g. ng-bank-payin"
+          hint="ng-bank-payin"
         >
           <input {...f.register("capabilityId")} readOnly={!!value} />
         </Field>
@@ -383,7 +374,7 @@ export function CapabilityForm({
         </Field>
         <Field
           label="Input asset identifier"
-          hint="ISO code, or namespaced asset identifier (e.g. erc20:0x…)."
+          hint="NGN or erc20:0x…"
         >
           <input list="portal-fiat" {...f.register("input.identifier")} />
           <datalist id="portal-fiat">
@@ -394,7 +385,7 @@ export function CapabilityForm({
         </Field>
         <Field
           label="Input network"
-          hint="For blockchain assets, use a chain identifier such as eip155:1."
+          hint="eip155:1"
         >
           <input {...f.register("input.network")} />
         </Field>
@@ -436,16 +427,7 @@ export function CapabilityForm({
         {watched.output?.identifier || watched.input?.identifier || "Output"} ·{" "}
         {watched.operation} · {watched.origin} → {watched.destination}
       </p>
-      <p className="p-muted">
-        This declaration does not enable the reverse direction or other
-        operations.
-      </p>
       <h3>Approved fulfillment profile</h3>
-      <p className="p-muted">
-        A profile explicitly covers this operation through settlement. Legacy
-        declarations without a profile require review before they can serve a
-        payment.
-      </p>
       <label className="p-check">
         <input
           type="checkbox"
@@ -684,10 +666,6 @@ export function SettlementForm({
   const [value, setValue] = useState(defaults);
   return (
       <Panel title="How you get paid">
-        <p>
-          Tell us which funds you can receive and where. Keep payment
-          credentials in the secure credentials area, not in these forms.
-        </p>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -925,19 +903,13 @@ export function IntegrationForm({
               checked={selected === key}
               onChange={() => setConnection(key)}
             />
-            <span>
-              <strong>{connectionSettings[key].title}</strong>
-              <br />
-              <small>{connectionSettings[key].description}</small>
-            </span>
+            <strong>{connectionSettings[key].title}</strong>
           </label>
         ))}
       </fieldset>
       {selected === "native" ? (
         <p>
-          Tell us about your payment methods, countries, and API through a{" "}
-          <Link href="/contact?intent=provider">provider enquiry</Link>. Sandbox
-          testing still uses the simulator.
+          <Link href="/contact?intent=provider">Send a provider enquiry</Link>
         </p>
       ) : (
         <form
@@ -966,12 +938,9 @@ export function IntegrationForm({
           <fieldset disabled={disabled}>
             {(connection as ConnectionChoice) === "standard" && (
               <p>
-                Read the{" "}
                 <a href={docsUrl("provider-integration")}>
                   Provider API documentation
                 </a>
-                , store API secrets separately under API credentials, then
-                certify the sandbox connection under Sandbox tests.
               </p>
             )}
             <div className="p-form-grid">
@@ -1054,7 +1023,6 @@ export function IntegrationForm({
               </Field>
               <Field
                 label="Safe read retries"
-                hint="Execution is never blindly retried after an uncertain outcome."
               >
                 <input
                   type="number"

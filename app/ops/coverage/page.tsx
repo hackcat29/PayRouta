@@ -19,16 +19,6 @@ export default async function Page() {
     <div className="portal p-simple">
       <Link href="/ops">← Operations</Link>
       <h1>Coverage qualification</h1>
-      <p>
-        Each row is one published directional capability. Real execution remains
-        unavailable. Simulator evidence cannot qualify a real provider.
-        Re-publication creates a new candidate requiring review.
-      </p>
-      <p>
-        Showing up to 100 current profiles. Pausing blocks new selection and
-        dispatch; existing attempts retain reconciliation and notification
-        processing.
-      </p>
       {!profiles.length && <p>No published profiles.</p>}
       {profiles.map((p) => {
         const policy = rolloutSchema.safeParse(p.rollout);
@@ -65,12 +55,6 @@ export default async function Page() {
             </dl>
             <details>
               <summary>Review rollout transition</summary>
-              <p>
-                Advance one stage at a time. Paused profiles restart at
-                Candidate for fresh qualification. Proof gates: account,
-                adapter-conformance, sandbox, risk, monitoring, runbook, pilot,
-                settlement, reconciliation.
-              </p>
               <QualificationForm
                 label="Apply rollout transition"
                 command={{

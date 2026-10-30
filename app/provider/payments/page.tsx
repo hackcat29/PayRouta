@@ -17,7 +17,6 @@ export default async function Page() {
       return (
         <div className="portal p-simple">
           <h1>Merchant access required</h1>
-          <p>Sign in with the seeded merchant owner account.</p>
           <Link href="/provider/sign-in">Sign in</Link>
         </div>
       );
@@ -27,10 +26,6 @@ export default async function Page() {
     <div className="portal p-simple">
       <Link href="/provider">← Provider workspace</Link>
       <h1>Sandbox checkout</h1>
-      <p>
-        Create a fictional NGN 100.00 order for Fictional Market. No real
-        payment is sent.
-      </p>
       <DemoCheckout />
     </div>
   );

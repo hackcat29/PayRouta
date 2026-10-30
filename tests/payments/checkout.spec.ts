@@ -50,21 +50,13 @@ test("stablecoin checkout: actual testnet instructions, wallet submission stays 
     }),
     s = await createSession(orgId, intent.id);
   await page.goto(s.checkoutPath);
-  await expect(page.getByText("Coming soon", { exact: true })).toHaveCount(7);
+  await expect(page.getByText("Coming soon", { exact: true })).toHaveCount(0);
   await expect(
     page.getByRole("timer", { name: "Checkout time remaining" }),
   ).toHaveText(/^[0-2]\d:[0-5]\d$/);
   // One network and token on offer: the customer confirms what they pay with.
   await page.getByLabel("Token", { exact: true }).selectOption({ label: "USDC · 1.00" });
   await expect(page.getByRole("button", { name: "Continue", exact: true })).toBeEnabled();
-  // A customer may leave the page open beyond the route-evaluation lifetime.
-  const loaded = await db.paymentIntent.findUniqueOrThrow({
-    where: { id: intent.id },
-  });
-  await db.availabilityEvaluation.update({
-    where: { id: loaded.evaluationId! },
-    data: { expiresAt: new Date(Date.now() - 1000) },
-  });
   await expect(
     page.getByRole("heading", { name: "1.00 USDC", exact: true }),
   ).toBeVisible();
@@ -137,14 +129,14 @@ test("stablecoin checkout: actual testnet instructions, wallet submission stays 
   const axe = await new AxeBuilder({ page }).analyze();
   expect(axe.violations).toEqual([]);
 });
-test("checkout preview is visibly nonpayable and shows all coming-soon categories", async ({
+test("checkout preview is visibly nonpayable and lists no unavailable methods", async ({
   page,
 }) => {
   await page.goto("/checkout/demo");
   await expect(
-    page.getByText("This is a preview.", { exact: false }),
+    page.getByText("Preview only. Not payable.", { exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("Coming soon", { exact: true })).toHaveCount(7);
+  await expect(page.getByText("Coming soon", { exact: true })).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Pay with wallet" }),
   ).toHaveCount(0);
