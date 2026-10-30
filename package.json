@@ -31,7 +31,7 @@
     "treasury:sandbox": "tsx scripts/treasury-sandbox.ts",
     "sdk:build": "npm run build --prefix sdks/node",
     "docs:openapi": "tsx scripts/mintlify-openapi.ts",
-    "docs:dev": "cd mintlify && npx mint@latest dev",
+    "docs:dev": "cd mintlify && npx mint@4.2.1133 dev",
     "test:sdk-python": "PYTHONPATH=sdks/python python3 -m unittest discover -s sdks/python/tests",
     "pilot:preflight": "tsx scripts/pilot-preflight.ts",
     "preflight:production": "tsx scripts/preflight-production.ts",

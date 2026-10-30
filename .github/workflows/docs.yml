@@ -5,10 +5,10 @@ name: Docs
 # before anything merges.
 on:
   pull_request:
-    paths: ["mintlify/**", "lib/merchant/contracts.ts", "scripts/mintlify-openapi.ts"]
+    paths: ["mintlify/**", "lib/merchant/contracts.ts", "scripts/mintlify-openapi.ts", ".github/workflows/docs.yml"]
   push:
     branches: [main]
-    paths: ["mintlify/**", "lib/merchant/contracts.ts", "scripts/mintlify-openapi.ts"]
+    paths: ["mintlify/**", "lib/merchant/contracts.ts", "scripts/mintlify-openapi.ts", ".github/workflows/docs.yml"]
 
 jobs:
   validate:
@@ -24,7 +24,10 @@ jobs:
       - run: npm ci
       # The merchant API reference must match the code.
       - run: npm run docs:openapi && git diff --exit-code mintlify/openapi/merchant.json
-      - run: npx --yes mint@latest validate
+      # Pinned: mint 4.2.1182+ (30 October 2026) depends on an unpublished
+      # @mintlify/scraping version and fails to install. Move to @latest
+      # once a newer release installs again.
+      - run: npx --yes mint@4.2.1133 validate
         working-directory: mintlify
-      - run: npx --yes mint@latest broken-links
+      - run: npx --yes mint@4.2.1133 broken-links
         working-directory: mintlify
