@@ -5,6 +5,8 @@ const config: NextConfig = {
   turbopack: { root: process.cwd() },
   poweredByHeader: false,
   devIndicators: false,
+  // Set by the Next.js security upgrade (16.4.0 → 16.4.3).
+  experimental: { agentUpgrade: "security" },
   async headers() {
     const https = (process.env.BETTER_AUTH_URL || "").startsWith("https://");
     return [
