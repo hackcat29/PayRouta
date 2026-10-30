@@ -2,7 +2,7 @@
 
 Most payment companies compete on how many ways a customer can pay. In much of the world the harder problem is affordability: few people have a credit card, so a phone, a laptop or a year of software is out of reach in one payment. PayRouta puts credit inside the checkout as one more way to pay.
 
-> **Status.** Built, and testable end to end in sandbox with a fictional lender. Live credit opens country by country as licensed lenders join PayRouta. No lender is live yet; this page will list them as they are.
+> **Status.** Built, and testable end to end in sandbox with a test lender. Live credit opens country by country as licensed lenders join PayRouta. No lender is live yet; this page will list them as they are.
 
 ## How it works
 
@@ -27,7 +27,7 @@ Subscriptions on credit work the way lenders fund them: the customer takes an an
 
 ## Test in sandbox
 
-Ask PayRouta to connect your sandbox business to **Sandbox Credit (fictional lender)**. Its plans, for any amount from 10.00 to 5,000,000.00 in the payment currency:
+Ask PayRouta to connect your sandbox business to **Sandbox Credit (test lender)**. Its plans, for any amount from 10.00 to 5,000,000.00 in the payment currency:
 
 | Plan | Payments | Cost of credit |
 | --- | --- | --- |
@@ -36,7 +36,7 @@ Ask PayRouta to connect your sandbox business to **Sandbox Credit (fictional len
 | `sbxc-m3` | 3, monthly | 4.5% |
 | `sbxc-m6` | 6, monthly (from 50,000.00) | 12% |
 
-Approve the test credit on the checkout to confirm the payment. A `reference` containing `[decline]` is declined by the fictional lender, so you can test that path. No credit check runs and nobody owes anything.
+Approve the test credit on the checkout to confirm the payment. A `reference` containing `[decline]` is declined by the test lender, so you can test that path. No credit check runs and nobody owes anything.
 
 ## Continental Self-Serve BNPL & Open-Banking Switches
 
