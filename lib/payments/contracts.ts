@@ -1,4 +1,6 @@
 import { validateStablecoinPayment } from "../blockchain/stablecoin-payment";
+import { tokenAsset, validTokenAmount } from "../blockchain/assets";
+import { intentsAccount } from "../intents/near";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { supportedPaymentMethodIds } from "../providers/normalized";
@@ -146,10 +148,11 @@ export const activeStates = [
   "Confirmed",
 ];
 // Customer action from a partner execution: a redirect to the partner's
-// declared payment host, or a sandbox authorization.
+// declared payment host, or a sandbox authorization. `intents`: pay from any
+// token on any chain into the merchant's NEAR Intents account (`address`).
 export const factAction = z
   .object({
-    kind: z.enum(["redirect", "sandbox", "qr", "deposit", "paypal-venmo"]),
+    kind: z.enum(["redirect", "sandbox", "qr", "deposit", "paypal-venmo", "intents"]),
     url: z.url().max(2048).optional(),
     image: z
       .string()
@@ -222,6 +225,21 @@ export const factAction = z
           message: "Invalid token, chain, address or amount",
         });
       }
+    }
+    if (action.kind === "intents") {
+      const token =
+        action.network && action.identifier
+          ? tokenAsset(action.network, action.identifier)
+          : undefined;
+      if (
+        !action.address ||
+        intentsAccount(action.address)?.accountId !== action.address ||
+        !token ||
+        action.symbol !== token.symbol ||
+        !action.amount ||
+        !validTokenAmount(action.amount, token.decimals)
+      )
+        ctx.addIssue({ code: "custom", message: "Intents action is incomplete" });
     }
     if (
       (action.kind === "redirect" && !action.url) ||

@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-test("mixed checkout switches stablecoin and crypto categories and locks the selected payment instructions", async ({
+test("mixed checkout asks what the customer pays with and locks the chosen instructions", async ({
   page,
 }) => {
   const choices = [
@@ -35,6 +35,18 @@ test("mixed checkout switches stablecoin and crypto categories and locks the sel
       json:
         q?.action === "exchange"
           ? { ok: true }
+          : q?.action === "pay-options"
+            ? {
+                locked: active,
+                settle: null,
+                chains: [
+                  {
+                    id: "eip155:84532",
+                    name: "Base Sepolia",
+                    tokens: choices.map((c) => ({ key: `direct:${c.id}`, symbol: c.symbol, route: "direct", method: c.method, optionId: c.id, amount: c.amount })),
+                  },
+                ],
+              }
           : q?.action === "choose-network"
             ? { optionId: selected.id }
             : q?.action === "methods"
@@ -84,35 +96,23 @@ test("mixed checkout switches stablecoin and crypto categories and locks the sel
     });
   });
   await page.goto(`/checkout/mixed-methods#${"m".repeat(43)}`);
-  await expect(
-    page.getByRole("button", { name: "Crypto wallet", exact: true }),
-  ).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "Stablecoins", exact: true }).click();
-  await expect(page.getByLabel("Token and network")).toHaveValue("usdc");
-  await expect(
-    page.getByRole("button", { name: "Continue with stablecoins" }),
-  ).toBeEnabled();
-  await page
-    .getByRole("button", { name: "Crypto wallet", exact: true })
-    .click();
-  await expect(page.getByLabel("Token and network")).toHaveValue("eth");
-  await page.getByRole("button", { name: "Stablecoins", exact: true }).click();
-  await expect(page.getByLabel("Token and network")).toHaveValue("usdc");
-  await page.getByRole("button", { name: "Continue with stablecoins" }).click();
+  // One network: the customer only picks the token.
+  await expect(page.getByLabel("Network", { exact: true })).toHaveValue("eip155:84532");
+  await page.getByLabel("Token", { exact: true }).selectOption("direct:eth");
+  await expect(page.getByText(/You send exactly 0\.004 ETH/)).toBeVisible();
+  await page.getByLabel("Token", { exact: true }).selectOption("direct:usdc");
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Pay 12.50 USDC" }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Pay with wallet", exact: true }),
   ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Crypto wallet", exact: true }),
-  ).toBeDisabled();
-  await expect(page.getByLabel("Token and network")).toBeDisabled();
+  await expect(page.getByLabel("Token", { exact: true })).toHaveCount(0);
   expect(selectedMethods).toEqual(["stablecoin"]);
   await expect(page.getByText("USDT0", { exact: true })).toHaveCount(0);
 });
-test("paid crypto-only checkout retains visible stablecoin category without creating a second payment", async ({
+test("paid crypto checkout shows the crypto method as chosen without creating a second payment", async ({
   page,
 }) => {
   await page.route("**/api/checkout/paid-crypto-only", (route) =>
@@ -153,10 +153,8 @@ test("paid crypto-only checkout retains visible stablecoin category without crea
   await expect(
     page.getByRole("heading", { name: "Payment received" }),
   ).toBeVisible();
-  await expect(page.getByText("Stablecoins", { exact: true })).toBeVisible();
-  await expect(
-    page.getByText("Not offered for this checkout", { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByText("Crypto and stablecoins", { exact: true })).toBeVisible();
+  await expect(page.getByText("Selected", { exact: true })).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Pay with wallet", exact: true }),
   ).toHaveCount(0);
@@ -484,6 +482,15 @@ test("crypto checkout selects ETH Base or exact PEPE Ethereum and sends the chos
     const result =
       q?.action === "exchange"
         ? { ok: true }
+        : q?.action === "pay-options"
+          ? {
+              locked: attempt,
+              settle: null,
+              chains: [
+                { id: "base", name: "Base", tokens: [{ key: "direct:base-eth", symbol: "ETH", route: "direct", method: "crypto-app", optionId: "base-eth", amount: choices[0].amount }] },
+                { id: "eth", name: "Ethereum", tokens: [{ key: "direct:ethereum-pepe", symbol: "PEPE", route: "direct", method: "crypto-app", optionId: "ethereum-pepe", amount: choices[1].amount }] },
+              ],
+            }
         : q?.action === "methods"
           ? {
               methods: [
@@ -532,13 +539,9 @@ test("crypto checkout selects ETH Base or exact PEPE Ethereum and sends the chos
   await page.goto(`/checkout/crypto-browser#${"a".repeat(43)}`);
   await expect(page.getByText(/Rate by CoinGecko/)).toBeVisible();
   await expect(page.getByRole("timer")).toBeVisible();
-  await page.getByLabel("Token and network").selectOption("ethereum-pepe");
-  await expect(
-    page.getByRole("button", { name: "Continue with crypto wallet" }),
-  ).toBeEnabled();
-  await page
-    .getByRole("button", { name: "Continue with crypto wallet" })
-    .click();
+  await page.getByLabel("Network", { exact: true }).selectOption("eth");
+  await page.getByLabel("Token", { exact: true }).selectOption("direct:ethereum-pepe");
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Pay with wallet", exact: true }),
   ).toBeVisible();
@@ -548,7 +551,7 @@ test("crypto checkout selects ETH Base or exact PEPE Ethereum and sends the chos
   await expect(
     page.getByRole("button", { name: "Copy address", exact: true }),
   ).toBeVisible();
-  await expect(page.getByLabel("Token and network")).toBeDisabled();
+  await expect(page.getByLabel("Token", { exact: true })).toHaveCount(0);
   expect(calls).toContainEqual({ action: "select", method: "crypto-app" });
   await page
     .getByRole("button", { name: "Pay with wallet", exact: true })

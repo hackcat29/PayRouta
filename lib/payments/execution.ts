@@ -1,5 +1,6 @@
 import { isDepositAdapter } from "../blockchain/deposit-config";
 import { databaseDepositStore } from "../blockchain/deposit-store";
+import { databaseIntentsSwaps } from "../intents/swaps";
 import { nativeModules } from "../providers/adapters/native/registry";
 import { db } from "../portal/db";
 import { sandboxSimulation, secretManager } from "../portal/adapters";
@@ -156,6 +157,9 @@ export function resolveExecutionAdapter(integration: {
         credentials: secretManager,
         ...(isDepositAdapter(config.adapter)
           ? { deposits: databaseDepositStore(integration.id ?? "") }
+          : {}),
+        ...(config.adapter === "near-intents-deposit"
+          ? { swaps: databaseIntentsSwaps }
           : {}),
       });
     }

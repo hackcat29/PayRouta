@@ -9,6 +9,7 @@ const docsPages: Record<string, string> = {
   credit: "guides/credit",
   "crypto-payments": "guides/crypto-payments",
   "cross-chain": "guides/cross-chain",
+  "near-intents": "guides/near-intents",
   "payment-methods": "concepts/payment-methods",
   "payment-intents": "concepts/payment-intents",
   settlement: "concepts/settlement",

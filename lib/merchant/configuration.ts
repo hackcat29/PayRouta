@@ -2,6 +2,7 @@ import { currentMerchantScreening } from "./screening";
 import { validateScopeEvidence } from "./live-scope";
 import { snapshotFees } from "../payments/pricing";
 import { stablecoinOverview } from "./stablecoins";
+import { intentsSettlementAssets } from "../intents/account";
 import { isTestnet } from "../blockchain/chains";
 import { tokenAssets } from "../blockchain/assets";
 import { cryptoAssets, onchainMethod } from "../blockchain/crypto-assets";
@@ -32,9 +33,10 @@ export async function merchantConfiguration(
             ["stablecoin", "crypto-app"].includes(m),
           )
         : [];
-  const [candidates, pools] = await Promise.all([
+  const [candidates, pools, intents] = await Promise.all([
     stablecoinCandidates(orgId, environment),
     stablecoinOverview(orgId, environment),
+    intentsSettlementAssets(orgId, environment),
   ]);
   let commonReason: string | null = policy.paused ? "PROCESSING_PAUSED" : null;
   if (environment === "production" && !commonReason) {
@@ -65,7 +67,11 @@ export async function merchantConfiguration(
       const matching = pools.filter(
         (p) => p.network === token.network && p.identifier === token.identifier,
       );
-      const configured = matching.length > 0;
+      // A receive-address pool, or settlement into the connected NEAR
+      // Intents account.
+      const configured =
+        matching.length > 0 ||
+        intents.has(`${token.network}|${token.identifier}`);
       const eligible = candidates.some(
         (c) =>
           c.asset.network === token.network &&

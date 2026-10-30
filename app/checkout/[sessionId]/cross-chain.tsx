@@ -1,11 +1,10 @@
 "use client";
-// "Pay from another chain or token" (lib/intents/checkout.ts). Shown under a
-// crypto checkout's deposit instructions when cross-chain payments are on
-// for this checkout. The customer picks what they hold, gives a refund
-// address on that chain, and sends the quoted amount to a one-time deposit
-// address; the intents network delivers the exact invoice amount to the
-// merchant. Confirmation still appears in the main checkout above.
-import { useEffect, useMemo, useState } from "react";
+// Paying with a token the merchant doesn't receive directly
+// (lib/intents/checkout.ts): NEAR Intents quotes a swap, the customer sends
+// the quoted amount to a one-time deposit address, and the exact invoice
+// amount is delivered to the merchant. Confirmation still appears in the main
+// checkout above.
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Asset = { assetId: string; chain: string; chainName: string; symbol: string };
 type Payment = {
@@ -38,7 +37,21 @@ const errors: Record<string, string> = {
   CROSS_CHAIN_AMOUNT_TOO_SMALL: "This amount is below the minimum for that token on that network. Try another token or chain, or pay directly above.",
 };
 
-export function CrossChain({ api, onCopy }: { api: Api; onCopy: (value: string, label: string) => void }) {
+// `primary`: this is how the customer pays (they chose a token to swap, or
+// the merchant settles into a NEAR Intents account), not an alternative to a
+// direct transfer. `preset`: the token and refund address the customer
+// already chose (pay-picker.tsx), quoted as soon as instructions exist.
+export function CrossChain({
+  api,
+  onCopy,
+  primary = false,
+  preset,
+}: {
+  api: Api;
+  onCopy: (value: string, label: string) => void;
+  primary?: boolean;
+  preset?: { originAsset: string; refundTo: string };
+}) {
   const [assets, setAssets] = useState<Asset[] | null>(null);
   const [chain, setChain] = useState("");
   const [assetId, setAssetId] = useState("");
@@ -46,6 +59,31 @@ export function CrossChain({ api, onCopy }: { api: Api; onCopy: (value: string, 
   const [payment, setPayment] = useState<Payment | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const quoted = useRef(false);
+
+  async function getQuote(originAsset = assetId, refund = refundTo) {
+    setBusy(true);
+    setError("");
+    try {
+      const r = await api({ action: "cross-chain-quote", originAsset, refundTo: refund.trim() });
+      setPayment(r as unknown as Payment);
+    } catch (e) {
+      // The checkout API already turns error codes into sentences.
+      const message = (e as Error).message;
+      setError(
+        errors[message] ??
+          (message ||
+            (primary
+              ? "A quote isn't available for that token right now. Try another token or network."
+              : "A cross-chain quote isn't available right now. You can still pay directly above.")),
+      );
+      // Let the customer adjust what they chose.
+      setAssetId(originAsset);
+      setRefundTo(refund);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   useEffect(() => {
     let alive = true;
@@ -53,12 +91,22 @@ export function CrossChain({ api, onCopy }: { api: Api; onCopy: (value: string, 
       .then((r) => alive && setAssets(r.available ? (r.assets as Asset[]) : []))
       .catch(() => alive && setAssets([]));
     api({ action: "cross-chain-status" })
-      .then((r) => alive && r.payment && setPayment(r.payment as Payment))
+      .then((r) => {
+        if (!alive) return;
+        if (r.payment) setPayment(r.payment as Payment);
+        else if (preset && !quoted.current) {
+          quoted.current = true;
+          void getQuote(preset.originAsset, preset.refundTo);
+        }
+      })
       .catch(() => {});
     return () => {
       alive = false;
     };
+    // The preset is quoted once, when instructions first exist.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [api]);
+
 
   useEffect(() => {
     if (!payment || ["SUCCESS", "REFUNDED", "FAILED"].includes(payment.status)) return;
@@ -75,27 +123,20 @@ export function CrossChain({ api, onCopy }: { api: Api; onCopy: (value: string, 
     for (const a of assets ?? []) seen.set(a.chain, a.chainName);
     return [...seen].sort((a, b) => a[1].localeCompare(b[1]));
   }, [assets]);
-  const tokens = (assets ?? []).filter((a) => a.chain === chain);
+  // A preset token that couldn't be quoted shows under its own network.
+  const network = chain || assets?.find((a) => a.assetId === assetId)?.chain || "";
+  const tokens = (assets ?? []).filter((a) => a.chain === network);
 
-  if (!assets?.length && !payment) return null;
-
-  async function getQuote() {
-    setBusy(true);
-    setError("");
-    try {
-      const r = await api({ action: "cross-chain-quote", originAsset: assetId, refundTo: refundTo.trim() });
-      setPayment(r as unknown as Payment);
-    } catch (e) {
-      const code = (e as Error).message;
-      setError(errors[code] ?? "A cross-chain quote isn't available right now. You can still pay directly above.");
-    } finally {
-      setBusy(false);
-    }
-  }
+  if (!assets?.length && !payment)
+    return primary && assets ? (
+      <p role="alert" className="sc-error">
+        Payment instructions aren&apos;t available right now. Try again in a few minutes, or contact the merchant.
+      </p>
+    ) : null;
 
   return (
-    <details className="sc-cross" open={!!payment}>
-      <summary>Pay from another chain or token</summary>
+    <details className="sc-cross" open={primary || !!payment}>
+      <summary>{primary ? "Your payment" : "Pay with a different token"}</summary>
       {payment ? (
         <div className="sc-deposit">
           <div>
@@ -129,15 +170,24 @@ export function CrossChain({ api, onCopy }: { api: Api; onCopy: (value: string, 
               Send before {new Date(payment.deadline).toLocaleTimeString()}. If the swap can&apos;t complete, it is refunded to{" "}
               <code>{payment.refundTo}</code>. Swaps run on NEAR Intents, a liquidity layer for 125+ assets across 36+ chains; PayRouta never holds your funds.
             </p>
+            {["REFUNDED", "FAILED"].includes(payment.status) && (
+              <button type="button" onClick={() => setPayment(null)}>
+                Pay another way
+              </button>
+            )}
           </div>
         </div>
       ) : (
         <div className="sc-cross-form">
-          <p>Hold a different token, or on another network? Pay with it. The merchant still receives the amount above.</p>
+          <p>
+            {primary
+              ? "Pick the network and token you hold. You'll get a one-time address and the exact amount to send."
+              : "Hold a different token, or on another network? Pay with it. The merchant still receives the amount above."}
+          </p>
           <label htmlFor="cc-chain">Network you pay from</label>
           <select
             id="cc-chain"
-            value={chain}
+            value={network}
             onChange={(e) => {
               setChain(e.target.value);
               setAssetId("");
@@ -151,7 +201,7 @@ export function CrossChain({ api, onCopy }: { api: Api; onCopy: (value: string, 
             ))}
           </select>
           <label htmlFor="cc-token">Token</label>
-          <select id="cc-token" value={assetId} disabled={!chain} onChange={(e) => setAssetId(e.target.value)}>
+          <select id="cc-token" value={assetId} disabled={!network} onChange={(e) => setAssetId(e.target.value)}>
             <option value="">Choose a token</option>
             {tokens.map((t) => (
               <option key={t.assetId} value={t.assetId}>

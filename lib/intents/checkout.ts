@@ -8,13 +8,22 @@
 // changes: the payment is confirmed only when the existing on-chain checks
 // see the exact transfer to the receive address before the quote deadline.
 //
+// When the merchant settles into a NEAR Intents account (action kind
+// `intents`), this is the only way to pay: the quote delivers into that
+// account instead, any token including the invoice token itself is accepted,
+// and the settlement adapter (near-intents-deposit) confirms the delivery
+// from the swap's intents.near events.
+//
 // On for production checkouts (1Click has no testnet, and sandbox never moves
 // real money). CROSS_CHAIN_PAYMENTS=off is the kill switch.
 import { db } from "../portal/db";
 import { json } from "../portal/service";
 import { PortalError } from "../portal/domain";
-import { authorizeSession, refreshAttempt } from "../payments/service";
+import { authorizeSession, checkoutOptions, refreshAttempt } from "../payments/service";
 import { minor } from "../payments/contracts";
+import { stablecoinCandidates } from "../payments/stablecoin-routes";
+import { networkName } from "../blockchain/chains";
+import { paymentAsset, onchainMethod } from "../blockchain/crypto-assets";
 import { chainNames, destinationFor, quote, status, tokens, type Http } from "./oneclick";
 import { providerRequest } from "../providers/adapters/http";
 
@@ -30,14 +39,137 @@ async function awaitingDeposit(sessionId: string, token: string, now: Date) {
   const { intent } = await authorizeSession(sessionId, token, now);
   const attempt = await db.paymentAttempt.findFirst({ where: { intentId: intent.id }, orderBy: { number: "desc" } });
   const action = attempt?.action as { kind?: string; address?: string; network?: string; identifier?: string; amount?: string } | null;
-  if (!attempt || attempt.state !== "Requires action" || action?.kind !== "deposit" || !action.address || !action.network || !action.identifier || !action.amount)
+  if (
+    !attempt ||
+    attempt.state !== "Requires action" ||
+    (action?.kind !== "deposit" && action?.kind !== "intents") ||
+    !action.address ||
+    !action.network ||
+    !action.identifier ||
+    !action.amount
+  )
     return { intent, attempt: null, reason: "CROSS_CHAIN_NO_TRANSFER_AWAITED" } as const;
   const destination = destinationFor(action.network, action.identifier);
   if (!destination) return { intent, attempt: null, reason: "CROSS_CHAIN_ASSET_NOT_SUPPORTED" } as const;
   if (intent.environment !== "production") return { intent, attempt: null, reason: "CROSS_CHAIN_LIVE_ONLY" } as const;
   if (intent.expiresAt.getTime() - now.getTime() < minimumWindowMs)
     return { intent, attempt: null, reason: "CROSS_CHAIN_TOO_LATE" } as const;
-  return { intent, attempt, action: { ...action, address: action.address, amount: action.amount }, destination, reason: null } as const;
+  return {
+    intent,
+    attempt,
+    action: { ...action, address: action.address, amount: action.amount },
+    destination,
+    intoIntents: action.kind === "intents",
+    reason: null,
+  } as const;
+}
+
+// NEAR Intents chain codes of PayRouta's mainnet networks.
+const chainCodes: Record<string, string> = {
+  "eip155:1": "eth",
+  "eip155:8453": "base",
+  "eip155:42161": "arb",
+  "eip155:137": "pol",
+  "eip155:43114": "avax",
+  "solana:mainnet": "sol",
+  "stellar:pubnet": "stellar",
+};
+
+export type PayToken = {
+  key: string;
+  symbol: string;
+  // direct: the merchant receives this exact token, sent to their address.
+  // swap: NEAR Intents swaps it into the checkout's settlement stablecoin.
+  route: "direct" | "swap";
+  method: string;
+  optionId: string | null;
+  amount?: string;
+  assetId?: string;
+};
+
+// The checkout's crypto picker: every token the customer could pay with,
+// grouped by the network they pay from. The customer only says what they
+// hold; which of the merchant's accounts receives it, a receive address or
+// their NEAR Intents account, is routing and never a customer choice.
+export async function payOptions(sessionId: string, token: string, deps: Deps = {}) {
+  const now = deps.now ?? new Date();
+  const { intent } = await authorizeSession(sessionId, token, now);
+  const locked = (await db.paymentAttempt.count({ where: { intentId: intent.id } })) > 0;
+  const asset = intent.asset as { network: string; identifier: string };
+  // A multi-coin checkout offers its quoted options; a single-asset one its
+  // own asset.
+  const offered = (intent.paymentOptions as unknown[] | null)?.length
+    ? (await checkoutOptions(intent)).filter((o) => o.available)
+    : [
+        {
+          id: null,
+          network: asset.network,
+          identifier: asset.identifier,
+          symbol: paymentAsset(asset.network, asset.identifier)?.symbol,
+          amount: intent.amount,
+          method: onchainMethod(asset.network, asset.identifier),
+        },
+      ];
+  const routed = await Promise.all(
+    offered.map(async (o) => {
+      const [first] = await stablecoinCandidates(intent.orgId, intent.environment, { kind: "blockchain", network: o.network, identifier: o.identifier }, db, intent.id);
+      return first ? { ...o, intents: first.intents } : null;
+    }),
+  );
+  const options = routed.filter((o): o is NonNullable<typeof o> => !!o && !!o.symbol);
+  const swaps = intent.environment === "production" && (deps.enabled ?? crossChainEnabled());
+  let listed: Awaited<ReturnType<typeof tokens>> = [];
+  if (swaps)
+    try {
+      listed = await tokens(deps.http ?? providerRequest, now.getTime());
+    } catch {
+      listed = [];
+    }
+  return { locked, ...payTokens(options, swaps, listed) };
+}
+
+type Routed = { id: string | null; network: string; identifier: string; symbol?: string; amount: string; method: string; intents: boolean };
+// What each token the customer holds pays as. A token the merchant receives
+// directly (an address pool) is sent as is and listed once; with swaps on,
+// every NEAR Intents token swaps into one settlement stablecoin, preferably
+// one that settles into the merchant's intents account.
+export function payTokens(options: Routed[], swaps: boolean, listed: { assetId: string; blockchain: string; symbol: string }[]) {
+  const target = swaps
+    ? (options.find((o) => o.intents) ?? options.find((o) => o.method === "stablecoin" && destinationFor(o.network, o.identifier)))
+    : undefined;
+  const chains = new Map<string, { id: string; name: string; tokens: PayToken[] }>();
+  const add = (id: string, name: string, t: PayToken) => {
+    if (!chains.has(id)) chains.set(id, { id, name, tokens: [] });
+    const c = chains.get(id)!;
+    if (!c.tokens.some((x) => x.symbol === t.symbol)) c.tokens.push(t);
+  };
+  for (const o of options.filter((o) => !o.intents && o.symbol)) {
+    const code = chainCodes[o.network] ?? o.network;
+    add(code, chainNames[code] ?? networkName(o.network), {
+      key: `direct:${o.id ?? "asset"}`,
+      symbol: o.symbol!,
+      route: "direct",
+      method: o.method,
+      optionId: o.id,
+      amount: o.amount,
+    });
+  }
+  if (target)
+    for (const t of listed)
+      add(t.blockchain, chainNames[t.blockchain] ?? t.blockchain.toUpperCase(), {
+        key: `swap:${t.assetId}`,
+        symbol: t.symbol,
+        route: "swap",
+        method: target.method,
+        optionId: target.id,
+        assetId: t.assetId,
+      });
+  return {
+    settle: target ? { symbol: target.symbol!, amount: target.amount } : null,
+    chains: [...chains.values()]
+      .map((c) => ({ ...c, tokens: c.tokens.sort((a, b) => (a.route === b.route ? a.symbol.localeCompare(b.symbol) : a.route === "direct" ? -1 : 1)) }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+  };
 }
 
 // Whether the customer can pay from another chain, and with what.
@@ -48,10 +180,16 @@ export async function crossChainOptions(sessionId: string, token: string, deps: 
   if (!scope.attempt) return { available: false, reason: scope.reason, assets: [] };
   const list = await tokens(deps.http ?? providerRequest, now.getTime());
   const assets = list
-    .filter((t) => t.assetId !== scope.destination.assetId)
+    .filter((t) => scope.intoIntents || t.assetId !== scope.destination.assetId)
     .map((t) => ({ assetId: t.assetId, chain: t.blockchain, chainName: chainNames[t.blockchain] ?? t.blockchain.toUpperCase(), symbol: t.symbol }))
     .sort((a, b) => a.chainName.localeCompare(b.chainName) || a.symbol.localeCompare(b.symbol));
-  return { available: true, reason: null, assets, receive: { symbol: scope.destination.symbol, amount: scope.action.amount } };
+  return {
+    available: true,
+    reason: null,
+    assets,
+    intents: scope.intoIntents,
+    receive: { symbol: scope.destination.symbol, amount: scope.action.amount, assetId: scope.destination.assetId },
+  };
 }
 
 export async function crossChainQuote(
@@ -65,7 +203,7 @@ export async function crossChainQuote(
   if (!(deps.enabled ?? crossChainEnabled())) throw new PortalError("CROSS_CHAIN_OFF", 409);
   const scope = await awaitingDeposit(sessionId, token, now);
   if (!scope.attempt) throw new PortalError(scope.reason, 409);
-  const { intent, attempt, action, destination } = scope;
+  const { intent, attempt, action, destination, intoIntents } = scope;
   const list = await tokens(http, now.getTime());
   const origin = list.find((t) => t.assetId === input.originAsset);
   const listed = list.find((t) => t.assetId === destination.assetId);
@@ -77,13 +215,21 @@ export async function crossChainQuote(
     (listed.contractAddress ?? "").toLowerCase() !== destination.contract.toLowerCase()
   )
     throw new PortalError("CROSS_CHAIN_ASSET_NOT_SUPPORTED", 409);
-  if (!origin || origin.assetId === destination.assetId) throw new PortalError("CROSS_CHAIN_ORIGIN_NOT_SUPPORTED", 409);
+  if (!origin || (!intoIntents && origin.assetId === destination.assetId)) throw new PortalError("CROSS_CHAIN_ORIGIN_NOT_SUPPORTED", 409);
   if (!/^[A-Za-z0-9:._@-]{20,140}$/.test(input.refundTo) || (/^0x/i.test(input.refundTo) && !/^0x[0-9a-fA-F]{40}$/.test(input.refundTo)))
     throw new PortalError("CROSS_CHAIN_REFUND_ADDRESS_INVALID", 400);
   const amountOut = minor(action.amount, destination.decimals).toString();
   const deadline = new Date(intent.expiresAt.getTime() - deadlineMarginMs);
   const result = await quote(
-    { originAsset: origin.assetId, destinationAsset: destination.assetId, amountOut, recipient: action.address, refundTo: input.refundTo, deadline },
+    {
+      originAsset: origin.assetId,
+      destinationAsset: destination.assetId,
+      amountOut,
+      recipient: action.address,
+      refundTo: input.refundTo,
+      deadline,
+      to: intoIntents ? "INTENTS" : "CHAIN",
+    },
     http,
   );
   // Exact output only: anything else would under- or over-pay the invoice
@@ -102,6 +248,7 @@ export async function crossChainQuote(
       originChain: origin.blockchain,
       originSymbol: origin.symbol,
       destinationAsset: destination.assetId,
+      recipientType: intoIntents ? "INTENTS" : "DESTINATION_CHAIN",
       depositAddress: result.quote.depositAddress,
       depositMemo: result.quote.depositMemo ?? null,
       amountIn: result.quote.amountIn,
@@ -149,9 +296,10 @@ export async function crossChainStatus(sessionId: string, token: string, deps: D
   if (["SUCCESS", "REFUNDED", "FAILED"].includes(record.status) || (record.checkedAt && now.getTime() - record.checkedAt.getTime() < 5000))
     return { payment: present(record) };
   const s = await status(record.depositAddress, record.depositMemo, deps.http ?? providerRequest);
+  // Swap details carry the intent hashes NEAR Intents settlement verifies.
   const updated = await db.crossChainPayment.update({
     where: { id: record.id },
-    data: { status: s?.status ?? record.status, checkedAt: now },
+    data: { status: s?.status ?? record.status, ...(s?.swapDetails ? { details: json(s.swapDetails) } : {}), checkedAt: now },
   });
   if (s?.status === "SUCCESS") await refreshAttempt(sessionId, token, now).catch(() => {});
   return { payment: present(updated) };

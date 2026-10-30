@@ -9,6 +9,8 @@ test("future provider methods remain disabled even if an older availability resp
     const result =
       raw?.action === "exchange"
         ? { ok: true }
+        : raw?.action === "pay-options"
+          ? { locked: false, settle: null, chains: [] }
         : raw?.action === "methods"
           ? {
               methods: [
@@ -41,9 +43,8 @@ test("future provider methods remain disabled even if an older availability resp
   });
   await page.goto("/checkout/legacy#" + "a".repeat(43));
   await expect(page.getByText("Coming soon", { exact: true })).toHaveCount(7);
-  await expect(
-    page.getByRole("button", { name: "Continue with stablecoins" }),
-  ).toBeDisabled();
+  await expect(page.getByText(/can't take crypto payments for this checkout/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Continue", exact: true })).toHaveCount(0);
   await expect(page.locator("input")).toHaveCount(0);
   expect(
     attempts.some(

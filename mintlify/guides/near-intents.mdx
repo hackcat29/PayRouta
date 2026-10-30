@@ -1,0 +1,53 @@
+---
+title: "Your NEAR Intents Account"
+description: "Get paid from any token on any chain into a NEAR Intents account you own, then pay out and refund on any chain by signing in your wallet."
+---
+
+Connect a [NEAR Intents](https://docs.near-intents.org) account you own, and every crypto checkout and USD payment link can be paid from any of 125+ tokens on 36+ chains. You receive the exact invoice amount, in the stablecoin you choose, in that one account. From the same balance you pay suppliers or staff and refund customers on any chain, by signing in your own wallet.
+
+PayRouta never holds the funds or the account's keys. NEAR Intents holds balances in the `intents.near` contract on behalf of the account that owns them.
+
+<Info>
+**Status.** Production only: NEAR Intents runs on mainnet, so it isn't available in test mode. Live checkouts settle into an account once operations approve it in your live scope.
+</Info>
+
+## Connect an account
+
+In the dashboard, open **Crypto balance**.
+
+1. Choose the stablecoins checkouts settle in: USDC on Base, Ethereum, Arbitrum, Polygon, Avalanche, Solana or Stellar, or USDT on Ethereum, Avalanche or Solana.
+2. Connect the wallet that owns the account:
+   - a **NEAR wallet** (HOT, Meteor, Intear, MyNearWallet and others) for a NEAR account such as `shop.near`, or
+   - an **EVM wallet** (MetaMask, Rabby, Coinbase Wallet and others), whose address is its NEAR Intents account.
+3. Sign the message the wallet shows. It proves you control the account and does not move funds. PayRouta checks the signature and, for a named NEAR account, that the signing key has full access to it.
+
+Connecting needs recent authenticator verification. The account then joins your live scope like a receive-address pool: operations review it before live checkouts settle into it. Connecting another account replaces the first; disconnecting stops new checkouts settling there and leaves the funds where they are.
+
+A named NEAR account must tell NEAR Intents once which key signs its intents. **Crypto balance** shows a **Register wallet key** button until it has; it sends one transaction from your wallet with a small NEAR network fee. EVM addresses need no registration.
+
+## How a payment settles
+
+1. The checkout asks for, say, 40.00 USDC. The customer picks what they hold, for example USDT on Tron, and gives their own address on that chain for refunds.
+2. PayRouta asks NEAR Intents' 1Click API for an **exact-output** quote that delivers exactly 40.00 USDC into your account. The customer sends the quoted amount to a one-time deposit address. Paying in the invoice token itself works the same way.
+3. When 1Click reports the swap complete, PayRouta reads the swap's NEAR transactions back from the chain. The payment is confirmed only by a final `intents.near` transfer of exactly 40.00 USDC into your account, made by one of that swap's own intents. Each transfer can confirm one payment only.
+4. Settlement is recorded as for any other crypto payment, with the NEAR transaction as evidence.
+
+If the swap can't complete, NEAR Intents refunds the customer on their own chain, and they can pay another way on the same checkout.
+
+## Pay out and refund
+
+**Pay out.** Choose the balance to pay from, the amount, the network and token they receive, and their address. PayRouta gets an exact-input quote funded from your account and the transfer intent that funds it. Before you sign, PayRouta checks that the intent moves exactly that amount from your account to the quote's deposit account and nothing else. Your wallet signs; NEAR Intents executes it and you pay no gas.
+
+**Refund.** **Payments settled here** lists recent payments with what's left to refund. **Refund** fills in the customer's refund address and the token and network they paid with; you choose the amount, up to what the payment delivered less earlier refunds.
+
+Payouts and refunds appear under **Payouts and refunds** with their status and, once sent, a link to the destination chain's explorer. A quote must be signed within 20 minutes; unsigned quotes expire and nothing moves.
+
+## Fees
+
+Swap costs are inside the amounts quoted to the customer and to you; you always receive the full invoice amount. NEAR Intents' protocol fee starts at 1 basis point. PayRouta's own fee for crypto payments is unchanged; see [Fees & Billing](/concepts/billing).
+
+## For developers
+
+- Settlement is the `near-intents-deposit` adapter. It is a deposit integration, so routing, live scope, confirmation, settlement and reconciliation work as for receive-address pools.
+- A checkout settling into an intents account returns an attempt action of kind `intents` with the account as `address`; [Pay from Any Chain](/guides/cross-chain) covers the quote calls.
+- NEAR reads use `NEAR_RPC_URL` (default `https://rpc.mainnet.near.org`) and `NEAR_ARCHIVAL_RPC_URL` for older transactions. `CROSS_CHAIN_PAYMENTS=off` stops new quotes.

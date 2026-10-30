@@ -857,9 +857,13 @@ export async function settle(attemptId: string, now = new Date()) {
         fee: "0",
         net: gross,
         evidence: JSON.stringify({
-          source: a.intent.cryptoQuoteId
-            ? "finalized-crypto-transfer"
-            : "finalized-stablecoin-transfer",
+          source:
+            (integration.config as { adapter?: string }).adapter ===
+            "near-intents-deposit"
+              ? "near-intents-transfer"
+              : a.intent.cryptoQuoteId
+                ? "finalized-crypto-transfer"
+                : "finalized-stablecoin-transfer",
           network: binding.network,
           address: binding.address,
           txHash: claims[0].txHash,

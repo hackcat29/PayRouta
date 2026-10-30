@@ -1572,6 +1572,11 @@ model ProviderAccessRequest {
 // `originAsset` to `depositAddress`. PayRouta never holds the funds, and the
 // payment is still confirmed only by the existing on-chain verification of
 // the delivered transfer.
+//
+// With recipientType INTENTS the swap delivers into the merchant's NEAR
+// Intents account instead (lib/providers/adapters/native/near-intents-deposit.ts);
+// `details` keeps 1Click's swap details, whose intent hashes the adapter
+// matches against intents.near events before confirming.
 model CrossChainPayment {
   id                String   @id @default(cuid())
   intentId          String
@@ -1582,6 +1587,7 @@ model CrossChainPayment {
   originChain       String
   originSymbol      String
   destinationAsset  String
+  recipientType     String   @default("DESTINATION_CHAIN")
   depositAddress    String   @unique
   depositMemo       String?
   amountIn          String
@@ -1591,11 +1597,81 @@ model CrossChainPayment {
   deadline          DateTime
   quote             Json
   status            String   @default("PENDING_DEPOSIT")
+  details           Json?
   checkedAt         DateTime?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
   @@index([attemptId, createdAt])
+}
+
+// A merchant-owned NEAR Intents account (lib/intents/account.ts). Crypto
+// checkouts settle into it from any token on any chain, and the merchant pays
+// out from it by signing intents in their own wallet. Ownership is proven by
+// a signed challenge; PayRouta never holds the account's keys.
+model IntentsAccount {
+  id          String    @id @default(cuid())
+  orgId       String
+  environment String
+  // A named NEAR account (nep413) or a lowercase EVM address (erc191).
+  accountId   String
+  standard    String
+  publicKey   String?
+  proof       Json
+  createdBy   String
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([orgId, environment, createdAt])
+}
+
+// One-time ownership challenge for connecting an IntentsAccount.
+model IntentsChallenge {
+  id          String    @id @default(cuid())
+  orgId       String
+  environment String
+  accountId   String
+  standard    String
+  message     String
+  nonce       String
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+// A payout or refund from a merchant's NEAR Intents balance
+// (lib/intents/payouts.ts): a 1Click quote funded from the intents account,
+// signed in the merchant's wallet and submitted without gas.
+model IntentsPayout {
+  id                 String    @id @default(cuid())
+  orgId              String
+  environment        String
+  accountId          String
+  // payout | refund (of the payment `intentId`)
+  purpose            String
+  intentId           String?
+  originAsset        String
+  destinationAsset   String
+  destinationChain   String
+  destinationSymbol  String
+  recipient          String
+  amountIn           String
+  amountInFormatted  String
+  amountOutFormatted String
+  depositAddress     String    @unique
+  quote              Json
+  payload            Json
+  intentHash         String?
+  status             String    @default("AWAITING_SIGNATURE")
+  details            Json?
+  note               String?
+  createdBy          String
+  checkedAt          DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([orgId, environment, createdAt])
+  @@index([intentId])
 }
 
 // Shopify payments app (lib/integrations/shopify, docs/shopify.md). One row

@@ -42,6 +42,7 @@
               "guides/credit",
               "guides/crypto-payments",
               "guides/cross-chain",
+              "guides/near-intents",
               "guides/localization-and-tax",
               "guides/subscriptions-and-dunning"
             ]

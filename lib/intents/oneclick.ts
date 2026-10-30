@@ -17,7 +17,8 @@ import { secretManager } from "../portal/adapters";
 import { providerRequest, type ProviderHttpOptions, type ProviderHttpResponse } from "../providers/adapters/http";
 
 export const oneClickBase = "https://1click.chaindefuser.com";
-export type Http = (base: string, options: ProviderHttpOptions) => Promise<ProviderHttpResponse>;
+type Response = Pick<ProviderHttpResponse, "status" | "headers" | "body">;
+export type Http = (base: string, options: ProviderHttpOptions) => Promise<Response>;
 
 // PayRouta mainnet stablecoins that 1Click can deliver: (network, identifier)
 // -> 1Click assetId, with the contract it must report.
@@ -93,6 +94,12 @@ const statusResponse = z
     status: z.enum(oneClickStatuses),
     swapDetails: z
       .object({
+        // The swap's own intents and the NEAR transactions that executed
+        // them; NEAR Intents settlement checks both on-chain.
+        intentHashes: z.array(z.string().max(100)).max(50).optional(),
+        nearTxHashes: z.array(z.string().max(100)).max(50).optional(),
+        amountOut: z.string().regex(/^\d+$/).optional(),
+        amountOutFormatted: z.string().max(80).optional(),
         destinationChainTxHashes: z.array(z.object({ hash: z.string(), explorerUrl: z.string().optional() }).passthrough()).optional(),
         refundReason: z.string().nullable().optional(),
       })
@@ -100,6 +107,7 @@ const statusResponse = z
       .optional(),
   })
   .passthrough();
+export type OneClickStatus = z.infer<typeof statusResponse>;
 
 async function headers() {
   const ref = process.env.ONECLICK_API_KEY_REF;
@@ -107,7 +115,7 @@ async function headers() {
   return { "User-Agent": "PayRouta/0.1 (+https://payrouta.com)", ...(key ? { "X-API-Key": key } : {}) };
 }
 
-function parse<T>(schema: z.ZodType<T>, response: ProviderHttpResponse, code: string) {
+function parse<T>(schema: z.ZodType<T>, response: Response, code: string) {
   if (response.status === 429) throw new PortalError("CROSS_CHAIN_RATE_LIMITED", 503);
   if (response.status === 400) {
     // 1Click explains refusals in `message`. Minimums vary by asset, pair and
@@ -147,30 +155,42 @@ export const resetTokenCache = () => {
   cached = null;
 };
 
+// Where the swap is funded from and delivered to:
+//   ORIGIN_CHAIN / DESTINATION_CHAIN  a deposit address / an address on the
+//                                     destination asset's own chain
+//   INTENTS                           an account inside NEAR Intents (a
+//                                     merchant's settlement account)
+export type OneClickEnd = "CHAIN" | "INTENTS";
+
 export async function quote(
   input: {
     originAsset: string;
     destinationAsset: string;
+    // Base units: the exact output, or with exactInput the exact input.
     amountOut: string;
     recipient: string;
     refundTo: string;
     deadline: Date;
+    from?: OneClickEnd;
+    to?: OneClickEnd;
+    exactInput?: boolean;
   },
   http: Http = providerRequest,
 ) {
+  const from = input.from === "INTENTS" ? "INTENTS" : "ORIGIN_CHAIN";
   const body = {
     dry: false,
-    swapType: "EXACT_OUTPUT",
+    swapType: input.exactInput ? "EXACT_INPUT" : "EXACT_OUTPUT",
     // 1% headroom on the input side; the output is exact.
     slippageTolerance: 100,
     originAsset: input.originAsset,
-    depositType: "ORIGIN_CHAIN",
+    depositType: from,
     destinationAsset: input.destinationAsset,
     amount: input.amountOut,
     refundTo: input.refundTo,
-    refundType: "ORIGIN_CHAIN",
+    refundType: from,
     recipient: input.recipient,
-    recipientType: "DESTINATION_CHAIN",
+    recipientType: input.to === "INTENTS" ? "INTENTS" : "DESTINATION_CHAIN",
     deadline: input.deadline.toISOString(),
     referral: "payrouta",
     quoteWaitingTimeMs: 3000,
@@ -197,4 +217,54 @@ export async function status(depositAddress: string, depositMemo: string | null,
   });
   if (response.status === 404) return null;
   return parse(statusResponse, response, "CROSS_CHAIN_UNAVAILABLE");
+}
+
+// Funding a quote from an intents balance (depositType INTENTS): 1Click
+// returns the transfer intent for the account's own wallet to sign, then
+// submits the signed intent; the account pays no gas. PayRouta checks the
+// intent before anyone signs it (payouts.ts).
+const generated = z
+  .object({
+    intent: z.discriminatedUnion("standard", [
+      z.object({ standard: z.literal("erc191"), payload: z.string().min(2).max(8000) }).strict(),
+      z
+        .object({
+          standard: z.literal("nep413"),
+          payload: z
+            .object({
+              message: z.string().min(2).max(8000),
+              nonce: z.string().regex(/^[A-Za-z0-9+/]{43}=$/),
+              recipient: z.string().min(1).max(64),
+              callbackUrl: z.string().max(2048).nullable().optional(),
+            })
+            .strict(),
+        })
+        .strict(),
+    ]),
+  })
+  .passthrough();
+export type GeneratedIntent = z.infer<typeof generated>["intent"];
+
+export async function generateIntent(input: { depositAddress: string; signerId: string; standard: "erc191" | "nep413" }, http: Http = providerRequest) {
+  const response = await http(oneClickBase, {
+    method: "POST",
+    path: "/v0/generate-intent",
+    headers: await headers(),
+    body: JSON.stringify({ type: "swap_transfer", ...input }),
+    timeoutMs: 12000,
+    maxResponseBytes: 65536,
+  });
+  return parse(generated, response, "INTENTS_INTENT_REFUSED").intent;
+}
+
+export async function submitIntent(signedData: unknown, http: Http = providerRequest) {
+  const response = await http(oneClickBase, {
+    method: "POST",
+    path: "/v0/submit-intent",
+    headers: await headers(),
+    body: JSON.stringify({ type: "swap_transfer", signedData }),
+    timeoutMs: 15000,
+    maxResponseBytes: 65536,
+  });
+  return parse(z.object({ intentHash: z.string().min(1).max(100) }).passthrough(), response, "INTENTS_SIGNATURE_REJECTED");
 }

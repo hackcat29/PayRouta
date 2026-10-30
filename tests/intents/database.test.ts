@@ -10,6 +10,9 @@ import { json } from "../../lib/portal/service";
 import { hash } from "../../lib/payments/contracts";
 import { crossChainOptions, crossChainQuote, crossChainStatus } from "../../lib/intents/checkout";
 import { resetTokenCache, type Http } from "../../lib/intents/oneclick";
+import { databaseIntentsSwaps } from "../../lib/intents/swaps";
+import { databaseDepositStore } from "../../lib/blockchain/deposit-store";
+import { intentsDepositExecutionAdapter } from "../../lib/providers/adapters/native/near-intents-deposit";
 
 const usdcBase = { kind: "blockchain", network: "eip155:8453", identifier: "erc20:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913" };
 const tronUsdt = "nep141:tron-d28a265909efecdcee7c5028585214ea0b96f015.omft.near";
@@ -120,4 +123,111 @@ test("cross-chain: refuses anything but an exact quote, sandbox, and checkouts a
   assert.equal((await crossChainOptions(sandbox.id, sandbox.token, { http: fakeOneClick().http, enabled: true })).reason, "CROSS_CHAIN_LIVE_ONLY");
   const late = await awaitingTransfer("production", 3);
   assert.equal((await crossChainOptions(late.id, late.token, { http: fakeOneClick().http, enabled: true })).reason, "CROSS_CHAIN_TOO_LATE");
+});
+
+// Settlement into the merchant's own NEAR Intents account: the checkout takes
+// any token including the invoice token, the quote delivers into the account,
+// and the adapter confirms from the swap's NEAR delivery, which can pay one
+// checkout only.
+async function settlingIntoIntents(account: string, integrationId: string) {
+  const c = await awaitingTransfer();
+  await db.paymentIntent.update({ where: { id: c.intentId }, data: { selectedMethod: "stablecoin" } });
+  const attempt = await db.paymentAttempt.findFirstOrThrow({ where: { intentId: c.intentId } });
+  await db.paymentAttempt.update({
+    where: { id: attempt.id },
+    data: {
+      integrationId,
+      action: json({ kind: "intents", address: account, network: usdcBase.network, identifier: usdcBase.identifier, amount: "40.000000", symbol: "USDC", provider: "NEAR Intents", text: "Pay" }),
+    },
+  });
+  return { ...c, attempt: { id: attempt.id, key: attempt.key, environment: "production" } };
+}
+
+test("near intents: a checkout settles into the merchant's account and the delivery confirms it once", async () => {
+  resetTokenCache();
+  const account = `shop${randomBytes(6).toString("hex")}.near`;
+  const owner = await db.intentsAccount.create({
+    data: { orgId, environment: "production", accountId: account, standard: "nep413", proof: json({}), createdBy: "fixture" },
+  });
+  const config = { mode: "NATIVE", adapter: "near-intents-deposit", environment: "production", network: usdcBase.network, identifier: usdcBase.identifier, account, intentsAccountId: owner.id };
+  const latest = await db.integration.findFirst({ where: { orgId, environment: "production" }, orderBy: { version: "desc" } });
+  const integration = await db.integration.create({ data: { orgId, environment: "production", version: (latest?.version ?? 0) + 1, config: json(config) } });
+  const c = await settlingIntoIntents(account, integration.id);
+
+  const oneClick = fakeOneClick({ status: "SUCCESS" });
+  const options = await crossChainOptions(c.id, c.token, { http: oneClick.http, enabled: true });
+  assert.equal(options.intents, true);
+  assert.ok(options.assets.some((a) => a.assetId === baseUsdc), "the invoice token itself can pay");
+  await crossChainQuote(c.id, c.token, { originAsset: baseUsdc, refundTo: `0x${"b".repeat(40)}` }, { http: oneClick.http, enabled: true });
+  const sent = JSON.parse(oneClick.calls.find((x) => x.path === "/v0/quote")!.body!);
+  assert.equal(sent.recipientType, "INTENTS");
+  assert.equal(sent.recipient, account);
+  const swap = await db.crossChainPayment.findFirstOrThrow({ where: { intentId: c.intentId } });
+  assert.equal(swap.recipientType, "INTENTS");
+  // 1Click reports the swap done with its intents and NEAR transaction.
+  await db.crossChainPayment.update({
+    where: { id: swap.id },
+    data: { status: "SUCCESS", details: json({ intentHashes: ["SwapIntentA"], nearTxHashes: ["9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin"] }) },
+  });
+
+  const delivered = {
+    final_execution_status: "FINAL",
+    receipts_outcome: [
+      {
+        id: `Receipt${randomBytes(8).toString("hex")}`,
+        block_hash: "BlockHash111111111111111111111111111111111",
+        outcome: {
+          executor_id: "intents.near",
+          status: { SuccessValue: "" },
+          logs: [
+            `EVENT_JSON:${JSON.stringify({ standard: "dip4", version: "0.4.3", event: "transfer", data: [{ intent_hash: "SwapIntentA", account_id: "q".repeat(64), receiver_id: account, tokens: { [baseUsdc]: "40000000" } }] })}`,
+            `EVENT_JSON:${JSON.stringify({ standard: "nep245", version: "1.0.0", event: "mt_transfer", data: [{ old_owner_id: "q".repeat(64), new_owner_id: account, token_ids: [baseUsdc], amounts: ["40000000"] }] })}`,
+          ],
+        },
+      },
+    ],
+  };
+  const near = async (_base: string, o: { body?: string }) => {
+    const rpc = JSON.parse(o.body!);
+    const result = rpc.method === "block" ? { header: { height: 222300000 } } : delivered;
+    return { status: 200, headers: {}, body: JSON.stringify({ result }) };
+  };
+  const adapter = (id: string) =>
+    intentsDepositExecutionAdapter(config, { http: near, credentials: { get: async () => "" }, deposits: databaseDepositStore(id), swaps: databaseIntentsSwaps });
+  const intent = { reference: "order-cc", amount: "40.000000", asset: usdcBase, selectedMethod: "stablecoin", precision: 6 };
+  await adapter(integration.id).create(c.attempt, intent);
+  const binding = await db.depositBinding.findUniqueOrThrow({ where: { attemptId: c.attempt.id } });
+  assert.ok(binding.address.startsWith(`${account}/`));
+  assert.equal((await adapter(integration.id).status(c.attempt))!.state, "Confirmed");
+  const claim = await db.depositClaim.findUniqueOrThrow({ where: { attemptId: c.attempt.id } });
+  assert.equal(claim.txHash, "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin");
+  // Re-reading the evidence (as settlement does) keeps the same claim.
+  assert.equal((await adapter(integration.id).status(c.attempt))!.state, "Confirmed");
+
+  // A second checkout pointing at the same delivery can't claim it.
+  const other = await settlingIntoIntents(account, integration.id);
+  await adapter(integration.id).create(other.attempt, intent);
+  await db.crossChainPayment.create({
+    data: {
+      intentId: other.intentId,
+      attemptId: other.attempt.id,
+      environment: "production",
+      provider: "near-intents",
+      originAsset: baseUsdc,
+      originChain: "base",
+      originSymbol: "USDC",
+      destinationAsset: baseUsdc,
+      recipientType: "INTENTS",
+      depositAddress: `dep${randomBytes(8).toString("hex")}`,
+      amountIn: "40400000",
+      amountInFormatted: "40.4",
+      amountOut: "40000000",
+      refundTo: `0x${"b".repeat(40)}`,
+      deadline: new Date(Date.now() + 600000),
+      quote: json({}),
+      status: "SUCCESS",
+      details: json({ intentHashes: ["SwapIntentA"], nearTxHashes: ["9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin"] }),
+    },
+  });
+  await assert.rejects(adapter(integration.id).status(other.attempt), /DEPOSIT_ALREADY_CLAIMED/);
 });

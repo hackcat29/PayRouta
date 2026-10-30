@@ -42,6 +42,18 @@ test("customer selects a merchant quote and the network locks when instructions 
     const result =
       q?.action === "exchange"
         ? { ok: true }
+        : q?.action === "pay-options"
+          ? {
+              locked: attempt,
+              settle: null,
+              chains: choices
+                .filter((c) => c.available)
+                .map((c) => ({
+                  id: c.network,
+                  name: c.network === "solana:devnet" ? "Solana Devnet" : "Base Sepolia",
+                  tokens: [{ key: `direct:${c.id}`, symbol: c.symbol, route: "direct", method: "stablecoin", optionId: c.id, amount: c.amount }],
+                })),
+            }
         : q?.action === "methods"
           ? {
               methods: [
@@ -87,13 +99,15 @@ test("customer selects a merchant quote and the network locks when instructions 
     await route.fulfill({ json: result });
   });
   await page.goto("/checkout/multichain-ui#" + "a".repeat(43));
-  await expect(page.getByLabel("Token and network")).toBeEnabled();
-  await page.getByLabel("Token and network").selectOption("solana");
+  await page.getByLabel("Network", { exact: true }).selectOption("solana:devnet");
+  await page.getByLabel("Token", { exact: true }).selectOption("direct:solana");
+  await expect(page.getByText(/You send exactly 0\.90 EURC on Solana Devnet/)).toBeVisible();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "0.90 EURC", exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Continue with stablecoins" }).click();
-  await expect(page.getByLabel("Token and network")).toBeDisabled();
+  // Instructions are issued: nothing left to choose.
+  await expect(page.getByLabel("Network", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Token mint", { exact: true })).toBeVisible();
   await expect(page.getByText(/also needs test SOL/)).toBeVisible();
   expect(

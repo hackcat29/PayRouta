@@ -11,6 +11,10 @@ import {
   nativeDepositConfigSchema,
   nativeDepositExecutionAdapter,
 } from "./evm-native-deposit";
+import {
+  intentsDepositConfigSchema,
+  intentsDepositExecutionAdapter,
+} from "./near-intents-deposit";
 import { opayConfigSchema, opayExecutionAdapter } from "./opay";
 import { venmoConfigSchema, venmoExecutionAdapter } from "./paypal-venmo";
 import { z } from "zod";
@@ -64,6 +68,11 @@ export const nativeModules: readonly {
     id: "stellar-deposit",
     schema: stellarDepositConfigSchema,
     create: stellarDepositExecutionAdapter,
+  },
+  {
+    id: "near-intents-deposit",
+    schema: intentsDepositConfigSchema,
+    create: intentsDepositExecutionAdapter,
   },
   { id: "picpay", schema: picpayConfigSchema, create: picpayExecutionAdapter },
   {

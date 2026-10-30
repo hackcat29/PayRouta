@@ -12,6 +12,7 @@ import type { ExecutionAdapter } from "../../normalized";
 
 export type NativeDeps = {
   deposits?: import("../../../blockchain/deposit-types").DepositStore;
+  swaps?: import("./near-intents-deposit").IntentsSwaps;
   http(
     baseUrl: string,
     options: ProviderHttpOptions,

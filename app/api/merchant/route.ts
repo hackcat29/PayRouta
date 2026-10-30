@@ -3,6 +3,8 @@ import { createMerchantCryptoCheckout } from "@/lib/merchant/crypto-checkout";
 import { setFeeBearer } from "@/lib/merchant/fees";
 import { createStablecoinCheckout } from "@/lib/merchant/stablecoin-checkout";
 import { configureStablecoins } from "@/lib/merchant/stablecoins";
+import { connectIntentsAccount, disconnectIntentsAccount, intentsChallenge } from "@/lib/intents/account";
+import { payoutsFor, quotePayout, submitPayout } from "@/lib/intents/payouts";
 import { liveScopeCommand } from "@/lib/merchant/live-scope";
 import { createMerchantWorkspace } from "@/lib/merchant/workspace";
 import { transitionRollout } from "@/lib/merchant/qualification";
@@ -103,6 +105,22 @@ export async function POST(request: Request) {
         raw.input,
         request.headers,
       );
+    // NEAR Intents settlement account, payouts and refunds (lib/intents).
+    if (typeof raw?.action === "string" && raw.action.startsWith("intents-")) {
+      const orgId = z.string().min(1).parse(raw.orgId);
+      if (raw.action === "intents-challenge")
+        return intentsChallenge(orgId, raw.input, request.headers);
+      if (raw.action === "intents-connect")
+        return connectIntentsAccount(orgId, raw.input, request.headers);
+      if (raw.action === "intents-disconnect")
+        return disconnectIntentsAccount(orgId, request.headers);
+      if (raw.action === "intents-payout-quote")
+        return quotePayout(orgId, raw.input, request.headers);
+      if (raw.action === "intents-payout-submit")
+        return submitPayout(orgId, raw.input, request.headers);
+      if (raw.action === "intents-payouts")
+        return payoutsFor(orgId, request.headers);
+    }
     if (raw?.action === "rollout-transition")
       return transitionRollout(raw, request.headers);
     if (raw?.action === "create-workspace")

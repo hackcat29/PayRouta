@@ -8,7 +8,7 @@ import {
 const tokenAssets = [...stableAssets, ...cryptoAssets];
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { stablecoinDepositConfig as depositConfigSchema } from "../blockchain/deposit-config";
+import { stablecoinDepositConfig as depositConfigSchema, isDepositAdapter } from "../blockchain/deposit-config";
 import { assertLaunchMethod } from "../payments/launch";
 import { supportedPaymentMethodIds } from "../providers/normalized";
 import { internal } from "../portal/access";
@@ -311,14 +311,7 @@ export async function validateScopeEvidence(
           }
         | undefined;
       if (!config || config.accountId !== a.accountReference) return true;
-      if (
-        [
-          "evm-native-deposit",
-          "erc20-deposit",
-          "solana-deposit",
-          "stellar-deposit",
-        ].includes(config.adapter || "")
-      ) {
+      if (isDepositAdapter(config.adapter)) {
         const parsed = depositConfigSchema.safeParse(
           integrations.find((i) => i.id === a.integrationId)?.config,
         );

@@ -65,10 +65,25 @@ export async function stablecoinCandidates(
       )
         continue;
     }
-    const used = await client.depositBinding.count({
-      where: { network: c.network, address: { in: c.addresses } },
-    });
-    if (used === c.addresses.length) {
+    // A NEAR Intents account has no pool to run out of; it stays eligible
+    // while the merchant keeps it connected.
+    if (c.adapter === "near-intents-deposit") {
+      const account = await client.intentsAccount.findUnique({
+        where: { id: c.intentsAccountId },
+      });
+      if (
+        !account ||
+        account.revokedAt ||
+        account.orgId !== orgId ||
+        account.environment !== environment ||
+        account.accountId !== c.account
+      )
+        continue;
+    } else if (
+      (await client.depositBinding.count({
+        where: { network: c.network, address: { in: c.addresses } },
+      })) === c.addresses.length
+    ) {
       if (!boundIntentId) continue;
       const own = await client.paymentAttempt.findFirst({
         where: {
@@ -93,6 +108,7 @@ export async function stablecoinCandidates(
       integrationId: integration.id,
       method,
       name: `${tokenAsset(c.network, c.identifier)!.symbol} on ${c.network}`,
+      intents: c.adapter === "near-intents-deposit",
       asset: expected,
     });
   }
@@ -180,7 +196,9 @@ export async function evaluateDepositContext(
         method,
         label: method === "crypto-app" ? "Crypto wallet" : "Stablecoins",
         status: candidates.length ? "AVAILABLE" : "UNAVAILABLE",
-        explanation: candidates.length
+        explanation: candidates[0]?.intents
+          ? "Pay from any token on any chain; the merchant receives this stablecoin through NEAR Intents"
+          : candidates.length
           ? "Pay directly to the merchant's stablecoin receive address"
           : "This merchant has not configured this token and network yet.",
       },

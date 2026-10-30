@@ -67,6 +67,8 @@ export async function configureStablecoins(
       ? { rpcKeyRef: "pending" }
       : {}),
   });
+  if (checked.adapter === "near-intents-deposit")
+    throw new PortalError("UNSUPPORTED_PAYMENT_ASSET", 409);
   if (chain(input.network)?.family === "stellar") {
     const temporaryRef = input.rpcKey
       ? await secretManager.put(input.rpcKey)
@@ -171,7 +173,13 @@ export async function stablecoinOverview(orgId: string, environment: string) {
   >();
   for (const i of integrations) {
     const parsed = depositConfigSchema.safeParse(i.config);
-    if (!parsed.success || parsed.data.environment !== environment) continue;
+    // NEAR Intents settlement has no address pool (lib/intents/account.ts).
+    if (
+      !parsed.success ||
+      parsed.data.environment !== environment ||
+      parsed.data.adapter === "near-intents-deposit"
+    )
+      continue;
     const config = parsed.data,
       key = config.network + "|" + config.identifier;
     let pool = pools.get(key);

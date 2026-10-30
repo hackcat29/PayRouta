@@ -22,6 +22,7 @@ import {
   crossChainOptions,
   crossChainQuote,
   crossChainStatus,
+  payOptions,
 } from "@/lib/intents/checkout";
 import { NextRequest, NextResponse } from "next/server";
 const schema = z.discriminatedUnion("action", [
@@ -64,6 +65,7 @@ const schema = z.discriminatedUnion("action", [
     .object({ action: z.literal("switch"), to: z.enum(["fiat", "crypto"]) })
     .strict(),
   z.object({ action: z.literal("cross-chain-options") }).strict(),
+  z.object({ action: z.literal("pay-options") }).strict(),
   z
     .object({
       action: z.literal("cross-chain-quote"),
@@ -135,6 +137,7 @@ export async function POST(
     if (b.action === "credit-offers") return creditOffers(id, token);
     if (b.action === "switch") return switchTo(id, token, b.to);
     if (b.action === "cross-chain-options") return crossChainOptions(id, token);
+    if (b.action === "pay-options") return payOptions(id, token);
     if (b.action === "cross-chain-quote")
       return crossChainQuote(id, token, { originAsset: b.originAsset, refundTo: b.refundTo });
     if (b.action === "cross-chain-status") return crossChainStatus(id, token);

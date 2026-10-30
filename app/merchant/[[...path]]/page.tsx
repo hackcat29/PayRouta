@@ -7,6 +7,10 @@ import { CryptoPayments } from "./crypto-payments";
 import { onchainMethod } from "@/lib/blockchain/crypto-assets";
 import { Stablecoins } from "./stablecoins";
 import { stablecoinOverview } from "@/lib/merchant/stablecoins";
+import { CryptoBalance } from "./intents";
+import { currentIntentsAccount, intentsOverview } from "@/lib/intents/account";
+import { payouts } from "@/lib/intents/payouts";
+import { chainNames, destinations as intentsDestinations, tokens as oneClickTokens } from "@/lib/intents/oneclick";
 import { feeTotals } from "@/lib/payments/billing";
 import { formatFee } from "@/lib/payments/pricing";
 import { createSpliceQuote } from "@/lib/payments/fx-splicing";
@@ -528,6 +532,28 @@ export default async function Page({
     }
   } else if (section === "balances") {
     content = <BalancesSection orgId={orgId} view={await merchantTreasury(orgId, env)} href={href} />;
+  } else if (section === "crypto-balance") {
+    const overview = await intentsOverview(orgId, env);
+    // Where payouts can go: every token 1Click lists (cached for minutes).
+    const listed = overview.account ? await oneClickTokens().catch(() => []) : [];
+    content = (
+      <CryptoBalance
+        orgId={orgId}
+        environment={env}
+        overview={overview}
+        payouts={overview.account ? await payouts(orgId, env) : []}
+        settleOptions={intentsDestinations.map((d) => ({
+          network: d.network,
+          identifier: d.identifier,
+          symbol: d.symbol,
+          chainName: chainNames[d.blockchain] ?? d.blockchain,
+        }))}
+        tokens={listed
+          .map((t) => ({ assetId: t.assetId, chain: t.blockchain, chainName: chainNames[t.blockchain] ?? t.blockchain.toUpperCase(), symbol: t.symbol }))
+          .sort((a, b) => a.chainName.localeCompare(b.chainName) || a.symbol.localeCompare(b.symbol))}
+        canConfigure={configure}
+      />
+    );
   } else if (section === "disputes") {
     content = (
       <DisputesSection
@@ -613,6 +639,7 @@ export default async function Page({
     const accounts = await stablecoinOverview(orgId, env);
     const offered = new Set((await platformCandidates(orgId, env)).map((c) => c.method));
     const stableNetworks = configuration.stablecoinAssets.filter((a) => a.configured).length;
+    const intentsAccount = await currentIntentsAccount(orgId, env);
     const activate = <Link href={href("activation")}>Activate payments →</Link>;
     const methodsOverview: { name: string; detail: string; on: boolean; next: ReactNode }[] = [
       { name: "Cards", detail: "Visa, Mastercard, Amex, Verve and local schemes", on: offered.has("card"), next: activate },
@@ -628,15 +655,18 @@ export default async function Page({
       },
       {
         name: "Stablecoins",
-        detail: stableNetworks ? `USDC, USDT, EURC · ${stableNetworks} networks set up` : "USDC, USDT, EURC to your own wallet",
+        detail: stableNetworks ? `USDC, USDT, EURC via NEAR Intents · ${stableNetworks} networks set up` : "USDC, USDT, EURC via NEAR Intents to your own wallet",
         on: stableNetworks > 0,
         next: <a href="#receive">Add receive addresses ↓</a>,
       },
       {
         name: "Any token, any chain",
-        detail: "125+ assets on 36+ chains through NEAR Intents, paid out as your stablecoin",
+        detail: intentsAccount
+          ? `125+ assets across 36+ chains, settled into ${intentsAccount.accountId} via NEAR Intents`
+          : "125+ assets across 36+ chains via NEAR Intents, into your receive addresses or your own NEAR Intents account",
         on: stableNetworks > 0 && env === "production",
-        next: env === "production" ? <a href="#receive">Add receive addresses ↓</a> : <span>Live mode only</span>,
+        next:
+          env === "production" ? <Link href={href("crypto-balance")}>Connect a NEAR Intents account →</Link> : <span>Live mode only</span>,
       },
     ];
     content = (
@@ -1475,7 +1505,7 @@ export default async function Page({
                       : label === "Any token, any chain" && env !== "production"
                         ? "Live mode only"
                         : label === "Stablecoins" || label === "Any token, any chain"
-                          ? "Add receive addresses"
+                          ? "Add receive addresses or connect NEAR Intents"
                           : "After activation"}
                 </small>
               </li>

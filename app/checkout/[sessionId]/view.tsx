@@ -13,6 +13,7 @@ import { checkoutCountdown } from "@/lib/payments/checkout-display";
 import { chain, networkName } from "@/lib/blockchain/chains";
 import { returnHandler, switchCheckout, usePopupBridge } from "./popup";
 import { CrossChain } from "./cross-chain";
+import { PayPicker, type PayChoice, type PayToken } from "./pay-picker";
 import "./checkout.css";
 import { errorText, shown } from "@/lib/error-copy";
 type Action = {
@@ -207,36 +208,40 @@ export function Checkout({ id }: { id: string }) {
       clearInterval(timer);
     };
   }, [id, api]);
-  async function begin() {
-    mutating.current = true;
-    mutationVersion.current++;
-    setBusy(true);
-    setError("");
+  // What the customer said they pay with, kept for this checkout so a reload
+  // returns to the same instructions.
+  const [choice, setChoiceState] = useState<PayChoice | null>(() => {
+    if (typeof window === "undefined" || id === "demo") return null;
     try {
-      await api({ action: "methods" });
-      const selected = await api({
-        action: "select",
-        method: current.current?.method || "stablecoin",
-      });
-      await api({ action: "confirm", routeId: selected.routeId });
-      await refresh();
-    } catch (e) {
-      setError(shown(e));
-    } finally {
-      mutating.current = false;
-      setBusy(false);
+      return JSON.parse(sessionStorage.getItem(`pay-choice:${id}`) ?? "null");
+    } catch {
+      return null;
+    }
+  });
+  function remember(next: PayChoice | null) {
+    setChoiceState(next);
+    try {
+      if (next) sessionStorage.setItem(`pay-choice:${id}`, JSON.stringify(next));
+      else sessionStorage.removeItem(`pay-choice:${id}`);
+    } catch {
+      /* The choice still applies for this page view. */
     }
   }
-  async function choose(optionId: string) {
+  // Pick the option that receives this token, then prepare payment
+  // instructions; a swap is quoted once they exist (CrossChain preset).
+  async function start(token: PayToken, next: PayChoice) {
     mutating.current = true;
     mutationVersion.current++;
     setBusy(true);
     setError("");
     try {
-      await api({ action: "choose-network", optionId });
+      if (token.optionId && token.optionId !== current.current?.selectedOption)
+        await api({ action: "choose-network", optionId: token.optionId });
+      await api({ action: "methods" });
+      const selected = await api({ action: "select", method: token.method });
+      await api({ action: "confirm", routeId: selected.routeId });
+      remember(next);
       await refresh();
-      const methods = await api({ action: "methods" });
-      setOptions(methods.methods);
     } catch (e) {
       setError(shown(e));
       await refresh().catch(() => {});
@@ -305,6 +310,10 @@ export function Checkout({ id }: { id: string }) {
       payment = undefined;
     }
   }
+  const swap = choice?.route === "swap" && choice.assetId ? choice : null;
+  const preset = swap
+    ? { originAsset: swap.assetId!, refundTo: swap.refundTo ?? "" }
+    : undefined;
   const expired = !!data?.expiresAt && Date.parse(data.expiresAt) <= clock,
     confirmed = data?.state === "Confirmed",
     active = data?.attemptId && data.attemptState !== "Rejected";
@@ -316,16 +325,19 @@ export function Checkout({ id }: { id: string }) {
     method: data?.method,
   });
   const toMerchant = data ? returnHandler(id, { returnUrl: data.returnUrl, reference: data.reference }) : undefined;
+  // Stablecoins and other coins are one way to pay: the customer only says
+  // what they hold (pay-picker.tsx).
+  const crypto = options.filter((m) =>
+    ["stablecoin", "crypto-app"].includes(m.method),
+  );
   const visibleMethods = [
-    ...["stablecoin", "crypto-app"].map(
-      (method) =>
-        options.find((m) => m.method === method) ?? {
-          method,
-          label: method === "stablecoin" ? "Stablecoins" : "Crypto wallet",
-          status: "NOT_OFFERED",
-          explanation: "Not offered for this checkout",
-        },
-    ),
+    {
+      method: "crypto",
+      label: "Crypto and stablecoins",
+      status: (["AVAILABLE", "LOCKED", "UNAVAILABLE"].find((s) =>
+        crypto.some((m) => m.status === s),
+      ) ?? "NOT_OFFERED") as string,
+    },
     ...comingSoonMethods,
   ];
   return (
@@ -398,65 +410,6 @@ export function Checkout({ id }: { id: string }) {
               )}
         </aside>
         <section className="sc-card" aria-label="Payment">
-          {!!data?.paymentOptions?.length &&
-            data.attemptState !== "Pending" &&
-            !confirmed && (
-              <div className="sc-network-picker">
-                <div
-                  className="sc-method-grid"
-                  role="group"
-                  aria-label="Choose payment type"
-                >
-                  {visibleMethods
-                    .filter(
-                      (m) =>
-                        m.method === "stablecoin" || m.method === "crypto-app",
-                    )
-                    .map((m) => (
-                      <button
-                        key={m.method}
-                        className="sc-method"
-                        aria-pressed={data.method === m.method}
-                        disabled={
-                          busy ||
-                          !!data.chainLocked ||
-                          expired ||
-                          m.status !== "AVAILABLE"
-                        }
-                        onClick={() => {
-                          const choice = data.paymentOptions?.find(
-                            (o) => o.method === m.method && o.available,
-                          );
-                          if (choice && choice.id !== data.selectedOption)
-                            void choose(choice.id);
-                        }}
-                      >
-                        {m.label}
-                      </button>
-                    ))}
-                </div>
-                <label htmlFor="payment-network">Token and network</label>
-                <select
-                  id="payment-network"
-                  value={data.selectedOption || ""}
-                  disabled={busy || !!data.chainLocked || confirmed || expired}
-                  onChange={(e) => void choose(e.target.value)}
-                >
-                  {data.paymentOptions.map((o) => (
-                    <option key={o.id} value={o.id} disabled={!o.available}>
-                      {o.symbol} · {networkName(o.network)} ·{" "}
-                      {displayTokenAmount(o.amount)}
-                      {!o.available ? " · Unavailable" : ""}
-                    </option>
-                  ))}
-                </select>
-                <p>
-                  {data.chainLocked
-                    ? "Network locked for this checkout. Send only the token shown above."
-                    : "Choose a token and network accepted by this merchant."}
-                </p>
-              </div>
-            )}
           {data?.alternatives?.some((x) => x.kind === "fiat" && x.available) &&
             !active &&
             !confirmed &&
@@ -542,6 +495,68 @@ export function Checkout({ id }: { id: string }) {
                 paid, check the status before starting another payment.
               </p>
             </section>
+          ) : a?.kind === "intents" && a.amount ? (
+            <section>
+              <h2>
+                {swap
+                  ? `Pay with ${swap.symbol} on ${swap.chainName}`
+                  : `Pay ${displayTokenAmount(a.amount)} ${a.symbol}`}
+              </h2>
+              <p>
+                {swap ? "" : "Pay with any token you hold, on any network. "}
+                The merchant receives exactly {displayTokenAmount(a.amount)}{" "}
+                {a.symbol}.
+              </p>
+              <CrossChain
+                api={api}
+                primary
+                preset={preset}
+                onCopy={(v, l) => void copy(v, l)}
+              />
+              <p role="status">{copied}</p>
+              {data?.attemptState === "Pending" && (
+                <p className="sc-pending">
+                  Transfer seen. Confirmation appears here once the swap is
+                  final on NEAR.
+                </p>
+              )}
+            </section>
+          ) : payment && swap ? (
+            <section>
+              <h2>
+                Pay with {swap.symbol} on {swap.chainName}
+              </h2>
+              <p>
+                The merchant receives exactly{" "}
+                {displayTokenAmount(payment.amount)} {a?.symbol}.
+              </p>
+              <CrossChain
+                api={api}
+                primary
+                preset={preset}
+                onCopy={(v, l) => void copy(v, l)}
+              />
+              <details>
+                <summary>
+                  Or send {displayTokenAmount(payment.amount)} {a?.symbol} on{" "}
+                  {networkName(payment.network)} directly
+                </summary>
+                <div className="sc-deposit">
+                  <div>
+                    <label>Exact amount</label>
+                    <code>
+                      {displayTokenAmount(payment.amount)} {a?.symbol}
+                    </code>
+                    <label>Merchant receive address</label>
+                    <code>{payment.address}</code>
+                    <button onClick={() => copy(payment!.address, "Address")}>
+                      Copy address
+                    </button>
+                  </div>
+                </div>
+              </details>
+              <p role="status">{copied}</p>
+            </section>
           ) : payment ? (
             <section>
               <h2>
@@ -624,47 +639,23 @@ export function Checkout({ id }: { id: string }) {
                 confirmed after the transfer is finalized.
               </p>
             </section>
-          ) : (
+          ) : id === "demo" ? (
             <section>
-              <h2>Choose how to pay</h2>
-              <p>
-                {data?.method === "crypto-app"
-                  ? "Pay from your Web3 wallet using the coin and network selected above."
-                  : "Pay stablecoins from your wallet."}
+              <h2>What do you want to pay with?</h2>
+              <p className="sc-preview">
+                This is a preview. Create a test checkout to get a real
+                receive address.
               </p>
-              {id === "demo" ? (
-                <p className="sc-preview">
-                  This is a preview. Create a test checkout to get a real
-                  receive address.
-                </p>
-              ) : (
-                <button
-                  className="sc-primary"
-                  disabled={
-                    busy ||
-                    !options.some(
-                      (m) =>
-                        m.method === (data?.method || "stablecoin") &&
-                        m.status === "AVAILABLE",
-                    )
-                  }
-                  onClick={begin}
-                >
-                  {busy
-                    ? "Preparing…"
-                    : data?.method === "crypto-app"
-                      ? "Continue with crypto wallet"
-                      : "Continue with stablecoins"}
-                </button>
-              )}
-              {options.find((m) => m.method === (data?.method || "stablecoin"))
-                ?.status === "UNAVAILABLE" && (
-                <p>
-                  This merchant has not configured this token and network yet.
-                </p>
-              )}
             </section>
-          )}
+          ) : data ? (
+            <section>
+              <PayPicker
+                api={api}
+                busy={busy}
+                onStart={(token, next) => void start(token, next)}
+              />
+            </section>
+          ) : null}
           {data && !expired && !confirmed && (
             <details>
               <summary>Open in an external wallet browser</summary>
@@ -707,7 +698,7 @@ export function Checkout({ id }: { id: string }) {
               {visibleMethods
                 .filter((m) => m.status !== "COMING_SOON")
                 .map((m) => (
-                  <MethodTile key={m.method} m={m} selected={data?.method === m.method} />
+                  <MethodTile key={m.method} m={m} selected={m.method === "crypto"} />
                 ))}
             </div>
             {visibleMethods.some((m) => m.status === "COMING_SOON") && (

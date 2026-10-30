@@ -148,6 +148,24 @@ button.sc-method { cursor: pointer; font-weight: 600; justify-content: center; m
 .sc-network-picker select:disabled {
   opacity: 0.75;
 }
+/* The "what do you want to pay with?" picker (pay-picker.tsx). */
+.sc-network-picker input {
+  width: 100%;
+  padding: 0.8rem;
+  border: 1px solid var(--mist);
+  border-radius: 8px;
+  background: white;
+  color: var(--navy);
+  font: inherit;
+}
+.sc-network-picker label + select,
+.sc-network-picker label + input {
+  margin-bottom: 0.9rem;
+}
+.sc-network-picker .sc-primary {
+  width: 100%;
+  margin-top: 0.25rem;
+}
 
 .sc-countdown {
   margin-top: 12px;
