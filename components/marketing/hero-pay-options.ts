@@ -1,0 +1,42 @@
+// Networks and tokens the checkout's "What do you want to pay with?" step
+// offers on a live checkout (app/checkout/[sessionId]/pay-picker.tsx): the
+// coins PayRouta takes directly (lib/blockchain/crypto-catalog.json and
+// assets.ts) and NEAR Intents' token list (GET /v0/tokens), read on
+// 31 October 2026. Stablecoins first, then the network's own coin.
+export const heroPayOptions: { name: string; tokens: string[] }[] = [
+  { name: "Abstract", tokens: ["ETH"] },
+  { name: "Aleo", tokens: ["ALEO", "USAD", "USDCx"] },
+  { name: "Aptos", tokens: ["USDC", "USDT", "APT", "AAVE", "BTC", "DOGE", "ETH", "LINK", "LTC", "SOL", "UNI", "XRP", "ZEC"] },
+  { name: "Arbitrum", tokens: ["USDC", "USDT0", "ETH", "AARK", "AIDOGE", "ARB", "ARW", "AUTONOMI", "BOUNTY", "FCTR", "FXNW", "GMX", "GRAIL", "HDN", "JONES", "MAGIC", "PEAR", "RAIN", "RAM", "RDNT", "SWEAT", "TANGO", "WETH", "XAI"] },
+  { name: "Arc", tokens: ["USDC", "EURC", "AKARII", "ARCANUS", "ARCASH", "ARCBAT", "ARCLIGHT", "ARCLOAK", "ARCT", "ARCUS", "ARGUS", "CORTEX", "CRA", "DUKE", "FAZE", "FOCI", "KAIRO", "MEMESPAD", "OBRAIN", "SOLON", "UBI", "WAVE"] },
+  { name: "Avalanche", tokens: ["USDC", "USDT", "EURC", "AVAX", "BLACK", "COQ", "FLD", "GLADIUS", "HEFE", "HUSKY", "JOE", "JUC", "KET", "KIMBO", "NOCHILL", "ORNG", "PHAR", "PNG", "QI", "SUZ", "WOLF", "XAVA", "YAK"] },
+  { name: "BNB Chain", tokens: ["USDC", "USDT", "BNB", "ASTER", "AURORA", "EVAA", "NEAR", "nrUsdt", "RHEA", "SWEAT"] },
+  { name: "Base", tokens: ["USDC", "EURC", "ETH", "AERO", "AIXBT", "AVNT", "B3", "BRETT", "cbBTC", "CFI", "CLANKER", "COCA", "DEGEN", "DRB", "EDGE", "FAI", "FMS", "gtUSDCp", "KAITO", "KEYCAT", "laUSDC", "mwUSDC", "RECALL", "REI", "SAPIEN", "sparkUSDC", "SSC1_PIT", "sUSDC", "SWEAT", "TITN", "TOSHI", "TRUST", "VVV", "WETH", "ZORA"] },
+  { name: "Berachain", tokens: ["USDT0", "BERA"] },
+  { name: "Bitcoin", tokens: ["BTC", "BTC(OMNI)"] },
+  { name: "Bitcoin Cash", tokens: ["BCH"] },
+  { name: "Cardano", tokens: ["ADA"] },
+  { name: "Dash", tokens: ["DASH"] },
+  { name: "Dogecoin", tokens: ["DOGE"] },
+  { name: "Ethereum", tokens: ["USDC", "USDT", "EURC", "DAI", "ETH", "AAVE", "ADI", "AURORA", "cbBTC", "COMP", "CRV", "CVX", "EIGEN", "ENA", "ENS", "GRT", "HAPI", "hemiBTC", "INX", "JASMY", "KNC", "LDO", "LINK", "MANA", "MOG", "ONDO", "PEPE", "QNT", "SAFE", "SAND", "SHIB", "SKY", "SPX", "steakUSDC", "SWEAT", "TLO", "TURBO", "UNI", "USD1", "USDf", "WBTC", "WETH", "wstETH", "XAUT"] },
+  { name: "Fogo", tokens: ["FOGO"] },
+  { name: "Gnosis", tokens: ["USDC", "USDT", "xDAI", "COW", "EURe", "GBPe", "GNO", "SAFE", "WETH"] },
+  { name: "Hyperliquid", tokens: ["USDC", "wNEAR"] },
+  { name: "Litecoin", tokens: ["LTC"] },
+  { name: "Monad", tokens: ["USDC", "USDT0", "MON"] },
+  { name: "Movement", tokens: ["MOVE", "USDCx"] },
+  { name: "NEAR", tokens: ["USDC", "USDT", "wNEAR", "ABG", "AURORA", "BLACKDRAGON", "BTC", "CFI", "cNEAR", "ETH", "FRAX", "GNEAR", "HAPI", "ITLX", "JAMBO", "mpDAO", "NearKat", "NOEAR", "NPRO", "nrUsdt", "PRL", "PUBLIC", "PURGE", "QTC", "RHEA", "SHITZU", "STJACK", "stNEAR", "strkBTC", "SWEAT", "TESTNEBULA", "TURBO", "wBTC", "ZEC"] },
+  { name: "Optimism", tokens: ["USDC", "USDT", "USDT0", "ETH", "OP", "WETH"] },
+  { name: "Plasma", tokens: ["USDT0", "XPL"] },
+  { name: "Polygon", tokens: ["USDC", "USDT", "POL", "ADDY", "AIPF", "APEPE", "COCA", "DINO", "DVO", "FELY", "FYN", "GNS", "HAVA", "IBS", "NAKA", "PAPARAZZI", "QUICK", "RNT", "SWCH", "TPT", "UBU", "UDAO", "VOXEL", "WETH"] },
+  { name: "Scroll", tokens: ["USDT", "ETH"] },
+  { name: "Solana", tokens: ["USDC", "USDT", "EURC", "SOL", "$WIF", "BOME", "BONK", "DRIFT", "FARTCOIN", "GRASS", "HNT", "JTO", "JUP", "KMNO", "kV-gtSOLb", "LOUD", "MELANIA", "MET", "MEW", "NEARKAT", "ORCA", "PENGU", "PNUT", "POPCAT", "PUBLIC", "PYTH", "RAY", "RHEA", "SPX", "STRK", "sUSDC", "TRUMP", "TURBO", "USD1", "WIF", "wNEAR", "wNEARKAT", "xBTC", "ZEC"] },
+  { name: "Starknet", tokens: ["STRK", "SOL", "XRP", "ZEC"] },
+  { name: "Stellar", tokens: ["USDC", "EURC", "XLM", "AFR", "AQUA", "BLND", "FRED", "LSP", "PYBC", "SCOP", "SHX", "SIX", "SSLX", "VELO"] },
+  { name: "Sui", tokens: ["USDC", "SUI"] },
+  { name: "TON", tokens: ["USDT", "GRAM"] },
+  { name: "Tron", tokens: ["USDT", "TRX"] },
+  { name: "X Layer", tokens: ["USDC", "USDT0", "OKB"] },
+  { name: "XRP Ledger", tokens: ["XRP"] },
+  { name: "Zcash", tokens: ["ZEC"] },
+];

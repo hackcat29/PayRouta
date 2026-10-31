@@ -4,6 +4,22 @@ import { LinkPicture } from "@/components/marketing/add-anywhere";
 import { CoverageGrid, CreditTimeline, PaymentFlow } from "@/components/marketing/diagrams";
 import { pillars } from "@/content/claims";
 import { createLinkHref, trustedOrigin, paths } from "@/lib/site-config";
+import { instalmentOffer } from "@/lib/treasury/credit";
+
+// The phone in the payment-link tile, in 4 payments two weeks apart, first
+// one today: the plan checkout shows, from its own arithmetic.
+const naira = (minor: bigint) => `₦${(Number(minor) / 100).toLocaleString("en-NG", { maximumFractionDigits: 0 })}`;
+const phonePlan = instalmentOffer({
+  id: "preview",
+  lender: "",
+  termsUrl: "",
+  amountMinor: 15000000n,
+  instalments: 4,
+  interval: "two-weeks",
+  costBps: 0,
+  aprBasisPoints: null,
+  firstDueToday: true,
+});
 
 const description =
   "Share a payment link or add one checkout button. Customers pay by card, digital wallet, bank transfer, mobile money or crypto from any chain, or spread the cost with a licensed lender while you're paid in full.";
@@ -85,10 +101,12 @@ export default function Home() {
                 <More>Pay with credit</More>
               </span>
               <span className="hp-mini-plan" aria-hidden="true">
-                <i />
-                <i />
-                <i />
-                <i />
+                {["Today", "2 weeks", "4 weeks", "6 weeks"].map((when) => (
+                  <i key={when}>
+                    <b>{naira(BigInt(phonePlan.instalmentMinor))}</b>
+                    {when}
+                  </i>
+                ))}
               </span>
             </Link>
             <Link className="hp-tile hp-tile-crypto" href={paths.crypto}>

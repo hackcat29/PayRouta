@@ -7,8 +7,9 @@
 // the customer pays with (app/checkout/[sessionId]/pay-picker.tsx).
 import { useState } from "react";
 import { instalmentOffer } from "@/lib/treasury/credit";
+import { heroPayOptions } from "./hero-pay-options";
 
-type Kind = "card" | "wallet" | "bank" | "mobile" | "ussd" | "credit" | "crypto";
+type Kind = "card" | "wallet" | "bank" | "ussd" | "credit" | "crypto";
 type Row = { name: string; kind: Kind };
 type Place = {
   id: string;
@@ -22,7 +23,8 @@ type Place = {
   // Price in minor units.
   price: bigint;
   brands: string[];
-  // What a customer there typically pays crypto with.
+  // The network and token the crypto step starts on: what a customer there
+  // typically pays with. Every other network and token is in the lists.
   crypto: [network: string, token: string];
   rows: Row[];
 };
@@ -73,7 +75,7 @@ const places: Place[] = [
       { kind: "bank", name: "Bank transfer" },
       { kind: "card", name: "Card" },
       { kind: "ussd", name: "USSD" },
-      { kind: "wallet", name: "OPay or PalmPay" },
+      { kind: "wallet", name: "Digital wallets" },
       { kind: "credit", name: "Pay with credit" },
       { kind: "crypto", name: "Stablecoins or crypto" },
     ],
@@ -90,7 +92,7 @@ const places: Place[] = [
     brands: ["Visa", "MC", "Amex"],
     crypto: ["Ethereum", "USDC"],
     rows: [
-      { kind: "wallet", name: "Apple Pay or Google Pay" },
+      { kind: "wallet", name: "Digital wallets" },
       { kind: "bank", name: "Pay by bank" },
       { kind: "card", name: "Card" },
       { kind: "credit", name: "Pay with credit" },
@@ -110,7 +112,7 @@ const places: Place[] = [
     crypto: ["Polygon", "USDT"],
     rows: [
       { kind: "bank", name: "UPI" },
-      { kind: "wallet", name: "PhonePe or Paytm" },
+      { kind: "wallet", name: "Digital wallets" },
       { kind: "card", name: "Card" },
       { kind: "credit", name: "Pay with credit" },
       { kind: "crypto", name: "Stablecoins or crypto" },
@@ -128,9 +130,8 @@ const places: Place[] = [
     brands: ["Visa", "MC", "Amex"],
     crypto: ["Base", "USDC"],
     rows: [
-      { kind: "wallet", name: "Apple Pay or Google Pay" },
+      { kind: "wallet", name: "Digital wallets" },
       { kind: "card", name: "Card" },
-      { kind: "mobile", name: "Venmo or Cash App" },
       { kind: "credit", name: "Pay with credit" },
       { kind: "crypto", name: "Stablecoins or crypto" },
     ],
@@ -148,7 +149,7 @@ const places: Place[] = [
     crypto: ["Solana", "USDC"],
     rows: [
       { kind: "bank", name: "Pix" },
-      { kind: "wallet", name: "Mercado Pago or PicPay" },
+      { kind: "wallet", name: "Digital wallets" },
       { kind: "card", name: "Card" },
       { kind: "credit", name: "Pay with credit" },
       { kind: "crypto", name: "Stablecoins or crypto" },
@@ -166,7 +167,7 @@ const places: Place[] = [
     brands: ["Visa", "MC", "Amex"],
     crypto: ["Arbitrum", "USDC"],
     rows: [
-      { kind: "wallet", name: "Apple Pay or Google Pay" },
+      { kind: "wallet", name: "Digital wallets" },
       { kind: "card", name: "Card" },
       { kind: "credit", name: "Pay with credit" },
       { kind: "crypto", name: "Stablecoins or crypto" },
@@ -185,7 +186,7 @@ const places: Place[] = [
     crypto: ["Solana", "SOL"],
     rows: [
       { kind: "crypto", name: "Stablecoins or crypto" },
-      { kind: "wallet", name: "Apple Pay or Google Pay" },
+      { kind: "wallet", name: "Digital wallets" },
       { kind: "card", name: "Card" },
       { kind: "credit", name: "Pay with credit" },
     ],
@@ -196,6 +197,9 @@ export function HeroDemo({ initial = places[0].id }: { initial?: string }) {
   const [id, setId] = useState(initial);
   const place = places.find((p) => p.id === id)!;
   const [selected, setSelected] = useState<Kind>(place.rows[0].kind);
+  const [network, setNetwork] = useState(place.crypto[0]);
+  const [token, setToken] = useState(place.crypto[1]);
+  const tokens = heroPayOptions.find((n) => n.name === network)?.tokens ?? [];
   const plan = credit(place.price, 4, "two-weeks", 0);
   const fmt = (m: bigint | string) => money(BigInt(m), place.currency, place.locale);
   const price = fmt(place.price);
@@ -212,6 +216,8 @@ export function HeroDemo({ initial = places[0].id }: { initial?: string }) {
             onClick={() => {
               setId(p.id);
               setSelected(p.rows[0].kind);
+              setNetwork(p.crypto[0]);
+              setToken(p.crypto[1]);
             }}
           >
             {p.tab}
@@ -259,14 +265,28 @@ export function HeroDemo({ initial = places[0].id }: { initial?: string }) {
           <div className="hd-step" aria-live="polite">
             <strong>What do you want to pay with?</strong>
             <span className="hd-fields">
-              <span className="hd-field">
+              <label className="hd-field">
                 <small>Network</small>
-                {place.crypto[0]}
-              </span>
-              <span className="hd-field">
+                <select
+                  value={network}
+                  onChange={(e) => {
+                    setNetwork(e.target.value);
+                    setToken(heroPayOptions.find((n) => n.name === e.target.value)?.tokens[0] ?? "");
+                  }}
+                >
+                  {heroPayOptions.map((n) => (
+                    <option key={n.name}>{n.name}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="hd-field">
                 <small>Token</small>
-                {place.crypto[1]}
-              </span>
+                <select value={token} onChange={(e) => setToken(e.target.value)}>
+                  {tokens.map((t) => (
+                    <option key={t}>{t}</option>
+                  ))}
+                </select>
+              </label>
             </span>
           </div>
         )}
