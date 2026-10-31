@@ -43,6 +43,7 @@
               "guides/crypto-payments",
               "guides/cross-chain",
               "guides/near-intents",
+              "guides/agents",
               "guides/localization-and-tax",
               "guides/subscriptions-and-dunning"
             ]
@@ -61,6 +62,7 @@
             "group": "Build",
             "pages": [
               "integrate/webhooks",
+              "integrate/mcp",
               "integrate/sdks",
               "integrate/errors"
             ]

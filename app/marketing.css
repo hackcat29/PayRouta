@@ -2584,3 +2584,80 @@ body:has(.mk-header) {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* Agentic payments page (components/marketing/pages.tsx Agents). */
+.ag-code {
+  margin: 0;
+  font-size: 13px;
+}
+.ag-key {
+  display: grid;
+  gap: 14px;
+  padding: 22px;
+  border-radius: 16px;
+  border: 1px solid var(--mk-line);
+  background: #fff;
+}
+.ag-key-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--mk-ink);
+}
+.ag-key-head code {
+  font-size: 12.5px;
+  color: var(--mk-quiet);
+}
+.ag-key-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--mk-sand);
+  overflow: hidden;
+}
+.ag-key-bar i {
+  display: block;
+  height: 100%;
+  background: var(--mk-kola);
+}
+.ag-key dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+.ag-key dl div {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+}
+.ag-key dt {
+  color: var(--mk-quiet);
+}
+.ag-key dd {
+  margin: 0;
+  font-weight: 600;
+  color: var(--mk-ink);
+}
+.ag-tools {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ag-tools li {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--mk-line);
+  background: #fff;
+}
+.ag-tools code {
+  font-size: 13px;
+  color: var(--mk-ink);
+}
+@media (max-width: 720px) {
+  .ag-tools {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

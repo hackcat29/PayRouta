@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   AppWindow,
   Blocks,
+  Bot,
   Braces,
   CalendarClock,
   ChevronDown,
@@ -29,6 +30,7 @@ import { navLinks, navMenus, paths, type NavMenu } from "@/lib/site-config";
 const icons: Record<string, LucideIcon> = {
   AppWindow,
   Blocks,
+  Bot,
   Braces,
   CalendarClock,
   Coins,

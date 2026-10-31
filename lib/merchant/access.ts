@@ -91,7 +91,8 @@ export async function revokeKey(orgId: string, id: string, headers: Headers) {
     return { id, revoked: true };
   });
 }
-export async function authenticate(request: Request, scope: string) {
+// No scope: any valid key (the MCP handshake, lib/mcp).
+export async function authenticate(request: Request, scope?: string) {
   const env = environment.parse(request.headers.get("payrouta-environment"));
   const token = request.headers
     .get("authorization")
@@ -106,7 +107,7 @@ export async function authenticate(request: Request, scope: string) {
     (key.expiresAt && key.expiresAt <= new Date())
   )
     throw new PortalError("UNAUTHORIZED", 401);
-  if (key.environment !== env || !(key.permissions as string[]).includes(scope))
+  if (key.environment !== env || (scope && !(key.permissions as string[]).includes(scope)))
     throw new PortalError("FORBIDDEN", 403);
   const config = await db.merchantConfig.findUnique({
     where: { orgId: key.orgId },
@@ -118,5 +119,5 @@ export async function authenticate(request: Request, scope: string) {
     where: { id: key.id },
     data: { lastUsedAt: new Date() },
   });
-  return { orgId: key.orgId, environment: env, keyId: key.id };
+  return { orgId: key.orgId, environment: env, keyId: key.id, permissions: key.permissions as string[] };
 }

@@ -5,6 +5,7 @@ import { createStablecoinCheckout } from "@/lib/merchant/stablecoin-checkout";
 import { configureStablecoins } from "@/lib/merchant/stablecoins";
 import { connectIntentsAccount, disconnectIntentsAccount, intentsChallenge } from "@/lib/intents/account";
 import { payoutsFor, quotePayout, submitPayout } from "@/lib/intents/payouts";
+import { issueAgentKey, revokeAgentKey } from "@/lib/agents/keys";
 import { liveScopeCommand } from "@/lib/merchant/live-scope";
 import { createMerchantWorkspace } from "@/lib/merchant/workspace";
 import { transitionRollout } from "@/lib/merchant/qualification";
@@ -105,6 +106,11 @@ export async function POST(request: Request) {
         raw.input,
         request.headers,
       );
+    // Keys AI agents pay with, and their spending limits (lib/agents).
+    if (raw?.action === "agent-key-create")
+      return issueAgentKey(z.string().min(1).parse(raw.orgId), raw.input, request.headers);
+    if (raw?.action === "agent-key-revoke")
+      return revokeAgentKey(z.string().min(1).parse(raw.orgId), z.string().min(1).parse(raw.id), request.headers);
     // NEAR Intents settlement account, payouts and refunds (lib/intents).
     if (typeof raw?.action === "string" && raw.action.startsWith("intents-")) {
       const orgId = z.string().min(1).parse(raw.orgId);

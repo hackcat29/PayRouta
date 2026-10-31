@@ -43,6 +43,7 @@ export const routeTitles = {
   analytics: "Analytics",
   billing: "Billing",
   "developers/api-keys": "API keys",
+  "developers/agents": "Agent keys",
   "developers/webhooks": "Webhooks",
   "developers/logs": "API logs",
   "developers/integrations": "Integrations",
@@ -90,6 +91,7 @@ const bottom: Item[] = [
 export const tabSets: Partial<Record<MerchantRoute, { label: string; path: MerchantRoute }[]>> = {};
 const developerTabs = [
   { label: "API keys", path: "developers/api-keys" as const },
+  { label: "Agent keys", path: "developers/agents" as const },
   { label: "Webhooks", path: "developers/webhooks" as const },
   { label: "API logs", path: "developers/logs" as const },
   { label: "Integrations", path: "developers/integrations" as const },

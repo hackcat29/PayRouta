@@ -23,11 +23,13 @@ export const docEntries: readonly DocEntryTuple[] = [
   ["crypto-payments", "Crypto Wallet Payments", "Core Concepts", "Concepts"],
   ["cross-chain", "Pay from Any Chain", "Core Concepts", "Concepts"],
   ["near-intents", "Your NEAR Intents Account", "Core Concepts", "Concepts"],
+  ["agents", "Agentic Payments", "Core Concepts", "Concepts"],
 
   // Integration
   ["api-reference", "API Reference", "Integration", "Integration"],
   ["sdks", "SDKs", "Integration", "Integration"],
   ["webhooks", "Webhooks", "Integration", "Integration"],
+  ["mcp", "MCP Server", "Integration", "Integration"],
   ["provider-integration", "Provider Integration", "Integration", "Integration"],
   ["provider-coverage", "Integration Coverage", "Integration", "Integration"],
   ["errors", "Errors & Recovery", "Integration", "Integration"],

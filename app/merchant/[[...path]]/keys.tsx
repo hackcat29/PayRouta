@@ -62,7 +62,16 @@ export function Keys({
               input: {
                 environment,
                 permissions:
-                  form.get("access") === "write"
+                  form.get("access") === "refunds"
+                    ? [
+                        "payments:read",
+                        "payments:write",
+                        "settlements:read",
+                        "configuration:read",
+                        "webhooks:read",
+                        "refunds:write",
+                      ]
+                    : form.get("access") === "write"
                     ? [
                         "payments:read",
                         "payments:write",
@@ -85,6 +94,7 @@ export function Keys({
             <select name="access">
               <option value="read">Read only</option>
               <option value="write">Create payments and checkout sessions</option>
+              <option value="refunds">Payments and refunds</option>
             </select>
           </label>
           <button disabled={busy}>Create key</button>
@@ -133,7 +143,11 @@ export function Keys({
                       <code>{key.prefix}…</code>
                     </td>
                     <td className="ms-dim">
-                      {key.permissions.includes("payments:write") ? "Create payments" : "Read only"}
+                      {key.permissions.includes("refunds:write")
+                        ? "Payments and refunds"
+                        : key.permissions.includes("payments:write")
+                          ? "Create payments"
+                          : "Read only"}
                     </td>
                     <td className="ms-dim">{key.created}</td>
                     <td>

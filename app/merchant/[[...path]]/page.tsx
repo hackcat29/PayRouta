@@ -8,6 +8,8 @@ import { onchainMethod } from "@/lib/blockchain/crypto-assets";
 import { Stablecoins } from "./stablecoins";
 import { stablecoinOverview } from "@/lib/merchant/stablecoins";
 import { CryptoBalance } from "./intents";
+import { AgentKeys } from "./agents";
+import { agentKeys } from "@/lib/agents/keys";
 import { intentsOverview } from "@/lib/intents/account";
 import { payouts } from "@/lib/intents/payouts";
 import { chainNames, destinations as intentsDestinations, tokens as oneClickTokens } from "@/lib/intents/oneclick";
@@ -821,6 +823,12 @@ export default async function Page({
         />
       );
     }
+  } else if (section === "developers/agents") {
+    content = configure ? (
+      <AgentKeys orgId={orgId} environment={env} keys={await agentKeys(orgId, env)} />
+    ) : (
+      ownerOnly("create agent keys")
+    );
   } else if (section === "developers/logs") {
     const logs = await db.merchantRequest.findMany({
       where: scope,

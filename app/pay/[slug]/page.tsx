@@ -25,6 +25,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     title: link ? `${link.title} · ${link.merchant}` : "Payment link",
     description: link ? `Pay ${link.merchant} ${formatMoney(link.amount, link.currency)}.` : undefined,
     robots: { index: false, follow: false },
+    // AI agents: the link's terms as JSON (402 Payment Required).
+    ...(link ? { alternates: { types: { "application/json": `/api/agent/v1/links/${link.slug}` } } } : {}),
     // "same-origin": no referrer to other sites, but the Pay form still
     // sends its Origin (with "no-referrer" browsers send Origin: null).
     referrer: "same-origin" as const,

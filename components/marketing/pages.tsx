@@ -146,6 +146,8 @@ function Checkout() {
             statuses={{
               link: status("No website"),
               html: status("Any website or app"),
+              server: status("Your own server"),
+              agents: status("AI agents"),
               shopify: status("Shopify"),
               woocommerce: status("WooCommerce"),
             }}
@@ -446,6 +448,8 @@ function Integrations() {
             statuses={{
               link: status("No website"),
               html: status("Any website or app"),
+              server: status("Your own server"),
+              agents: status("AI agents"),
               shopify: status("Shopify"),
               woocommerce: status("WooCommerce"),
             }}
@@ -685,6 +689,110 @@ function Saas() {
   );
 }
 
+// Agentic payments: agents pay links over HTTP within their key's limits,
+// and a merchant's assistant runs payments over MCP (lib/agents, lib/mcp).
+function Agents() {
+  return (
+    <>
+      <PageHero
+        title="AI agents pay you. Your assistant runs your payments."
+        actions={
+          <>
+            <Btn href={paths.signUp}>Get started</Btn>
+            <Btn href={docsUrl("agents")} variant="secondary">
+              Agents guide
+            </Btn>
+          </>
+        }
+      />
+      <Feature title="Agents pay your payment links" visual={<AgentTerms />}>
+        <p>
+          Any payment link answers an AI agent with 402 Payment Required: the price, and how it can pay. The agent opens its
+          own checkout and sends the exact transfer from its wallet, or signs one transfer from its NEAR Intents balance with
+          no gas. You&apos;re paid, settled and notified as for any customer.
+        </p>
+        <TextLink href={docsUrl("agents")}>Agent API</TextLink>
+      </Feature>
+      <Feature title="Limits on every agent key" tone="paper" visual={<AgentKeyCard />}>
+        <p>
+          Give an agent a key with a budget per day, week or month, a most-per-payment, and the merchants it may pay.
+          PayRouta checks every payment against them before preparing it. Revoke the key and the agent stops.
+        </p>
+      </Feature>
+      <Feature title="Run your payments from your AI assistant" visual={<AssistantTools />}>
+        <p>
+          Connect Claude or any MCP client to PayRouta with an API key. Your assistant creates checkouts and payment links,
+          finds payments and issues refunds, with only the permissions you gave the key.
+        </p>
+        <TextLink href={docsUrl("mcp")}>MCP server</TextLink>
+      </Feature>
+    </>
+  );
+}
+
+function AgentTerms() {
+  return (
+    <pre className="aa-code ag-code" tabIndex={0} aria-label="A payment link's answer to an AI agent">
+      <code>{`GET /api/agent/v1/links/k3Fd92xQ
+
+402 Payment Required
+{
+  "merchant": "Synth Labs",
+  "title": "API credits",
+  "amount": "25.00",
+  "currency": "USD",
+  "accepts": [
+    { "method": "wallet" },
+    {
+      "method": "intents",
+      "network": "near:mainnet"
+    }
+  ]
+}`}</code>
+    </pre>
+  );
+}
+
+function AgentKeyCard() {
+  return (
+    <div className="ag-key" aria-label="An agent key and its limits">
+      <div className="ag-key-head">
+        <strong>Procurement agent</strong>
+        <code>pra_production_9xQ…</code>
+      </div>
+      <div className="ag-key-bar" aria-hidden="true">
+        <i style={{ width: "62%" }} />
+      </div>
+      <dl>
+        <div>
+          <dt>Spent this week</dt>
+          <dd>$310 of $500</dd>
+        </div>
+        <div>
+          <dt>Most per payment</dt>
+          <dd>$100</dd>
+        </div>
+        <div>
+          <dt>Merchants</dt>
+          <dd>3 allowed</dd>
+        </div>
+      </dl>
+    </div>
+  );
+}
+
+function AssistantTools() {
+  return (
+    <ul className="ag-tools" aria-label="What your assistant can do">
+      {["create_checkout", "create_payment_link", "list_payment_links", "list_payments", "get_payment", "refund_payment"].map((t) => (
+        <li key={t}>
+          <code>{t}</code>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export const pageComponents: Record<PageSlug, () => React.ReactNode> = {
   "payment-links": PaymentLinks,
   checkout: Checkout,
@@ -692,6 +800,7 @@ export const pageComponents: Record<PageSlug, () => React.ReactNode> = {
   "payment-methods": PaymentMethods,
   credit: Credit,
   crypto: Crypto,
+  agents: Agents,
   "social-sellers": SocialSellers,
   "online-stores": OnlineStores,
   saas: Saas,

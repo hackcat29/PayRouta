@@ -81,6 +81,16 @@ const copy: Record<string, string> = {
   PAYOUT_NOT_FOUND: "We couldn't find that payout. Refresh the page.",
   NEAR_RPC_UNAVAILABLE: "NEAR isn't answering right now. Try again in a minute.",
   NEAR_RPC_RATE_LIMITED: "NEAR is busy. Try again in a minute.",
+  // Agentic payments
+  AGENT_MERCHANT_NOT_ALLOWED: "This agent key can't pay this merchant.",
+  AGENT_PAYER_NOT_ALLOWED: "This agent key can only pay from its own NEAR Intents account.",
+  AGENT_PAYMENT_OVER_LIMIT: "This payment is over the agent key's limit per payment.",
+  AGENT_BUDGET_EXCEEDED: "This payment would go over the agent key's budget for the period.",
+  AGENT_MERCHANT_UNKNOWN: "One of the merchants isn't a PayRouta payment link or merchant ID.",
+  AGENT_LIMITS_INVALID: "Set a budget and a per-payment limit above zero, with the per-payment limit no more than the budget.",
+  AGENT_AMOUNT_UNPRICED: "This checkout isn't priced in US dollars, so an agent key can't pay it.",
+  AGENT_PAYMENT_NOT_OFFERED: "This payment link doesn't take crypto, so an agent can't pay it.",
+  AGENT_INSTRUCTIONS_NOT_READY: "Payment instructions aren't ready yet. Try again in a few seconds.",
   // Money movement
   INSUFFICIENT_AVAILABLE_BALANCE: "Your available balance is too low for this.",
   NOTHING_TO_PAY_OUT: "There's nothing ready to pay out yet.",

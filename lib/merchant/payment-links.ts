@@ -66,22 +66,27 @@ async function cryptoOptions(orgId: string, environment: string) {
 
 export async function createPaymentLink(orgId: string, raw: unknown, headers: Headers) {
   const { config, session } = await merchantMember(orgId, "configure", headers);
+  return insertPaymentLink(orgId, config.environment, raw, session.user.id);
+}
+
+// Shared by the dashboard and API keys (the MCP server, lib/mcp).
+export async function insertPaymentLink(orgId: string, environment: string, raw: unknown, actor: string) {
   await rateLimit(`payment-link:${orgId}`, 30);
   const input = paymentLinkInput.parse(raw);
   const amount = linkAmount(input.amount, input.currency);
   // A link must be payable: only methods that are on for this account.
-  const on = await linkMethodsOn(orgId, config.environment);
+  const on = await linkMethodsOn(orgId, environment);
   if (input.methods.some((m) => !on.has(m))) throw new PortalError("PAYMENT_LINK_METHOD_NOT_ON", 409);
   if (input.crypto) {
     if (input.currency !== "USD") throw new PortalError("PAYMENT_LINK_CRYPTO_REQUIRES_USD", 409);
-    if (!(await cryptoOptions(orgId, config.environment)).length)
+    if (!(await cryptoOptions(orgId, environment)).length)
       throw new PortalError("PAYMENT_LINK_CRYPTO_NOT_CONFIGURED", 409);
   }
   return atomic(async (tx) => {
     const link = await tx.paymentLink.create({
       data: {
         orgId,
-        environment: config.environment,
+        environment,
         slug: newSlug(),
         title: input.title,
         description: input.description || null,
@@ -90,16 +95,33 @@ export async function createPaymentLink(orgId: string, raw: unknown, headers: He
         methods: input.methods,
         crypto: input.crypto,
         country: input.country,
-        createdBy: session.user.id,
+        createdBy: actor,
       },
     });
-    await audit(tx, orgId, session.user.id, "merchant.payment_link.created", link.id, {
+    await audit(tx, orgId, actor, "merchant.payment_link.created", link.id, {
       environment: link.environment,
       amount,
       currency: input.currency,
     });
     return { id: link.id, slug: link.slug, path: `/pay/${link.slug}` };
   });
+}
+
+export async function listPaymentLinks(orgId: string, environment: string) {
+  const links = await db.paymentLink.findMany({ where: { orgId, environment }, orderBy: { createdAt: "desc" }, take: 100 });
+  return links.map((l) => ({
+    id: l.id,
+    slug: l.slug,
+    path: `/pay/${l.slug}`,
+    title: l.title,
+    amount: l.amount,
+    currency: l.currency,
+    methods: l.methods as string[],
+    crypto: l.crypto,
+    active: l.active,
+    checkouts: l.checkouts,
+    createdAt: l.createdAt.toISOString(),
+  }));
 }
 
 export async function setPaymentLinkActive(orgId: string, id: string, active: boolean, headers: Headers) {

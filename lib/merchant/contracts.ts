@@ -15,11 +15,13 @@ export const permission = z.enum([
   "webhooks:read",
   "webhooks:write",
   "configuration:read",
+  // Moves money back to customers; granted only on purpose.
+  "refunds:write",
 ]);
 export const keyInput = z
   .object({
     environment,
-    permissions: z.array(permission).min(1).max(6),
+    permissions: z.array(permission).min(1).max(7),
     expiresAt: z.iso.datetime().optional(),
   })
   .strict();

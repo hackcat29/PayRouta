@@ -31,6 +31,11 @@ export const pages = {
     intro:
       "Customers pay from whatever wallet and chain they hold. You receive exactly the stablecoin you chose, in your own wallet. 1.5% all in.",
   },
+  agents: {
+    title: "Agentic payments",
+    intro:
+      "AI agents pay your payment links over HTTP, within the limits on their agent key, and your own AI assistant runs your payments through MCP.",
+  },
   "social-sellers": {
     title: "For social sellers",
     intro:

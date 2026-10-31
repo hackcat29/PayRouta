@@ -1588,6 +1588,13 @@ model CrossChainPayment {
   originSymbol      String
   destinationAsset  String
   recipientType     String   @default("DESTINATION_CHAIN")
+  // INTENTS: funded from the payer's NEAR Intents balance by a signed
+  // transfer intent (an AI agent paying, lib/agents/checkout.ts); `payer`
+  // is that account and `payload` the intent it signs.
+  fundedBy          String   @default("ORIGIN_CHAIN")
+  payer             String?
+  payload           Json?
+  intentHash        String?
   depositAddress    String   @unique
   depositMemo       String?
   amountIn          String
@@ -1603,6 +1610,48 @@ model CrossChainPayment {
   updatedAt         DateTime @updatedAt
 
   @@index([attemptId, createdAt])
+}
+
+// A key an AI agent uses to pay through the agent API (lib/agents), issued by
+// a business with the limits it may spend within: a budget per period, a
+// cap per payment, and optionally the merchants and paying account allowed.
+model AgentKey {
+  id              String    @id @default(cuid())
+  orgId           String
+  environment     String
+  name            String
+  prefix          String
+  verifier        String    @unique
+  // USD cents.
+  budgetMinor     Decimal   @db.Decimal(30, 0)
+  period          String
+  perPaymentMinor Decimal   @db.Decimal(30, 0)
+  // Merchant organization ids; empty allows any merchant.
+  merchants       Json
+  // The intents account it may pay from; null allows any.
+  payer           String?
+  createdBy       String
+  lastUsedAt      DateTime?
+  revokedAt       DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([orgId, environment, createdAt])
+}
+
+// What an agent key has committed: reserved when a payment is prepared,
+// spent once it is confirmed, released if it never completes.
+model AgentSpend {
+  id          String   @id @default(cuid())
+  keyId       String
+  intentId    String
+  paymentId   String?
+  amountMinor Decimal  @db.Decimal(30, 0)
+  state       String   @default("Reserved")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([keyId, intentId])
+  @@index([keyId, createdAt])
 }
 
 // A merchant-owned NEAR Intents account (lib/intents/account.ts). Crypto

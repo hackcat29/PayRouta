@@ -24,7 +24,12 @@ import { minor } from "../payments/contracts";
 import { stablecoinCandidates } from "../payments/stablecoin-routes";
 import { networkName } from "../blockchain/chains";
 import { paymentAsset, onchainMethod } from "../blockchain/crypto-assets";
-import { chainNames, destinationFor, quote, status, tokens, type Http } from "./oneclick";
+import { z } from "zod";
+import { chainNames, destinationFor, generateIntent, quote, status, submitIntent, tokens, type GeneratedIntent, type Http } from "./oneclick";
+import { intentsAccount } from "./near";
+import { checkFundingIntent } from "./payouts";
+import { ed25519Signature, secp256k1Signature, type SignedIntent } from "./signing";
+import { erc191Signer, verifyNep413 } from "./verify";
 import { providerRequest } from "../providers/adapters/http";
 
 export const crossChainEnabled = () => process.env.CROSS_CHAIN_PAYMENTS !== "off";
@@ -85,6 +90,9 @@ export type PayToken = {
   optionId: string | null;
   amount?: string;
   assetId?: string;
+  // Direct tokens: the receiving network and token.
+  network?: string;
+  identifier?: string;
 };
 
 // The checkout's crypto picker: every token the customer could pay with,
@@ -152,6 +160,8 @@ export function payTokens(options: Routed[], swaps: boolean, listed: { assetId: 
       method: o.method,
       optionId: o.id,
       amount: o.amount,
+      network: o.network,
+      identifier: o.identifier,
     });
   }
   if (target)
@@ -303,4 +313,115 @@ export async function crossChainStatus(sessionId: string, token: string, deps: D
   });
   if (s?.status === "SUCCESS") await refreshAttempt(sessionId, token, now).catch(() => {});
   return { payment: present(updated) };
+}
+
+// Paying from a NEAR Intents balance (an AI agent, lib/agents/checkout.ts):
+// the payer signs one transfer intent instead of sending a transaction.
+// 1Click quotes the same exact-output swap, funded from the payer's intents
+// account (depositType INTENTS) and refunded there, and generates the
+// funding intent. PayRouta checks it moves exactly the quoted tokens from the
+// payer to the quote's deposit account before handing it out; 1Click
+// submits it once signed, so the payer needs no gas. Confirmation is the
+// same as for any cross-chain payment.
+export async function intentsFundedQuote(
+  sessionId: string,
+  token: string,
+  input: { originAsset: string; payer: string },
+  deps: Deps = {},
+) {
+  const now = deps.now ?? new Date();
+  const http = deps.http ?? providerRequest;
+  if (!(deps.enabled ?? crossChainEnabled())) throw new PortalError("CROSS_CHAIN_OFF", 409);
+  const payer = intentsAccount(input.payer);
+  if (!payer) throw new PortalError("INTENTS_ACCOUNT_INVALID", 400);
+  const scope = await awaitingDeposit(sessionId, token, now);
+  if (!scope.attempt) throw new PortalError(scope.reason, 409);
+  const { intent, attempt, action, destination, intoIntents } = scope;
+  const list = await tokens(http, now.getTime());
+  const origin = list.find((t) => t.assetId === input.originAsset);
+  if (!origin || !list.some((t) => t.assetId === destination.assetId)) throw new PortalError("CROSS_CHAIN_ORIGIN_NOT_SUPPORTED", 409);
+  const amountOut = minor(action.amount, destination.decimals).toString();
+  const deadline = new Date(intent.expiresAt.getTime() - deadlineMarginMs);
+  const result = await quote(
+    {
+      originAsset: origin.assetId,
+      destinationAsset: destination.assetId,
+      amountOut,
+      recipient: action.address,
+      refundTo: payer.accountId,
+      deadline,
+      from: "INTENTS",
+      to: intoIntents ? "INTENTS" : "CHAIN",
+    },
+    http,
+  );
+  if (result.quote.amountOut !== amountOut || (result.quote.minAmountOut !== undefined && result.quote.minAmountOut !== amountOut))
+    throw new PortalError("CROSS_CHAIN_QUOTE_MISMATCH", 409);
+  const sign = await generateIntent({ depositAddress: result.quote.depositAddress, signerId: payer.accountId, standard: payer.standard }, http);
+  checkFundingIntent(sign, { signer: payer.accountId, receiver: result.quote.depositAddress, token: origin.assetId, amount: result.quote.amountIn });
+  const record = await db.crossChainPayment.create({
+    data: {
+      intentId: intent.id,
+      attemptId: attempt.id,
+      environment: intent.environment,
+      provider,
+      originAsset: origin.assetId,
+      originChain: origin.blockchain,
+      originSymbol: origin.symbol,
+      destinationAsset: destination.assetId,
+      recipientType: intoIntents ? "INTENTS" : "DESTINATION_CHAIN",
+      fundedBy: "INTENTS",
+      payer: payer.accountId,
+      payload: json(sign),
+      depositAddress: result.quote.depositAddress,
+      amountIn: result.quote.amountIn,
+      amountInFormatted: result.quote.amountInFormatted,
+      amountOut,
+      refundTo: payer.accountId,
+      deadline,
+      quote: json(result),
+      status: "AWAITING_SIGNATURE",
+    },
+  });
+  return { payment: record.id, sign, ...present(record) };
+}
+
+const submitInput = z
+  .object({
+    payment: z.string().min(1).max(100),
+    signature: z.string().min(10).max(200),
+    publicKey: z.string().max(100).optional(),
+  })
+  .strict();
+
+export async function submitFundedIntent(sessionId: string, token: string, raw: unknown, deps: Deps = {}) {
+  const now = deps.now ?? new Date();
+  const input = submitInput.parse(raw);
+  const { intent } = await authorizeSession(sessionId, token, now);
+  const record = await db.crossChainPayment.findUnique({ where: { id: input.payment } });
+  if (!record || record.intentId !== intent.id || record.fundedBy !== "INTENTS" || !record.payer)
+    throw new PortalError("PAYMENT_NOT_FOUND", 404);
+  // Signed once: status polling may already have moved on from the
+  // initial AWAITING_SIGNATURE, so the intent hash is what marks it used.
+  if (record.intentHash || record.deadline <= now) throw new PortalError("INTENTS_QUOTE_EXPIRED", 409);
+  const sign = record.payload as GeneratedIntent;
+  let signed: SignedIntent;
+  try {
+    if (sign.standard === "erc191") {
+      signed = { standard: "erc191", payload: sign.payload, signature: secp256k1Signature(input.signature) };
+      if (erc191Signer(sign.payload, signed.signature) !== record.payer) throw new Error();
+    } else {
+      const publicKey = input.publicKey ?? "";
+      signed = { standard: "nep413", payload: sign.payload, public_key: publicKey, signature: ed25519Signature(input.signature) };
+      if (!verifyNep413(sign.payload, publicKey, signed.signature)) throw new Error();
+    }
+  } catch {
+    throw new PortalError("INTENTS_SIGNATURE_INVALID", 403);
+  }
+  const { intentHash } = await submitIntent(signed, deps.http ?? providerRequest);
+  const updated = await db.crossChainPayment.update({
+    where: { id: record.id },
+    data: { intentHash, status: "PENDING_DEPOSIT", checkedAt: now },
+  });
+  return { payment: updated.id, intentHash, ...present(updated) };
 }

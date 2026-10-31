@@ -8,7 +8,9 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { db } from "../../lib/portal/db";
 import { json } from "../../lib/portal/service";
 import { hash } from "../../lib/payments/contracts";
-import { crossChainOptions, crossChainQuote, crossChainStatus } from "../../lib/intents/checkout";
+import { crossChainOptions, crossChainQuote, crossChainStatus, intentsFundedQuote, submitFundedIntent } from "../../lib/intents/checkout";
+import { secp256k1 } from "@noble/curves/secp256k1.js";
+import { keccak_256 } from "@noble/hashes/sha3.js";
 import { resetTokenCache, type Http } from "../../lib/intents/oneclick";
 import { databaseIntentsSwaps } from "../../lib/intents/swaps";
 import { databaseDepositStore } from "../../lib/blockchain/deposit-store";
@@ -230,4 +232,56 @@ test("near intents: a checkout settles into the merchant's account and the deliv
     },
   });
   await assert.rejects(adapter(integration.id).status(other.attempt), /DEPOSIT_ALREADY_CLAIMED/);
+});
+
+// An AI agent pays from its NEAR Intents balance: one signed transfer
+// intent, checked before it's handed out and verified before it's submitted.
+test("near intents: an agent pays from its intents balance by signing one transfer", async () => {
+  resetTokenCache();
+  const c = await awaitingTransfer();
+  const secret = secp256k1.utils.randomPrivateKey();
+  const payer = `0x${Buffer.from(keccak_256(secp256k1.getPublicKey(secret, false).slice(1)).slice(-20)).toString("hex")}`;
+  const deposit = randomBytes(32).toString("hex");
+  const sent: { path: string; body?: string }[] = [];
+  let payload = "";
+  const http: Http = async (_base, o) => {
+    sent.push(o);
+    const reply = (body: unknown) => ({ status: 200, headers: {}, body: JSON.stringify(body), bytes: 0 });
+    if (o.path === "/v0/tokens")
+      return reply([{ assetId: baseUsdc, decimals: 6, blockchain: "base", symbol: "USDC", contractAddress: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913" }]);
+    if (o.path === "/v0/quote")
+      return reply({ quote: { depositAddress: deposit, amountIn: "40004000", amountInFormatted: "40.004", amountOut: "40000000", timeEstimate: 10 } });
+    if (o.path === "/v0/generate-intent") {
+      payload = JSON.stringify({
+        verifying_contract: "intents.near",
+        signer_id: payer,
+        deadline: "2026-11-02T16:20:36.000Z",
+        nonce: randomBytes(32).toString("base64"),
+        intents: [{ intent: "transfer", receiver_id: deposit, tokens: { [baseUsdc]: "40004000" } }],
+      });
+      return reply({ intent: { standard: "erc191", payload }, correlationId: "c" });
+    }
+    if (o.path === "/v0/submit-intent") return reply({ intentHash: "IntentHash1", correlationId: "c" });
+    return reply({ status: "PENDING_DEPOSIT", swapDetails: {} });
+  };
+  const q = await intentsFundedQuote(c.id, c.token, { originAsset: baseUsdc, payer }, { http, enabled: true });
+  const body = JSON.parse(sent.find((x) => x.path === "/v0/quote")!.body!);
+  assert.deepEqual([body.depositType, body.refundType, body.refundTo, body.recipient], ["INTENTS", "INTENTS", payer, c.receive]);
+  assert.equal(q.sign.standard, "erc191");
+  const record = await db.crossChainPayment.findUniqueOrThrow({ where: { id: q.payment } });
+  assert.deepEqual([record.fundedBy, record.payer, record.status], ["INTENTS", payer, "AWAITING_SIGNATURE"]);
+
+  const sign = (text: string) => {
+    const bytes = new TextEncoder().encode(text);
+    const s = secp256k1.sign(keccak_256(Buffer.concat([Buffer.from(`\x19Ethereum Signed Message:\n${bytes.length}`), bytes])), secret);
+    return `0x${s.toCompactHex()}${(27 + s.recovery).toString(16)}`;
+  };
+  await assert.rejects(submitFundedIntent(c.id, c.token, { payment: q.payment, signature: sign("something else") }, { http }), /INTENTS_SIGNATURE_INVALID/);
+  const done = await submitFundedIntent(c.id, c.token, { payment: q.payment, signature: sign(payload) }, { http });
+  assert.equal(done.intentHash, "IntentHash1");
+  const submitted = JSON.parse(sent.find((x) => x.path === "/v0/submit-intent")!.body!);
+  assert.equal(submitted.signedData.standard, "erc191");
+  assert.match(submitted.signedData.signature, /^secp256k1:/);
+  // A signed intent can't be submitted twice.
+  await assert.rejects(submitFundedIntent(c.id, c.token, { payment: q.payment, signature: sign(payload) }, { http }), /INTENTS_QUOTE_EXPIRED/);
 });
