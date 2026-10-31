@@ -33,7 +33,7 @@ Quote `requestId` when contacting support.
 | `INVALID_IDEMPOTENCY_KEY` | The key must be 8–100 letters, digits, `_` or `-` | Fix the key |
 | `RETURN_ORIGIN_NOT_REGISTERED` | `returnUrl` is not on your registered origin | Use your registered origin, or update it in Settings |
 | `SANDBOX_REQUIRES_POSITIVE_SAME_ASSET_PAYMENT` | The amount is zero, or `settlement` differs from `asset` | Send a positive amount in a single asset |
-| `EXECUTION_ADAPTER_NOT_CONFIGURED` | No qualified execution path for this environment | In production, finish provider accounts and live-scope review first |
+| `EXECUTION_ADAPTER_NOT_CONFIGURED` | No payment path is open for this environment | In production, finish activating your payments account first |
 | `INTENT_NOT_OPEN` | The intent is no longer open | Read the intent; create a new one if needed |
 | `CANCELLATION_NOT_PERMITTED` | An attempt already exists | Wait for the outcome instead |
 | `SESSION_EXPIRED`, `CHECKOUT_EXPIRED_OR_UNAUTHORIZED` | The checkout session expired or was revoked | Create a new session for the same intent |
@@ -50,4 +50,4 @@ For payments, `Unknown` means PayRouta is still confirming with the provider. It
 
 ## Platform pricing
 
-`PAYMENT_FEE_SCHEDULE_REQUIRED` (409) means the production payment asset/precision has no agreed billing terms. `PAYMENT_FEE_VALUATION_EXPIRED` (409) means a cross-asset/crypto valuation no longer covers checkout. Ask the operator to configure approved pricing; no provider payment is dispatched by an intent that fails these checks. `PAYMENT_FEE_TERMS_MISSING` is an operations exception for confirmed pre-pricing intents, which are never automatically back-billed.
+`PAYMENT_FEE_SCHEDULE_REQUIRED` (409) means the production payment asset/precision has no agreed billing terms. `PAYMENT_FEE_VALUATION_EXPIRED` (409) means a cross-asset/crypto valuation no longer covers checkout. Contact PayRouta to agree pricing; no provider payment is dispatched by an intent that fails these checks.

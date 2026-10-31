@@ -1,7 +1,5 @@
 # PalmPay Wallet
 
-> **Implementation status:** Direct execution is not implemented; this guide describes planned/reference scope. Requires merchant/aggregator contract, authenticated API and method-specific receipt fixtures. See [current coverage](provider-coverage.md).
-
 **Category**: [Digital Wallets](providers/digital-wallets/README.md)  
 **Provider**: PalmPay Limited  
 **Method ID**: `digital-wallet`  

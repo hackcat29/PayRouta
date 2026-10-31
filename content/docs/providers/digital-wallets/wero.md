@@ -1,7 +1,5 @@
 # Wero (European Payments Initiative)
 
-> **Implementation status:** Provider code path: adyen. Not live-qualified by code alone. Merchant account enablement, credentials and sandbox qualification are required. See [current coverage](provider-coverage.md).
-
 **Category**: [Digital Wallets](providers/digital-wallets/README.md)  
 **Provider**: European Payments Initiative (EPI)  
 **Method ID**: `digital-wallet`, `ideal`  

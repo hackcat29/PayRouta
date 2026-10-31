@@ -1,6 +1,6 @@
 # Quickstart
 
-Create a sandbox payment, send a customer through hosted checkout, and verify the result. The launch MVP uses real testnet stablecoin transfers. Test tokens have no monetary value. Other payment methods are coming soon.
+Create a sandbox payment, send a customer through hosted checkout, and verify the result. This guide uses real testnet stablecoin transfers; test tokens have no monetary value.
 
 ## 1. Create your workspace
 
@@ -11,7 +11,7 @@ Create a sandbox payment, send a customer through hosted checkout, and verify th
 
 ## 2. Install an SDK
 
-The TypeScript and Python SDKs are private 0.1.0 releases, shared with early-access merchants. You can also call the HTTP API directly; see the [API reference](api-reference.md).
+Ask PayRouta for the TypeScript and Python SDKs. You can also call the HTTP API directly; see the [API reference](api-reference.md).
 
 ```ts
 import { PayRouta } from "@payrouta/server";
@@ -68,7 +68,7 @@ if (payment.state === "Confirmed") {
 
 ## 6. Test failure paths
 
-Test wrong amounts, wrong networks, wallet cancellation, RPC outages and worker restarts using isolated test fixtures. The stablecoin checkout does not accept simulated `scenario` outcomes.
+Test wrong amounts, wrong networks and wallet cancellation with real testnet transfers. The stablecoin checkout does not accept simulated `scenario` outcomes.
 
 ## Going live
 

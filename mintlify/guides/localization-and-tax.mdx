@@ -7,7 +7,7 @@ Converting customers globally requires a checkout that looks native in every mar
 
 ## 1. Localization-as-a-Service (LaaS) Checkout
 
-PayRouta's checkout localization engine (`lib/payments/localization.ts` and `app/checkout/[sessionId]/fiat-view.tsx`) inspects `payerCountry` and presentment currency to automatically rank, label, and badge the highest-converting local payment rails first:
+PayRouta's checkout localization engine inspects `payerCountry` and presentment currency to automatically rank, label, and badge the highest-converting local payment rails first:
 
 | Buyer Country / Region | Primary Prioritized Rails | Local Rail Badges |
 | --- | --- | --- |
@@ -35,7 +35,7 @@ const ordered = localizeCheckoutMethods(availableMethods, {
 
 ## 2. Real-Time Global Tax & Compliance Engine
 
-`calculateCheckoutTax` (`lib/payments/tax.ts`) computes tax-exclusive and tax-inclusive line items in exact `BigInt` minor units across major global tax regimes:
+`calculateCheckoutTax` computes tax-exclusive and tax-inclusive line items in exact `BigInt` minor units across major global tax regimes:
 
 ### Supported Tax Regimes
 

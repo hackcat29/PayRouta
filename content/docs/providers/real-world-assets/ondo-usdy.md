@@ -1,7 +1,5 @@
 # Ondo USDY (US Dollar Yield)
 
-> **Implementation status:** Reference only; excluded from the current product. Reference only; explicitly excluded from the current product. See [current coverage](provider-coverage.md).
-
 **Category**: [Real-World Assets](providers/real-world-assets/README.md)  
 **Provider**: Ondo Finance  
 **Method ID**: `ondo_usdy`, `rwa`  

@@ -1,7 +1,5 @@
 # PicPay
 
-> **Implementation status:** Provider code path: picpay. Not live-qualified by code alone. Merchant supplies provider-required customer and device fields. See [current coverage](provider-coverage.md).
-
 **Category**: [Digital Wallets](providers/digital-wallets/README.md)  
 **Provider**: PicPay Serviços S.A. (J&F Participações)  
 **Method ID**: `digital-wallet`  

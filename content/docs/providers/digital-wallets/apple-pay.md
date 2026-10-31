@@ -1,7 +1,5 @@
 # Apple Pay
 
-> **Implementation status:** Provider code path: adyen. Not live-qualified by code alone. Enable provider wallet certificate/domain configuration. See [current coverage](provider-coverage.md).
-
 **Category**: [Digital Wallets](providers/digital-wallets/README.md)  
 **Provider**: Apple Inc.  
 **Method ID**: `digital-wallet`  

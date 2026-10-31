@@ -2,8 +2,6 @@
 
 The **PayRouta Checkout** plugin adds one payment option to WooCommerce. At checkout the customer is sent to PayRouta, where they pay by card, digital wallet, bank transfer, mobile money, USSD, [credit from a licensed lender](credit.md), or (USD stores) stablecoins and crypto from any wallet.
 
-> **Status.** 0.1.0, run end to end in sandbox on WordPress 7.1 and WooCommerce 11.2: block checkout, card payment on PayRouta, signed webhook, order marked paid. [Download the plugin](https://payrouta.com/downloads/payrouta-checkout.zip). Source: `integrations/woocommerce/payrouta-checkout`.
-
 ## Requirements
 
 WordPress 6.4+, WooCommerce 8.2+, PHP 7.4+. Works with High-Performance Order Storage and the block-based checkout.

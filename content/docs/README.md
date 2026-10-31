@@ -4,8 +4,6 @@ PayRouta is a payments platform. Merchants apply once to PayRouta, which verifie
 
 PayRouta never holds merchant or customer funds in its own bank accounts. Payments are processed by PayRouta's regulated processing partners, which hold each merchant's balance (or pay the merchant's bank directly) until PayRouta pays the merchant out on its schedule. Merchants can also connect payment accounts in their own name, which settle to them directly. Stablecoin payments go straight to the merchant's own wallet.
 
-> **Status: early access.** The sandbox is available. Live processing opens provider by provider, and only after each provider integration has passed qualification against that provider's own sandbox. The SDKs are private 0.1.0 releases, shared with early-access merchants.
-
 ## How it fits together
 
 ```

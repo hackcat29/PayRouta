@@ -3,14 +3,10 @@ title: "Paystack"
 description: "Paystack is a leading payment processor across Africa, powering instant bank transfers, local cards, USSD codes, and mobile money in Nigeria, Ghana, Kenya,\u2026"
 ---
 
-<Note>
-**Implementation status:** Provider code path: paystack. Not live-qualified by code alone. Merchant account enablement, credentials and sandbox qualification are required. See [current coverage](/partners/provider-coverage).
-</Note>
-
 **Category**: [Bank Transfer](/providers/bank-transfer)  
 **Provider**: Paystack Payments Limited (Stripe subsidiary)  
 **Method ID**: `bank-transfer`, `card`, `ussd`, `mobile-money`  
-**Integration Mode**: `NATIVE` (`lib/providers/adapters/native/paystack.ts`)
+**Integration Mode**: `NATIVE`
 
 Paystack is a leading payment processor across Africa, powering instant bank transfers, local cards, USSD codes, and mobile money in Nigeria, Ghana, Kenya, and South Africa.
 
@@ -18,7 +14,7 @@ Paystack is a leading payment processor across Africa, powering instant bank tra
 
 ## Integration Details
 
-- **Adapter**: Native Paystack adapter in PayRouta with zero external dependencies.
+- **Adapter**: Native Paystack adapter in PayRouta.
 - **Base URL**: `https://api.paystack.co`
 - **Supported Operations**: `pay-in`, `payout`, `settlement`
 - **Authentication**: `Bearer <secretKeyRef>` via PayRouta's encrypted credential vault.

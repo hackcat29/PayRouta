@@ -1,6 +1,7 @@
 # Payment intents
 
-> Launch scope: stablecoins and direct crypto wallet payments for every merchant, plus cards, digital wallets, bank transfers and mobile money through PayRouta's processing partners once your payments account is activated. Exchange-app payments are Coming soon. Stablecoin sandbox payments use actual testnet tokens; they cannot simulate a successful deposit. See [Crypto wallet payments](crypto-payments.md).
+> Stablecoins and crypto from any wallet are open to every merchant. Cards, digital wallets, bank transfers and mobile money open once your payments account is activated. Paying from exchange apps is coming. Sandbox stablecoin payments use real testnet tokens. See [Crypto wallet payments](crypto-payments.md).
+
 A payment intent records what is owed: the amount, the asset, which methods you accept, and where the customer returns. It is the object your systems reference from checkout through settlement.
 
 ## Lifecycle

@@ -1,7 +1,5 @@
 # PhonePe
 
-> **Implementation status:** Provider code path: phonepe. Not live-qualified by code alone. UPI checkout can use PhonePe or another UPI app; wallet-balance debit is not implemented. See [current coverage](provider-coverage.md).
-
 **Category**: [Digital Wallets](providers/digital-wallets/README.md)  
 **Provider**: PhonePe Private Limited (Walmart subsidiary)  
 **Method ID**: `digital-wallet`  

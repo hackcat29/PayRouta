@@ -1,7 +1,5 @@
 # GCash
 
-> **Implementation status:** Provider code path: adyen, xendit. Not live-qualified by code alone. Merchant account enablement, credentials and sandbox qualification are required. See [current coverage](provider-coverage.md).
-
 **Category**: [Digital Wallets](providers/digital-wallets/README.md)  
 **Provider**: Mynt (Globe Telecom & Ant Group) / G-Xchange, Inc.  
 **Method ID**: `digital-wallet`  

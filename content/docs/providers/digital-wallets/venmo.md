@@ -1,7 +1,5 @@
 # Venmo
 
-> **Implementation status:** Native `paypal-venmo` Orders v2 and PayPal JS SDK v5 buyer approval are implemented. US merchants/USD only; approved Venmo access and device eligibility remain required. See [current coverage](provider-coverage.md).
-
 **Method ID**: `digital-wallet`  
 **Integration Mode**: `NATIVE`
 

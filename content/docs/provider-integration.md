@@ -59,7 +59,7 @@ Certification exercises only what you declare:
 - cancellation, refunds and settlement reporting, where declared
 - sub-merchant onboarding, payouts and reconciliation, for platform and split-settlement connections
 
-A capability becomes routable only after certification, review and publication. A production connection is enabled only after its sandbox twin has qualified.
+A capability becomes routable only after certification, review and publication. A production connection is enabled only after its sandbox connection has passed.
 
 ## Staying live
 
@@ -67,4 +67,4 @@ Your compliance documents and credentials must stay current, and your health che
 
 ## Native payment integration coverage
 
-See [the complete implementation inventory](provider-coverage.md) for all 41 directory entries, current adapter configuration, evidence handling and explicit remaining scope. New adapter code is not live qualification.
+See [provider coverage](provider-coverage.md) for every provider, its configuration and what it needs.

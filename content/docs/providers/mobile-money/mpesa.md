@@ -1,7 +1,5 @@
 # Safaricom M-Pesa
 
-> **Implementation status:** Provider code path: flutterwave. Not live-qualified by code alone. KES M-Pesa through Flutterwave; direct Daraja receipt/callback integration is not implemented. See [current coverage](provider-coverage.md).
-
 **Category**: [Mobile Money](providers/mobile-money/README.md)  
 **Provider**: Safaricom PLC  
 **Method ID**: `mobile-money`  

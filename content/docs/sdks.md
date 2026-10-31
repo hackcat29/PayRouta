@@ -1,6 +1,6 @@
 # SDKs
 
-TypeScript (`@payrouta/server`) and Python (`payrouta-server`) server clients, and the browser [checkout button](checkout-button.md) (`@payrouta/checkout`, with a React component), are private 0.1.0 releases, shared with early-access merchants. They wrap the [HTTP API](api-reference.md); anything they don't cover can be called directly.
+TypeScript (`@payrouta/server`) and Python (`payrouta-server`) server clients, and the browser [checkout button](checkout-button.md) (`@payrouta/checkout`, with a React component). Ask PayRouta for access. They wrap the [HTTP API](api-reference.md); anything they don't cover can be called directly.
 
 Both SDKs:
 

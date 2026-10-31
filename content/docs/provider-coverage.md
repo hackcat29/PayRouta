@@ -1,8 +1,8 @@
-# Provider integration coverage
+# Provider coverage
 
-## Inventory checked against the directory
+## Directory
 
-**41 guides / 8 directory categories / 40 payment-related guides / 1 excluded RWA reference.** The merchant contract accepts **9 normalized categories**. The tenth taxonomy entry, cash/voucher, has no implemented merchant request flow.
+**41 guides in 8 categories**: 40 payment providers and methods, and one excluded real-world-asset reference. Merchants request payments in **9 method categories**.
 
 | Directory category | Guides |
 | --- | ---: |
@@ -15,55 +15,55 @@
 | BNPL | 2 |
 | Real-world assets (excluded) | 1 |
 
-The rows below describe code coverage, including partial/legacy paths. **They do not certify live processing.** There are thirteen registered native modules plus the three original Monnify, Paystack and Flutterwave implementations. Merchant-owned partner integrations remain distinct. Of the 40 payment-related guides, 38 now map to at least one execution path; PalmPay and Chipper Cash still require verified API contracts. This is partial code coverage, not a count of fully integrated or live-qualified methods.
+Each row lists the providers PayRouta reaches a guide through, and what it needs before it takes payments. PalmPay and Chipper Cash aren't connected.
 
-| Guide | Category | Adapter code | Remaining scope / prerequisites |
+| Guide | Category | Through | Needs |
 | --- | --- | --- | --- |
-| [stablecoins/usdc](providers/stablecoins/usdc.md) | stablecoin | erc20-deposit | Direct Ethereum/Base deposits; official Sepolia testnets only in sandbox. Address pool, RPC and production review required. |
-| [stablecoins/usdt](providers/stablecoins/usdt.md) | stablecoin | erc20-deposit | Direct Ethereum mainnet only; no fabricated test USDT. Production review required; other networks remain unsupported. |
-| [stablecoins/eurc](providers/stablecoins/eurc.md) | stablecoin | erc20-deposit | Direct Ethereum/Base deposits; official Sepolia testnets only in sandbox. Address pool, RPC and production review required. |
-| [cards/stripe](providers/cards/stripe.md) | card | stripe, stripe-connect | Enable this method on an eligible merchant account and qualify it. |
+| [stablecoins/usdc](providers/stablecoins/usdc.md) | stablecoin | erc20-deposit | Direct Ethereum/Base deposits; official Sepolia testnets only in sandbox. A receive-address pool and an approved live account. |
+| [stablecoins/usdt](providers/stablecoins/usdt.md) | stablecoin | erc20-deposit | Direct Ethereum mainnet only; no fabricated test USDT. An approved live account; other networks aren't supported. |
+| [stablecoins/eurc](providers/stablecoins/eurc.md) | stablecoin | erc20-deposit | Direct Ethereum/Base deposits; official Sepolia testnets only in sandbox. A receive-address pool and an approved live account. |
+| [cards/stripe](providers/cards/stripe.md) | card | stripe, stripe-connect | An eligible merchant account with this method enabled. |
 | [cards/visa](providers/cards/visa.md) | card | stripe, adyen, paystack, flutterwave | Card scheme, not a separate acquiring API. |
 | [cards/mastercard](providers/cards/mastercard.md) | card | stripe, adyen, paystack, flutterwave | Card scheme, not a separate acquiring API. |
-| [bank-transfer/paystack](providers/bank-transfer/paystack.md) | bank-transfer | paystack | Enable this method on an eligible merchant account and qualify it. |
-| [bank-transfer/flutterwave](providers/bank-transfer/flutterwave.md) | bank-transfer | flutterwave | Enable this method on an eligible merchant account and qualify it. |
-| [bank-transfer/monnify](providers/bank-transfer/monnify.md) | bank-transfer | monnify | NGN hosted card/transfer instructions and authenticated query receipts. Merchant contract, real payer fields and qualification required. |
+| [bank-transfer/paystack](providers/bank-transfer/paystack.md) | bank-transfer | paystack | An eligible merchant account with this method enabled. |
+| [bank-transfer/flutterwave](providers/bank-transfer/flutterwave.md) | bank-transfer | flutterwave | An eligible merchant account with this method enabled. |
+| [bank-transfer/monnify](providers/bank-transfer/monnify.md) | bank-transfer | monnify | NGN hosted card/transfer instructions and authenticated query receipts. A Monnify merchant contract and the payer's real details. |
 | [bank-transfer/sepa](providers/bank-transfer/sepa.md) | direct-debit | stripe, adyen | Stripe hosted EUR credit transfers and SEPA debit; Adyen SEPA debit. Requires existing Stripe customer. No instant-transfer guarantee. |
-| [bank-transfer/ach](providers/bank-transfer/ach.md) | direct-debit | stripe | Stripe hosted USD bank credit transfers (ACH/wire) and ACH debit. Requires existing Stripe customer. Payout, FedNow and RTP remain unimplemented. |
-| [bank-transfer/pix](providers/bank-transfer/pix.md) | bank-transfer | stripe, adyen | Enable this method on an eligible merchant account and qualify it. |
+| [bank-transfer/ach](providers/bank-transfer/ach.md) | direct-debit | stripe | Stripe hosted USD bank credit transfers (ACH/wire) and ACH debit. Requires existing Stripe customer. Payouts, FedNow and RTP aren't supported. |
+| [bank-transfer/pix](providers/bank-transfer/pix.md) | bank-transfer | stripe, adyen | An eligible merchant account with this method enabled. |
 | [digital-wallets/apple-pay](providers/digital-wallets/apple-pay.md) | digital-wallet | adyen | Enable provider wallet certificate/domain configuration. |
 | [digital-wallets/google-pay](providers/digital-wallets/google-pay.md) | digital-wallet | adyen | Enable provider wallet/domain configuration. |
-| [digital-wallets/paypal](providers/digital-wallets/paypal.md) | digital-wallet | paypal, stripe, adyen | Enable this method on an eligible merchant account and qualify it. |
-| [digital-wallets/alipay](providers/digital-wallets/alipay.md) | digital-wallet | stripe, adyen | Enable this method on an eligible merchant account and qualify it. |
-| [digital-wallets/wechat-pay](providers/digital-wallets/wechat-pay.md) | digital-wallet | stripe, adyen | Enable this method on an eligible merchant account and qualify it. |
-| [digital-wallets/grabpay](providers/digital-wallets/grabpay.md) | digital-wallet | stripe, adyen, xendit | Enable this method on an eligible merchant account and qualify it. |
-| [digital-wallets/gcash](providers/digital-wallets/gcash.md) | digital-wallet | adyen, xendit | Enable this method on an eligible merchant account and qualify it. |
-| [digital-wallets/shopeepay](providers/digital-wallets/shopeepay.md) | digital-wallet | xendit | Enable this method on an eligible merchant account and qualify it. |
-| [digital-wallets/phonepe](providers/digital-wallets/phonepe.md) | bank-transfer | phonepe | UPI checkout can use PhonePe or another UPI app; wallet-balance debit is not implemented. |
-| [digital-wallets/paytm](providers/digital-wallets/paytm.md) | digital-wallet | adyen | Enable this method on an eligible merchant account and qualify it. |
-| [digital-wallets/mercado-pago](providers/digital-wallets/mercado-pago.md) | digital-wallet | mercado-pago | Enable this method on an eligible merchant account and qualify it. |
+| [digital-wallets/paypal](providers/digital-wallets/paypal.md) | digital-wallet | paypal, stripe, adyen | An eligible merchant account with this method enabled. |
+| [digital-wallets/alipay](providers/digital-wallets/alipay.md) | digital-wallet | stripe, adyen | An eligible merchant account with this method enabled. |
+| [digital-wallets/wechat-pay](providers/digital-wallets/wechat-pay.md) | digital-wallet | stripe, adyen | An eligible merchant account with this method enabled. |
+| [digital-wallets/grabpay](providers/digital-wallets/grabpay.md) | digital-wallet | stripe, adyen, xendit | An eligible merchant account with this method enabled. |
+| [digital-wallets/gcash](providers/digital-wallets/gcash.md) | digital-wallet | adyen, xendit | An eligible merchant account with this method enabled. |
+| [digital-wallets/shopeepay](providers/digital-wallets/shopeepay.md) | digital-wallet | xendit | An eligible merchant account with this method enabled. |
+| [digital-wallets/phonepe](providers/digital-wallets/phonepe.md) | bank-transfer | phonepe | UPI checkout can use PhonePe or another UPI app; wallet-balance debit isn't supported. |
+| [digital-wallets/paytm](providers/digital-wallets/paytm.md) | digital-wallet | adyen | An eligible merchant account with this method enabled. |
+| [digital-wallets/mercado-pago](providers/digital-wallets/mercado-pago.md) | digital-wallet | mercado-pago | An eligible merchant account with this method enabled. |
 | [digital-wallets/picpay](providers/digital-wallets/picpay.md) | digital-wallet | picpay | Merchant supplies provider-required customer and device fields. |
-| [digital-wallets/paypay](providers/digital-wallets/paypay.md) | digital-wallet | paypay, adyen, stripe | Enable this method on an eligible merchant account and qualify it. |
-| [digital-wallets/kakaopay](providers/digital-wallets/kakaopay.md) | digital-wallet | adyen | Enable this method on an eligible merchant account and qualify it. |
-| [digital-wallets/revolut-pay](providers/digital-wallets/revolut-pay.md) | digital-wallet | stripe | Enable this method on an eligible merchant account and qualify it. |
-| [digital-wallets/wero](providers/digital-wallets/wero.md) | digital-wallet | adyen | Enable this method on an eligible merchant account and qualify it. |
-| [digital-wallets/cash-app](providers/digital-wallets/cash-app.md) | digital-wallet | stripe, adyen | Enable this method on an eligible merchant account and qualify it. |
-| [digital-wallets/venmo](providers/digital-wallets/venmo.md) | digital-wallet | paypal-venmo | US/USD only; approved PayPal merchant credentials, eligible Venmo SDK device and authentic capture qualification required. |
-| [digital-wallets/opay](providers/digital-wallets/opay.md) | digital-wallet | opay | NGN OPay wallet QR and signed status polling; approved Nigerian merchant account and sandbox qualification required. |
-| [digital-wallets/palmpay](providers/digital-wallets/palmpay.md) | digital-wallet | None | Requires merchant/aggregator contract, authenticated API and method-specific receipt fixtures. |
-| [digital-wallets/chipper-cash](providers/digital-wallets/chipper-cash.md) | digital-wallet | None | Requires partner API contract and credentials. |
-| [mobile-money/mpesa](providers/mobile-money/mpesa.md) | mobile-money | flutterwave | KES M-Pesa through Flutterwave; direct Daraja receipt/callback integration is not implemented. |
-| [mobile-money/mtn-momo](providers/mobile-money/mtn-momo.md) | mobile-money | mtn-momo, paystack, flutterwave | Enable this method on an eligible merchant account and qualify it. |
+| [digital-wallets/paypay](providers/digital-wallets/paypay.md) | digital-wallet | paypay, adyen, stripe | An eligible merchant account with this method enabled. |
+| [digital-wallets/kakaopay](providers/digital-wallets/kakaopay.md) | digital-wallet | adyen | An eligible merchant account with this method enabled. |
+| [digital-wallets/revolut-pay](providers/digital-wallets/revolut-pay.md) | digital-wallet | stripe | An eligible merchant account with this method enabled. |
+| [digital-wallets/wero](providers/digital-wallets/wero.md) | digital-wallet | adyen | An eligible merchant account with this method enabled. |
+| [digital-wallets/cash-app](providers/digital-wallets/cash-app.md) | digital-wallet | stripe, adyen | An eligible merchant account with this method enabled. |
+| [digital-wallets/venmo](providers/digital-wallets/venmo.md) | digital-wallet | paypal-venmo | US/USD only; approved PayPal merchant credentials, and an eligible Venmo device. |
+| [digital-wallets/opay](providers/digital-wallets/opay.md) | digital-wallet | opay | NGN OPay wallet QR; an approved Nigerian merchant account. |
+| [digital-wallets/palmpay](providers/digital-wallets/palmpay.md) | digital-wallet | None | Not connected. |
+| [digital-wallets/chipper-cash](providers/digital-wallets/chipper-cash.md) | digital-wallet | None | Not connected. |
+| [mobile-money/mpesa](providers/mobile-money/mpesa.md) | mobile-money | flutterwave | KES M-Pesa through Flutterwave; direct Daraja collection isn't supported. |
+| [mobile-money/mtn-momo](providers/mobile-money/mtn-momo.md) | mobile-money | mtn-momo, paystack, flutterwave | An eligible merchant account with this method enabled. |
 | [mobile-money/airtel-money](providers/mobile-money/airtel-money.md) | mobile-money | flutterwave | Supported local mobile-money checkout through Flutterwave; direct Airtel API requires approved portal access. |
-| [crypto-apps/binance-pay](providers/crypto-apps/binance-pay.md) | crypto-app | binance-pay | No published public sandbox; no activation until an approved merchant contract and qualification path exist. |
-| [crypto-apps/coinbase-commerce](providers/crypto-apps/coinbase-commerce.md) | crypto-app | coinbase-business | Replaced legacy Commerce with Coinbase Business Checkout; Base USDC only. |
-| [bnpl/klarna](providers/bnpl/klarna.md) | bnpl | stripe, adyen | Enable this method on an eligible merchant account and qualify it. |
-| [bnpl/affirm](providers/bnpl/affirm.md) | bnpl | stripe, adyen | Enable this method on an eligible merchant account and qualify it. |
+| [crypto-apps/binance-pay](providers/crypto-apps/binance-pay.md) | crypto-app | binance-pay | An approved Binance Pay merchant contract; there is no public sandbox. |
+| [crypto-apps/coinbase-commerce](providers/crypto-apps/coinbase-commerce.md) | crypto-app | coinbase-business | Coinbase Business Checkout; Base USDC only. |
+| [bnpl/klarna](providers/bnpl/klarna.md) | bnpl | stripe, adyen | An eligible merchant account with this method enabled. |
+| [bnpl/affirm](providers/bnpl/affirm.md) | bnpl | stripe, adyen | An eligible merchant account with this method enabled. |
 | [real-world-assets/ondo-usdy](providers/real-world-assets/ondo-usdy.md) | Excluded RWA | None | Reference only; explicitly excluded from the current product. |
 
 ## Native configuration
 
-Store immutable integration configuration with `mode: "NATIVE"`, `adapter`, `environment: "sandbox" | "production"`, and the schema-specific fields below. Defaults: `maintainedBy: "PAYROUTA"`, `timeoutMs: 8000` (500–15000). All credentials are secret-store references, resolved server-side. Register/approve capabilities, account permissions, currencies/countries, economics and authentic observations through the existing operator review. Configuration alone returns Unknown health and never advertises a live route. The generic provider-portal form and simulator certification suite do not automatically provision/qualify new native modules.
+Store immutable integration configuration with `mode: "NATIVE"`, `adapter`, `environment: "sandbox" | "production"`, and the schema-specific fields below. Defaults: `maintainedBy: "PAYROUTA"`, `timeoutMs: 8000` (500–15000). All credentials are secret-store references, resolved server-side. PayRouta reviews capabilities, permissions, currencies, countries and pricing before a connection takes payments.
 
 | Adapter | Required configuration |
 | --- | --- |
@@ -108,7 +108,7 @@ PhonePe `enabledModes`: `CARD`, `UPI_INTENT`, `UPI_QR`, `NET_BANKING`. Bank-tran
 
 Amounts remain exact decimal strings. Fiat precision must match the currency exponent. No adapter substitutes invoice amounts for missing authenticated receipt amounts. No fiat/token conversion or different-network fallback occurs.
 
-Optional metadata restrictions use guide IDs: `preferred_wallet: "apple-pay"`, `"cash-app"`, `"shopeepay"`, `"picpay"`, etc. Bank/debit `payment_rail` examples are `pix`, `ach`, `sepa`, `sepa-credit`, `us-bank-transfer`, `upi`, `net-banking`. Stripe credit transfers use `method: "bank-transfer"` and an enabled `customer_balance` type; `direct-debit` remains a separate selection. Credit transfer requires `metadata.stripe_customer_id` for an existing customer in the exact merchant/connected account. Stripe hosts the bank instructions and reconciles the incoming customer cash balance. EUR selects `eu_bank_transfer` with the configured IBAN country; USD selects `us_bank_transfer`, which permits ACH or wire. This does not certify a specific instantaneous or exclusive ACH rail. The hint must match an explicitly enabled provider type. Monnify requires real `payer_name`, `payer_email`, configured `returnUrl` and a merchant contract. Its hosted checkout is restricted to the selected card or account-transfer method; authentication and transaction queries replace invented account instructions. MTN requires digit-only international `payer_phone`. Paystack and Flutterwave require `payer_email` and operator `returnUrl`; Flutterwave also requires `paymentOptionsControlled: true` after confirming dashboard overrides do not replace requested payment options.
+Optional metadata restrictions use guide IDs: `preferred_wallet: "apple-pay"`, `"cash-app"`, `"shopeepay"`, `"picpay"`, etc. Bank/debit `payment_rail` examples are `pix`, `ach`, `sepa`, `sepa-credit`, `us-bank-transfer`, `upi`, `net-banking`. Stripe credit transfers use `method: "bank-transfer"` and an enabled `customer_balance` type; `direct-debit` remains a separate selection. Credit transfer requires `metadata.stripe_customer_id` for an existing customer in the exact merchant/connected account. Stripe hosts the bank instructions and reconciles the incoming customer cash balance. EUR selects `eu_bank_transfer` with the configured IBAN country; USD selects `us_bank_transfer`, which permits ACH or wire. It doesn't guarantee an instant or ACH-only rail. The hint must match an explicitly enabled provider type. Monnify requires real `payer_name`, `payer_email`, configured `returnUrl` and a merchant contract. Its hosted checkout is restricted to the selected card or account-transfer method; authentication and transaction queries replace invented account instructions. MTN requires digit-only international `payer_phone`. Paystack and Flutterwave require `payer_email` and operator `returnUrl`; Flutterwave also requires `paymentOptionsControlled: true` after confirming dashboard overrides do not replace requested payment options.
 
 Adyen BNPL requires `metadata.order_lines`, a JSON string of line items with `id`, `description`, `quantity`, `amountIncludingTax` (integer minor units per item). The exact sum must equal the invoice. For example: `[{"id":"sku1","description":"Order","quantity":1,"amountIncludingTax":1234}]` for EUR 12.34. Merchant metadata retains the existing 200-character per-value limit.
 
@@ -116,15 +116,15 @@ PicPay requires merchant-supplied `payer_name`, `payer_email`, `payer_document_t
 
 Coinbase uses the exact registered Base USDC contract (`erc20:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913`, `network: "eip155:8453"`, precision 6). Sandbox Checkout uses `/sandbox/api/v1/checkouts`; production uses `/api/v1/checkouts`. This replaces the old Commerce charge API and HMAC webhook assumptions. Fulfillment waits for authenticated `COMPLETED` status.
 
-Binance uses `method: "crypto-app"`, asset identifier `binance:<currency>`, network `binance:pay`, and up to 8 decimal places. This namespace describes the provider balance rail, not an ERC-20 token contract. USDT on Binance is not a direct Ethereum/Tron deposit integration. Live merchant API still permits only reviewed same-currency fiat scopes; crypto-app production therefore remains gated until a corresponding review model exists.
+Binance uses `method: "crypto-app"`, asset identifier `binance:<currency>`, network `binance:pay`, and up to 8 decimal places. This namespace describes the provider balance rail, not an ERC-20 token contract. USDT on Binance is not a direct Ethereum/Tron deposit integration. Binance Pay doesn't take live payments yet.
 
 ## Direct deposits, OPay and Venmo
 
-Apply `20261006010000_direct_deposits` with the normal deployment migration step before using `erc20-deposit`. It was applied only to the local fictional database during implementation. PostgreSQL stores immutable attempt/address/start-block bindings and globally unique transfer claims. Receive addresses are consumed permanently, including expired checkouts, to prevent late transfers funding another invoice. Operators provision an address pool controlled by the merchant; no keys, custody, automatic address generation, signing or sweeping are implemented. Exhausted pools require operator replenishment.
+Each payment reserves its own receive address, and an address is never reused, even after its checkout expires, so a late transfer can't fund another invoice. Addresses come from a pool the merchant controls; PayRouta holds no keys and never generates addresses, signs or sweeps funds. Add addresses before the pool runs out.
 
-Direct stablecoin checkout now covers Ethereum, Base, Arc, Avalanche, Arbitrum, Polygon, Solana and Stellar plus their registered test environments. The registry contains 31 exact token/network pairs: USDC on all eight networks, EURC on six, USDT on Ethereum/Avalanche/Solana. Sandbox has only issuer-listed USDC/EURC tokens. ERC-20/SPL precision is six; Stellar classic precision is seven. Customers choose merchant-quoted options before instructions exist; any attempt locks the choice. Mainnet is production-only and requires exact reviewed merchant scope, screening/evidence, country limits and fee valuation. There is no automatic conversion, bridging or token-parity assumption.
+Direct stablecoin checkout covers Ethereum, Base, Arc, Avalanche, Arbitrum, Polygon, Solana and Stellar plus their registered test environments. The registry contains 31 exact token/network pairs: USDC on all eight networks, EURC on six, USDT on Ethereum/Avalanche/Solana. Sandbox has only issuer-listed USDC/EURC tokens. ERC-20/SPL precision is six; Stellar classic precision is seven. Customers choose merchant-quoted options before instructions exist; any attempt locks the choice. Mainnet payments need an approved live account. There is no automatic conversion, bridging or token-parity assumption.
 
-The backend verifies exact successful finalized EVM logs, SPL transfer/balance evidence or classic Stellar issuer/payment/closed-ledger evidence before confirmation. A durable global transaction/operation claim prevents invoice reuse. Detection alone does not settle or bill. Merchant deposits settle whole, with a separate platform bill and payer-paid network fees. Wallets sign their own payment; native server relay persists and verifies the exact signed message before broadcast. The MVP does not hold production merchant keys, sweep funds or sign refunds. Public RPC fallback is fixed, network-verified and bounded; ambiguous broadcasts never automatically switch endpoints. Consult the multichain implementation and launch checklists for the asset matrix, native account prerequisites, qualification evidence and capacity/retention boundaries.
+The backend verifies exact successful finalized EVM logs, SPL transfer/balance evidence or classic Stellar issuer/payment/closed-ledger evidence before confirmation. A durable global transaction/operation claim prevents invoice reuse. Detection alone does not settle or bill. Merchant deposits settle whole, with a separate platform bill and payer-paid network fees. Wallets sign their own payment; native server relay persists and verifies the exact signed message before broadcast. PayRouta does not hold merchant keys, sweep funds or sign refunds. Public RPC fallback is fixed, network-verified and bounded; ambiguous broadcasts never automatically switch endpoints.
 
 OPay uses the public Nigerian international wallet API with `OpayWalletNgQR`. Requests and status queries sign their exact JSON bodies using HMAC-SHA512. Sandbox/live API origins are pinned. A provider-issued OPay QR URL is encoded locally as a PNG; customer scanning is not financial evidence. Authenticated `SUCCESS` status must match the merchant reference, provider order and exact NGN amount. Card fallback is not permitted.
 
@@ -136,7 +136,7 @@ Adyen link completion indicates authorization, not capture. Configure Standard w
 
 Other added adapters use authenticated status polling. MTN, PhonePe, PayPay, PicPay and Binance recover with stable merchant request IDs. Stripe, Coinbase and Xendit creation responses supply provider IDs; if a timeout loses those IDs, inspect provider lookup/idempotency records before any new attempt. Mercado Pago searches by external reference and rejects ambiguous multiple receipts. Automatic external creation replay is disabled. No callback from an unverified mobile-money source changes state.
 
-The simulator alone can create simulated settlement/report facts. External integrations require genuine imported settlement reports and allocations; payment confirmation does not imply settlement. Refunds, disputes, payouts, FedNow/RTP, direct Daraja/Airtel collection, other token networks and private PalmPay/Chipper contracts remain unimplemented. M-Pesa and Airtel retain their existing Flutterwave paths. Native onboarding and live account qualification remain operator work. Tests use injected HTTP transports and an official Adyen HMAC test vector; provider sandbox and live credential qualification remain operator work.
+Settlement is recorded from the provider's settlement reports; a confirmed payment isn't settled until then. Refunds, disputes and payouts through these connections, FedNow/RTP, direct Daraja/Airtel collection, other token networks and PalmPay/Chipper Cash aren't supported. M-Pesa and Airtel Money run through Flutterwave.
 
 ## Official API references checked
 

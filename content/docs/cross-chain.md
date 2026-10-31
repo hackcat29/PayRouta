@@ -4,7 +4,7 @@ All crypto and stablecoin payments in PayRouta are powered by [NEAR Intents](htt
 
 When you want to off-ramp crypto into a local bank account, on-ramp fiat collections (`USD`, `EUR`, `NGN`, `KES`, `GHS`, `ZAR`) into `USDC` or `USDT`, or route payouts to regional banks, those settlement and liquidity operations are handled by PayRouta's licensed settlement partners. See [Settlement](settlement.md).
 
-> **Status.** Live on production checkouts. NEAR Intents operates on mainnet networks, so sandbox checkouts test direct testnet transfers.
+> NEAR Intents runs on mainnet, so sandbox checkouts use direct testnet transfers.
 
 ## How it works
 
@@ -22,7 +22,7 @@ If the swap can't complete, the intents network refunds the customer on their ow
 | --- | --- |
 | USDC on Base, Ethereum, Arbitrum, Polygon, Avalanche, Solana or Stellar | Yes |
 | USDT on Ethereum, Avalanche or Solana | Yes |
-| EURC, or volatile coins (ETH, SOL and others) | Not yet: volatile-coin quotes last two minutes, too short for a cross-chain swap |
+| EURC, or volatile coins (ETH, SOL and others) | No: volatile-coin quotes last two minutes, too short for a cross-chain swap |
 
 PayRouta only accepts a quote whose output equals your invoice amount exactly; anything else is refused rather than shown. Quotes need at least five minutes left on the checkout.
 

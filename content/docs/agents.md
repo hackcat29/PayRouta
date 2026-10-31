@@ -6,7 +6,7 @@ A business that gives an agent money to spend issues it an **agent key** with li
 
 To run your own payments from an AI assistant, see [MCP server](mcp.md).
 
-> **Status.** Agents pay crypto: payment links in USD with stablecoins on, and crypto checkouts. Paying from a NEAR Intents balance runs on mainnet only.
+> Agents pay in crypto: payment links in USD with stablecoins on, and crypto checkouts. Paying from a NEAR Intents balance runs on mainnet only.
 
 ## How an agent pays
 

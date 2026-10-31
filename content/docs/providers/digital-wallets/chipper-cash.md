@@ -1,7 +1,5 @@
 # Chipper Cash
 
-> **Implementation status:** Direct execution is not implemented; this guide describes planned/reference scope. Requires partner API contract and credentials. See [current coverage](provider-coverage.md).
-
 **Category**: [Digital Wallets](providers/digital-wallets/README.md)  
 **Provider**: Critical Ideas, Inc. (Chipper Cash)  
 **Method ID**: `digital-wallet`  

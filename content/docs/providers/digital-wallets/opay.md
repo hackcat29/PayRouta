@@ -1,7 +1,5 @@
 # OPay Wallet
 
-> **Implementation status:** Native `opay` wallet QR and authenticated status polling are implemented. NGN/Nigeria only; account approval and sandbox qualification remain required. See [current coverage](provider-coverage.md).
-
 **Method ID**: `digital-wallet`  
 **Integration Mode**: `NATIVE`
 

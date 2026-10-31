@@ -1,7 +1,5 @@
 # Monnify
 
-> **Implementation status:** NGN hosted card and account-transfer checkout plus authenticated transaction queries are implemented. Merchant contract and sandbox qualification remain required. See [current coverage](provider-coverage.md).
-
 **Method IDs**: `bank-transfer`, `card`  
 **Integration Mode**: `NATIVE` (`monnify`)
 

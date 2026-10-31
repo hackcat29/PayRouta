@@ -2,7 +2,7 @@
 
 One button on any website or app. The customer pays in a secure PayRouta window with any method you accept: card, digital wallet, bank transfer, mobile money, USSD, [credit from a licensed lender](credit.md), or stablecoins and crypto from [any wallet and chain](cross-chain.md). You never handle card details, credit applications or wallet signatures.
 
-> **Status.** The button works today with stablecoin and crypto checkout. Cards, digital wallets, bank transfers and mobile money appear as they open for your account and region; credit appears where a lender is live.
+> Stablecoin and crypto checkout work for every account. Cards, digital wallets, bank transfers and mobile money appear as they open for your account and region; credit appears where a lender is available.
 
 ## 1. Create checkouts on your server
 

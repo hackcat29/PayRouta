@@ -1,7 +1,5 @@
 # Stripe Connect
 
-> **Implementation status:** Provider code path: stripe, stripe-connect. Not live-qualified by code alone. Merchant account enablement, credentials and sandbox qualification are required. See [current coverage](provider-coverage.md).
-
 **Category**: [Cards](providers/cards/README.md)  
 **Provider**: Stripe, Inc.  
 **Partner Module**: `stripe-connect`  

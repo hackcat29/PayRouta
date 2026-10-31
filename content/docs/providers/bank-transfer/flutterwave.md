@@ -1,11 +1,9 @@
 # Flutterwave
 
-> **Implementation status:** Provider code path: flutterwave. Not live-qualified by code alone. Merchant account enablement, credentials and sandbox qualification are required. See [current coverage](provider-coverage.md).
-
 **Category**: [Bank Transfer](providers/bank-transfer/README.md)  
 **Provider**: Flutterwave Inc.  
 **Method ID**: `bank-transfer`, `card`, `mobile-money`  
-**Integration Mode**: `NATIVE` (`lib/providers/adapters/native/flutterwave.ts`)
+**Integration Mode**: `NATIVE`
 
 Flutterwave offers pan-African payment infrastructure covering over 30 African currencies, barcoded merchant transfers, M-Pesa STK push, and global card collections.
 

@@ -1,7 +1,5 @@
 # Mastercard & Mastercard Send
 
-> **Implementation status:** Provider code path: stripe, adyen, paystack, flutterwave. Not live-qualified by code alone. Card scheme, not a separate acquiring API. See [current coverage](provider-coverage.md).
-
 **Category**: [Cards](providers/cards/README.md)  
 **Provider**: Mastercard International  
 **Method ID**: `card`  

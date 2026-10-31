@@ -1,7 +1,5 @@
 # Google Pay
 
-> **Implementation status:** Provider code path: adyen. Not live-qualified by code alone. Enable provider wallet/domain configuration. See [current coverage](provider-coverage.md).
-
 **Category**: [Digital Wallets](providers/digital-wallets/README.md)  
 **Provider**: Google LLC / Alphabet  
 **Method ID**: `digital-wallet`  

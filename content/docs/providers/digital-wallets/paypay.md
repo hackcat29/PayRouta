@@ -1,7 +1,5 @@
 # PayPay
 
-> **Implementation status:** Provider code path: paypay, adyen, stripe. Not live-qualified by code alone. Merchant account enablement, credentials and sandbox qualification are required. See [current coverage](provider-coverage.md).
-
 **Category**: [Digital Wallets](providers/digital-wallets/README.md)  
 **Provider**: PayPay Corporation (SoftBank & LY Corporation)  
 **Method ID**: `digital-wallet`  

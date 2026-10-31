@@ -1,13 +1,12 @@
 # PayRouta documentation
 
-> Launch scope: stablecoins and direct crypto wallet payments for every merchant, plus cards, digital wallets, bank transfers and mobile money through PayRouta's processing partners once your payments account is activated. Exchange-app payments are Coming soon. Stablecoin sandbox payments use actual testnet tokens; they cannot simulate a successful deposit. See [Crypto wallet payments](crypto-payments.md).
+> Stablecoins and crypto from any wallet are open to every merchant. Cards, digital wallets, bank transfers and mobile money open once your payments account is activated. Paying from exchange apps is coming. Sandbox stablecoin payments use real testnet tokens. See [Crypto wallet payments](crypto-payments.md).
+
 PayRouta is one checkout button for every way the world pays, including credit. Add it to any site or app (or use the Shopify and WooCommerce integrations), and customers pay by card, digital wallet, bank transfer, mobile money, USSD, [credit from a licensed lender](credit.md), or stablecoins and crypto from [any wallet and chain](cross-chain.md). Start with the [checkout button](checkout-button.md).
 
 Behind the button, merchants apply once to PayRouta, which verifies them and sets up processing with its regulated payment partners behind the scenes. PayRouta then routes each payment to a partner that can take it, keeps a backup for the same method, and reconciles the results in one place.
 
 PayRouta never holds merchant or customer funds in its own bank accounts. Payments are processed by PayRouta's regulated processing partners, which hold each merchant's balance (or pay the merchant's bank directly) until PayRouta pays the merchant out on its schedule. Merchants can also connect payment accounts in their own name, which settle to them directly. Stablecoin payments go straight to the merchant's own wallet.
-
-> **Status: early access.** The sandbox is available. Live processing opens provider by provider, and only after each provider integration has passed qualification against that provider's own sandbox. The SDKs are private 0.1.0 releases, shared with early-access merchants.
 
 ## How it fits together
 

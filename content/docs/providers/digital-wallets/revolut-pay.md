@@ -1,7 +1,5 @@
 # Revolut Pay
 
-> **Implementation status:** Provider code path: stripe. Not live-qualified by code alone. Merchant account enablement, credentials and sandbox qualification are required. See [current coverage](provider-coverage.md).
-
 **Category**: [Digital Wallets](providers/digital-wallets/README.md)  
 **Provider**: Revolut Ltd / Revolut Bank UAB  
 **Method ID**: `digital-wallet`  

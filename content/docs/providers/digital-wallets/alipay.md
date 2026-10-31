@@ -1,7 +1,5 @@
 # Alipay
 
-> **Implementation status:** Provider code path: stripe, adyen. Not live-qualified by code alone. Merchant account enablement, credentials and sandbox qualification are required. See [current coverage](provider-coverage.md).
-
 **Category**: [Digital Wallets](providers/digital-wallets/README.md)  
 **Provider**: Ant Group / Alipay.com Co., Ltd.  
 **Method ID**: `digital-wallet`  

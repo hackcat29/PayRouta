@@ -2,7 +2,7 @@
 
 Most payment companies compete on how many ways a customer can pay. In much of the world the harder problem is affordability: few people have a credit card, so a phone, a laptop or a year of software is out of reach in one payment. PayRouta puts credit inside the checkout as one more way to pay.
 
-> **Status.** Built, and testable end to end in sandbox with a test lender. Live credit opens country by country as licensed lenders join PayRouta. No lender is live yet; this page will list them as they are.
+> Credit opens country by country as licensed lenders join PayRouta. You can test it end to end in sandbox.
 
 ## How it works
 
@@ -40,10 +40,10 @@ Approve the test credit on the checkout to confirm the payment. A `reference` co
 
 ## For lenders: the credit partner contract
 
-Licensed lenders and consumer-credit providers connect as PayRouta platform modules (`lib/treasury/platforms`). A credit module:
+Licensed lenders and consumer-credit providers connect to PayRouta as credit modules. A credit module:
 
 - declares `methods: ["bnpl"]` and a `credit` disclosure: legal lender name, terms URL, and the payer countries it lends to;
-- answers `creditOffers({ amount, precision, currency, payerCountry })` with the plans it offers for that amount, using the shared arithmetic in `lib/treasury/credit.ts`, so plans read the same from every lender: instalments, interval, due today, each instalment, total, cost of credit and APR;
+- answers `creditOffers({ amount, precision, currency, payerCountry })` with the plans it offers for that amount, using PayRouta's shared credit arithmetic, so plans read the same from every lender: instalments, interval, due today, each instalment, total, cost of credit and APR;
 - accepts `createPayment` with `credit: { offerId }`, re-prices the plan, and refuses if it no longer offers it;
 - returns the customer's approval step as a redirect to the lender's own pages, reports approval through `paymentStatus`, and reports when it has paid the merchant through `fundsAvailability`.
 

@@ -3,10 +3,6 @@ title: "Tether USDT"
 description: "Only these exact network/contract pairs are accepted. Namespaced intent identifiers use erc20:<contract>. Wrapped tokens, unlisted networks and fiat\u2026"
 ---
 
-<Note>
-**Implementation status:** Direct `erc20-deposit` observation is implemented for the contracts below. Persistent address provisioning, authentic RPC and account qualification are required; the current production review still gates blockchain scopes. See [current coverage](/partners/provider-coverage).
-</Note>
-
 **Method ID**: `stablecoin`  
 **Integration Mode**: `NATIVE`
 
@@ -20,7 +16,7 @@ Only these exact network/contract pairs are accepted. Namespaced intent identifi
 
 ## Deposit flow
 
-Operators configure one token/network and a pool of merchant-owned receive addresses, using the coverage guide's configuration and migration instructions. PostgreSQL permanently reserves one address for each attempt and retains its original start block across restarts. No dashboard wallet ownership proof, address derivation, custody, signing or sweeping is implemented by this adapter.
+Each payment gets its own receive address, owned by the merchant. PayRouta never holds the funds or the keys.
 
 Checkout displays the receive address, exact token amount, network and contract. Customer transfers must use that precise asset and chain. Amounts use integer scaling at six decimal places. No automatic token or chain switching occurs.
 

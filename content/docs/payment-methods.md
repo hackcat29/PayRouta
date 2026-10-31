@@ -1,11 +1,12 @@
 # Payment methods
 
-> Launch scope: stablecoins and direct crypto wallet payments for every merchant, plus cards, digital wallets, bank transfers and mobile money through PayRouta's processing partners once your payments account is activated. Exchange-app payments are Coming soon. Stablecoin sandbox payments use actual testnet tokens; they cannot simulate a successful deposit. See [Crypto wallet payments](crypto-payments.md).
-The merchant API accepts **9 method categories**: bank transfer, card, mobile money, digital wallet, USSD, direct debit, BNPL, stablecoin and crypto app. These are request categories, not nine live-qualified integrations.
+> Stablecoins and crypto from any wallet are open to every merchant. Cards, digital wallets, bank transfers and mobile money open once your payments account is activated. Paying from exchange apps is coming. Sandbox stablecoin payments use real testnet tokens. See [Crypto wallet payments](crypto-payments.md).
 
-The provider directory contains **41 guides in 8 categories**: **40 payment-related guides and one excluded real-world-asset reference**. Guides include providers, wallet brands, card schemes, bank rails and token assets; they are not 41 independent payment methods. The internal taxonomy also contains cash/voucher, which the merchant API does not currently accept.
+The merchant API accepts **9 method categories**: bank transfer, card, mobile money, digital wallet, USSD, direct debit, BNPL, stablecoin and crypto app.
 
-| `methods` value | Execution code / remaining scope |
+The provider directory contains **41 guides in 8 categories**: **40 payment-related guides and one excluded real-world-asset reference**. Guides include providers, wallet brands, card schemes, bank rails and token assets; they are not 41 independent payment methods.
+
+| `methods` value | Through |
 | --- | --- |
 | `bank-transfer` | Paystack / Flutterwave / Monnify NGN transfer; Stripe EUR/USD hosted credit transfers; Stripe / Adyen Pix; PhonePe UPI or net banking |
 | `card` | Hosted Stripe, Adyen, Paystack and Flutterwave; Visa and Mastercard are schemes within acquiring integrations |
@@ -14,17 +15,17 @@ The provider directory contains **41 guides in 8 categories**: **40 payment-rela
 | `ussd` | Paystack / Flutterwave NGN hosted checkout |
 | `direct-debit` | Stripe hosted ACH/SEPA mandates; Adyen SEPA debit |
 | `bnpl` | Stripe Klarna/Affirm; Adyen Klarna/Affirm with validated order lines |
-| `stablecoin` | Direct ERC-20, SPL and Stellar classic deposits across Ethereum, Base, Arc, Avalanche, Arbitrum, Polygon, Solana and Stellar. USDC on all eight; EURC on six; USDT on Ethereum/Avalanche/Solana. Exact asset binding and finalized receipts; production review remains gated |
+| `stablecoin` | Direct ERC-20, SPL and Stellar classic deposits across Ethereum, Base, Arc, Avalanche, Arbitrum, Polygon, Solana and Stellar. USDC on all eight; EURC on six; USDT on Ethereum/Avalanche/Solana. Exact asset binding and finalized receipts |
 | `crypto-app` | Direct on-chain wallet payments with CoinGecko USD quotes and exact original deployments. Ethereum, Base, Arbitrum, Polygon, Avalanche, Solana and Arc: 20 crypto coins each; Stellar: 12. Exchange-app payments are Coming soon |
 
-Provider code is exercised with injected transports. No newly added integration is enabled or live-qualified by this change. Actual checkout availability still requires an approved account/capability, exact country/currency/amount eligibility, authentic operational observations, secret references and the existing production review. Native configuration is provisioned by operators; the generic provider form does not onboard these new adapters automatically.
+Which methods a customer sees depends on your account, their country and currency, and the amount.
 
-See [the complete coverage and configuration guide](provider-coverage.md) for all 41 entries and their prerequisites. Private PalmPay/Chipper API contracts and direct Daraja/Airtel APIs remain unimplemented. Stripe credit transfers need an existing customer and account eligibility; EUR/USD hosted instructions are implemented, but instant SEPA, FedNow/RTP and payouts are not. PhonePe UPI is a bank payment that may be completed with any supported UPI app; it is not a PhonePe wallet-balance integration.
+See [provider coverage](provider-coverage.md) for every provider and what it needs. Stripe bank credit transfers need an existing Stripe customer; instant SEPA, FedNow and RTP aren't supported. PhonePe UPI is a bank payment that can be completed with any supported UPI app.
 
-Customers choose a method; providers collect card/wallet authorization on their own pages. Optional `metadata.preferred_wallet` and `metadata.payment_rail` restrict the adapter's payment types. They cannot enable a method the operator or provider has not enabled. PayRouta does not collect card numbers or security codes on ordinary checkouts.
+Customers choose a method; providers collect card/wallet authorization on their own pages. Optional `metadata.preferred_wallet` and `metadata.payment_rail` restrict the adapter's payment types. They can't enable a method that isn't enabled for your account. PayRouta does not collect card numbers or security codes on ordinary checkouts.
 
-Payment confirmation and merchant settlement are separate. Provider confirmation recognizes the exact invoice asset/amount. External settlement requires imported provider settlement evidence; only the explicit sandbox simulator creates simulated settlement facts. An uncertain creation is polled or sent for inspection, never blindly recreated.
+Payment confirmation and settlement are separate. A payment is confirmed for the exact asset and amount, and settles once the provider reports the settlement. A payment whose creation is uncertain is checked with the provider, never created twice.
 
-## Excluded scope
+## Not supported
 
-Tokenized securities and other real-world assets, custody, currency conversion and merchant-of-record tax services are excluded. Cash/voucher remains future taxonomy. Direct stablecoin code observes merchant-owned addresses; production activation still requires an approved blockchain review scope. Code coverage is not live qualification.
+Tokenized securities and other real-world assets, custody, currency conversion and merchant-of-record tax services aren't supported.

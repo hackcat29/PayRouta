@@ -1,7 +1,5 @@
 # Coinbase Commerce
 
-> **Implementation status:** Provider code path: coinbase-business. Not live-qualified by code alone. Replaced legacy Commerce with Coinbase Business Checkout; Base USDC only. See [current coverage](provider-coverage.md).
-
 **Category**: [Crypto Apps](providers/crypto-apps/README.md)  
 **Provider**: Coinbase Global, Inc.  
 **Method ID**: `crypto-app`  

@@ -6,7 +6,7 @@ Customers pay directly from their Web3 wallets. Merchants receive the selected c
 
 The reviewed catalog has **152 mainnet coin/network pairs**: 20 each on Ethereum, Base, Arbitrum, Polygon, Avalanche, Solana and Arc, and 12 on Stellar. Stablecoins are a separate catalog. These are curated native projects and canonical deployments, not an automatically changing top-20 market index. Wrapped, bridged, lending-receipt, staked-coin and tokenized-security representations are excluded.
 
-ETH is native on Ethereum, Base and Arbitrum. SOL is native on Solana; ETH is not offered there. PEPE is offered only on its original Ethereum contract. A symbol never authorizes a different deployment. Stellar has fewer verified qualifying coins; we do not fill its shortfall with wrapped assets.
+ETH is native on Ethereum, Base and Arbitrum. SOL is native on Solana; ETH is not offered there. PEPE is offered only on its original Ethereum contract. A symbol never authorizes a different deployment. Stellar offers fewer coins; wrapped assets are never substituted.
 
 | Network | Crypto coins |
 | --- | --- |
@@ -57,9 +57,3 @@ Select 1–20 coin/network options per invoice from the supported catalog and co
 Retries use the same key and body and return the same quote. They do not refresh its price or extend expiry. A changed body with the same key returns an idempotency conflict. Once expired, create a new checkout with a new key and preserve inspection of any old attempt. Direct manually priced crypto payment intents are rejected without the server-created quote.
 
 To switch to an external wallet browser, use **Open in an external wallet browser → Copy link for wallet browser** in the authenticated checkout. A copied address-bar URL does not include the access token after it has been exchanged for a browser-specific cookie. The handoff creates a separate limited session for the same invoice and active attempt, with the same immutable quote deadline. It never creates another payment or refreshes the rate. Keep this bearer link private. An expired checkout requires a new merchant quote; previously submitted payments remain available for status inspection. Local `127.0.0.1` previews work only on the computer running the preview; a phone requires a reachable hosted checkout.
-
-## Verification and launch
-
-Unit checks cover all registered coins’ exact quotes and precision, EVM wallet instructions, signed SOL/SPL and XLM operations, original mint/issuer receipts, wrong assets, replay protection and canonical deadlines. Controlled local-database checks cover five EVM native paths plus SOL and XLM through durable receipt claims, settlement, reconciliation and zero sandbox fees. Browser checks exercise checkout choice and wallet instructions. These are controlled tests; they do not mean a customer has made a real payment in every coin.
-
-The real Base Sepolia ETH customer transfer [0x334f38b59a7af0b049a922610c68654b0a115de597cde35b12b31e1f8a226a91](https://sepolia.basescan.org/tx/0x334f38b59a7af0b049a922610c68654b0a115de597cde35b12b31e1f8a226a91) succeeded with the exact amount and recipient at 21:46:20 UTC on 7 October 2026, before its 21:46:24.157 quote deadline. Network finality and settlement verification remain pending. Before production, complete genuine wallet payments for each enabled family and token behavior, an end-to-end signed webhook check, production scope review, RPC and price-feed capacity, fee billing and all applicable items in [the launch checklist](LAUNCH-CHECKLIST.md). Read-only preflights and mock receipts do not qualify a live-money route.

@@ -1,7 +1,5 @@
 # Binance Pay
 
-> **Implementation status:** Provider code path: binance-pay. Not live-qualified by code alone. No published public sandbox; no activation until an approved merchant contract and qualification path exist. See [current coverage](provider-coverage.md).
-
 **Category**: [Crypto Apps](providers/crypto-apps/README.md)  
 **Provider**: Binance  
 **Method ID**: `crypto-app`  

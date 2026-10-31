@@ -72,7 +72,7 @@ Creation returns `201`; other successes return `200`. Every response carries an 
 | `asset` | object | yes | `kind` is `fiat` or `blockchain`; `identifier` is a currency code or a namespaced token id; `network` is `""` for fiat |
 | `payerCountry` | string | live: yes | Declared two-letter payer country within approved live scope |
 | `precision` | integer 0–18 | yes | Decimal places allowed in `amount` |
-| `methods` | array | yes | Launch MVP: `["stablecoin"]` only |
+| `methods` | array | yes | [Methods](/concepts/payment-methods) to offer, such as `["card", "bank-transfer"]` for fiat or `["stablecoin"]` |
 | `settlement` | asset object | yes | Currently must equal `asset`. PayRouta does not convert currencies |
 | `returnUrl` | URL | yes | Must be on your registered return origin |
 | `metadata` | object | no | Up to 20 string pairs (keys up to 40 characters, values up to 200) |

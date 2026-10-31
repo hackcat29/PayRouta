@@ -1,7 +1,5 @@
 # US bank transfers and ACH debit
 
-> **Implementation status:** Stripe hosted USD bank credit transfers and ACH debit are implemented. FedNow, RTP and payouts remain unimplemented. See [current coverage](provider-coverage.md).
-
 **Method IDs**: `bank-transfer`, `direct-debit`
 
 For credit transfers, enable Stripe `customer_balance`, select `bank-transfer`, optionally restrict `metadata.payment_rail: "us-bank-transfer"`, and supply `metadata.stripe_customer_id` for an existing customer in the exact merchant or connected account. Stripe's `us_bank_transfer` supports ACH and wire; this integration does not promise an exclusive ACH rail or instant settlement. Stripe hosts bank instructions and reconciles incoming customer cash balance. Confirmation requires authenticated paid status and the exact invoice amount.

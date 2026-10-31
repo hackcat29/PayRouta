@@ -31,7 +31,7 @@ export const docEntries: readonly DocEntryTuple[] = [
   ["webhooks", "Webhooks", "Integration", "Integration"],
   ["mcp", "MCP Server", "Integration", "Integration"],
   ["provider-integration", "Provider Integration", "Integration", "Integration"],
-  ["provider-coverage", "Integration Coverage", "Integration", "Integration"],
+  ["provider-coverage", "Provider coverage", "Integration", "Integration"],
   ["errors", "Errors & Recovery", "Integration", "Integration"],
   ["woocommerce", "WooCommerce", "Platforms", "Integration"],
   ["shopify", "Shopify", "Platforms", "Integration"],

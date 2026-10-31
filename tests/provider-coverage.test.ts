@@ -36,13 +36,9 @@ test("coverage exhaustively inventories every provider guide and distinguishes t
       assert(known.has(id), `${entry.guide}: missing adapter ${id}`);
     if (!entry.adapters.length)
       assert(entry.requirement, `${entry.guide}: missing remaining scope`);
-    for (const root of ["docs", "content/docs"])
-      assert(
-        readFileSync(
-          path.join(root, "providers", `${entry.guide}.md`),
-          "utf8",
-        ).includes("Implementation status"),
-      );
+    // The status note is for the team; public guides carry none.
+    assert(readFileSync(path.join("docs", "providers", `${entry.guide}.md`), "utf8").includes("Implementation status"));
+    assert(!readFileSync(path.join("content/docs", "providers", `${entry.guide}.md`), "utf8").includes("Implementation status"));
   }
 });
 

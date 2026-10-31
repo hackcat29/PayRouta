@@ -1,10 +1,8 @@
 # PayPal
 
-> **Implementation status:** Provider code path: paypal, stripe, adyen. Not live-qualified by code alone. Merchant account enablement, credentials and sandbox qualification are required. See [current coverage](provider-coverage.md).
-
 **Category**: [Digital Wallets](providers/digital-wallets/README.md)  
 **Provider**: PayPal Holdings, Inc.  
-**Partner Module**: `paypal` (`lib/partners/adapters/paypal.ts`)  
+**Partner Module**: `paypal`  
 **Integration Mode**: `NATIVE` (Merchant-Owned Commerce Account)
 
 PayRouta integrates with PayPal via partner onboarding. The merchant signs in to PayPal directly, contracts directly with PayPal, and receives settlements directly to their PayPal business balance and linked bank account.

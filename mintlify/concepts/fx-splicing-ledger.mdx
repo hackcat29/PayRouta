@@ -3,7 +3,7 @@ title: "Triple-Entry Ledger & FX Splicing"
 description: "PayRouta's Global-First Ledger treats fiat currencies, mobile-money wallets, and stablecoins as equal primitives with Any-to-Any FX splicing and simultaneous Triple-Entry valuation."
 ---
 
-Traditional payment architectures force every cross-border transaction through a single base currency (such as USD), compounding foreign-exchange spreads on both legs. PayRouta's Unified Value Engine (`lib/payments/fx-splicing.ts` and `lib/payments/journal.ts`) treats **fiat currencies**, **mobile-money wallets**, and **stablecoins** as equal database primitives using exact integer minor-unit arithmetic (`BigInt`) and $10^{12}$-scaled fixed-point exchange rates.
+Traditional payment architectures force every cross-border transaction through a single base currency (such as USD), compounding foreign-exchange spreads on both legs. PayRouta's Unified Value Engine treats **fiat currencies**, **mobile-money wallets**, and **stablecoins** as equal database primitives using exact integer minor-unit arithmetic (`BigInt`) and $10^{12}$-scaled fixed-point exchange rates.
 
 ```mermaid
 flowchart LR

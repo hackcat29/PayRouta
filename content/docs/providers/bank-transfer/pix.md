@@ -1,7 +1,5 @@
 # Pix (Central Bank of Brazil)
 
-> **Implementation status:** Provider code path: stripe, adyen. Not live-qualified by code alone. Merchant account enablement, credentials and sandbox qualification are required. See [current coverage](provider-coverage.md).
-
 **Category**: [Bank Transfer](providers/bank-transfer/README.md)  
 **Provider**: Banco Central do Brasil (BACEN)  
 **Method ID**: `bank-transfer`, `pix`  

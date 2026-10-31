@@ -1,7 +1,5 @@
 # Airtel Money
 
-> **Implementation status:** Provider code path: flutterwave. Not live-qualified by code alone. Supported local mobile-money checkout through Flutterwave; direct Airtel API requires approved portal access. See [current coverage](provider-coverage.md).
-
 **Category**: [Mobile Money](providers/mobile-money/README.md)  
 **Provider**: Airtel Africa / Bharti Airtel  
 **Method ID**: `mobile-money`  
