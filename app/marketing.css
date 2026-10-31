@@ -552,13 +552,18 @@ body:has(.mk-header) {
   background: var(--mk-adire-dots), var(--mk-night);
   color: var(--mk-night-text);
 }
+/* Top-aligned so the checkout preview can grow (a credit plan, the crypto
+   step) without moving the headline; the copy sits level with its centre. */
 .hp-hero-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
   gap: 64px;
-  align-items: center;
+  align-items: start;
   padding-top: 96px;
   padding-bottom: 112px;
+}
+.hp-hero-copy {
+  padding-top: 150px;
 }
 .hp-h1 {
   font-size: clamp(42px, 6vw, 76px);
@@ -1117,53 +1122,65 @@ body:has(.mk-header) {
   color: var(--mk-ink);
   white-space: nowrap;
 }
-.hd-detail {
-  font-size: 13px;
-  color: var(--mk-quiet);
-  text-align: right;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.hd-brands {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
 }
-.hd-plan {
-  margin-top: 14px;
+.hd-brands i {
+  display: inline-grid;
+  place-items: center;
+  min-width: 34px;
+  height: 21px;
+  padding: 0 4px;
+  border-radius: 4px;
+  border: 1px solid var(--mk-line);
+  font-style: normal;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--mk-indigo-ink);
+}
+/* What the chosen method asks next: a credit plan, or the crypto step. */
+.hd-step {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
   padding: 14px;
   border-radius: 10px;
   background: var(--mk-sand);
-  min-height: 92px;
-}
-.hd-plan p {
-  margin: 0 !important;
-  font-size: 13.5px;
-  color: var(--mk-ink);
-}
-.hd-plan-plain {
-  display: grid;
-  align-items: center;
-}
-.hd-plan-bars {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
-  margin-bottom: 10px;
-}
-.hd-plan-bars span {
-  display: grid;
-  gap: 5px;
-  font-size: 11.5px;
+  font-size: 13px;
   color: var(--mk-quiet);
 }
-.hd-plan-bars i {
-  height: 6px;
-  border-radius: 3px;
-  background: var(--mk-gold);
+.hd-step strong {
+  font-size: 14px;
+  color: var(--mk-ink);
 }
-.hd-plan-bars span:not(:first-child) i {
-  background: #ffdb66;
+.hd-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.hd-field {
+  display: grid;
+  gap: 2px;
+  margin-top: 4px;
+  padding: 7px 10px;
+  border: 1px solid var(--mk-line-strong);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--mk-ink);
+}
+.hd-field small {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--mk-quiet);
 }
 .hd-pay {
   display: block;
-  margin-top: 10px;
+  margin-top: 12px;
   padding: 13px;
   border-radius: 999px;
   background: var(--mk-ink);
@@ -1171,35 +1188,6 @@ body:has(.mk-header) {
   text-align: center;
   font-weight: 600;
   font-size: 15px;
-}
-.hd-settle {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: safe center;
-  gap: 6px;
-  margin-top: 10px;
-  font-size: 12.5px;
-  color: var(--mk-quiet);
-}
-.hd-settle span {
-  font-weight: 600;
-  margin-inline-end: 2px;
-}
-.hd-settle-btn {
-  padding: 4px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--mk-line-strong);
-  background: #fff;
-  color: var(--mk-ink);
-  font: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.hd-settle-btn[aria-pressed="true"] {
-  background: var(--mk-indigo-wash);
-  border-color: var(--mk-indigo);
-  color: var(--mk-indigo-ink);
 }
 .dg-mesh-grid {
   display: grid;
@@ -2407,6 +2395,9 @@ body:has(.mk-header) {
     grid-template-columns: minmax(0, 1fr);
     gap: 40px;
   }
+  .hp-hero-copy {
+    padding-top: 0;
+  }
   .hp-sec,
   .pp-band {
     padding: 80px 0;
@@ -2513,19 +2504,9 @@ body:has(.mk-header) {
   .aa-link {
     grid-template-columns: minmax(0, 1fr);
   }
-  /* Phones: a compact preview. One row per way to pay; only the credit row
-     keeps its detail, since the instalment is the point. */
-  .hd-row {
-    grid-template-columns: 10px minmax(0, 1fr);
-  }
-  .hd-detail {
+  /* Phones: a compact preview, one row per way to pay. */
+  .hd-brands {
     display: none;
-  }
-  .hd-credit .hd-detail {
-    display: block;
-    grid-column: 2;
-    text-align: left;
-    white-space: normal;
   }
   .hd-tabs {
     margin-right: -16px;

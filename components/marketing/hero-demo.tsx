@@ -1,27 +1,29 @@
 "use client";
 // The front page's hero picture: one merchant checkout, shown to customers on
 // each continent. Switching country changes the currency and the ways to pay,
-// which is the product in one glance. Credit plans are computed with the
-// same arithmetic as checkout (lib/treasury/credit.ts). It is a preview:
-// methods depend on the merchant's account and the customer's country.
+// which is the product in one glance. It mirrors the real checkout: method
+// names with card brand marks, credit plans computed with checkout's own
+// arithmetic (lib/treasury/credit.ts), and the crypto step that asks what
+// the customer pays with (app/checkout/[sessionId]/pay-picker.tsx).
 import { useState } from "react";
 import { instalmentOffer } from "@/lib/treasury/credit";
-import { calculateCheckoutTax } from "@/lib/payments/tax";
 
-type Row = { name: string; detail: string; kind: "card" | "wallet" | "bank" | "mobile" | "ussd" | "credit" | "crypto" };
+type Kind = "card" | "wallet" | "bank" | "mobile" | "ussd" | "credit" | "crypto";
+type Row = { name: string; kind: Kind };
 type Place = {
   id: string;
   country: string;
-  countryCode: string;
   // Tab label: the country, shortened where it's long.
   tab: string;
-  continent: string;
   currency: string;
   locale: string;
   shop: string;
   item: string;
   // Price in minor units.
   price: bigint;
+  brands: string[];
+  // What a customer there typically pays crypto with.
+  crypto: [network: string, token: string];
   rows: Row[];
 };
 
@@ -59,178 +61,144 @@ const places: Place[] = [
   {
     id: "ng",
     country: "Nigeria",
-    countryCode: "NG",
     tab: "Nigeria",
-    continent: "Africa",
     currency: "NGN",
     locale: "en-NG",
     shop: "Kora Phones",
     item: "Smartphone, 128 GB",
     price: 15000000n,
+    brands: ["Verve", "Visa", "MC"],
+    crypto: ["Tron", "USDT"],
     rows: [
-      { kind: "bank", name: "Bank transfer", detail: "NIBSS instant transfer" },
-      { kind: "card", name: "Card", detail: "Verve, Visa, Mastercard" },
-      { kind: "ussd", name: "USSD", detail: "Dial code, no data" },
-      { kind: "wallet", name: "Wallet", detail: "OPay, PalmPay" },
-      { kind: "credit", name: "Pay with credit", detail: "" },
-      { kind: "crypto", name: "Stablecoins or crypto", detail: "USDC, USDT" },
+      { kind: "bank", name: "Bank transfer" },
+      { kind: "card", name: "Card" },
+      { kind: "ussd", name: "USSD" },
+      { kind: "wallet", name: "OPay or PalmPay" },
+      { kind: "credit", name: "Pay with credit" },
+      { kind: "crypto", name: "Stablecoins or crypto" },
     ],
   },
   {
     id: "gb",
     country: "United Kingdom",
-    countryCode: "GB",
     tab: "UK",
-    continent: "Europe",
     currency: "GBP",
     locale: "en-GB",
     shop: "Northside Cycles",
     item: "Commuter bike",
     price: 64000n,
+    brands: ["Visa", "MC", "Amex"],
+    crypto: ["Ethereum", "USDC"],
     rows: [
-      { kind: "wallet", name: "Apple Pay or Google Pay", detail: "One tap" },
-      { kind: "bank", name: "Pay by bank", detail: "Faster Payments" },
-      { kind: "card", name: "Card", detail: "Visa, Mastercard, Amex" },
-      { kind: "credit", name: "Pay with credit", detail: "" },
-      { kind: "crypto", name: "Stablecoins or crypto", detail: "Any wallet, any network" },
+      { kind: "wallet", name: "Apple Pay or Google Pay" },
+      { kind: "bank", name: "Pay by bank" },
+      { kind: "card", name: "Card" },
+      { kind: "credit", name: "Pay with credit" },
+      { kind: "crypto", name: "Stablecoins or crypto" },
     ],
   },
   {
     id: "in",
     country: "India",
-    countryCode: "IN",
     tab: "India",
-    continent: "Asia",
     currency: "INR",
     locale: "en-IN",
     shop: "Mehta Electronics",
     item: "Smartwatch",
     price: 1200000n,
+    brands: ["RuPay", "Visa", "MC"],
+    crypto: ["Polygon", "USDT"],
     rows: [
-      { kind: "bank", name: "UPI", detail: "PhonePe, GPay, BHIM" },
-      { kind: "wallet", name: "Wallet", detail: "PhonePe, Paytm" },
-      { kind: "card", name: "Card", detail: "RuPay, Visa, Mastercard" },
-      { kind: "credit", name: "Pay with credit", detail: "" },
-      { kind: "crypto", name: "Stablecoins or crypto", detail: "Any wallet, any network" },
+      { kind: "bank", name: "UPI" },
+      { kind: "wallet", name: "PhonePe or Paytm" },
+      { kind: "card", name: "Card" },
+      { kind: "credit", name: "Pay with credit" },
+      { kind: "crypto", name: "Stablecoins or crypto" },
     ],
   },
   {
     id: "us",
     country: "United States",
-    countryCode: "US",
     tab: "USA",
-    continent: "North America",
     currency: "USD",
     locale: "en-US",
     shop: "Trailhead Outfitters",
     item: "Hiking backpack, 45 L",
     price: 18000n,
+    brands: ["Visa", "MC", "Amex"],
+    crypto: ["Base", "USDC"],
     rows: [
-      { kind: "wallet", name: "Apple Pay or Google Pay", detail: "One tap" },
-      { kind: "card", name: "Card", detail: "Visa, Mastercard, Amex" },
-      { kind: "mobile", name: "Venmo or Cash App", detail: "Instant wallet" },
-      { kind: "credit", name: "Pay with credit", detail: "" },
-      { kind: "crypto", name: "Stablecoins or crypto", detail: "Any wallet, any network" },
+      { kind: "wallet", name: "Apple Pay or Google Pay" },
+      { kind: "card", name: "Card" },
+      { kind: "mobile", name: "Venmo or Cash App" },
+      { kind: "credit", name: "Pay with credit" },
+      { kind: "crypto", name: "Stablecoins or crypto" },
     ],
   },
   {
     id: "br",
     country: "Brazil",
-    countryCode: "BR",
     tab: "Brazil",
-    continent: "South America",
     currency: "BRL",
     locale: "pt-BR",
     shop: "Loja Aurora",
     item: "Smart TV, 50-inch",
     price: 240000n,
+    brands: ["Elo", "Visa", "MC"],
+    crypto: ["Solana", "USDC"],
     rows: [
-      { kind: "bank", name: "Pix", detail: "Instant QR" },
-      { kind: "wallet", name: "Wallet", detail: "Mercado Pago, PicPay" },
-      { kind: "card", name: "Card", detail: "Visa, Mastercard, Elo" },
-      { kind: "credit", name: "Pay with credit", detail: "" },
-      { kind: "crypto", name: "Stablecoins or crypto", detail: "Any wallet, any network" },
+      { kind: "bank", name: "Pix" },
+      { kind: "wallet", name: "Mercado Pago or PicPay" },
+      { kind: "card", name: "Card" },
+      { kind: "credit", name: "Pay with credit" },
+      { kind: "crypto", name: "Stablecoins or crypto" },
     ],
   },
   {
     id: "au",
     country: "Australia",
-    countryCode: "AU",
     tab: "Australia",
-    continent: "Oceania",
     currency: "AUD",
     locale: "en-AU",
     shop: "Coastline Surf Co",
     item: "Surfboard, 7 ft",
     price: 90000n,
+    brands: ["Visa", "MC", "Amex"],
+    crypto: ["Arbitrum", "USDC"],
     rows: [
-      { kind: "wallet", name: "Apple Pay or Google Pay", detail: "One tap" },
-      { kind: "card", name: "Card", detail: "Visa, Mastercard, Amex" },
-      { kind: "credit", name: "Pay with credit", detail: "" },
-      { kind: "crypto", name: "Stablecoins or crypto", detail: "Any wallet, any network" },
+      { kind: "wallet", name: "Apple Pay or Google Pay" },
+      { kind: "card", name: "Card" },
+      { kind: "credit", name: "Pay with credit" },
+      { kind: "crypto", name: "Stablecoins or crypto" },
     ],
   },
   {
     id: "anywhere",
     country: "Anywhere",
-    countryCode: "DE",
     tab: "Anywhere",
-    continent: "Worldwide",
     currency: "USD",
     locale: "en-US",
     shop: "Synth Labs",
     item: "Annual plan",
     price: 15000n,
+    brands: ["Visa", "MC", "Amex"],
+    crypto: ["Solana", "SOL"],
     rows: [
-      { kind: "crypto", name: "USDC or USDT", detail: "8 networks" },
-      { kind: "crypto", name: "Any token, any chain", detail: "Swapped to USDC" },
-      { kind: "wallet", name: "Apple Pay or Google Pay", detail: "One tap" },
-      { kind: "card", name: "Card", detail: "Visa, Mastercard, Amex" },
-      { kind: "credit", name: "Pay with credit", detail: "" },
+      { kind: "crypto", name: "Stablecoins or crypto" },
+      { kind: "wallet", name: "Apple Pay or Google Pay" },
+      { kind: "card", name: "Card" },
+      { kind: "credit", name: "Pay with credit" },
     ],
   },
 ];
 
-const settlementTargets = ["Local", "USDC", "EUR", "USD"] as const;
-
-const usdPerUnitScaled: Record<string, bigint> = {
-  USD: 1_000_000_000_000n,
-  USDC: 1_000_000_000_000n,
-  EUR: 1_086_956_521_739n,
-  GBP: 1_265_822_784_810n,
-  NGN: 625_000_000n,
-  INR: 11_904_761_905n,
-  BRL: 176_991_150_442n,
-  AUD: 657_894_736_842n,
-};
-
-function spliceSettlementMinor(presentmentMinor: bigint, fromCurrency: string, toCurrency: string): bigint {
-  if (fromCurrency === toCurrency) return presentmentMinor;
-  const fromUsd = usdPerUnitScaled[fromCurrency] ?? 1_000_000_000_000n;
-  const toUsd = usdPerUnitScaled[toCurrency] ?? 1_000_000_000_000n;
-  return (presentmentMinor * fromUsd) / toUsd;
-}
-
 export function HeroDemo({ initial = places[0].id }: { initial?: string }) {
   const [id, setId] = useState(initial);
-  const [settleTarget, setSettleTarget] = useState<(typeof settlementTargets)[number]>("USDC");
   const place = places.find((p) => p.id === id)!;
+  const [selected, setSelected] = useState<Kind>(place.rows[0].kind);
   const plan = credit(place.price, 4, "two-weeks", 0);
   const fmt = (m: bigint | string) => money(BigInt(m), place.currency, place.locale);
-  const [selected, setSelected] = useState("credit");
-  const tax = calculateCheckoutTax({
-    amountMinor: place.price,
-    currency: place.currency,
-    buyerAddress: {
-      country: place.countryCode,
-      stateOrProvince: place.countryCode === "US" ? "NY" : undefined,
-    },
-    productCategory: place.id === "anywhere" ? "saas" : "physical",
-    taxBehavior: "inclusive",
-  });
-  const taxLabel = tax.lineItems[0]?.taxType ?? "Tax";
-  const targetCurrency = settleTarget === "Local" ? place.currency : settleTarget;
-  const settledMinor = spliceSettlementMinor(place.price, place.currency, targetCurrency);
+  const price = fmt(place.price);
   return (
     <figure className="hd" aria-label="Preview of a PayRouta checkout in a country on each continent">
       <div className="hd-tabs" role="tablist" aria-label="Customer country">
@@ -243,7 +211,7 @@ export function HeroDemo({ initial = places[0].id }: { initial?: string }) {
             className="hd-tab"
             onClick={() => {
               setId(p.id);
-              setSelected("credit");
+              setSelected(p.rows[0].kind);
             }}
           >
             {p.tab}
@@ -252,70 +220,59 @@ export function HeroDemo({ initial = places[0].id }: { initial?: string }) {
       </div>
       <div className="hd-sheet" role="tabpanel" aria-label={`Checkout in ${place.country}`}>
         <div className="hd-order">
-          <span className="hd-shop">
-            {place.shop} · {taxLabel} incl. ({fmt(tax.taxMinor)})
-          </span>
+          <span className="hd-shop">{place.shop}</span>
           <span className="hd-item">{place.item}</span>
-          <strong className="hd-price">{fmt(place.price)}</strong>
+          <strong className="hd-price">{price}</strong>
         </div>
         <ul className="hd-rows">
-          {place.rows.map((r) => {
-            const key = r.kind === "credit" ? "credit" : `${r.kind}-${r.name}`;
-            const isCredit = r.kind === "credit";
-            return (
-              <li key={key}>
-                <button
-                  type="button"
-                  className={`hd-row hd-${r.kind}`}
-                  aria-pressed={selected === key}
-                  onClick={() => setSelected(key)}
-                >
-                  <span className="hd-dot" aria-hidden="true" />
-                  <span className="hd-name">{r.name}</span>
-                  <span className="hd-detail">
-                    {isCredit ? `4 × ${fmt(plan.instalmentMinor)}` : r.detail}
+          {place.rows.map((r) => (
+            <li key={r.kind}>
+              <button
+                type="button"
+                className={`hd-row hd-${r.kind}`}
+                aria-pressed={selected === r.kind}
+                onClick={() => setSelected(r.kind)}
+              >
+                <span className="hd-dot" aria-hidden="true" />
+                <span className="hd-name">{r.name}</span>
+                {r.kind === "card" && (
+                  <span className="hd-brands" aria-hidden="true">
+                    {place.brands.map((b) => (
+                      <i key={b}>{b}</i>
+                    ))}
                   </span>
-                </button>
-              </li>
-            );
-          })}
+                )}
+              </button>
+            </li>
+          ))}
         </ul>
-        {selected === "credit" ? (
-          <div className="hd-plan" aria-live="polite">
-            <div className="hd-plan-bars" aria-hidden="true">
-              {["Today", "2 wks", "4 wks", "6 wks"].map((w) => (
-                <span key={w}>
-                  <i />
-                  {w}
-                </span>
-              ))}
-            </div>
-            <p>
-              {place.shop} settles <strong>{money(settledMinor, targetCurrency, place.locale)}</strong> today.
-            </p>
-          </div>
-        ) : (
-          <div className="hd-plan hd-plan-plain" aria-live="polite">
-            <p>
-              Settles <strong>{money(settledMinor, targetCurrency, place.locale)}</strong> to {place.shop}.
-            </p>
+        {selected === "credit" && (
+          <div className="hd-step" aria-live="polite">
+            <strong>4 payments of {fmt(plan.instalmentMinor)}</strong>
+            <span>
+              Every 2 weeks · {plan.dueTodayMinor !== "0" ? `${fmt(plan.dueTodayMinor)} due today` : "Nothing due today"}
+            </span>
+            <span>Total {fmt(plan.totalMinor)} · no interest or fees</span>
           </div>
         )}
-        <div className="hd-settle" role="group" aria-label="Settlement currency">
-          <span>Settle in</span>
-          {settlementTargets.map((t) => (
-            <button
-              key={t}
-              type="button"
-              className="hd-settle-btn"
-              aria-pressed={settleTarget === t}
-              onClick={() => setSettleTarget(t)}
-            >
-              {t === "Local" ? place.currency : t}
-            </button>
-          ))}
-        </div>
-        <span className="hd-pay">Continue</span>
+        {selected === "crypto" && (
+          <div className="hd-step" aria-live="polite">
+            <strong>What do you want to pay with?</strong>
+            <span className="hd-fields">
+              <span className="hd-field">
+                <small>Network</small>
+                {place.crypto[0]}
+              </span>
+              <span className="hd-field">
+                <small>Token</small>
+                {place.crypto[1]}
+              </span>
+            </span>
+          </div>
+        )}
+        <span className="hd-pay">
+          {selected === "credit" || selected === "crypto" ? "Continue" : `Pay ${price}`}
+        </span>
       </div>
     </figure>
   );
