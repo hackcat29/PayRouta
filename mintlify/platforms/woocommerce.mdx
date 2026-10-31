@@ -1,11 +1,13 @@
 ---
 title: "WooCommerce"
-description: "The PayRouta Checkout plugin adds one payment option to WooCommerce that opens PayRouta checkout with every method you accept."
+description: "The PayRouta Checkout plugin adds PayRouta as a payment method in WooCommerce."
 ---
 
-<Note>
-[Download the plugin](https://payrouta.com/downloads/payrouta-checkout.zip). Requires WordPress 6.4+, WooCommerce 8.2+ and PHP 7.4+; works with High-Performance Order Storage and the block checkout.
-</Note>
+At checkout the customer is sent to PayRouta, where they pay by card, digital wallet, bank transfer, mobile money, USSD, credit from a licensed lender or, for USD stores, stablecoins and crypto from any wallet. The order is marked paid once PayRouta confirms the payment.
+
+<Card title="Download the plugin" icon="download" href="https://payrouta.com/downloads/payrouta-checkout.zip">
+  PayRouta Checkout for WooCommerce
+</Card>
 
 ```mermaid
 sequenceDiagram
@@ -13,35 +15,90 @@ sequenceDiagram
   participant W as Your store
   participant P as PayRouta
   C->>W: places the order
-  W->>P: POST /checkouts (keyed to the order)
   W->>C: redirect to PayRouta checkout
   C->>P: pays
   P->>W: signed payment.confirmed webhook
-  W->>P: GET /payments/{id}: amount and currency match?
+  W->>P: checks the amount and currency
   W->>W: order marked paid
 ```
+
+## Requirements
+
+- WordPress 6.4 or later, WooCommerce 8.2 or later, PHP 7.4 or later
+- Your store served over HTTPS
+- Works with the block-based and classic checkout, and with High-Performance Order Storage
 
 ## Set up
 
 <Steps>
   <Step title="Install the plugin">
-    [Download the plugin](https://payrouta.com/downloads/payrouta-checkout.zip), then upload and activate it under **Plugins → Add New**.
+    In WordPress, open **Plugins → Add New → Upload Plugin**, choose the zip, then **Install Now** and **Activate**. See WordPress's guide to [managing plugins](https://wordpress.org/documentation/article/manage-plugins/).
+  </Step>
+  <Step title="Check your checkout return website">
+    In PayRouta, open **Settings → Business**. **Checkout return website** must be your store's address, for example `https://shop.example`; customers return there after paying. To change it, contact PayRouta.
   </Step>
   <Step title="Create an API key">
-    In PayRouta, set your return origin to the store's address and create a key with `payments:write` and `payments:read`.
+    In PayRouta, open **Developers → API keys** and create a key with **payments:write** and **payments:read**. It starts with `pr_sandbox_` in test mode and `pr_production_` live.
   </Step>
   <Step title="Configure the plugin">
-    **WooCommerce → Settings → Payments → PayRouta**: API URL (`https://<your PayRouta host>/api/v1/`), environment and secret key. Choose the methods to offer: cards, digital wallets, bank transfer, mobile money, USSD, direct debit and pay with credit. For USD stores, list crypto as `network|identifier` lines.
+    In WordPress, open **WooCommerce → Settings → Payments → PayRouta** and enter:
+
+    - **PayRouta API URL**: `https://payrouta.com/api/v1/`
+    - **Environment**: Sandbox to test, Production to go live. It must match your key.
+    - **Secret API key**: the key you created.
+    - **Methods to offer**: include **Pay with credit** to offer instalments where a lender is available.
+    - **Crypto (USD stores)**: optional. One `network|identifier` per line, for example `eip155:8453|erc20:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913` for USDC on Base. Add receive addresses for them in PayRouta under **Payment methods**.
   </Step>
   <Step title="Connect the webhook">
-    In PayRouta **Developers → Webhooks**, set the endpoint to `https://YOUR-STORE/wp-json/payrouta/v1/webhook` with a key ID and secret, and enter the same values in the plugin.
+    In PayRouta, open **Developers → Webhooks** and set the endpoint to `https://YOUR-STORE/wp-json/payrouta/v1/webhook` with a key ID and a secret. Enter the same key ID and secret in the plugin.
+  </Step>
+  <Step title="Enable PayRouta">
+    Tick **Enable** in the plugin settings and save.
   </Step>
 </Steps>
 
-## When an order is marked paid
+## Testing your setup
 
-Only after a signed `payment.confirmed` webhook arrives **and** the plugin reads the payment back from the API and the amount and currency match the order. A confirmed payment that doesn't match puts the order on hold for review. Returning from checkout alone never marks an order paid.
+<Steps>
+  <Step title="Use sandbox">
+    Use a sandbox key and set **Environment** to Sandbox.
+  </Step>
+  <Step title="Place an order">
+    Add a product to the cart, check out and choose PayRouta.
+  </Step>
+  <Step title="Pay">
+    Complete the test payment on the PayRouta checkout. No real money moves.
+  </Step>
+  <Step title="Check both sides">
+    The order moves to **Processing** with the note "Paid through PayRouta", and the payment appears in PayRouta under **Transactions**.
+  </Step>
+</Steps>
+
+To go live, create a production key, set **Environment** to Production, and connect the webhook in live mode.
+
+## How orders are paid
+
+- Placing the order opens one PayRouta checkout for the order total, currency and billing country. Retries never open a second checkout for the same order.
+- The order is marked paid only after PayRouta's signed `payment.confirmed` [webhook](/integrate/webhooks) arrives and the plugin checks the payment's amount and currency against the order. A confirmed payment that doesn't match puts the order **On hold** for you to review.
+- A customer returning from checkout doesn't mark the order paid by itself.
 
 ## Refunds
 
-Refund from the PayRouta dashboard. Refunding from WooCommerce isn't supported in 0.1.0.
+Refund from the PayRouta dashboard under **Transactions**, then mark the order refunded in WooCommerce. Refunds made in WooCommerce aren't sent to PayRouta.
+
+## Troubleshooting
+
+| What you see | What to check |
+| --- | --- |
+| PayRouta doesn't appear at checkout | The plugin is enabled; the API URL starts with `https://`; the secret key matches the environment (`pr_sandbox_` for Sandbox, `pr_production_` for Production). |
+| "We couldn't start the secure checkout" | The key has **payments:write**; your checkout return website in PayRouta is your store's address. Details are in **WooCommerce → Status → Logs** under `payrouta`. |
+| The order stays **Pending payment** after paying | Check the delivery in PayRouta under **Developers → Webhooks**. The endpoint, key ID and secret must match the plugin. If your permalinks are set to **Plain**, use `https://YOUR-STORE/?rest_route=/payrouta/v1/webhook`. |
+| The order is **On hold** | The confirmed payment didn't match the order total or currency, for example after the order was edited. Compare them in PayRouta and settle with the customer. |
+
+## Resources
+
+- [Webhooks](/integrate/webhooks): signatures, retries and redelivery
+- [Checkout button](/guides/checkout-button): the PayRouta checkout your customers see
+- [Pay with credit](/guides/credit) and [Crypto payments](/guides/crypto-payments)
+- WooCommerce: [payment settings](https://woocommerce.com/document/payments/), [managing orders](https://woocommerce.com/document/managing-orders/), [cart and checkout pages](https://woocommerce.com/document/customizing-cart-and-checkout/)
+- WordPress: [managing plugins](https://wordpress.org/documentation/article/manage-plugins/), [permalink settings](https://wordpress.org/documentation/article/settings-permalinks-screen/)

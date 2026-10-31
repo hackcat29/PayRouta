@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
-import { gatewayMatches, liteInstallUrl, liteSettings, payRequest, verifySessionToken } from "../lib/integrations/shopify-lite";
+import { gatewayMatches, liteInstallUrl, modeMatches, liteSettings, payRequest, verifySessionToken } from "../lib/integrations/shopify-lite";
 
 const secret = "hush-shopify-lite-secret";
 process.env.SHOPIFY_LITE_API_KEY = "lite-client-id";
@@ -45,4 +45,13 @@ test("shopify lite: the manual method is matched by name, settings and requests 
   assert.throws(() => liteSettings.parse({ gateway: "PayRouta", cancelAfterHours: "1000" }));
   assert.throws(() => payRequest.parse({ order: "gid://shopify/Customer/1" }));
   assert.equal(payRequest.parse({ order: "gid://shopify/Order/5", country: "NG" }).country, "NG");
+});
+
+test("shopify lite: sandbox takes test orders or development stores; live takes neither", () => {
+  assert.equal(modeMatches("sandbox", { test: true }, false), true);
+  assert.equal(modeMatches("sandbox", { test: false }, true), true);
+  assert.equal(modeMatches("sandbox", { test: false }, false), false);
+  assert.equal(modeMatches("production", { test: false }, false), true);
+  assert.equal(modeMatches("production", { test: true }, false), false);
+  assert.equal(modeMatches("production", { test: false }, true), false);
 });

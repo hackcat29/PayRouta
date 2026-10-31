@@ -140,14 +140,27 @@ const orderQuery = `query Order($id: ID!) {
     customer { id }
     totalOutstandingSet { presentmentMoney { amount currencyCode } }
   }
-  shop { billingAddress { countryCodeV2 } }
+  shop { billingAddress { countryCodeV2 } plan { partnerDevelopment } }
 }`;
 
 async function readOrder(shop: string, id: string, http: Http) {
-  const data = await admin<{ order: unknown; shop: { billingAddress?: { countryCodeV2?: string | null } | null } }>(shop, orderQuery, { id }, http);
+  const data = await admin<{
+    order: unknown;
+    shop: { billingAddress?: { countryCodeV2?: string | null } | null; plan?: { partnerDevelopment?: boolean } | null };
+  }>(shop, orderQuery, { id }, http);
   if (!data.order) throw new PortalError("SHOPIFY_ORDER_NOT_FOUND", 404);
-  return { order: shopifyOrder.parse(data.order), shopCountry: data.shop.billingAddress?.countryCodeV2 ?? null };
+  return {
+    order: shopifyOrder.parse(data.order),
+    shopCountry: data.shop.billingAddress?.countryCodeV2 ?? null,
+    devStore: data.shop.plan?.partnerDevelopment === true,
+  };
 }
+
+// Manual-method orders are never Shopify test orders, so a sandbox
+// connection takes test orders or any order from a development store; a
+// live connection takes only real orders from a real store.
+export const modeMatches = (environment: string, order: { test: boolean }, devStore: boolean) =>
+  environment === "sandbox" ? order.test || devStore : !order.test && !devStore;
 
 type UserErrors = { userErrors: { field?: string[] | null; message: string }[] };
 
@@ -225,11 +238,11 @@ export async function payOrder(authorization: string | null, raw: unknown, http:
   const body = payRequest.parse(raw);
   const shop = await db.shopifyLiteShop.findUnique({ where: { shop: claims.shop } });
   if (!shop || shop.uninstalledAt) throw new PortalError("SHOPIFY_SHOP_NOT_CONNECTED", 409);
-  const { order, shopCountry } = await readOrder(shop.shop, body.order, http);
+  const { order, shopCountry, devStore } = await readOrder(shop.shop, body.order, http);
   // A signed-in buyer may only pay their own order.
   if (claims.customer && order.customer && order.customer.id !== claims.customer) throw new PortalError("SHOPIFY_ORDER_NOT_FOUND", 404);
   if (!gatewayMatches(order.paymentGatewayNames, shop.gateway)) return { pay: false as const };
-  if (order.test !== (shop.environment === "sandbox")) throw new PortalError("SHOPIFY_TEST_MODE_MISMATCH", 409);
+  if (!modeMatches(shop.environment, order, devStore)) throw new PortalError("SHOPIFY_TEST_MODE_MISMATCH", 409);
   const row = await track(shop, order);
   const outstanding = order.totalOutstandingSet.presentmentMoney;
   if (order.cancelledAt || row.state !== "Pending" || Number(outstanding.amount) <= 0) return { pay: false as const };
@@ -363,8 +376,8 @@ export async function handleLiteWebhook(topic: string | null, shopHeader: string
     const payload = orderWebhook.parse(JSON.parse(raw));
     // The webhook carries no buyer details; the order is read from the Admin API.
     if (gatewayMatches(payload.payment_gateway_names, shop.gateway)) {
-      const { order } = await readOrder(domain, payload.admin_graphql_api_id, http);
-      if (order.test === (shop.environment === "sandbox") && !order.cancelledAt) await track(shop, order);
+      const { order, devStore } = await readOrder(domain, payload.admin_graphql_api_id, http);
+      if (modeMatches(shop.environment, order, devStore) && !order.cancelledAt) await track(shop, order);
     }
   }
   if ((topic === "app/uninstalled" || topic === "shop/redact") && shop)

@@ -55,7 +55,7 @@ const bearer = (sub?: string) => {
 };
 
 // A fake Admin API holding one order per test.
-function fakeShopify(order: Record<string, unknown>) {
+function fakeShopify(order: Record<string, unknown>, devStore = false) {
   const calls: string[] = [];
   const http: Http = async (base, o) => {
     assert.equal(base, `https://${shop}`);
@@ -78,7 +78,7 @@ function fakeShopify(order: Record<string, unknown>) {
     } else {
       calls.push("order");
       assert.equal(variables.id, order.id);
-      data = { order, shop: { billingAddress: { countryCodeV2: "GB" } } };
+      data = { order, shop: { billingAddress: { countryCodeV2: "GB" }, plan: { partnerDevelopment: devStore } } };
     }
     return { status: 200, headers: {}, bytes: 0, body: JSON.stringify({ data }) };
   };
@@ -180,6 +180,10 @@ test("shopify lite: other payment methods, test-mode mismatches and forged webho
   assert.deepEqual(await payOrder(bearer(), { order: cod.id }, http), { pay: false });
   assert.equal(await db.shopifyLiteOrder.count({ where: { orderId: cod.id } }), 0);
 
+  // A sandbox connection takes manual-method orders from a development
+  // store, but not real orders from a real store.
+  const dev = newOrder({ test: false });
+  assert.equal((await payOrder(bearer(), { order: dev.id, country: "GB" }, fakeShopify(dev, true).http)).pay, true);
   const live = newOrder({ test: false });
   await assert.rejects(payOrder(bearer(), { order: live.id }, fakeShopify(live).http), /SHOPIFY_TEST_MODE_MISMATCH/);
   await assert.rejects(payOrder("Bearer x.y.z", { order: live.id }, http), /SHOPIFY_SESSION_TOKEN_INVALID/);

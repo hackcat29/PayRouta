@@ -1,45 +1,58 @@
 # Shopify
 
-PayRouta works with Shopify in two ways:
+Add PayRouta to your Shopify store as a payment method. Buyers choose PayRouta at checkout, place the order, and pay from a **Pay** button on the Thank you and order status pages, by card, digital wallet, bank transfer, mobile money, [credit from a licensed lender](credit.md) or, for USD stores, stablecoins and crypto from any wallet. PayRouta marks the order paid in Shopify once the payment is confirmed.
 
-- **Pay now** (manual payment method). The buyer chooses PayRouta at Shopify checkout, places the order, and pays from a **Pay** button on the Thank you and order status pages. PayRouta marks the order paid once the payment is confirmed, and cancels orders left unpaid past your deadline.
-- **Payments app** (offsite payments extension). The buyer is sent to PayRouta from Shopify checkout before the order is placed.
+## Before you start
 
-Both open a PayRouta checkout with every method you accept, including [credit from licensed lenders](credit.md) and, for USD stores, stablecoins and crypto from any wallet.
+- A PayRouta business. A business in test mode pairs with a Shopify development store; a live store needs a live PayRouta business.
+- Owner or admin access to your Shopify store and to your PayRouta business.
 
-## Pay now
+## Set up
 
-### Set up
+1. **Connect your store.** In PayRouta, open **Developers → Integrations**. Enter your `*.myshopify.com` address, the name your payment method will have in Shopify, and how long unpaid orders stay open. Choose **Connect Shopify** and approve the app in Shopify.
+2. **Add the payment method.** In Shopify, open **Settings → Payments**. Under **Manual payment methods**, choose **Create custom payment method** and give it exactly the name you entered in PayRouta, for example `PayRouta`. See Shopify's guide to [manual payment methods](https://help.shopify.com/en/manual/payments/manual-payments).
+3. **Add the Pay button.** Open **Settings → Checkout** and choose **Customize**. Switch to the **Thank you** page, add the **PayRouta Pay now** app block, and save. Do the same on the **Order status** page.
+4. **Place a test order.** See [Testing your setup](#testing-your-setup).
 
-1. In PayRouta, open **Developers → Integrations**. Enter your `*.myshopify.com` address, the name your payment method will have in Shopify, and how long unpaid orders stay open. Choose **Connect Shopify** and approve the app in Shopify.
-2. In Shopify, open **Settings → Payments → Manual payment methods** and create a custom payment method with exactly that name, for example `PayRouta`.
-3. Open **Settings → Checkout → Customize** and add the **PayRouta Pay now** block to the Thank you page and the order status page.
-4. Place a test order. A store in test mode, or a development store, uses your PayRouta sandbox; a live store needs a live PayRouta business.
+## What buyers see
 
-### How orders are paid
+1. At checkout, the buyer chooses your PayRouta payment method and places the order.
+2. The Thank you page shows **Pay** with the order total. It opens a PayRouta checkout for that order.
+3. After paying, the buyer returns to the order status page, and the order is marked paid.
 
-| Step | What happens |
+A buyer who leaves without paying can pay later from the order status page, until the order is cancelled.
+
+## Unpaid orders
+
+Orders placed with your PayRouta payment method stay **Payment pending** until paid. When the time you chose in PayRouta passes (24 hours to 7 days, or never), PayRouta cancels the order, restocks its items and notifies the buyer. An order with a payment still in progress is cancelled only if that payment doesn't complete. Orders you mark paid yourself are left alone.
+
+If you edit an order after the buyer opened its checkout, PayRouta doesn't mark it paid. Settle the difference with the buyer and mark the order paid in Shopify.
+
+## Refunds
+
+Refund from the PayRouta dashboard under **Transactions**, then record the refund on the order in Shopify. Crypto payments are refunded from your own wallet.
+
+## Testing your setup
+
+1. Connect a Shopify development store to your PayRouta business in test mode, as above.
+2. Place an order on your store with your PayRouta payment method.
+3. On the Thank you page, press **Pay** and complete the test payment. No real money moves.
+4. Check that the order shows as paid in your Shopify admin, and that the payment appears in PayRouta under **Transactions**.
+
+Shopify's guide to [test orders](https://help.shopify.com/en/manual/checkout-settings/test-orders) covers deleting test orders afterwards.
+
+## Troubleshooting
+
+| What you see | What to check |
 | --- | --- |
-| Order placed | Shopify sends `orders/create`. If the order used your PayRouta payment method, PayRouta records it and schedules its cancellation. |
-| Pay button | The block sends the order ID and Shopify's session token to PayRouta. PayRouta checks the token, reads the order from the Admin API, and opens a [universal checkout](checkout-button.md) for the amount outstanding. The button shows only for unpaid orders placed with your PayRouta payment method; a signed-in customer only sees it on their own orders. |
-| Payment confirmed | PayRouta calls `orderMarkAsPaid`. The buyer returns to the order status page. |
-| Deadline | PayRouta calls `orderCancel` (restock, notify the customer) for an order still unpaid. An order with a checkout that can still be paid, or a payment still confirming, is cancelled only after it ends. Orders paid another way are left alone. |
+| No **Pay** button on the Thank you page | The payment method's name in Shopify matches the name in PayRouta exactly; the **PayRouta Pay now** block is added and the checkout is saved; the order isn't already paid. |
+| "Payment isn't available right now" | The store is connected under **Developers → Integrations**, and a development store is connected to a business in test mode, a live store to a live business. |
+| The order stays **Payment pending** after paying | The payment may still be confirming; crypto payments confirm once the network does. Check the payment in PayRouta under **Transactions**. |
+| The order was edited after checkout opened | PayRouta leaves it for you. Settle the difference and mark it paid in Shopify. |
 
-An order whose total changes after its checkout opens is left for you to settle; PayRouta doesn't mark it paid.
+## Resources
 
-### Refunds
-
-Refund from the PayRouta dashboard, then record the refund in Shopify. Crypto payments are refunded from your own wallet.
-
-## Payments app
-
-1. In PayRouta, open **Developers → Integrations** and connect your store; approve the app in Shopify.
-2. Shopify opens its payment settings: activate PayRouta.
-3. Shopify test mode uses your PayRouta sandbox.
-
-| Step | What happens |
-| --- | --- |
-| Install | OAuth with scopes `write_payment_gateways,write_payment_sessions`. PayRouta calls `paymentsAppConfigure` to mark the app ready. |
-| Payment session | Shopify sends the session to PayRouta, which answers with a universal checkout's `redirect_url`. Repeated requests with the same session ID return the same checkout. |
-| Confirmation | PayRouta calls `paymentSessionResolve`; the buyer returns to Shopify's order page. |
-| Refund session | Refunded through PayRouta and reported with `refundSessionResolve` or `refundSessionReject`. Crypto orders are refunded from your own wallet; Shopify is told so. |
+- [Checkout button](checkout-button.md): the PayRouta checkout your buyers see
+- [Webhooks](webhooks.md): payment events for your own systems
+- [Pay with credit](credit.md) and [Crypto payments](crypto-payments.md)
+- Shopify: [manual payment methods](https://help.shopify.com/en/manual/payments/manual-payments), [test orders](https://help.shopify.com/en/manual/checkout-settings/test-orders)

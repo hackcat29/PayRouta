@@ -1037,7 +1037,7 @@ export default async function Page({
               , then upload and activate it under <strong>Plugins → Add New</strong>.
             </li>
             <li>
-              Set your return origin to the store&apos;s address under Settings, and create an API key with{" "}
+              Check that your checkout return website under Settings is the store&apos;s address, and create an API key with{" "}
               <code>payments:write</code> and <code>payments:read</code>.
             </li>
             <li>
