@@ -1540,6 +1540,7 @@
 /* Payment links */
 .ms-link-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; align-items: end; }
 .ms-link-form label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
+.ms-link-form select { min-height: 40px; padding: 6px 10px; border: 1px solid var(--line, #e2e7e8); border-radius: 8px; font: inherit; font-weight: 400; background: #fff; }
 .ms-link-form input:not([type="checkbox"]) { min-height: 40px; padding: 6px 10px; border: 1px solid var(--line, #e2e7e8); border-radius: 8px; font: inherit; font-weight: 400; }
 .ms-link-wide { grid-column: 1 / -1; }
 .ms-link-form fieldset { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 8px 18px; }

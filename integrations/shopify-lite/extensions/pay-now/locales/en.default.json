@@ -1,0 +1,4 @@
+{
+  "pay": "Pay {{amount}}",
+  "failed": "Payment isn't available right now. Refresh to try again."
+}

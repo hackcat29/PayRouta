@@ -1,0 +1,25 @@
+# Pay now button on the Thank you page and the order status page. It asks
+# PayRouta for a checkout for the order and links to it.
+#
+# APP_ORIGIN  PayRouta's public origin, also set in src/pay.js.
+
+api_version = "2026-10"
+
+[[extensions]]
+name = "PayRouta Pay now"
+handle = "pay-now"
+type = "ui_extension"
+
+  [extensions.capabilities]
+  # fetch() to APP_ORIGIN; allow network access for the extension in the
+  # Partner Dashboard.
+  network_access = true
+
+  [[extensions.targeting]]
+  module = "./src/ThankYou.jsx"
+  target = "purchase.thank-you.block.render"
+  default_placement = "ORDER_SUMMARY1"
+
+  [[extensions.targeting]]
+  module = "./src/OrderStatus.jsx"
+  target = "customer-account.order-status.payment-details.render-after"

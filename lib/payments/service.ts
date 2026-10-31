@@ -93,6 +93,7 @@ export function platformReturnUrl(value: string) {
   return (
     url.origin === new URL(base).origin &&
     (url.pathname === "/api/integrations/shopify/return" ||
+      url.pathname === "/api/integrations/shopify-lite/return" ||
       // Payment links: PayRouta's own thank-you page.
       /^\/pay\/[A-Za-z0-9]{6,20}\/done$/.test(url.pathname))
   );
@@ -1128,7 +1129,7 @@ export async function event(
   await queue(tx, intent.orgId, "payment-delivery", `delivery:${e.id}`, {
     eventId: e.id,
   });
-  // Commerce-platform orders (lib/integrations/shopify) are completed on the
+  // Commerce-platform orders (lib/integrations/shopify, shopify-lite) are completed on the
   // platform once confirmed; the job does nothing for other checkouts.
   if (type === "payment.confirmed" && intent.checkoutGroup)
     await queue(

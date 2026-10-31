@@ -44,7 +44,7 @@ class WC_Gateway_PayRouta extends WC_Payment_Gateway {
 			'description'    => array(
 				'title'   => __( 'Description', 'payrouta-checkout' ),
 				'type'    => 'textarea',
-				'default' => __( 'You will choose how to pay on PayRouta\'s secure checkout, including paying in instalments where a lender is available.', 'payrouta-checkout' ),
+				'default' => '',
 			),
 			'environment'    => array(
 				'title'   => __( 'Environment', 'payrouta-checkout' ),

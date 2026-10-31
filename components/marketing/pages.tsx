@@ -624,7 +624,7 @@ function OnlineStores() {
         visual={<HeroDemo initial="gb" />}
       />
       <Feature title="Add it to the store you have" tone="paper">
-        <p>One button on any site today; Shopify and WooCommerce plugins are on the way.</p>
+        <p>One button on any site, the PayRouta Checkout plugin for WooCommerce, or a Pay button on your Shopify order pages.</p>
         <PlatformList />
       </Feature>
       <Feature title="A backup partner for every payment">

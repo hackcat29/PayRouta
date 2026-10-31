@@ -1777,6 +1777,51 @@ model ShopifyRefundSession {
   updatedAt  DateTime @updatedAt
 }
 
+// Shopify with a manual payment method (lib/integrations/shopify-lite.ts): a
+// separate app with read_orders and write_orders. `gateway` is the manual
+// payment method's name as orders list it.
+model ShopifyLiteShop {
+  id               String    @id @default(cuid())
+  shop             String    @unique
+  orgId            String
+  environment      String
+  accessTokenRef   String
+  scopes           String
+  gateway          String
+  // Hours an unpaid order stays open; 0 never cancels.
+  cancelAfterHours Int
+  methods          Json
+  cryptoOptions    Json
+  installedAt      DateTime  @default(now())
+  uninstalledAt    DateTime?
+  updatedAt        DateTime  @updatedAt
+}
+
+// An order placed with the PayRouta manual payment method. `amount` is what
+// was outstanding, in the order's presentment currency, when first seen.
+model ShopifyLiteOrder {
+  id            String    @id @default(cuid())
+  shop          String
+  orderId       String
+  name          String
+  amount        String
+  currency      String
+  test          Boolean
+  statusUrl     String
+  placedAt      DateTime
+  checkoutKey   String?
+  checkoutGroup String?   @unique
+  // Random; PayRouta checkout returns the buyer with it.
+  returnToken   String?   @unique
+  state         String    @default("Pending")
+  paidAt        DateTime?
+  cancelledAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([shop, orderId])
+}
+
 // Payment link (lib/merchant/payment-links.ts): a shareable URL for merchants
 // with no website or store. Each visit that presses Pay opens a fresh
 // universal checkout for the link's amount; nothing is created by previews.

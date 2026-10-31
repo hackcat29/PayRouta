@@ -1,47 +1,80 @@
 ---
 title: "Shopify"
-description: "PayRouta as a Shopify payments app: buyers pick PayRouta at Shopify checkout and pay with any method you accept, including credit."
+description: "Take PayRouta payments on Shopify with a manual payment method and a Pay now button, or as a payments app."
 ---
 
 <Note>
-Built and tested against Shopify's documented contracts; not yet run against a Shopify development store. Payments apps use restricted scopes, so Shopify must approve PayRouta as a payments partner before stores outside development can install it.
+Both ways are built and tested against Shopify's documented APIs; neither has run against a Shopify development store yet. The payments app also waits on Shopify approving PayRouta as a payments partner.
 </Note>
+
+PayRouta works with Shopify in two ways. Both open a PayRouta checkout with every method you accept, including credit from licensed lenders and, for USD stores, stablecoins and crypto from any wallet.
+
+| | Pay now | Payments app |
+| --- | --- | --- |
+| Buyer pays | After placing the order, from a Pay button on the Thank you and order status pages | Before the order is placed, from Shopify checkout |
+| Shopify approval | Not needed | Payments partner programme |
+| Order paid | `orderMarkAsPaid` once confirmed | `paymentSessionResolve` once confirmed |
+| Unpaid orders | Cancelled after your deadline | Never created |
+
+## Pay now
 
 ```mermaid
 sequenceDiagram
   participant B as Buyer
-  participant S as Shopify checkout
+  participant S as Shopify
   participant P as PayRouta
-  B->>S: chooses PayRouta
-  S->>P: payment session (amount, currency, buyer country)
-  P-->>S: redirect_url (a PayRouta checkout)
-  S->>B: redirect
-  B->>P: pays by card, wallet, bank, mobile money, credit or crypto
-  P->>S: paymentSessionResolve
-  P->>B: back to Shopify's order page
+  B->>S: places order with the PayRouta payment method
+  S->>P: orders/create
+  B->>P: Pay button (order ID, session token)
+  P->>S: reads the order
+  P-->>B: PayRouta checkout
+  B->>P: pays
+  P->>S: orderMarkAsPaid
+  P->>B: back to the order status page
 ```
-
-## Set up
 
 <Steps>
   <Step title="Connect your store">
-    In PayRouta, open **Developers → Integrations**, enter your `*.myshopify.com` address and choose **Connect Shopify**. Approve the app in Shopify.
+    In PayRouta, open **Developers → Integrations**. Enter your `*.myshopify.com` address, the payment method's name, and how long unpaid orders stay open. Choose **Connect Shopify** and approve the app.
+  </Step>
+  <Step title="Add the payment method">
+    In Shopify, open **Settings → Payments → Manual payment methods** and create a custom payment method with exactly that name.
+  </Step>
+  <Step title="Add the Pay button">
+    Open **Settings → Checkout → Customize** and add **PayRouta Pay now** to the Thank you and order status pages.
+  </Step>
+  <Step title="Test">
+    A store in test mode uses your PayRouta sandbox; a live store needs a live PayRouta business.
+  </Step>
+</Steps>
+
+The button shows only for unpaid orders placed with your PayRouta payment method, and a signed-in customer only sees it on their own orders. An order with a checkout that can still be paid, or a payment still confirming, is cancelled only after it ends. An order whose total changes after its checkout opens is left for you to settle.
+
+Refund from the PayRouta dashboard, then record the refund in Shopify.
+
+## Payments app
+
+<Steps>
+  <Step title="Connect your store">
+    In PayRouta, open **Developers → Integrations** and connect the payments app. Approve it in Shopify.
   </Step>
   <Step title="Activate PayRouta in Shopify">
     Shopify opens its payment settings. Turn PayRouta on.
   </Step>
-  <Step title="Test">
-    Shopify test mode uses your PayRouta sandbox. Test mode and sandbox must match; a live store needs a live PayRouta business.
-  </Step>
 </Steps>
-
-## Refunds
 
 Refunds made in Shopify are sent to PayRouta and refunded on the original method. Orders paid in crypto are refunded by you from your own wallet, and Shopify is told so.
 
 ## For operators
 
-- **Mutual TLS.** Shopify calls the payment and refund session URLs with a client certificate. Run them on a dedicated host with `ssl_verify_client on` and Shopify's CA; nginx forwards the result and a proxy secret, and PayRouta refuses session requests without both. The main host returns 404 for those paths.
+**Pay now**
+
+- **App.** Custom distribution in the Partner Dashboard; deploy `integrations/shopify-lite` with the Shopify CLI. Scopes `read_orders,write_orders`.
+- **Protected customer data.** `orders/create` needs level 1 access (no names or addresses). Without it, orders are recorded when the buyer opens the Pay button.
+- **Network access.** Allow it for the Pay now extension; it calls `/api/integrations/shopify-lite/pay`.
+- **Configuration.** `SHOPIFY_LITE_API_KEY`, `SHOPIFY_LITE_API_SECRET_REF`.
+
+**Payments app**
+
+- **Mutual TLS.** Shopify calls the payment and refund session URLs with a client certificate. Run them on a dedicated host with `ssl_verify_client on` and Shopify's CA; PayRouta refuses session requests without the proxy's result and secret.
 - **Configuration.** `SHOPIFY_API_KEY`, `SHOPIFY_API_SECRET_REF`, `SHOPIFY_API_VERSION` (default `2026-10`) and `SHOPIFY_MTLS_PROXY_SECRET_REF`.
-- **Webhooks.** `app/uninstalled` and the mandatory compliance topics, verified with the app secret.
-- **Idempotency.** Repeated session requests with the same Shopify ID return the same checkout. Buyer cancellations are never sent to Shopify as rejections.

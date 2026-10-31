@@ -930,8 +930,11 @@ export default async function Page({
     );
   } else if (section === "developers/integrations") {
     const shops = await db.shopifyShop.findMany({ where: { orgId, uninstalledAt: null }, orderBy: { installedAt: "desc" } });
+    const liteShops = await db.shopifyLiteShop.findMany({ where: { orgId, uninstalledAt: null }, orderBy: { installedAt: "desc" } });
     const appOrigin = new URL(process.env.BETTER_AUTH_URL || "http://127.0.0.1:3000").origin;
+    // The payments app's install from Shopify lands here with ?shopify=.
     const prefill = typeof query.shopify === "string" ? query.shopify : "";
+    const paymentsApp = !!process.env.SHOPIFY_API_KEY;
     content = (
       <>
         <section>
@@ -945,33 +948,94 @@ export default async function Page({
         <section>
           <h2>Shopify</h2>
           {query.shopifyError && <p className="p-notice error">The Shopify connection didn&apos;t complete. Try again.</p>}
-          {shops.length > 0 && (
+          {liteShops.length > 0 && (
             <ul>
-              {shops.map((s) => (
+              {liteShops.map((s) => (
                 <li key={s.id}>
-                  <strong>{s.shop}</strong> · {s.environment === "sandbox" ? "test mode" : "live"} ·{" "}
-                  {s.ready ? "ready" : "finish setup in Shopify"}
+                  <strong>{s.shop}</strong> · {s.environment === "sandbox" ? "test mode" : "live"} · {s.gateway} ·{" "}
+                  {s.cancelAfterHours ? `unpaid orders cancelled after ${s.cancelAfterHours} hours` : "unpaid orders kept open"}
                 </li>
               ))}
             </ul>
           )}
           {configure ? (
-            <form action="/api/integrations/shopify/install" method="get" className="ms-inline-form">
+            <form action="/api/integrations/shopify-lite/install" method="get" className="ms-link-form">
               <input type="hidden" name="orgId" value={orgId} />
-              <label htmlFor="shopify-shop">Store address</label>
-              <input id="shopify-shop" name="shop" placeholder="your-store.myshopify.com" defaultValue={prefill} required pattern="[a-z0-9][a-z0-9\-]*\.myshopify\.com" />
-              <button className="ms-btn primary" type="submit">
-                Connect Shopify
-              </button>
+              <label>
+                Store address
+                <input name="shop" placeholder="your-store.myshopify.com" required pattern="[a-z0-9][a-z0-9\-]*\.myshopify\.com" />
+              </label>
+              <label>
+                Payment method name
+                <input name="gateway" defaultValue={liteShops[0]?.gateway ?? "PayRouta"} required maxLength={100} />
+              </label>
+              <label>
+                Cancel unpaid orders after
+                <select name="cancelAfterHours" defaultValue={String(liteShops[0]?.cancelAfterHours ?? 48)}>
+                  <option value="24">24 hours</option>
+                  <option value="48">48 hours</option>
+                  <option value="72">3 days</option>
+                  <option value="168">7 days</option>
+                  <option value="0">Never</option>
+                </select>
+              </label>
+              <div className="ms-link-wide">
+                <button className="ms-btn primary" type="submit">
+                  Connect Shopify
+                </button>
+              </div>
             </form>
           ) : (
             <p className="ms-dim">An owner or admin can connect a Shopify store.</p>
           )}
+          <h3>In Shopify</h3>
+          <ol>
+            <li>
+              <strong>Settings → Payments → Manual payment methods</strong>: create a custom payment method with the same name.
+            </li>
+            <li>
+              <strong>Settings → Checkout → Customize</strong>: add <strong>PayRouta Pay now</strong> to the Thank you and order status
+              pages.
+            </li>
+          </ol>
+          {(shops.length > 0 || paymentsApp) && (
+            <>
+              <h3>Payments app</h3>
+              {shops.length > 0 && (
+                <ul>
+                  {shops.map((s) => (
+                    <li key={s.id}>
+                      <strong>{s.shop}</strong> · {s.environment === "sandbox" ? "test mode" : "live"} ·{" "}
+                      {s.ready ? "ready" : "finish setup in Shopify"}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {paymentsApp && configure && (
+                <form action="/api/integrations/shopify/install" method="get" className="ms-inline-form">
+                  <input type="hidden" name="orgId" value={orgId} />
+                  <label htmlFor="shopify-shop">Store address</label>
+                  <input id="shopify-shop" name="shop" placeholder="your-store.myshopify.com" defaultValue={prefill} required pattern="[a-z0-9][a-z0-9\-]*\.myshopify\.com" />
+                  <button className="ms-btn primary" type="submit">
+                    Connect payments app
+                  </button>
+                </form>
+              )}
+            </>
+          )}
+          <p className="ms-dim">
+            <a href={docsUrl("shopify")}>Shopify guide</a>
+          </p>
         </section>
         <section>
           <h2>WooCommerce</h2>
           <ol>
-            <li>Install the plugin (private 0.1.0; ask PayRouta for the package) and activate it.</li>
+            <li>
+              <a href="/downloads/payrouta-checkout.zip" download>
+                Download the plugin
+              </a>
+              , then upload and activate it under <strong>Plugins → Add New</strong>.
+            </li>
             <li>
               Set your return origin to the store&apos;s address under Settings, and create an API key with{" "}
               <code>payments:write</code> and <code>payments:read</code>.

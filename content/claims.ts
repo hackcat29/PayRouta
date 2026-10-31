@@ -176,8 +176,8 @@ export const platforms: { name: string; detail: string; availability: Availabili
   { name: "Any website or app", detail: "One script tag and a button", availability: "available" },
   { name: "Your own server", detail: "Node and Python SDKs, one call per order", availability: "available" },
   { name: "AI agents", detail: "Agents pay your links over HTTP; your assistant runs payments over MCP", availability: "available" },
-  { name: "WooCommerce", detail: "PayRouta Checkout plugin", availability: "planned" },
-  { name: "Shopify", detail: "PayRouta payments app at Shopify checkout", availability: "planned" },
+  { name: "WooCommerce", detail: "PayRouta Checkout plugin", availability: "available" },
+  { name: "Shopify", detail: "A Pay button on the order page after Shopify checkout", availability: "available" },
 ];
 
 // Credit at checkout. No lender is live yet; keep this list empty until one

@@ -28,7 +28,7 @@
     "test:partners": "tsx --test tests/partners/database.test.ts",
     "test:intents": "tsx --test tests/intents/database.test.ts",
     "test:agents": "tsx --test tests/agents/database.test.ts",
-    "test:treasury": "tsx --test --test-concurrency=1 tests/treasury/database.test.ts tests/treasury/launch.test.ts tests/treasury/credit.test.ts tests/treasury/universal.test.ts tests/treasury/shopify.test.ts tests/treasury/payment-links.test.ts",
+    "test:treasury": "tsx --test --test-concurrency=1 tests/treasury/database.test.ts tests/treasury/launch.test.ts tests/treasury/credit.test.ts tests/treasury/universal.test.ts tests/treasury/shopify.test.ts tests/treasury/shopify-lite.test.ts tests/treasury/payment-links.test.ts",
     "treasury:sandbox": "tsx scripts/treasury-sandbox.ts",
     "sdk:build": "npm run build --prefix sdks/node",
     "docs:openapi": "tsx scripts/mintlify-openapi.ts",
@@ -46,7 +46,8 @@
     "stablecoins:inspect": "tsx scripts/stablecoin-rpc-check.ts",
     "multichain:preflight": "tsx scripts/multichain-preflight.ts",
     "test:multichain": "tsx --test tests/multichain.test.ts tests/stablecoins/multichain.test.ts",
-    "multichain:testnet": "tsx scripts/multichain-testnet.ts"
+    "multichain:testnet": "tsx scripts/multichain-testnet.ts",
+    "woocommerce:zip": "mkdir -p public/downloads && rm -f public/downloads/payrouta-checkout.zip && cd integrations/woocommerce && zip -qrX ../../public/downloads/payrouta-checkout.zip payrouta-checkout -x \"*.DS_Store\""
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1134.0",

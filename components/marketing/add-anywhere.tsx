@@ -22,7 +22,7 @@ const tabs: Tab[] = [
   {
     id: "shopify",
     label: "Shopify",
-    steps: ["Connect your store in PayRouta", "Turn PayRouta on in Shopify payments", "Buyers pick PayRouta at checkout"],
+    steps: ["Connect your store in PayRouta", "Add PayRouta as a manual payment method", "Buyers pay from the order page"],
     link: [docsUrl("shopify"), "Shopify guide"],
   },
   {
