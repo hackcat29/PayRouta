@@ -582,6 +582,9 @@ model MerchantConfig {
   webhookKeyId       String  @default("v1")
   // Who pays fees by default: "merchant" or "customer" (lib/payments/fee-bearer.ts).
   feeBearer          String  @default("merchant")
+  // The receive stablecoin { network, identifier } that payments in other
+  // tokens are swapped into (lib/intents/checkout.ts); unset picks the first.
+  swapSettlement     Json?
 }
 
 model PaymentIntent {

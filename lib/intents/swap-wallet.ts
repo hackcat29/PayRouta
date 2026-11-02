@@ -21,7 +21,7 @@ import { tokens, type Http } from "./oneclick";
 
 const rpcUrls = ["https://api.mainnet-beta.solana.com", "https://solana-rpc.publicnode.com"];
 
-async function solanaRpc<T>(http: Http, method: string, params: unknown[], schema: z.ZodType<T>) {
+export async function solanaRpc<T>(http: Http, method: string, params: unknown[], schema: z.ZodType<T>) {
   for (const url of rpcUrls) {
     try {
       const response = await http(url, {

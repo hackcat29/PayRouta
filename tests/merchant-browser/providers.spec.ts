@@ -173,7 +173,7 @@ test("merchant creates a payment link; every customer who pays gets their own ch
   expect((await db.paymentLink.findUniqueOrThrow({ where: { id: link.id } })).checkouts).toBe(0);
   await customer.getByRole("button", { name: "Pay $3", exact: true }).click();
   await customer.waitForURL(/\/checkout\//);
-  await expect(customer.getByRole("combobox", { name: "Token", exact: true })).toBeVisible();
+  await expect(customer.getByRole("button", { name: /^Token:/ })).toBeVisible();
   expect((await db.paymentLink.findUniqueOrThrow({ where: { id: link.id } })).checkouts).toBe(1);
 
   // Another merchant's workspace, and methods that aren't on, are refused.

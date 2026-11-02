@@ -7,7 +7,7 @@
 // which is also where a failed swap is refunded, or sent from any other
 // wallet or exchange with a refund address. Which merchant account receives
 // is routing, never shown here.
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { displayTokenAmount } from "@/lib/blockchain/stablecoin-payment";
 import { chain as registeredChain } from "@/lib/blockchain/chains";
 import { discoverEvmWallets, type DiscoveredWallet } from "@/lib/blockchain/wallet-discovery";
@@ -19,7 +19,9 @@ import { connectWallet, shortAddress, solanaProvider, type Connected } from "./s
 export type PayToken = {
   key: string;
   symbol: string;
-  route: "direct" | "swap";
+  // dex: any token found by its address, swapped into USDC in the wallet
+  // and paid as `via`, the checkout's USDC on that chain.
+  route: "direct" | "swap" | "dex";
   method: string;
   optionId: string | null;
   amount?: string;
@@ -29,6 +31,8 @@ export type PayToken = {
   price?: number;
   contract?: string;
   wallet?: WalletTarget;
+  chain?: string;
+  via?: PayToken;
 };
 type Options = {
   locked: boolean;
@@ -37,7 +41,7 @@ type Options = {
 };
 type Api = (action?: object) => Promise<Record<string, unknown>>;
 export type PayChoice = {
-  route: "direct" | "swap";
+  route: "direct" | "swap" | "dex";
   assetId?: string;
   refundTo?: string;
   symbol: string;
@@ -54,6 +58,9 @@ const feeCoin: Record<string, string> = {
   stellar: "XLM", sui: "SUI", aptos: "APT", xrp: "XRP", doge: "DOGE", ltc: "LTC", bch: "BCH", zec: "ZEC",
   cardano: "ADA", monad: "MON", plasma: "XPL", starknet: "STRK",
 };
+// NEAR Intents chain codes of the EVM networks a found token can be on.
+const evmIds: Record<string, number> = { eth: 1, base: 8453, arb: 42161, op: 10, pol: 137, avax: 43114, bsc: 56 };
+const swapChainId = (chain: string): WalletTarget | undefined => (evmIds[chain] ? { family: "evm", chainId: evmIds[chain] } : undefined);
 const usdPrice = (n: number) => (n >= 1 ? n.toLocaleString("en-US", { maximumFractionDigits: 2 }) : n.toLocaleString("en-US", { maximumSignificantDigits: 4 }));
 
 export function PayPicker({
@@ -84,10 +91,53 @@ export function PayPicker({
   const [connecting, setConnecting] = useState(false);
   const [failed, setFailed] = useState(false);
   const [message, setMessage] = useState("");
+  const [found, setFound] = useState<Row[]>([]);
 
-  const rows = useMemo<Row[]>(
+  const listed = useMemo<Row[]>(
     () => options?.chains.flatMap((c) => c.tokens.map((t) => ({ ...t, chainId: c.id, chainName: c.name }))) ?? [],
     [options],
+  );
+  const rows = useMemo(() => [...listed, ...found], [listed, found]);
+
+  // A token found by its address pays through the checkout's USDC on its
+  // chain: received directly when the merchant takes it, else swapped.
+  const lookup = useCallback(
+    async (address: string) => {
+      const r = (await api({ action: "token-lookup", address })) as {
+        tokens: { chain: string; chainName: string; address: string; symbol: string; name: string; price: number }[];
+      };
+      const usdcOn = (chain: string) =>
+        listed.find((t) => t.chainId === chain && t.symbol === "USDC" && t.route === "direct") ??
+        listed.find((t) => t.chainId === chain && t.symbol === "USDC" && t.route === "swap");
+      const payable = r.tokens.flatMap((t): Row[] => {
+        const via = usdcOn(t.chain);
+        if (!via) return [];
+        return [
+          {
+            key: `dex:${t.chain}:${t.address}`,
+            symbol: t.symbol,
+            route: "dex",
+            method: via.method,
+            optionId: via.optionId,
+            price: t.price,
+            approx: usd ? (Number(usd) / t.price).toLocaleString("en-US", { maximumSignificantDigits: 6, useGrouping: false }) : undefined,
+            contract: t.address,
+            wallet: t.chain === "sol" ? { family: "solana" } : swapChainId(t.chain),
+            chain: t.chain,
+            via,
+            chainId: t.chain,
+            chainName: t.chainName,
+          },
+        ];
+      });
+      if (!payable.length)
+        return r.tokens.length
+          ? "That token can't pay this checkout: there's no USDC route on its network."
+          : "No token with DEX liquidity at that address on Solana or the supported EVM networks.";
+      setFound((old) => [...old.filter((o) => !payable.some((p) => p.key === o.key)), ...payable]);
+      return null;
+    },
+    [api, listed, usd],
   );
   useEffect(() => {
     let alive = true;
@@ -114,7 +164,7 @@ export function PayPicker({
   }, []);
 
   const token = rows.find((r) => r.key === key);
-  const target = token?.route === "swap" ? token.wallet : undefined;
+  const target = token?.route === "swap" || token?.route === "dex" ? token.wallet : undefined;
   // The picker renders only in the browser, after its options load.
   const solana = target?.family === "solana" && !!solanaProvider();
   const walletReady =
@@ -233,8 +283,22 @@ export function PayPicker({
             )}
             <div>
               <dt>Route</dt>
-              <dd>{token.route === "direct" ? "Straight to the merchant" : "Swapped by NEAR Intents"}</dd>
+              <dd>
+                {token.route === "direct"
+                  ? "Straight to the merchant"
+                  : token.route === "dex"
+                    ? "Swapped to USDC in your wallet, then paid"
+                    : "Swapped by NEAR Intents"}
+              </dd>
             </div>
+            {token.route === "dex" && token.contract && (
+              <div>
+                <dt>Token</dt>
+                <dd>
+                  <code>{token.contract}</code>
+                </dd>
+              </div>
+            )}
             {fee && (
               <div>
                 <dt>Processing fee</dt>
@@ -257,7 +321,10 @@ export function PayPicker({
           Continue
         </button>
       )}
-      {token?.route === "swap" && walletReady && !manual && (
+      {token?.route === "dex" && !walletReady && (
+        <p className="sc-pending">Open this checkout in a wallet that holds {token.symbol} to pay with it.</p>
+      )}
+      {(token?.route === "swap" || token?.route === "dex") && walletReady && !manual && (
         <>
           {connected ? (
             <>
@@ -305,9 +372,11 @@ export function PayPicker({
               </button>
             </>
           )}
-          <button type="button" className="pc-link" onClick={() => setManual(true)}>
-            Send from another wallet or exchange
-          </button>
+          {token.route === "swap" && (
+            <button type="button" className="pc-link" onClick={() => setManual(true)}>
+              Send from another wallet or exchange
+            </button>
+          )}
         </>
       )}
       {token?.route === "swap" && (!walletReady || manual) && (
@@ -334,6 +403,7 @@ export function PayPicker({
         rows={rows}
         selected={key}
         onClose={() => setOpen(false)}
+        onLookup={lookup}
         onSelect={(r) => {
           setKey(r.key);
           setManual(false);

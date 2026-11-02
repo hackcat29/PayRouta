@@ -253,6 +253,24 @@ export function Checkout({ id }: { id: string }) {
   // address, then send the quoted amount from it.
   function payWithWallet(token: PayToken, next: PayChoice, wallet: Connected) {
     setConnected(wallet);
+    // A token found by its address pays as the checkout's USDC on its chain:
+    // the wallet swaps it, and only then pays the exact USDC.
+    if (token.route === "dex" && token.via && token.chain && token.contract) {
+      const via = token.via,
+        found = { chain: token.chain, address: token.contract };
+      void start(
+        via,
+        { ...next, route: "dex", wallet: wallet.name, ...(via.route === "swap" ? { assetId: via.assetId, refundTo: wallet.address } : {}) },
+        async () => {
+          let deadline: string | undefined;
+          if (via.route === "swap")
+            deadline = ((await api({ action: "cross-chain-quote", originAsset: via.assetId, refundTo: wallet.address })) as { deadline?: string }).deadline;
+          if (!wallet.payDex) throw new Error("This wallet can't swap that token. Choose another token.");
+          return { sent: await wallet.payDex(found, api, deadline ?? current.current?.expiresAt) };
+        },
+      );
+      return;
+    }
     void start(token, { ...next, wallet: wallet.name }, async () => {
       const quote = (await api({ action: "cross-chain-quote", originAsset: token.assetId, refundTo: wallet.address })) as {
         transfer?: Parameters<Connected["send"]>[0];
@@ -322,7 +340,7 @@ export function Checkout({ id }: { id: string }) {
       payment = undefined;
     }
   }
-  const swap = choice?.route === "swap" && choice.assetId ? choice : null;
+  const swap = (choice?.route === "swap" || choice?.route === "dex") && choice.assetId ? choice : null;
   const preset = swap
     ? { originAsset: swap.assetId!, refundTo: swap.refundTo ?? "" }
     : undefined;
@@ -476,7 +494,7 @@ export function Checkout({ id }: { id: string }) {
               merchant={data.merchant}
               rows={[
                 ["Amount", `${displayTokenAmount(data.amount)} ${data.symbol ?? ""}`],
-                ...(choice?.route === "swap"
+                ...(choice?.route === "swap" || choice?.route === "dex"
                   ? ([["Paid with", `${choice.symbol} on ${choice.chainName}`]] as [string, string][])
                   : data.network
                     ? ([["Network", networkName(data.network)]] as [string, string][])
@@ -574,6 +592,19 @@ export function Checkout({ id }: { id: string }) {
                 </div>
                 {walletLinkBlock}
               </details>
+              <p role="status">{copied}</p>
+            </section>
+          ) : payment && choice?.route === "dex" && choice.sent ? (
+            <section role="status">
+              <h2>
+                Pay with {choice.symbol} on {choice.chainName}
+              </h2>
+              <Steps
+                steps={[`Swapped to ${a?.symbol ?? "USDC"} and sent`, `Confirming on ${networkName(payment.network)}`, "Payment confirmed"]}
+                current={1}
+                estimate={eta(finality)}
+              />
+              {choice.sent === "uncertain" && <p className="sc-pending">Check your wallet activity before sending again.</p>}
               <p role="status">{copied}</p>
             </section>
           ) : payment ? (

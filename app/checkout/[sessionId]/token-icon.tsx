@@ -56,12 +56,12 @@ export function TokenIcon({ symbol, size = 28 }: { symbol: string; size?: number
   const [bg, fg] = colours(symbol);
   const letters = glyphs[symbol.toUpperCase()] ?? symbol.replace(/^[^A-Za-z0-9]+/, "").replace(/^w(?=[A-Z])/, "").slice(0, 2);
   return (
+    // The letters are drawn by CSS (::before): the mark is decoration, not text.
     <span
       className="tk-icon"
       aria-hidden="true"
+      data-glyph={letters.toUpperCase()}
       style={{ background: bg, color: fg, width: size, height: size, fontSize: Math.round(size * (letters.length > 1 ? 0.36 : 0.5)) }}
-    >
-      {letters.toUpperCase()}
-    </span>
+    />
   );
 }

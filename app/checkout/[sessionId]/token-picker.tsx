@@ -3,7 +3,8 @@
 // customer can pay with, on every network, in one searchable list. Tokens
 // the merchant receives as they are come first, then stablecoins, then each
 // network's own coin, then the rest. Search matches a symbol, a network or a
-// pasted contract address.
+// pasted contract address; an address that isn't listed is looked up, so
+// any token with DEX liquidity can pay (lib/intents/dex.ts).
 import { useEffect, useMemo, useRef, useState } from "react";
 import { displayTokenAmount } from "@/lib/blockchain/stablecoin-payment";
 import { TokenIcon } from "./token-icon";
@@ -14,7 +15,16 @@ export type Row = PayToken & { chainId: string; chainName: string };
 const stable = ["USDC", "USDT", "USDT0", "EURC", "DAI"];
 const majors = ["ETH", "BTC", "SOL", "BNB", "wNEAR", "POL", "AVAX", "TRX", "TON", "XRP", "XLM", "SUI", "APT", "DOGE", "LTC", "ARB", "OP"];
 const rank = (t: Row) =>
-  t.route === "direct" ? 0 : stable.includes(t.symbol) ? 1 + stable.indexOf(t.symbol) / 10 : majors.includes(t.symbol) ? 2 + majors.indexOf(t.symbol) / 100 : 3;
+  t.route === "dex"
+    ? 4
+    : t.route === "direct"
+      ? 0
+      : stable.includes(t.symbol)
+        ? 1 + stable.indexOf(t.symbol) / 10
+        : majors.includes(t.symbol)
+          ? 2 + majors.indexOf(t.symbol) / 100
+          : 3;
+export const isAddress = (q: string) => /^0x[0-9a-fA-F]{40}$/.test(q) || /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(q);
 
 export function ordered(rows: Row[]) {
   return [...rows].sort((a, b) => rank(a) - rank(b) || a.symbol.localeCompare(b.symbol) || a.chainName.localeCompare(b.chainName));
@@ -29,16 +39,21 @@ export function TokenPicker({
   selected,
   onSelect,
   onClose,
+  onLookup,
 }: {
   open: boolean;
   rows: Row[];
   selected?: string;
   onSelect: (row: Row) => void;
   onClose: () => void;
+  // Finds a token that isn't listed by its address; resolves to an error
+  // sentence when there's none the checkout can take.
+  onLookup?: (address: string) => Promise<string | null>;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [query, setQuery] = useState("");
   const [network, setNetwork] = useState("");
+  const [lookup, setLookup] = useState<{ address: string; state: "loading" | "done"; error?: string | null } | null>(null);
   useEffect(() => {
     const d = dialog.current;
     if (!d) return;
@@ -57,6 +72,20 @@ export function TokenPicker({
           (q.length >= 6 && (r.contract ?? "").toLowerCase().includes(q))),
     );
   }, [rows, query, network]);
+  const address = query.trim();
+  const unlisted = !!onLookup && isAddress(address) && !rows.some((r) => (r.contract ?? "").toLowerCase() === address.toLowerCase());
+  // A pasted address loads its token without another tap.
+  useEffect(() => {
+    if (!unlisted || lookup?.address === address) return;
+    const t = setTimeout(() => {
+      setLookup({ address, state: "loading" });
+      onLookup!(address).then(
+        (error) => setLookup({ address, state: "done", error }),
+        () => setLookup({ address, state: "done", error: "That token couldn't be loaded. Try again." }),
+      );
+    }, 250);
+    return () => clearTimeout(t);
+  }, [unlisted, address, lookup, onLookup]);
   return (
     <dialog ref={dialog} className="tp" aria-labelledby="tp-title" onClose={onClose} onCancel={onClose}>
       <div className="tp-head">
@@ -103,7 +132,17 @@ export function TokenPicker({
             </button>
           </li>
         ))}
-        {!shown.length && <li className="tp-empty">No tokens match.</li>}
+        {unlisted && lookup?.address === address && lookup.state === "loading" && (
+          <li className="tp-empty" role="status">
+            Loading token…
+          </li>
+        )}
+        {unlisted && lookup?.address === address && lookup.state === "done" && lookup.error && (
+          <li className="tp-empty" role="alert">
+            {lookup.error}
+          </li>
+        )}
+        {!shown.length && !unlisted && <li className="tp-empty">No tokens match.</li>}
       </ul>
     </dialog>
   );

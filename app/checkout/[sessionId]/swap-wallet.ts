@@ -4,7 +4,14 @@
 // address. The wallet's address is also where NEAR Intents refunds a swap
 // that can't complete.
 import type { NearConnector, NearWalletBase } from "@hot-labs/near-connect";
-import { submitEvmTransfer, type WalletProvider } from "@/lib/blockchain/wallet-payment";
+import {
+  approveCall,
+  confirmedOk,
+  erc20Read,
+  sendEvmCall,
+  submitEvmTransfer,
+  type WalletProvider,
+} from "@/lib/blockchain/wallet-payment";
 import type { DiscoveredWallet } from "@/lib/blockchain/wallet-discovery";
 import type { WalletTarget, WalletTransfer } from "@/lib/intents/checkout";
 
@@ -15,12 +22,53 @@ export type Connected = {
   address: string;
   name: string;
   send(transfer: WalletTransfer, api: Api, deadline?: string): Promise<string>;
+  // A token found by its address (lib/intents/dex.ts): swap it into USDC,
+  // then pay exactly the checkout's USDC. Nothing is paid unless the swap
+  // succeeds.
+  payDex?(token: { chain: string; address: string }, api: Api, deadline?: string): Promise<string>;
 };
+
+// LI.FI's contract (lib/intents/dex.ts lifiDiamond), checked here again
+// before the wallet approves or swaps anything.
+const lifiDiamond = "0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae";
+type DexEvm = {
+  chainId: number;
+  chainName: string;
+  sell: { token: string; amount: string };
+  swap: { to: string; data: string; value: string };
+  pay: { token: string; amount: string; to: string };
+};
+
+async function payDexEvm(provider: WalletProvider, owner: string, q: DexEvm, deadline?: string) {
+  if (q.swap.to.toLowerCase() !== lifiDiamond) throw new Error("The swap provider returned something unexpected, so nothing was sent.");
+  const chain = { chainId: q.chainId, chainName: q.chainName };
+  const amount = BigInt(q.sell.amount);
+  if ((await erc20Read(provider, q.sell.token, owner, lifiDiamond)) < amount) {
+    const approval = await sendEvmCall(provider, chain, approveCall(q.sell.token, lifiDiamond, amount), deadline);
+    if (!(await confirmedOk(provider, approval))) throw new Error("The approval didn't go through, so nothing was paid.");
+  }
+  const swap = await sendEvmCall(provider, chain, q.swap, deadline);
+  // The guard: the exact USDC payment is sent only after the swap succeeded
+  // and left at least that much USDC in the wallet.
+  if (!(await confirmedOk(provider, swap))) throw new Error("The swap didn't go through, so nothing was paid.");
+  if ((await erc20Read(provider, q.pay.token, owner)) < BigInt(q.pay.amount))
+    throw new Error("The swap returned less USDC than the payment, so nothing was paid. The USDC is in your wallet.");
+  return submitEvmTransfer(provider, { ...chain, token: q.pay.token, amount: q.pay.amount, to: q.pay.to }, deadline);
+}
 
 type SolanaProvider = {
   connect(): Promise<{ publicKey: { toBase58(): string } }>;
   signAndSendTransaction(transaction: unknown): Promise<{ signature: string }>;
 };
+
+async function signAndSend(provider: SolanaProvider, tx: unknown) {
+  try {
+    return (await provider.signAndSendTransaction(tx)).signature;
+  } catch (error) {
+    if ((error as { code?: number }).code === 4001) throw error;
+    throw Object.assign(new Error("Wallet submission is uncertain. Check your wallet activity before sending again."), { mayHaveSent: true });
+  }
+}
 
 export function solanaProvider(): { name: string; provider: SolanaProvider } | null {
   if (typeof window === "undefined") return null;
@@ -117,6 +165,10 @@ export async function connectWallet(target: WalletTarget, evm?: DiscoveredWallet
         if (t.family !== "evm") throw new Error("This payment isn't on an EVM network.");
         return submitEvmTransfer(provider, t, deadline);
       },
+      async payDex(token, api, deadline) {
+        const q = (await api({ action: "dex-evm", payer: address, chain: token.chain, address: token.address })) as unknown as DexEvm;
+        return payDexEvm(provider, address, q, deadline);
+      },
     };
   }
   if (target.family === "solana") {
@@ -135,12 +187,17 @@ export async function connectWallet(target: WalletTarget, evm?: DiscoveredWallet
         const { Transaction } = await import("@solana/web3.js");
         const tx = Transaction.from(Uint8Array.from(atob(prepared.unsigned), (c) => c.charCodeAt(0)));
         deadlineCheck(deadline);
-        try {
-          return (await found.provider.signAndSendTransaction(tx)).signature;
-        } catch (error) {
-          if ((error as { code?: number }).code === 4001) throw error;
-          throw Object.assign(new Error("Wallet submission is uncertain. Check your wallet activity before sending again."), { mayHaveSent: true });
-        }
+        return signAndSend(found.provider, tx);
+      },
+      // One transaction: the swap into USDC and the exact USDC payment.
+      async payDex(token, api, deadline) {
+        deadlineCheck(deadline);
+        const prepared = await api({ action: "dex-solana", payer: address, mint: token.address });
+        if (prepared.payer !== address || typeof prepared.unsigned !== "string") throw new Error("Invalid payment instructions");
+        const { VersionedTransaction } = await import("@solana/web3.js");
+        const tx = VersionedTransaction.deserialize(Uint8Array.from(atob(prepared.unsigned), (c) => c.charCodeAt(0)));
+        deadlineCheck(deadline);
+        return signAndSend(found.provider, tx);
       },
     };
   }

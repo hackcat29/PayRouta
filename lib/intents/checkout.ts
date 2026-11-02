@@ -31,6 +31,8 @@ import { checkFundingIntent } from "./payouts";
 import { ed25519Signature, secp256k1Signature, type SignedIntent } from "./signing";
 import { erc191Signer, verifyNep413 } from "./verify";
 import { providerRequest } from "../providers/adapters/http";
+import { merchantMember } from "../merchant/access";
+import { Prisma } from "../generated/prisma/client";
 
 export const crossChainEnabled = () => process.env.CROSS_CHAIN_PAYMENTS !== "off";
 const provider = "near-intents";
@@ -184,7 +186,8 @@ export async function payOptions(sessionId: string, token: string, deps: Deps = 
     } catch {
       listed = [];
     }
-  return { locked, ...payTokens(options, swaps, listed) };
+  const config = await db.merchantConfig.findUnique({ where: { orgId: intent.orgId }, select: { swapSettlement: true } });
+  return { locked, ...payTokens(options, swaps, listed, config?.swapSettlement as { network: string; identifier: string } | null) };
 }
 
 type Routed = { id: string | null; network: string; identifier: string; symbol?: string; amount: string; method: string; intents: boolean };
@@ -193,9 +196,14 @@ type Routed = { id: string | null; network: string; identifier: string; symbol?:
 // every NEAR Intents token swaps into one settlement stablecoin, preferably
 // one that settles into the merchant's intents account.
 type Listed = { assetId: string; blockchain: string; symbol: string; price?: number | string; contractAddress?: string | null };
-export function payTokens(options: Routed[], swaps: boolean, listed: Listed[]) {
+// `preferred`: the merchant's choice of the receive stablecoin swaps settle
+// into, when this checkout offers it.
+export function payTokens(options: Routed[], swaps: boolean, listed: Listed[], preferred?: { network: string; identifier: string } | null) {
+  const deliverable = (o: Routed) => o.method === "stablecoin" && !!destinationFor(o.network, o.identifier);
   const target = swaps
-    ? (options.find((o) => o.intents) ?? options.find((o) => o.method === "stablecoin" && destinationFor(o.network, o.identifier)))
+    ? (options.find((o) => o.intents) ??
+      options.find((o) => deliverable(o) && o.network === preferred?.network && o.identifier.toLowerCase() === preferred?.identifier.toLowerCase()) ??
+      options.find(deliverable))
     : undefined;
   const chains = new Map<string, { id: string; name: string; tokens: PayToken[] }>();
   const add = (id: string, name: string, t: PayToken) => {
@@ -526,4 +534,16 @@ export async function submitFundedIntent(sessionId: string, token: string, raw: 
     data: { intentHash, status: "PENDING_DEPOSIT", checkedAt: now },
   });
   return { payment: updated.id, intentHash, ...present(updated) };
+}
+
+// The merchant's choice of the receive stablecoin that payments in other
+// tokens are swapped into: one NEAR Intents can deliver, or null for the
+// first the checkout offers.
+const settlementInput = z.object({ network: z.string().max(60), identifier: z.string().max(200) }).strict().nullable();
+export async function setSwapSettlement(orgId: string, raw: unknown, headers: Headers) {
+  await merchantMember(orgId, "configure", headers);
+  const value = settlementInput.parse(raw);
+  if (value && !destinationFor(value.network, value.identifier)) throw new PortalError("UNSUPPORTED_PAYMENT_ASSET", 409);
+  await db.merchantConfig.update({ where: { orgId }, data: { swapSettlement: value ? json(value) : Prisma.DbNull } });
+  return { swapSettlement: value };
 }

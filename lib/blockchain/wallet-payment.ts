@@ -180,3 +180,44 @@ export async function submitEvmTransfer(
   await onChain(wallet, request.chainId, `eip155:${t.chainId}`, t.chainName);
   return send(wallet, request.chainId, { to: request.to, data: request.data, value: request.value }, checkExpiry);
 }
+
+// Any call on an EVM chain from the customer's wallet (a token approval, a
+// DEX swap), on that chain.
+export async function sendEvmCall(
+  wallet: WalletProvider,
+  t: { chainId: number; chainName: string },
+  tx: { to: string; data: string; value: string },
+  deadline?: string,
+) {
+  const checkExpiry = expiry(deadline);
+  checkExpiry();
+  const chainId = `0x${t.chainId.toString(16)}`;
+  await onChain(wallet, chainId, `eip155:${t.chainId}`, t.chainName);
+  return send(wallet, chainId, tx, checkExpiry);
+}
+
+// Waits for a transaction the wallet sent; true when it succeeded.
+export async function confirmedOk(wallet: WalletProvider, hash: string, timeoutMs = 300000) {
+  const until = Date.now() + timeoutMs;
+  while (Date.now() < until) {
+    const receipt = (await wallet
+      .request({ method: "eth_getTransactionReceipt", params: [hash] })
+      .catch(() => null)) as { status?: string } | null;
+    if (receipt?.status) return receipt.status === "0x1";
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  throw new Error("Your transaction hasn't confirmed yet. Check your wallet activity before trying again.");
+}
+
+const word = (address: string) => address.slice(2).toLowerCase().padStart(64, "0");
+// An ERC-20 read through the wallet: balanceOf(owner) or allowance(owner, spender).
+export async function erc20Read(wallet: WalletProvider, token: string, owner: string, spender?: string) {
+  const data = spender ? `0xdd62ed3e${word(owner)}${word(spender)}` : `0x70a08231${word(owner)}`;
+  const result = await wallet.request({ method: "eth_call", params: [{ to: token, data }, "latest"] });
+  return typeof result === "string" && /^0x[0-9a-fA-F]*$/.test(result) && result.length > 2 ? BigInt(result) : 0n;
+}
+export const approveCall = (token: string, spender: string, amount: bigint) => ({
+  to: token,
+  data: `0x095ea7b3${word(spender)}${amount.toString(16).padStart(64, "0")}`,
+  value: "0x0",
+});

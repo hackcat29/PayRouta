@@ -25,6 +25,7 @@ import {
   payOptions,
 } from "@/lib/intents/checkout";
 import { swapSolanaTransaction } from "@/lib/intents/swap-wallet";
+import { dexEvmQuote, dexSolanaTransaction, lookupToken } from "@/lib/intents/dex";
 import { NextRequest, NextResponse } from "next/server";
 const schema = z.discriminatedUnion("action", [
   z
@@ -75,6 +76,27 @@ const schema = z.discriminatedUnion("action", [
     })
     .strict(),
   z.object({ action: z.literal("cross-chain-status") }).strict(),
+  z
+    .object({
+      action: z.literal("token-lookup"),
+      address: z.string().min(32).max(64),
+    })
+    .strict(),
+  z
+    .object({
+      action: z.literal("dex-solana"),
+      payer: z.string().min(32).max(50),
+      mint: z.string().min(32).max(50),
+    })
+    .strict(),
+  z
+    .object({
+      action: z.literal("dex-evm"),
+      payer: z.string().length(42),
+      chain: z.string().max(10),
+      address: z.string().length(42),
+    })
+    .strict(),
   z
     .object({
       action: z.literal("swap-wallet-transaction"),
@@ -148,6 +170,11 @@ export async function POST(
     if (b.action === "cross-chain-quote")
       return crossChainQuote(id, token, { originAsset: b.originAsset, refundTo: b.refundTo });
     if (b.action === "cross-chain-status") return crossChainStatus(id, token);
+    if (b.action === "token-lookup") return lookupToken(id, token, b.address);
+    if (b.action === "dex-solana")
+      return dexSolanaTransaction(id, token, { payer: b.payer, mint: b.mint });
+    if (b.action === "dex-evm")
+      return dexEvmQuote(id, token, { payer: b.payer, chain: b.chain, address: b.address });
     if (b.action === "swap-wallet-transaction")
       return swapSolanaTransaction(id, token, b.payer);
     if (b.action === "confirm") return confirm(id, token, b.routeId);

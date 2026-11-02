@@ -177,6 +177,7 @@ test("risk: concurrent reservation admits one intent; hold persists without rese
     data: {
       ...config,
       providerAllowlist: config.providerAllowlist as string[],
+      swapSettlement: undefined,
       orgId: isolatedOrgId,
       riskPolicy: {},
       application: {},

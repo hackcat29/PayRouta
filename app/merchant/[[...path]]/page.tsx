@@ -5,6 +5,9 @@ import { partnerOverview } from "@/lib/partners/service";
 import { labelOf } from "@/lib/providers/normalized";
 import { CryptoPayments } from "./crypto-payments";
 import { onchainMethod } from "@/lib/blockchain/crypto-assets";
+import { networkName } from "@/lib/blockchain/chains";
+import { destinationFor } from "@/lib/intents/oneclick";
+import { SwapSettlement } from "./swap-settlement";
 import { Stablecoins } from "./stablecoins";
 import { stablecoinOverview } from "@/lib/merchant/stablecoins";
 import { CryptoBalance } from "./intents";
@@ -631,6 +634,13 @@ export default async function Page({
     const accounts = await stablecoinOverview(orgId, env);
     const offered = new Set((await platformCandidates(orgId, env)).map((c) => c.method));
     const stableNetworks = configuration.stablecoinAssets.filter((a) => a.configured).length;
+    // Receive stablecoins NEAR Intents can swap other tokens into.
+    const settleChoices = accounts
+      .filter((a) => onchainMethod(a.network, a.identifier) === "stablecoin" && destinationFor(a.network, a.identifier))
+      .map((a) => ({ value: `${a.network}|${a.identifier}`, label: `${destinationFor(a.network, a.identifier)!.symbol} on ${networkName(a.network)}` }))
+      .filter((c, i, all) => all.findIndex((x) => x.value === c.value) === i);
+    const swapSettlement = (await db.merchantConfig.findUnique({ where: { orgId }, select: { swapSettlement: true } }))
+      ?.swapSettlement as { network: string; identifier: string } | null | undefined;
     const activate = <Link href={href("activation")}>Activate payments →</Link>;
     const methodsOverview: { name: string; on: boolean; next: ReactNode }[] = [
       { name: "Cards", on: offered.has("card"), next: activate },
@@ -684,6 +694,14 @@ export default async function Page({
             canConfigure={configure}
           />
         </div>
+        {env === "production" && settleChoices.length > 0 && (
+          <SwapSettlement
+            orgId={orgId}
+            choices={settleChoices}
+            current={swapSettlement ? `${swapSettlement.network}|${swapSettlement.identifier}` : ""}
+            canConfigure={configure}
+          />
+        )}
         <details className="ms-details">
           <summary>Volatile coins: ETH, SOL, XLM and others</summary>
           <CryptoPayments

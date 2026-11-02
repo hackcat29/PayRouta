@@ -386,3 +386,14 @@ test("EVM wallet transfers: ERC-20 transfer calldata, or value for the chain's o
   assert.throws(() => evmTransfer({ chainId: 1, token: null, amount: "0", to }));
   assert.throws(() => evmTransfer({ chainId: 1, token: "0x12", amount: "5", to }));
 });
+
+test("pay options: swaps settle into the merchant's chosen receive stablecoin when the checkout offers it", () => {
+  const options = [option("o1", baseUsdc, "USDC", false), option("o2", usdtSol, "USDT", false)];
+  assert.equal(routeOf(payTokens(options, true, listed), "tron", "USDT")!.optionId, "o1", "first deliverable by default");
+  assert.equal(routeOf(payTokens(options, true, listed, usdtSol), "tron", "USDT")!.optionId, "o2");
+  assert.deepEqual(payTokens(options, true, listed, usdtSol).settle, { symbol: "USDT", amount: "40.000000" });
+  // A choice this checkout doesn't offer falls back to the first.
+  assert.equal(routeOf(payTokens([options[0]], true, listed, usdtSol), "tron", "USDT")!.optionId, "o1");
+  // A merchant settling into a NEAR Intents account always settles there.
+  assert.equal(routeOf(payTokens([option("o3", baseUsdc, "USDC", true), options[1]], true, listed, usdtSol), "tron", "USDT")!.optionId, "o3");
+});

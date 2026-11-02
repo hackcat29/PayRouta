@@ -4,6 +4,7 @@ import { setFeeBearer } from "@/lib/merchant/fees";
 import { createStablecoinCheckout } from "@/lib/merchant/stablecoin-checkout";
 import { configureStablecoins } from "@/lib/merchant/stablecoins";
 import { connectIntentsAccount, disconnectIntentsAccount, intentsChallenge } from "@/lib/intents/account";
+import { setSwapSettlement } from "@/lib/intents/checkout";
 import { payoutsFor, quotePayout, submitPayout } from "@/lib/intents/payouts";
 import { issueAgentKey, revokeAgentKey } from "@/lib/agents/keys";
 import { liveScopeCommand } from "@/lib/merchant/live-scope";
@@ -100,6 +101,9 @@ export async function POST(request: Request) {
         raw.input,
         request.headers,
       );
+    // Which receive stablecoin payments in other tokens settle into.
+    if (raw?.action === "swap-settlement")
+      return setSwapSettlement(z.string().min(1).parse(raw.orgId), raw.input ?? null, request.headers);
     if (raw?.action === "stablecoins")
       return configureStablecoins(
         z.string().min(1).parse(raw.orgId),

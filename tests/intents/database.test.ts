@@ -10,7 +10,8 @@ import { json } from "../../lib/portal/service";
 import { hash } from "../../lib/payments/contracts";
 import { crossChainOptions, crossChainQuote, crossChainStatus, intentsFundedQuote, submitFundedIntent } from "../../lib/intents/checkout";
 import { swapSolanaTransaction } from "../../lib/intents/swap-wallet";
-import { Keypair, PublicKey, Transaction } from "@solana/web3.js";
+import { Keypair, PublicKey, Transaction, VersionedTransaction } from "@solana/web3.js";
+import { dexEvmQuote, dexSolanaTransaction, lifiDiamond } from "../../lib/intents/dex";
 import { getAssociatedTokenAddressSync } from "../../lib/blockchain/solana-token";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 import { keccak_256 } from "@noble/hashes/sha3.js";
@@ -335,4 +336,142 @@ test("cross-chain: a swap is paid from the customer's wallet; Solana gets a prep
   assert.equal(transfer.data.readBigUInt64LE(1), 40180000n);
   assert.deepEqual(rpc.map((r) => r.split(" ")[1]), ["getLatestBlockhash", "getAccountInfo"]);
   await assert.rejects(swapSolanaTransaction(c.id, c.token, "not-an-address", { http }), /WALLET_ADDRESS_INVALID/);
+});
+
+// Paying with a token found by its address (lib/intents/dex.ts).
+const usdcSol = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+async function awaitingSolanaUsdc() {
+  const c = await awaitingTransfer();
+  const receive = Keypair.generate().publicKey.toBase58();
+  await db.paymentAttempt.updateMany({
+    where: { intentId: c.intentId },
+    data: { action: json({ kind: "deposit", address: receive, network: "solana:mainnet", identifier: `spl:${usdcSol}`, amount: "40.000000", symbol: "USDC", provider: "PayRouta", text: "Send USDC" }) },
+  });
+  return { ...c, receive };
+}
+function fakeJupiter(over: { liquidity?: number; impact?: string; shortfall?: boolean; simulationError?: unknown } = {}) {
+  const quotes: string[] = [];
+  const mint = Keypair.generate().publicKey.toBase58();
+  const http: Http = async (base, o) => {
+    const reply = (body: unknown) => ({ status: 200, headers: {}, body: JSON.stringify(body), bytes: 0 });
+    if (o.path.startsWith("/tokens/v2/search"))
+      return reply([{ id: mint, name: "Fictional Pump Coin", symbol: "FPC", decimals: 6, usdPrice: 0.0001, liquidity: over.liquidity ?? 1_000_000, tokenProgram: "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb" }]);
+    if (o.path.startsWith("/swap/v1/quote")) {
+      const amount = BigInt(new URLSearchParams(o.path.split("?")[1]).get("amount")!);
+      quotes.push(amount.toString());
+      // About 1 USDC per 10,000 FPC, a little less than the token's price says.
+      const out = (amount * 98n) / 1_000_000n;
+      return reply({ inAmount: amount.toString(), outAmount: out.toString(), otherAmountThreshold: over.shortfall ? "1" : ((out * 99n) / 100n).toString(), swapMode: "ExactIn", priceImpactPct: over.impact ?? "0.004" });
+    }
+    if (o.path === "/swap/v1/swap-instructions") {
+      const payer = JSON.parse(o.body!).userPublicKey;
+      const ix = (programId: string, data: number[]) => ({ programId, accounts: [{ pubkey: payer, isSigner: true, isWritable: true }], data: Buffer.from(data).toString("base64") });
+      return reply({
+        computeBudgetInstructions: [ix("ComputeBudget111111111111111111111111111111", [2, 0, 0, 1, 0])],
+        setupInstructions: [],
+        swapInstruction: ix("JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4", [1, 2, 3]),
+        cleanupInstruction: null,
+        otherInstructions: [],
+        addressLookupTableAddresses: [],
+        computeUnitLimit: 300000,
+        ...(over.simulationError ? { simulationError: over.simulationError } : {}),
+      });
+    }
+    if (o.path === "/") return reply({ jsonrpc: "2.0", id: 1, result: { value: { blockhash: Keypair.generate().publicKey.toBase58() } } });
+    return reply([]);
+  };
+  return { http, mint, quotes };
+}
+
+test("dex: a Solana token pays in one transaction: swap into the payer's USDC, then exactly the payment", async () => {
+  const c = await awaitingSolanaUsdc();
+  const payer = Keypair.generate().publicKey.toBase58();
+  const { http, mint, quotes } = fakeJupiter();
+  const r = await dexSolanaTransaction(c.id, c.token, { payer, mint }, { http });
+  // The first quote's minimum fell short of 40 USDC, so it sold more.
+  assert.equal(quotes.length, 2);
+  assert.ok(BigInt(quotes[1]) > BigInt(quotes[0]));
+  assert.equal(r.pay.amount, "40000000");
+  const tx = VersionedTransaction.deserialize(Buffer.from(r.unsigned, "base64"));
+  const keys = tx.message.staticAccountKeys.map((k) => k.toBase58());
+  const ixs = tx.message.compiledInstructions;
+  const last = ixs[ixs.length - 1];
+  // Exactly 40 USDC from the payer's USDC account to the merchant's.
+  assert.equal(keys[last.programIdIndex], "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
+  assert.equal(Buffer.from(last.data)[0], 12);
+  assert.equal(Buffer.from(last.data).readBigUInt64LE(1), 40000000n);
+  assert.equal(keys[last.accountKeyIndexes[2]], getAssociatedTokenAddressSync(new PublicKey(usdcSol), new PublicKey(c.receive)).toBase58());
+  assert.equal(keys[last.accountKeyIndexes[0]], getAssociatedTokenAddressSync(new PublicKey(usdcSol), new PublicKey(payer)).toBase58());
+  // The swap comes before the payment, in the same transaction.
+  assert.ok(ixs.findIndex((i) => keys[i.programIdIndex] === "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4") < ixs.length - 1);
+  // Jupiter's compute limit is replaced by one with room for the payment.
+  const budget = ixs.filter((i) => keys[i.programIdIndex] === "ComputeBudget111111111111111111111111111111");
+  assert.equal(budget.length, 1);
+  assert.equal(Buffer.from(budget[0].data).readUInt32LE(1), 380000);
+});
+
+test("dex: the swap's minimum must cover the payment, and thin or failing swaps are refused", async () => {
+  const c = await awaitingSolanaUsdc();
+  const payer = Keypair.generate().publicKey.toBase58();
+  const run = (over: Parameters<typeof fakeJupiter>[0]) => {
+    const f = fakeJupiter(over);
+    return dexSolanaTransaction(c.id, c.token, { payer, mint: f.mint }, { http: f.http });
+  };
+  await assert.rejects(run({ shortfall: true }), /DEX_NO_ROUTE/);
+  await assert.rejects(run({ liquidity: 50 }), /DEX_LIQUIDITY_TOO_LOW/);
+  await assert.rejects(run({ impact: "0.4" }), /DEX_PRICE_IMPACT_TOO_HIGH/);
+  await assert.rejects(run({ simulationError: { errorCode: "TRANSACTION_ERROR" } }), /DEX_SWAP_WOULD_FAIL/);
+  // Base USDC is this checkout's USDC route; Solana has none.
+  const base = await awaitingTransfer();
+  const f = fakeJupiter();
+  await assert.rejects(dexSolanaTransaction(base.id, base.token, { payer, mint: f.mint }, { http: f.http }), /DEX_NO_USDC_ROUTE/);
+});
+
+function fakeLifi(over: { to?: string } = {}) {
+  const degen = `0x${"4e".repeat(20)}`;
+  const deposit = `0x${randomBytes(20).toString("hex")}`;
+  const http: Http = async (base, o) => {
+    const reply = (body: unknown) => ({ status: 200, headers: {}, body: JSON.stringify(body), bytes: 0 });
+    if (o.path === "/v0/tokens")
+      return reply([
+        { assetId: baseUsdc, decimals: 6, blockchain: "base", symbol: "USDC", contractAddress: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913" },
+        { assetId: "nep141:arb-usdc", decimals: 6, blockchain: "arb", symbol: "USDC", contractAddress: "0xaf88d065e77c8cc2239327c5edb3a432268e5831" },
+      ]);
+    if (o.path === "/v0/quote")
+      return reply({ quote: { depositAddress: deposit, amountIn: "40120000", amountInFormatted: "40.12", amountOut: JSON.parse(o.body!).amount } });
+    if (o.path.startsWith("/v1/token")) return reply({ address: degen, symbol: "DEGEN", name: "Degen", decimals: 18, priceUSD: "0.001" });
+    if (o.path.startsWith("/v1/quote")) {
+      const q = new URLSearchParams(o.path.split("?")[1]);
+      const fromAmount = BigInt(q.get("fromAmount")!);
+      const toAmount = fromAmount / 1_000_000_000_000_000n;
+      return reply({
+        action: { fromAddress: q.get("fromAddress"), toAddress: q.get("toAddress"), fromChainId: Number(q.get("fromChain")), toChainId: Number(q.get("toChain")), toToken: q.get("toToken") },
+        estimate: { fromAmount: fromAmount.toString(), toAmountMin: ((toAmount * 99n) / 100n).toString(), approvalAddress: over.to ?? lifiDiamond, fromAmountUSD: "41.5", toAmountUSD: "41.2" },
+        transactionRequest: { to: over.to ?? "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE", data: "0xabcdef", value: "0x0", chainId: Number(q.get("fromChain")) },
+      });
+    }
+    return reply({ status: "PENDING_DEPOSIT", swapDetails: {} });
+  };
+  return { http, degen, deposit };
+}
+
+test("dex: an EVM token swaps into the payer's USDC, then pays exactly the checkout's USDC", async () => {
+  resetTokenCache();
+  const payer = `0x${"c".repeat(40)}`;
+  // Merchant takes USDC on Base: the USDC goes to their receive address.
+  const direct = await awaitingTransfer();
+  const { http, degen, deposit } = fakeLifi();
+  const q = await dexEvmQuote(direct.id, direct.token, { payer, chain: "base", address: degen }, { http });
+  assert.deepEqual(q.pay, { token: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", amount: "40000000", to: direct.receive, decimals: 6 });
+  assert.equal(q.swap.to.toLowerCase(), lifiDiamond);
+  assert.equal(q.chainId, 8453);
+  // Paying from Arbitrum: USDC there goes to a NEAR Intents swap to the merchant.
+  resetTokenCache();
+  const viaSwap = await awaitingTransfer();
+  await crossChainQuote(viaSwap.id, viaSwap.token, { originAsset: "nep141:arb-usdc", refundTo: payer }, { http, enabled: true });
+  const arb = await dexEvmQuote(viaSwap.id, viaSwap.token, { payer, chain: "arb", address: degen }, { http });
+  assert.deepEqual(arb.pay, { token: "0xaf88d065e77c8cc2239327c5edb3a432268e5831", amount: "40120000", to: deposit, decimals: 6 });
+  // Only LI.FI's own contract is ever approved or called.
+  await assert.rejects(dexEvmQuote(direct.id, direct.token, { payer, chain: "base", address: degen }, { http: fakeLifi({ to: `0x${"9".repeat(40)}` }).http }), /DEX_ROUTE_UNEXPECTED/);
+  await assert.rejects(dexEvmQuote(direct.id, direct.token, { payer, chain: "op", address: degen }, { http }), /DEX_NO_USDC_ROUTE/);
 });

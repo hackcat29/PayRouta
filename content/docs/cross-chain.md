@@ -32,6 +32,21 @@ PayRouta only accepts a quote whose output equals your invoice amount exactly; a
 
 **Minimums and fees.** NEAR Intents has no single minimum: each asset, pair and network has its own, usually a USD floor set by its solvers, and it changes over time. Below it, checkout tells the customer to try another token or chain, or pay directly. NEAR Intents' protocol fee starts at 1 basis point (0.01%) for stablecoin and matching multichain pairs; partner API tiers can set a minimum fee on other pairs. Swap costs are inside the amount the customer is quoted, so you still receive the full invoice.
 
+## Any token by its contract address
+
+Customers can pay with a token that isn't listed, for example a coin launched on Pump.fun, by pasting its contract address into the token search. Checkout loads it with its price, on Solana or on Ethereum, Base, Arbitrum, Optimism, Polygon, Avalanche and BNB Chain, wherever there's USDC this checkout can take.
+
+The customer's wallet swaps the token into USDC, through Jupiter on Solana and LI.FI on EVM networks, and then pays exactly the checkout's USDC:
+
+- **Solana:** one transaction swaps the token into the customer's own USDC and then transfers exactly the payment. If the swap returns less than the payment, the whole transaction fails and nothing is paid.
+- **EVM networks:** the wallet swaps first, and sends the exact USDC payment only after the swap has succeeded and the USDC is in the wallet.
+
+Either way, you receive USDC exactly as for any USDC payment, and you never hold the customer's token. Any USDC above the payment stays in the customer's wallet. Checkout refuses a token without enough liquidity for the payment, or whose swap would cost more than 15% of its value. Coins still on a launchpad's bonding curve can't be swapped until they move to a DEX.
+
+## Choose what you receive
+
+Under **Payment methods**, **Payments in other tokens → Settle into** chooses which of your receive stablecoins swaps deliver into, for example USDT on Solana instead of USDC on Base. With a NEAR Intents account, everything settles into that account, and you can pay out from it in any token, on any chain (see [Your NEAR Intents Account](near-intents.md)).
+
 ## Configuration & routing
 
 Cross-chain intent execution is active by default across all supported networks. Destination token contracts and decimals are pinned and checked against NEAR Intents' live token list before every quote. Quotes and swap status are recorded against your payment intent, ensuring auditable, transparent verification.
