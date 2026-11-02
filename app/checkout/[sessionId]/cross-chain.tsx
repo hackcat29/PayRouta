@@ -1,10 +1,17 @@
 "use client";
 // Paying with a token the merchant doesn't receive directly
 // (lib/intents/checkout.ts): NEAR Intents quotes a swap, the customer sends
-// the quoted amount to a one-time deposit address, and the exact invoice
-// amount is delivered to the merchant. Confirmation still appears in the main
-// checkout above.
+// the quoted amount to a one-time deposit address, from a connected wallet
+// or any other wallet or exchange, and the exact invoice amount is
+// delivered to the merchant. Confirmation and the receipt appear in the
+// main checkout (view.tsx).
 import { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
+import type { WalletTransfer } from "@/lib/intents/checkout";
+import { Steps, eta } from "./progress-steps";
+import { TokenIcon } from "./token-icon";
+import { TokenPicker, type Row } from "./token-picker";
+import type { Connected } from "./swap-wallet";
 
 type Asset = { assetId: string; chain: string; chainName: string; symbol: string };
 type Payment = {
@@ -16,18 +23,12 @@ type Payment = {
   refundTo: string;
   deadline: string;
   status: string;
+  timeEstimate?: number;
+  explorerUrl?: string;
+  transfer?: WalletTransfer;
 };
 type Api = (action?: object) => Promise<Record<string, unknown>>;
 
-const statusText: Record<string, string> = {
-  PENDING_DEPOSIT: "Waiting for your transfer.",
-  KNOWN_DEPOSIT_TX: "Transfer seen. The swap starts once it is final.",
-  PROCESSING: "Swapping and delivering to the merchant.",
-  INCOMPLETE_DEPOSIT: "Less than the quoted amount arrived. Send the rest, or it will be refunded to your address.",
-  SUCCESS: "Delivered to the merchant. Final confirmation appears above in a moment.",
-  REFUNDED: "The swap could not complete. Your funds were refunded to your address.",
-  FAILED: "The swap failed. Your funds will be refunded to your address.",
-};
 const errors: Record<string, string> = {
   CROSS_CHAIN_REFUND_ADDRESS_INVALID: "Check your refund address: it must be your own address on the chain you pay from.",
   CROSS_CHAIN_QUOTE_REFUSED: "No route is available for that token right now. Try another token or chain.",
@@ -36,6 +37,30 @@ const errors: Record<string, string> = {
   CROSS_CHAIN_RATE_LIMITED: "Too many requests. Wait a few seconds and try again.",
   CROSS_CHAIN_AMOUNT_TOO_SMALL: "This amount is below the minimum for that token on that network. Try another token or chain, or pay directly above.",
 };
+// Where the swap is: the step it's on, and what the customer needs to know.
+const stage: Record<string, { step: number; text?: string }> = {
+  PENDING_DEPOSIT: { step: 0 },
+  KNOWN_DEPOSIT_TX: { step: 1, text: "Transfer seen. The swap starts once it's final." },
+  INCOMPLETE_DEPOSIT: { step: 1, text: "Less than the quoted amount arrived. Send the rest, or it will be refunded to your address." },
+  PROCESSING: { step: 1 },
+  SUCCESS: { step: 2 },
+};
+
+function useQr(text?: string) {
+  const [src, setSrc] = useState("");
+  useEffect(() => {
+    let alive = true;
+    if (!text) return;
+    import("qrcode")
+      .then((q) => q.toDataURL(text, { margin: 1, width: 336 }))
+      .then((url) => alive && setSrc(url))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [text]);
+  return text ? src : "";
+}
 
 // `primary`: this is how the customer pays (they chose a token to swap, or
 // the merchant settles into a NEAR Intents account), not an alternative to a
@@ -46,20 +71,28 @@ export function CrossChain({
   onCopy,
   primary = false,
   preset,
+  wallet,
+  sent,
+  onSent,
 }: {
   api: Api;
   onCopy: (value: string, label: string) => void;
   primary?: boolean;
   preset?: { originAsset: string; refundTo: string };
+  wallet?: Connected | null;
+  sent?: string;
+  onSent?: (hash: string) => void;
 }) {
   const [assets, setAssets] = useState<Asset[] | null>(null);
-  const [chain, setChain] = useState("");
   const [assetId, setAssetId] = useState("");
+  const [picking, setPicking] = useState(false);
   const [refundTo, setRefundTo] = useState("");
   const [payment, setPayment] = useState<Payment | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [walletMessage, setWalletMessage] = useState("");
   const quoted = useRef(false);
+  const qr = useQr(payment?.status === "PENDING_DEPOSIT" ? payment.depositAddress : undefined);
 
   async function getQuote(originAsset = assetId, refund = refundTo) {
     setBusy(true);
@@ -80,6 +113,21 @@ export function CrossChain({
       // Let the customer adjust what they chose.
       setAssetId(originAsset);
       setRefundTo(refund);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function payFromWallet() {
+    if (!wallet || !payment?.transfer) return;
+    setBusy(true);
+    setWalletMessage("");
+    try {
+      onSent?.(await wallet.send(payment.transfer, api, payment.deadline));
+    } catch (e) {
+      const err = e as { code?: number; message?: string; mayHaveSent?: boolean };
+      if (err.mayHaveSent) onSent?.("uncertain");
+      setWalletMessage(err.code === 4001 ? "Payment was cancelled in your wallet." : err.message || "Your wallet didn't send the payment.");
     } finally {
       setBusy(false);
     }
@@ -107,7 +155,6 @@ export function CrossChain({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [api]);
 
-
   useEffect(() => {
     if (!payment || ["SUCCESS", "REFUNDED", "FAILED"].includes(payment.status)) return;
     const t = setInterval(() => {
@@ -118,14 +165,21 @@ export function CrossChain({
     return () => clearInterval(t);
   }, [api, payment]);
 
-  const chains = useMemo(() => {
-    const seen = new Map<string, string>();
-    for (const a of assets ?? []) seen.set(a.chain, a.chainName);
-    return [...seen].sort((a, b) => a[1].localeCompare(b[1]));
-  }, [assets]);
-  // A preset token that couldn't be quoted shows under its own network.
-  const network = chain || assets?.find((a) => a.assetId === assetId)?.chain || "";
-  const tokens = (assets ?? []).filter((a) => a.chain === network);
+  const rows = useMemo<Row[]>(
+    () =>
+      (assets ?? []).map((a) => ({
+        key: a.assetId,
+        assetId: a.assetId,
+        symbol: a.symbol,
+        route: "swap",
+        method: "",
+        optionId: null,
+        chainId: a.chain,
+        chainName: a.chainName,
+      })),
+    [assets],
+  );
+  const chosen = rows.find((r) => r.key === assetId);
 
   if (!assets?.length && !payment)
     return primary && assets ? (
@@ -134,19 +188,46 @@ export function CrossChain({
       </p>
     ) : null;
 
-  return (
-    <details className="sc-cross" open={primary || !!payment}>
-      <summary>{primary ? "Your payment" : "Pay with a different token"}</summary>
-      {payment ? (
+  const where = payment ? stage[payment.status] : undefined;
+  const instructions = payment?.status === "PENDING_DEPOSIT" && !sent;
+  const canWallet = !!wallet && !!payment?.transfer && wallet.family === payment.transfer.family;
+
+  const body = payment ? (
+    ["REFUNDED", "FAILED"].includes(payment.status) ? (
+      <div className="sc-swap">
+        <p role="status">
+          {payment.status === "REFUNDED"
+            ? "The swap couldn't complete. Your funds were refunded to your address."
+            : "The swap failed. Your funds will be refunded to your address."}
+        </p>
+        <button type="button" onClick={() => setPayment(null)}>
+          Pay another way
+        </button>
+      </div>
+    ) : instructions ? (
+      <div className="sc-swap">
+        <p>
+          Send exactly{" "}
+          <strong>
+            {payment.send} {payment.symbol}
+          </strong>{" "}
+          on <strong>{payment.chainName}</strong>.
+        </p>
+        {canWallet && (
+          <>
+            <button type="button" className="sc-primary" disabled={busy} onClick={() => void payFromWallet()}>
+              {busy ? "Check your wallet…" : `Pay with ${wallet!.name}`}
+            </button>
+            {walletMessage && (
+              <p role="alert" className="sc-error">
+                {walletMessage}
+              </p>
+            )}
+          </>
+        )}
         <div className="sc-deposit">
+          {qr && <Image unoptimized src={qr} width="168" height="168" alt={`Deposit address on ${payment.chainName}, as a QR code`} />}
           <div>
-            <p>
-              Send exactly{" "}
-              <strong>
-                {payment.send} {payment.symbol}
-              </strong>{" "}
-              on <strong>{payment.chainName}</strong>.
-            </p>
             <label>Deposit address ({payment.chainName})</label>
             <code>{payment.depositAddress}</code>
             <button type="button" onClick={() => onCopy(payment.depositAddress, "Deposit address")}>
@@ -161,65 +242,96 @@ export function CrossChain({
                 </button>
               </>
             )}
+            <label>Amount</label>
+            <code>
+              {payment.send} {payment.symbol}
+            </code>
             <button type="button" onClick={() => onCopy(payment.send, "Amount")}>
               Copy amount
             </button>
-            <p role="status">{statusText[payment.status] ?? "Checking the swap…"}</p>
-            <p className="sc-pending">
-              Send before {new Date(payment.deadline).toLocaleTimeString()}. Refunds go to <code>{payment.refundTo}</code>.
-            </p>
-            {["REFUNDED", "FAILED"].includes(payment.status) && (
-              <button type="button" onClick={() => setPayment(null)}>
-                Pay another way
-              </button>
-            )}
           </div>
         </div>
-      ) : (
-        <div className="sc-cross-form">
-          <label htmlFor="cc-chain">Network</label>
-          <select
-            id="cc-chain"
-            value={network}
-            onChange={(e) => {
-              setChain(e.target.value);
-              setAssetId("");
-            }}
-          >
-            <option value="">Choose a network</option>
-            {chains.map(([id, name]) => (
-              <option key={id} value={id}>
-                {name}
-              </option>
-            ))}
-          </select>
-          <label htmlFor="cc-token">Token</label>
-          <select id="cc-token" value={assetId} disabled={!network} onChange={(e) => setAssetId(e.target.value)}>
-            <option value="">Choose a token</option>
-            {tokens.map((t) => (
-              <option key={t.assetId} value={t.assetId}>
-                {t.symbol}
-              </option>
-            ))}
-          </select>
-          <label htmlFor="cc-refund">Refund address</label>
-          <input
-            id="cc-refund"
-            value={refundTo}
-            autoComplete="off"
-            spellCheck={false}
-            onChange={(e) => setRefundTo(e.target.value)}
-          />
-          <button type="button" className="sc-primary" disabled={busy || !assetId || refundTo.trim().length < 20} onClick={() => void getQuote()}>
-            {busy ? "Getting a quote…" : "Get payment instructions"}
-          </button>
-          {error && (
-            <p role="alert" className="sc-error">
-              {error}
-            </p>
-          )}
-        </div>
+        <dl className="pc-lines">
+          <div>
+            <dt>Send before</dt>
+            <dd>{new Date(payment.deadline).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</dd>
+          </div>
+          <div>
+            <dt>Refunds to</dt>
+            <dd>
+              <code>{payment.refundTo}</code>
+            </dd>
+          </div>
+        </dl>
+      </div>
+    ) : (
+      <div className="sc-swap">
+        <Steps
+          steps={["Transfer sent", "Swapping", "Payment confirmed"]}
+          current={payment.status === "PENDING_DEPOSIT" ? 0 : (where?.step ?? 1)}
+          estimate={payment.status === "SUCCESS" ? undefined : eta(payment.timeEstimate)}
+        />
+        {payment.status === "PENDING_DEPOSIT" && sent && (
+          <p className="sc-pending">
+            {sent === "uncertain" ? "Check your wallet activity before sending again." : "Waiting for your transfer to arrive."}
+          </p>
+        )}
+        {where?.text && <p className="sc-pending">{where.text}</p>}
+        {payment.explorerUrl && (
+          <p>
+            <a href={payment.explorerUrl} target="_blank" rel="noreferrer">
+              View on explorer
+            </a>
+          </p>
+        )}
+      </div>
+    )
+  ) : (
+    <div className="sc-cross-form">
+      <button type="button" className="pc-token" aria-haspopup="dialog" aria-label={chosen ? `Token: ${chosen.symbol} on ${chosen.chainName}` : "Choose a token"} onClick={() => setPicking(true)}>
+        {chosen ? (
+          <>
+            <TokenIcon symbol={chosen.symbol} />
+            <span className="pc-token-name">
+              <b>{chosen.symbol}</b>
+              <small>{chosen.chainName}</small>
+            </span>
+          </>
+        ) : (
+          <span className="pc-token-name">
+            <b>Choose a token</b>
+          </span>
+        )}
+      </button>
+      <TokenPicker open={picking} rows={rows} selected={assetId} onClose={() => setPicking(false)} onSelect={(r) => { setAssetId(r.key); setPicking(false); }} />
+      <label htmlFor="cc-refund">Refund address{chosen ? ` on ${chosen.chainName}` : ""}</label>
+      <input id="cc-refund" value={refundTo} autoComplete="off" spellCheck={false} onChange={(e) => setRefundTo(e.target.value)} />
+      <button type="button" className="sc-primary" disabled={busy || !assetId || refundTo.trim().length < 20} onClick={() => void getQuote()}>
+        {busy ? "Getting a quote…" : "Get payment instructions"}
+      </button>
+      {error && (
+        <p role="alert" className="sc-error">
+          {error}
+        </p>
       )}
-    </details>
+    </div>
+  );
+
+  // The customer's own payment is shown as is; paying with a different
+  // token is one of the other ways to pay.
+  return primary || payment ? (
+    <div className="sc-cross">
+      {body}
+      {error && payment && (
+        <p role="alert" className="sc-error">
+          {error}
+        </p>
+      )}
+    </div>
+  ) : (
+    <div className="sc-cross">
+      <h3>Pay with a different token</h3>
+      {body}
+    </div>
   );
 }

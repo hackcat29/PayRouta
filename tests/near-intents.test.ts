@@ -13,7 +13,8 @@ import { ed25519Signature, secp256k1Signature } from "../lib/intents/signing";
 import { erc191Signer, nep413Hash, verifyNep413 } from "../lib/intents/verify";
 import { checkFundingIntent } from "../lib/intents/payouts";
 import { quote, oneClickBase, type Http } from "../lib/intents/oneclick";
-import { payTokens } from "../lib/intents/checkout";
+import { approximate, payTokens, walletTransfer } from "../lib/intents/checkout";
+import { evmTransfer } from "../lib/blockchain/wallet-payment";
 import { intentsDepositConfigSchema, intentsDepositExecutionAdapter, type IntentsSwap } from "../lib/providers/adapters/native/near-intents-deposit";
 import { factAction } from "../lib/payments/contracts";
 import { isDepositAdapter, stablecoinDepositConfig } from "../lib/blockchain/deposit-config";
@@ -330,4 +331,58 @@ test("pay options: without swaps (sandbox, or switched off) only direct tokens a
     r.chains.flatMap((c) => c.tokens.map((t) => t.route)),
     ["direct"],
   );
+});
+
+test("pay options: swap tokens show today's price, and which wallet pays them", () => {
+  const priced = [
+    { ...listed[2], price: 2290.83 },
+    { ...listed[4], price: 1, contractAddress: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t" },
+    { assetId: "nep141:sol.omft.near", blockchain: "sol", symbol: "SOL", price: 94.47 },
+    { assetId: "nep141:wrap.near", blockchain: "near", symbol: "wNEAR", price: 4.13, contractAddress: "wrap.near" },
+    { assetId: "nep141:btc.omft.near", blockchain: "btc", symbol: "BTC", price: 70000 },
+  ];
+  const r = payTokens([option("o1", baseUsdc, "USDC", true)], true, priced);
+  assert.equal(routeOf(r, "eth", "ETH")!.approx, "0.0174609");
+  assert.equal(routeOf(r, "tron", "USDT")!.approx, "40");
+  assert.equal(routeOf(r, "tron", "USDT")!.contract, "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t");
+  assert.deepEqual(routeOf(r, "eth", "ETH")!.wallet, { family: "evm", chainId: 1 });
+  assert.deepEqual(routeOf(r, "sol", "SOL")!.wallet, { family: "solana" });
+  assert.deepEqual(routeOf(r, "near", "wNEAR")!.wallet, { family: "near" });
+  // Tron and Bitcoin are paid by sending to an address.
+  assert.equal(routeOf(r, "tron", "USDT")!.wallet, undefined);
+  assert.equal(routeOf(r, "btc", "BTC")!.wallet, undefined);
+  // A direct token is paid from the wallet of its own network.
+  const direct = payTokens([option("o2", usdtSol, "USDT", false)], false, []);
+  assert.deepEqual(routeOf(direct, "sol", "USDT")!.wallet, { family: "solana" });
+  assert.equal(routeOf(direct, "sol", "USDT")!.contract, "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB");
+});
+
+test("swap wallet transfers: the quoted amount to the deposit address, on chains a wallet can pay", () => {
+  const quote = { depositAddress: `0x${"d".repeat(40)}`, depositMemo: null, amountIn: "40180000" };
+  assert.deepEqual(
+    walletTransfer(quote, { assetId: "x", blockchain: "arb", decimals: 6, contractAddress: `0x${"a".repeat(40)}` }),
+    { amount: "40180000", decimals: 6, to: quote.depositAddress, token: `0x${"a".repeat(40)}`, family: "evm", chainId: 42161, chainName: "Arbitrum" },
+  );
+  // A chain's own coin has no contract.
+  assert.equal(walletTransfer(quote, { assetId: "x", blockchain: "base", decimals: 18 })!.token, null);
+  assert.equal(walletTransfer({ ...quote, depositAddress: "abc123" }, { assetId: "x", blockchain: "near", decimals: 24, contractAddress: "wrap.near" })!.family, "near");
+  assert.equal(walletTransfer(quote, { assetId: "x", blockchain: "tron", decimals: 6, contractAddress: "T" }), undefined);
+  // An EVM "contract" that isn't an address is never sent to.
+  assert.equal(walletTransfer(quote, { assetId: "x", blockchain: "eth", decimals: 6, contractAddress: "not-a-contract" }), undefined);
+  assert.equal(approximate(0, 5), undefined);
+  assert.equal(approximate(40, 0.000001234), "32414900");
+});
+
+test("EVM wallet transfers: ERC-20 transfer calldata, or value for the chain's own coin", () => {
+  const to = `0x${"d".repeat(40)}`;
+  const token = evmTransfer({ chainId: 42161, token: `0x${"a".repeat(40)}`, amount: "40180000", to });
+  assert.deepEqual(token, {
+    chainId: "0xa4b1",
+    to: `0x${"a".repeat(40)}`,
+    value: "0x0",
+    data: `0xa9059cbb${"d".repeat(40).padStart(64, "0")}${(40180000).toString(16).padStart(64, "0")}`,
+  });
+  assert.deepEqual(evmTransfer({ chainId: 8453, token: null, amount: "1000", to }), { chainId: "0x2105", to, value: "0x3e8", data: "0x" });
+  assert.throws(() => evmTransfer({ chainId: 1, token: null, amount: "0", to }));
+  assert.throws(() => evmTransfer({ chainId: 1, token: "0x12", amount: "5", to }));
 });

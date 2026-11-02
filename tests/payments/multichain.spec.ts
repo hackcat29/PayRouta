@@ -99,14 +99,15 @@ test("customer selects a merchant quote and the network locks when instructions 
     await route.fulfill({ json: result });
   });
   await page.goto("/checkout/multichain-ui#" + "a".repeat(43));
+  await page.getByRole("button", { name: /^Token:/ }).click();
   await page.getByLabel("Network", { exact: true }).selectOption("solana:devnet");
-  await page.getByLabel("Token", { exact: true }).selectOption("direct:solana");
+  await page.getByRole("button", { name: /^EURC\s*Solana Devnet/ }).click();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "0.90 EURC", exact: true }),
   ).toBeVisible();
   // Instructions are issued: nothing left to choose.
-  await expect(page.getByLabel("Network", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^Token:/ })).toHaveCount(0);
   await expect(page.getByText("Token mint", { exact: true })).toBeVisible();
   await expect(page.getByText(/also needs test SOL/)).toBeVisible();
   expect(

@@ -54,8 +54,9 @@ test("stablecoin checkout: actual testnet instructions, wallet submission stays 
   await expect(
     page.getByRole("timer", { name: "Checkout time remaining" }),
   ).toHaveText(/^[0-2]\d:[0-5]\d$/);
-  // One network and token on offer: the customer confirms what they pay with.
-  await page.getByLabel("Token", { exact: true }).selectOption({ label: "USDC · 1.00" });
+  // One token on offer: already chosen, with its exact amount.
+  await expect(page.getByRole("button", { name: "Token: USDC on Base Sepolia" })).toBeVisible();
+  await expect(page.locator(".pc-value strong")).toHaveText("1.00");
   await expect(page.getByRole("button", { name: "Continue", exact: true })).toBeEnabled();
   await expect(
     page.getByRole("heading", { name: "1.00 USDC", exact: true }),

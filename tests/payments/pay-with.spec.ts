@@ -67,8 +67,10 @@ test("paying with a token the merchant doesn't take directly goes straight to a 
     await route.fulfill({ json });
   });
   await page.goto(`/checkout/pay-with#${"w".repeat(43)}`);
-  await page.getByLabel("Network", { exact: true }).selectOption("tron");
-  await page.getByLabel("Token", { exact: true }).selectOption(`swap:${tronUsdt}`);
+  await page.getByRole("button", { name: /^Token:/ }).click();
+  await page.getByLabel("Search tokens").fill("tron");
+  await page.getByRole("button", { name: /^USDT\s*Tron/ }).click();
+  await expect(page.getByRole("button", { name: "Token: USDT on Tron" })).toBeVisible();
   // A swap needs somewhere to refund to.
   await expect(page.getByRole("button", { name: "Continue", exact: true })).toBeDisabled();
   await page.getByLabel("Refund address on Tron").fill("TRefundAddress000000000000000000");
@@ -77,7 +79,7 @@ test("paying with a token the merchant doesn't take directly goes straight to a 
   await expect(page.getByText("TDepositAddress1111111111111111111", { exact: true })).toBeVisible();
   await expect(page.getByText(/Send exactly/)).toContainText("40.18 USDT");
   // Nothing to choose again: the quote used what the customer already said.
-  await expect(page.getByLabel("Network", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^Token:/ })).toHaveCount(0);
   expect(calls.find((c) => c.action === "select")?.method).toBe("stablecoin");
   expect(calls.filter((c) => c.action === "cross-chain-quote")).toEqual([
     { action: "cross-chain-quote", originAsset: tronUsdt, refundTo: "TRefundAddress000000000000000000" },

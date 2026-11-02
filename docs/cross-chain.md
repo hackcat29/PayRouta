@@ -9,9 +9,13 @@ When you want to off-ramp crypto into a local bank account, on-ramp fiat collect
 ## How it works
 
 1. Your checkout asks for, say, 40.00 USDC on Base, to one of your receive addresses.
-2. Checkout asks one question: **What do you want to pay with?** The customer picks the network and token they hold. A token you receive directly is sent straight to your address; anything else, for example USDT on Tron, is a swap, so they also give their own address on that chain for refunds. They never choose between your receive addresses or accounts; that's routing.
-3. PayRouta asks NEAR Intents (through its 1Click API) for an **exact-output** quote: deliver exactly 40.00 USDC on Base to your receive address for this payment. The customer sees the quote, for example "send 40.18 USDT on Tron", and a one-time deposit address.
-4. The customer sends it from any wallet or exchange. Solvers swap and deliver; the customer pays the swap cost, which is in the quoted amount.
+2. Checkout asks one question: **What do you want to pay with?** The customer picks the token they hold from one searchable list of every network, and sees what they'll pay before going on: the exact amount for a token you receive directly, today's price for anything else, for example USDT on Tron, which is a swap. They never choose between your receive addresses or accounts; that's routing.
+3. PayRouta asks NEAR Intents (through its 1Click API) for an **exact-output** quote: deliver exactly 40.00 USDC on Base to your receive address for this payment, for example "send 40.18 USDT on Tron" to a one-time deposit address.
+4. The customer pays it one of two ways:
+   - **From a connected wallet** on EVM networks, Solana or NEAR: the wallet sends the quoted amount, and refunds go back to it.
+   - **From any other wallet or exchange**: they give their own address on that chain for refunds, then send to the deposit address or scan its QR code.
+
+   Solvers swap and deliver; the customer pays the swap cost, which is in the quoted amount. Checkout shows the swap's progress and, once confirmed, a receipt that returns the customer to your site.
 5. PayRouta confirms the payment exactly as for a direct transfer: when the delivered transfer of the exact amount reaches your receive address before the quote deadline and is final on-chain.
 
 If the swap can't complete, the intents network refunds the customer on their own chain. Neither PayRouta nor the intents network holds the funds along the way.

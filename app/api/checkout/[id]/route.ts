@@ -24,6 +24,7 @@ import {
   crossChainStatus,
   payOptions,
 } from "@/lib/intents/checkout";
+import { swapSolanaTransaction } from "@/lib/intents/swap-wallet";
 import { NextRequest, NextResponse } from "next/server";
 const schema = z.discriminatedUnion("action", [
   z
@@ -74,6 +75,12 @@ const schema = z.discriminatedUnion("action", [
     })
     .strict(),
   z.object({ action: z.literal("cross-chain-status") }).strict(),
+  z
+    .object({
+      action: z.literal("swap-wallet-transaction"),
+      payer: z.string().min(32).max(50),
+    })
+    .strict(),
   z
     .object({ action: z.literal("confirm"), routeId: z.string().max(100) })
     .strict(),
@@ -141,6 +148,8 @@ export async function POST(
     if (b.action === "cross-chain-quote")
       return crossChainQuote(id, token, { originAsset: b.originAsset, refundTo: b.refundTo });
     if (b.action === "cross-chain-status") return crossChainStatus(id, token);
+    if (b.action === "swap-wallet-transaction")
+      return swapSolanaTransaction(id, token, b.payer);
     if (b.action === "confirm") return confirm(id, token, b.routeId);
     if (b.action === "refresh") return refreshAttempt(id, token);
     await customerAction(id, token);

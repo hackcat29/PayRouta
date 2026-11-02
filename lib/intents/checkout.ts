@@ -22,7 +22,7 @@ import { PortalError } from "../portal/domain";
 import { authorizeSession, checkoutOptions, refreshAttempt } from "../payments/service";
 import { minor } from "../payments/contracts";
 import { stablecoinCandidates } from "../payments/stablecoin-routes";
-import { networkName } from "../blockchain/chains";
+import { chain as registeredChain, networkName } from "../blockchain/chains";
 import { paymentAsset, onchainMethod } from "../blockchain/crypto-assets";
 import { z } from "zod";
 import { chainNames, destinationFor, generateIntent, quote, status, submitIntent, tokens, type GeneratedIntent, type Http } from "./oneclick";
@@ -80,6 +80,51 @@ const chainCodes: Record<string, string> = {
   "stellar:pubnet": "stellar",
 };
 
+// The wallet a customer can pay a token from, in the checkout itself. Other
+// chains (Bitcoin, Tron, TON and so on) are paid by sending to an address.
+export type WalletTarget =
+  | { family: "evm"; chainId: number }
+  | { family: "solana" }
+  | { family: "stellar" }
+  | { family: "near" };
+
+// EVM chains NEAR Intents takes deposits on, by 1Click blockchain code.
+export const evmChainIds: Record<string, number> = {
+  eth: 1,
+  base: 8453,
+  arb: 42161,
+  op: 10,
+  pol: 137,
+  avax: 43114,
+  bsc: 56,
+  gnosis: 100,
+  scroll: 534352,
+  bera: 80094,
+  xlayer: 196,
+  abs: 2741,
+};
+export function swapWallet(blockchain: string): WalletTarget | undefined {
+  if (evmChainIds[blockchain]) return { family: "evm", chainId: evmChainIds[blockchain] };
+  if (blockchain === "sol") return { family: "solana" };
+  if (blockchain === "near") return { family: "near" };
+  return undefined;
+}
+function directWallet(network: string): WalletTarget | undefined {
+  const c = registeredChain(network);
+  if (c?.family === "evm") return { family: "evm", chainId: Number(network.split(":")[1]) };
+  if (c?.family === "solana") return { family: "solana" };
+  if (c?.family === "stellar") return { family: "stellar" };
+  return undefined;
+}
+
+// USD-pegged settlement coins: a swap's price in another token is the USD
+// amount over that token's USD price.
+const usdStable = new Set(["USDC", "USDT", "USDT0", "DAI"]);
+export function approximate(usd: number, price: number) {
+  if (!(usd > 0) || !(price > 0)) return undefined;
+  return (usd / price).toLocaleString("en-US", { maximumSignificantDigits: 6, useGrouping: false });
+}
+
 export type PayToken = {
   key: string;
   symbol: string;
@@ -93,6 +138,12 @@ export type PayToken = {
   // Direct tokens: the receiving network and token.
   network?: string;
   identifier?: string;
+  // Swap tokens: the amount at today's price, before a quote; the token's
+  // USD price; and its contract, mint or account, for search.
+  approx?: string;
+  price?: number;
+  contract?: string;
+  wallet?: WalletTarget;
 };
 
 // The checkout's crypto picker: every token the customer could pay with,
@@ -141,7 +192,8 @@ type Routed = { id: string | null; network: string; identifier: string; symbol?:
 // directly (an address pool) is sent as is and listed once; with swaps on,
 // every NEAR Intents token swaps into one settlement stablecoin, preferably
 // one that settles into the merchant's intents account.
-export function payTokens(options: Routed[], swaps: boolean, listed: { assetId: string; blockchain: string; symbol: string }[]) {
+type Listed = { assetId: string; blockchain: string; symbol: string; price?: number | string; contractAddress?: string | null };
+export function payTokens(options: Routed[], swaps: boolean, listed: Listed[]) {
   const target = swaps
     ? (options.find((o) => o.intents) ?? options.find((o) => o.method === "stablecoin" && destinationFor(o.network, o.identifier)))
     : undefined;
@@ -162,8 +214,11 @@ export function payTokens(options: Routed[], swaps: boolean, listed: { assetId: 
       amount: o.amount,
       network: o.network,
       identifier: o.identifier,
+      contract: o.identifier.slice(o.identifier.indexOf(":") + 1),
+      wallet: directWallet(o.network),
     });
   }
+  const usd = target && usdStable.has(target.symbol ?? "") ? Number(target.amount) : 0;
   if (target)
     for (const t of listed)
       add(t.blockchain, chainNames[t.blockchain] ?? t.blockchain.toUpperCase(), {
@@ -173,6 +228,9 @@ export function payTokens(options: Routed[], swaps: boolean, listed: { assetId: 
         method: target.method,
         optionId: target.id,
         assetId: t.assetId,
+        ...(Number(t.price) > 0 ? { price: Number(t.price), approx: approximate(usd, Number(t.price)) } : {}),
+        ...(t.contractAddress ? { contract: t.contractAddress } : {}),
+        wallet: swapWallet(t.blockchain),
       });
   return {
     settle: target ? { symbol: target.symbol!, amount: target.amount } : null,
@@ -269,19 +327,49 @@ export async function crossChainQuote(
       quote: json(result),
     },
   });
-  return present(record);
+  return present(record, origin);
 }
 
-function present(r: {
-  originChain: string;
-  originSymbol: string;
-  depositAddress: string;
-  depositMemo: string | null;
-  amountInFormatted: string;
-  refundTo: string;
-  deadline: Date;
-  status: string;
-}) {
+type Origin = { assetId: string; blockchain: string; decimals: number; contractAddress?: string | null };
+
+// What the customer's wallet sends for a swap: the quoted amount to the
+// one-time deposit address, on chains the checkout can pay from.
+export function walletTransfer(r: { depositAddress: string; depositMemo: string | null; amountIn: string }, origin?: Origin) {
+  const target = origin && swapWallet(origin.blockchain);
+  if (!origin || !target) return undefined;
+  const base = { amount: r.amountIn, decimals: origin.decimals, to: r.depositAddress, token: origin.contractAddress || null };
+  if (target.family === "evm") {
+    if (base.token && !/^0x[0-9a-fA-F]{40}$/.test(base.token)) return undefined;
+    return { ...base, family: "evm" as const, chainId: target.chainId, chainName: chainNames[origin.blockchain] ?? origin.blockchain };
+  }
+  // NEAR tokens are contracts; native NEAR is paid as wrapped NEAR.
+  if (target.family === "near") return base.token ? { ...base, family: "near" as const, memo: r.depositMemo } : undefined;
+  return { ...base, family: "solana" as const };
+}
+export type WalletTransfer = NonNullable<ReturnType<typeof walletTransfer>>;
+
+const httpsUrl = (v: unknown) => (typeof v === "string" && /^https:\/\/[^\s]+$/.test(v) ? v : undefined);
+
+function present(
+  r: {
+    originChain: string;
+    originSymbol: string;
+    depositAddress: string;
+    depositMemo: string | null;
+    amountIn: string;
+    amountInFormatted: string;
+    refundTo: string;
+    deadline: Date;
+    status: string;
+    fundedBy?: string;
+    quote?: unknown;
+    details?: unknown;
+  },
+  origin?: Origin,
+) {
+  const details = (r.details ?? {}) as { originChainTxHashes?: { explorerUrl?: string }[]; destinationChainTxHashes?: { explorerUrl?: string }[] };
+  const estimate = (r.quote as { quote?: { timeEstimate?: number } } | undefined)?.quote?.timeEstimate;
+  const transfer = r.status === "PENDING_DEPOSIT" && r.fundedBy !== "INTENTS" ? walletTransfer(r, origin) : undefined;
   return {
     chain: r.originChain,
     chainName: chainNames[r.originChain] ?? r.originChain.toUpperCase(),
@@ -292,7 +380,21 @@ function present(r: {
     refundTo: r.refundTo,
     deadline: r.deadline.toISOString(),
     status: r.status,
+    // Seconds NEAR Intents expects the swap to take, once the deposit lands.
+    ...(typeof estimate === "number" ? { timeEstimate: estimate } : {}),
+    // The customer's own transfer, or else the delivery to the merchant.
+    ...(httpsUrl(details.originChainTxHashes?.[0]?.explorerUrl ?? details.destinationChainTxHashes?.[0]?.explorerUrl)
+      ? { explorerUrl: httpsUrl(details.originChainTxHashes?.[0]?.explorerUrl ?? details.destinationChainTxHashes?.[0]?.explorerUrl) }
+      : {}),
+    ...(transfer ? { transfer } : {}),
   };
+}
+
+// Until the deposit lands, the customer can still pay it from a wallet.
+async function pendingOrigin(r: { status: string; originAsset: string }, now: Date, deps: Deps) {
+  if (r.status !== "PENDING_DEPOSIT") return undefined;
+  const list = await tokens(deps.http ?? providerRequest, now.getTime()).catch(() => []);
+  return list.find((t) => t.assetId === r.originAsset);
 }
 
 // The latest cross-chain quote for this checkout and its swap status. When
@@ -304,7 +406,7 @@ export async function crossChainStatus(sessionId: string, token: string, deps: D
   const record = await db.crossChainPayment.findFirst({ where: { intentId: intent.id }, orderBy: { createdAt: "desc" } });
   if (!record) return { payment: null };
   if (["SUCCESS", "REFUNDED", "FAILED"].includes(record.status) || (record.checkedAt && now.getTime() - record.checkedAt.getTime() < 5000))
-    return { payment: present(record) };
+    return { payment: present(record, await pendingOrigin(record, now, deps)) };
   const s = await status(record.depositAddress, record.depositMemo, deps.http ?? providerRequest);
   // Swap details carry the intent hashes NEAR Intents settlement verifies.
   const updated = await db.crossChainPayment.update({
@@ -312,7 +414,7 @@ export async function crossChainStatus(sessionId: string, token: string, deps: D
     data: { status: s?.status ?? record.status, ...(s?.swapDetails ? { details: json(s.swapDetails) } : {}), checkedAt: now },
   });
   if (s?.status === "SUCCESS") await refreshAttempt(sessionId, token, now).catch(() => {});
-  return { payment: present(updated) };
+  return { payment: present(updated, await pendingOrigin(updated, now, deps)) };
 }
 
 // Paying from a NEAR Intents balance (an AI agent, lib/agents/checkout.ts):

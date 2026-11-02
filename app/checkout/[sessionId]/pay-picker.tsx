@@ -1,11 +1,20 @@
 "use client";
 // "What do you want to pay with?" (payOptions in lib/intents/checkout.ts).
-// The customer picks the network and token they hold. A token the merchant
-// receives directly is sent as is; anything else is swapped by NEAR Intents
-// into the checkout's stablecoin, so it also needs the customer's refund
-// address. Which merchant account receives is routing, never shown here.
+// The customer picks a token from one searchable list (token-picker.tsx) and
+// sees what they'll pay before going on: the exact amount for a token the
+// merchant receives as it is, or today's price for one NEAR Intents swaps
+// into the checkout's stablecoin. A swap is paid from a connected wallet,
+// which is also where a failed swap is refunded, or sent from any other
+// wallet or exchange with a refund address. Which merchant account receives
+// is routing, never shown here.
 import { useEffect, useMemo, useState } from "react";
 import { displayTokenAmount } from "@/lib/blockchain/stablecoin-payment";
+import { chain as registeredChain } from "@/lib/blockchain/chains";
+import { discoverEvmWallets, type DiscoveredWallet } from "@/lib/blockchain/wallet-discovery";
+import type { WalletTarget } from "@/lib/intents/checkout";
+import { TokenIcon } from "./token-icon";
+import { TokenPicker, amountLabel, ordered, type Row } from "./token-picker";
+import { connectWallet, shortAddress, solanaProvider, type Connected } from "./swap-wallet";
 
 export type PayToken = {
   key: string;
@@ -15,6 +24,11 @@ export type PayToken = {
   optionId: string | null;
   amount?: string;
   assetId?: string;
+  network?: string;
+  approx?: string;
+  price?: number;
+  contract?: string;
+  wallet?: WalletTarget;
 };
 type Options = {
   locked: boolean;
@@ -22,23 +36,59 @@ type Options = {
   chains: { id: string; name: string; tokens: PayToken[] }[];
 };
 type Api = (action?: object) => Promise<Record<string, unknown>>;
-export type PayChoice = { route: "direct" | "swap"; assetId?: string; refundTo?: string; symbol: string; chainName: string };
+export type PayChoice = {
+  route: "direct" | "swap";
+  assetId?: string;
+  refundTo?: string;
+  symbol: string;
+  chainName: string;
+  // A swap paid from a connected wallet: the wallet, and its transfer.
+  wallet?: string;
+  sent?: string;
+};
+
+// The coin each network charges its fee in, by NEAR Intents chain code.
+const feeCoin: Record<string, string> = {
+  eth: "ETH", base: "ETH", arb: "ETH", op: "ETH", scroll: "ETH", abs: "ETH", pol: "POL", avax: "AVAX", bsc: "BNB",
+  gnosis: "xDAI", bera: "BERA", xlayer: "OKB", sol: "SOL", near: "NEAR", tron: "TRX", ton: "TON", btc: "BTC",
+  stellar: "XLM", sui: "SUI", aptos: "APT", xrp: "XRP", doge: "DOGE", ltc: "LTC", bch: "BCH", zec: "ZEC",
+  cardano: "ADA", monad: "MON", plasma: "XPL", starknet: "STRK",
+};
+const usdPrice = (n: number) => (n >= 1 ? n.toLocaleString("en-US", { maximumFractionDigits: 2 }) : n.toLocaleString("en-US", { maximumSignificantDigits: 4 }));
 
 export function PayPicker({
   api,
   busy,
+  usd,
+  fee,
   onStart,
+  onWalletPay,
 }: {
   api: Api;
   busy: boolean;
+  // The checkout's value in US dollars, when it has one.
+  usd: string | null;
+  // A processing fee the merchant passes to the customer, included above.
+  fee: { amount: string; symbol: string } | null;
   onStart: (token: PayToken, choice: PayChoice) => void;
+  onWalletPay: (token: PayToken, choice: PayChoice, wallet: Connected) => void;
 }) {
   const [options, setOptions] = useState<Options | null>(null);
-  const [chain, setChain] = useState("");
   const [key, setKey] = useState("");
+  const [open, setOpen] = useState(false);
   const [refundTo, setRefundTo] = useState("");
+  const [manual, setManual] = useState(false);
+  const [evmWallets, setEvmWallets] = useState<DiscoveredWallet[]>([]);
+  const [evmChoice, setEvmChoice] = useState("");
+  const [wallet, setWallet] = useState<Connected | null>(null);
+  const [connecting, setConnecting] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [message, setMessage] = useState("");
 
+  const rows = useMemo<Row[]>(
+    () => options?.chains.flatMap((c) => c.tokens.map((t) => ({ ...t, chainId: c.id, chainName: c.name }))) ?? [],
+    [options],
+  );
   useEffect(() => {
     let alive = true;
     api({ action: "pay-options" })
@@ -47,17 +97,29 @@ export function PayPicker({
         const o = r as unknown as Options;
         if (!Array.isArray(o?.chains)) throw new Error("Unexpected payment options");
         setOptions(o);
-        // One network: nothing to choose.
-        if (o.chains.length === 1) setChain(o.chains[0].id);
+        // Start on the token most customers pay with; any other is a tap away.
+        const first = ordered(o.chains.flatMap((c) => c.tokens.map((t) => ({ ...t, chainId: c.id, chainName: c.name }))))[0];
+        if (first) setKey(first.key);
       })
       .catch(() => alive && setFailed(true));
     return () => {
       alive = false;
     };
   }, [api]);
+  useEffect(() => {
+    return discoverEvmWallets(window, (found) => {
+      setEvmWallets(found);
+      setEvmChoice((old) => (found.some((w) => w.id === old) ? old : found.length === 1 ? found[0].id : ""));
+    });
+  }, []);
 
-  const network = useMemo(() => options?.chains.find((c) => c.id === chain), [options, chain]);
-  const token = network?.tokens.find((t) => t.key === key);
+  const token = rows.find((r) => r.key === key);
+  const target = token?.route === "swap" ? token.wallet : undefined;
+  // The picker renders only in the browser, after its options load.
+  const solana = target?.family === "solana" && !!solanaProvider();
+  const walletReady =
+    !!target && (target.family === "near" || (target.family === "evm" && evmWallets.length > 0) || (target.family === "solana" && solana));
+  const connected = wallet && target && wallet.family === target.family ? wallet : null;
 
   if (failed)
     return (
@@ -66,70 +128,219 @@ export function PayPicker({
       </p>
     );
   if (!options) return <p role="status">Loading payment options…</p>;
-  if (!options.chains.length)
-    return <p>This merchant can&apos;t take crypto payments for this checkout right now.</p>;
+  if (!rows.length) return <p>This merchant can&apos;t take crypto payments for this checkout right now.</p>;
+
+  const choice = (t: Row, refund?: string): PayChoice => ({
+    route: t.route,
+    symbol: t.symbol,
+    chainName: t.chainName,
+    ...(t.route === "swap" ? { assetId: t.assetId, refundTo: refund } : {}),
+  });
+  const native = token
+    ? token.route === "direct" && token.network
+      ? registeredChain(token.network)?.nativeAssetSymbol
+      : feeCoin[token.chainId]
+    : undefined;
+  const rate =
+    token?.route === "swap" && token.price
+      ? token.price
+      : token?.route === "direct" && token.amount && usd && Number(token.amount) > 0
+        ? Number(usd) / Number(token.amount)
+        : undefined;
+
+  const dollars = usd ? `$${Number(usd).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "";
+
+  async function connect() {
+    if (!target) return;
+    setConnecting(true);
+    setMessage("");
+    try {
+      setWallet(await connectWallet(target, evmWallets.find((w) => w.id === evmChoice)));
+    } catch (e) {
+      setMessage((e as { code?: number }).code === 4001 ? "Connection was cancelled in your wallet." : (e as Error).message || "Your wallet didn't connect.");
+    } finally {
+      setConnecting(false);
+    }
+  }
 
   return (
     <form
-      className="sc-network-picker"
+      className="pc"
       onSubmit={(e) => {
         e.preventDefault();
-        if (!token || !network) return;
-        onStart(token, {
-          route: token.route,
-          symbol: token.symbol,
-          chainName: network.name,
-          ...(token.route === "swap" ? { assetId: token.assetId, refundTo: refundTo.trim() } : {}),
-        });
+        if (!token) return;
+        if (token.route === "direct") onStart(token, choice(token));
+        else if (refundTo.trim().length >= 20) onStart(token, choice(token, refundTo.trim()));
       }}
     >
       <h2>What do you want to pay with?</h2>
-      <label htmlFor="pay-chain">Network</label>
-      <select
-        id="pay-chain"
-        value={chain}
-        disabled={busy}
-        onChange={(e) => {
-          setChain(e.target.value);
-          setKey("");
-        }}
-      >
-        <option value="">Choose a network</option>
-        {options.chains.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.name}
-          </option>
-        ))}
-      </select>
-      <label htmlFor="pay-token">Token</label>
-      <select id="pay-token" value={key} disabled={busy || !network} onChange={(e) => setKey(e.target.value)}>
-        <option value="">Choose a token</option>
-        {network?.tokens.map((t) => (
-          <option key={t.key} value={t.key}>
-            {t.symbol}
-            {t.route === "direct" && t.amount ? ` · ${displayTokenAmount(t.amount)}` : ""}
-          </option>
-        ))}
-      </select>
-      {token?.route === "swap" && (
+      <div className="pc-pay">
+        <div className="pc-value">
+          {token && amountLabel(token) ? (
+            <>
+              <strong>{amountLabel(token)}</strong>
+              {dollars && <span>≈ {dollars}</span>}
+            </>
+          ) : (
+            <strong>{dollars ? `≈ ${dollars}` : "—"}</strong>
+          )}
+        </div>
+        <button
+          type="button"
+          className="pc-token"
+          disabled={busy}
+          aria-haspopup="dialog"
+          aria-label={token ? `Token: ${token.symbol} on ${token.chainName}` : "Choose a token"}
+          onClick={() => setOpen(true)}
+        >
+          {token ? (
+            <>
+              <TokenIcon symbol={token.symbol} />
+              <span className="pc-token-name">
+                <b>{token.symbol}</b>
+                <small>{token.chainName}</small>
+              </span>
+            </>
+          ) : (
+            <span className="pc-token-name">
+              <b>Choose a token</b>
+            </span>
+          )}
+          <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+            <path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          </svg>
+        </button>
+      </div>
+      {token && (
+        <details className="pc-details">
+          <summary>Details</summary>
+          <dl className="pc-lines">
+            <div>
+              <dt>Merchant receives</dt>
+              <dd>
+                {options.settle
+                  ? `${displayTokenAmount(options.settle.amount)} ${options.settle.symbol}`
+                  : `${displayTokenAmount(token.amount ?? "0")} ${token.symbol}`}
+              </dd>
+            </div>
+            {rate !== undefined && (
+              <div>
+                <dt>Rate</dt>
+                <dd>
+                  1 {token.symbol} ≈ ${usdPrice(rate)}
+                </dd>
+              </div>
+            )}
+            <div>
+              <dt>Route</dt>
+              <dd>{token.route === "direct" ? "Straight to the merchant" : "Swapped by NEAR Intents"}</dd>
+            </div>
+            {fee && (
+              <div>
+                <dt>Processing fee</dt>
+                <dd>
+                  {displayTokenAmount(fee.amount)} {fee.symbol}
+                </dd>
+              </div>
+            )}
+            {native && (
+              <div>
+                <dt>Network fee</dt>
+                <dd>Paid in {native} by your wallet</dd>
+              </div>
+            )}
+          </dl>
+        </details>
+      )}
+      {token?.route === "direct" && (
+        <button className="sc-primary" disabled={busy}>
+          Continue
+        </button>
+      )}
+      {token?.route === "swap" && walletReady && !manual && (
         <>
-          <label htmlFor="pay-refund">Refund address on {network!.name}</label>
-          <input
-            id="pay-refund"
-            value={refundTo}
-            disabled={busy}
-            autoComplete="off"
-            spellCheck={false}
-            onChange={(e) => setRefundTo(e.target.value)}
-          />
+          {connected ? (
+            <>
+              <p className="pc-account">
+                <span>
+                  {connected.name} · {shortAddress(connected.address)}
+                </span>
+                <button type="button" className="pc-link" onClick={() => setWallet(null)}>
+                  Disconnect
+                </button>
+              </p>
+              <button
+                type="button"
+                className="sc-primary"
+                disabled={busy}
+                onClick={() => onWalletPay(token, choice(token, connected.address), connected)}
+              >
+                {busy ? "Check your wallet…" : `Pay ${token.approx ? `≈ ${token.approx} ` : ""}${token.symbol}`}
+              </button>
+            </>
+          ) : (
+            <>
+              {target?.family === "evm" && evmWallets.length > 1 && (
+                <>
+                  <label htmlFor="pay-wallet">Wallet</label>
+                  <select id="pay-wallet" value={evmChoice} onChange={(e) => setEvmChoice(e.target.value)}>
+                    <option value="" disabled>
+                      Choose a wallet
+                    </option>
+                    {evmWallets.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.name}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
+              <button
+                type="button"
+                className="sc-primary"
+                disabled={busy || connecting || (target?.family === "evm" && !evmChoice)}
+                onClick={() => void connect()}
+              >
+                {connecting ? "Check your wallet…" : "Connect wallet"}
+              </button>
+            </>
+          )}
+          <button type="button" className="pc-link" onClick={() => setManual(true)}>
+            Send from another wallet or exchange
+          </button>
         </>
       )}
-      <button
-        className="sc-primary"
-        disabled={busy || !token || (token.route === "swap" && refundTo.trim().length < 20)}
-      >
-        {busy ? "Preparing…" : "Continue"}
-      </button>
+      {token?.route === "swap" && (!walletReady || manual) && (
+        <>
+          <label htmlFor="pay-refund">Refund address on {token.chainName}</label>
+          <input id="pay-refund" value={refundTo} disabled={busy} autoComplete="off" spellCheck={false} onChange={(e) => setRefundTo(e.target.value)} />
+          <button className="sc-primary" disabled={busy || refundTo.trim().length < 20}>
+            {busy ? "Preparing…" : "Continue"}
+          </button>
+          {walletReady && (
+            <button type="button" className="pc-link" onClick={() => setManual(false)}>
+              Pay from a connected wallet
+            </button>
+          )}
+        </>
+      )}
+      {message && (
+        <p role="alert" className="sc-error">
+          {message}
+        </p>
+      )}
+      <TokenPicker
+        open={open}
+        rows={rows}
+        selected={key}
+        onClose={() => setOpen(false)}
+        onSelect={(r) => {
+          setKey(r.key);
+          setManual(false);
+          setMessage("");
+          setOpen(false);
+        }}
+      />
     </form>
   );
 }

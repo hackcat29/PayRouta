@@ -9,6 +9,9 @@ import { db } from "../../lib/portal/db";
 import { json } from "../../lib/portal/service";
 import { hash } from "../../lib/payments/contracts";
 import { crossChainOptions, crossChainQuote, crossChainStatus, intentsFundedQuote, submitFundedIntent } from "../../lib/intents/checkout";
+import { swapSolanaTransaction } from "../../lib/intents/swap-wallet";
+import { Keypair, PublicKey, Transaction } from "@solana/web3.js";
+import { getAssociatedTokenAddressSync } from "../../lib/blockchain/solana-token";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 import { keccak_256 } from "@noble/hashes/sha3.js";
 import { resetTokenCache, type Http } from "../../lib/intents/oneclick";
@@ -284,4 +287,52 @@ test("near intents: an agent pays from its intents balance by signing one transf
   assert.match(submitted.signedData.signature, /^secp256k1:/);
   // A signed intent can't be submitted twice.
   await assert.rejects(submitFundedIntent(c.id, c.token, { payment: q.payment, signature: sign(payload) }, { http }), /INTENTS_QUOTE_EXPIRED/);
+});
+
+test("cross-chain: a swap is paid from the customer's wallet; Solana gets a prepared transfer", async () => {
+  resetTokenCache();
+  const c = await awaitingTransfer();
+  const solUsdc = "nep141:sol-5ce3bf3a31af18be40ba30f721101b4341690186.omft.near";
+  const mint = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+  const deposit = Keypair.generate().publicKey.toBase58();
+  const payer = Keypair.generate().publicKey.toBase58();
+  const rpc: string[] = [];
+  const http: Http = async (base, o) => {
+    const reply = (body: unknown) => ({ status: 200, headers: {}, body: JSON.stringify(body), bytes: 0 });
+    if (o.path === "/v0/tokens")
+      return reply([
+        { assetId: baseUsdc, decimals: 6, blockchain: "base", symbol: "USDC", contractAddress: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913" },
+        { assetId: solUsdc, decimals: 6, blockchain: "sol", symbol: "USDC", contractAddress: mint },
+      ]);
+    if (o.path === "/v0/quote")
+      return reply({ quote: { depositAddress: deposit, amountIn: "40180000", amountInFormatted: "40.18", amountOut: JSON.parse(o.body!).amount, timeEstimate: 45 } });
+    if (o.path === "/") {
+      const { method } = JSON.parse(o.body!);
+      rpc.push(`${base} ${method}`);
+      return reply({
+        jsonrpc: "2.0",
+        id: 1,
+        result:
+          method === "getLatestBlockhash"
+            ? { value: { blockhash: Keypair.generate().publicKey.toBase58() } }
+            : { value: { owner: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" } },
+      });
+    }
+    return reply({ status: "PENDING_DEPOSIT", swapDetails: {} });
+  };
+  const quote = await crossChainQuote(c.id, c.token, { originAsset: solUsdc, refundTo: payer }, { http, enabled: true });
+  assert.equal(quote.timeEstimate, 45);
+  assert.deepEqual(quote.transfer, { amount: "40180000", decimals: 6, to: deposit, token: mint, family: "solana" });
+  // A status read before the deposit lands still lets the wallet pay.
+  assert.equal((await crossChainStatus(c.id, c.token, { http })).payment!.transfer?.family, "solana");
+  const prepared = await swapSolanaTransaction(c.id, c.token, payer, { http });
+  assert.equal(prepared.payer, payer);
+  const tx = Transaction.from(Buffer.from(prepared.unsigned, "base64"));
+  assert.equal(tx.feePayer!.toBase58(), payer);
+  assert.equal(tx.instructions.length, 2, "create the deposit's token account if needed, then transfer");
+  const transfer = tx.instructions[1];
+  assert.equal(transfer.keys[2].pubkey.toBase58(), getAssociatedTokenAddressSync(new PublicKey(mint), new PublicKey(deposit)).toBase58());
+  assert.equal(transfer.data.readBigUInt64LE(1), 40180000n);
+  assert.deepEqual(rpc.map((r) => r.split(" ")[1]), ["getLatestBlockhash", "getAccountInfo"]);
+  await assert.rejects(swapSolanaTransaction(c.id, c.token, "not-an-address", { http }), /WALLET_ADDRESS_INVALID/);
 });

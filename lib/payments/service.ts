@@ -3,6 +3,7 @@ import {
   paymentAsset as tokenAsset,
   onchainMethod,
 } from "../blockchain/crypto-assets";
+import { transactionExplorer } from "../blockchain/chains";
 import type { QuotedCryptoTerms } from "./crypto-checkout";
 import { currentMerchantScreening } from "../merchant/screening";
 import { storedLiveScope } from "../merchant/live-scope";
@@ -554,7 +555,17 @@ export async function progress(id: string, token: string, now = new Date()) {
     include: { settlement: true },
   });
   const options = await checkoutOptions(intent, !!attempt);
+  // The customer's on-chain transfer, once seen: the receipt links to it.
+  const claim = attempt
+    ? await db.depositClaim.findUnique({ where: { attemptId: attempt.id } })
+    : null;
   return {
+    transaction: claim
+      ? {
+          hash: claim.txHash,
+          url: transactionExplorer(claim.network, claim.txHash) ?? null,
+        }
+      : null,
     // Universal checkout: the order's other checkout (fiat or crypto).
     alternatives: await alternatives(intent, now),
     paymentOptions: options,

@@ -7,17 +7,22 @@ import {
 export const TOKEN_PROGRAM_ID = new PublicKey(
   "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
 );
+// Token-2022 mints use the same instructions under their own program.
+export const TOKEN_2022_PROGRAM_ID = new PublicKey(
+  "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+);
 export const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey(
   "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
 );
 export function getAssociatedTokenAddressSync(
   mint: PublicKey,
   owner: PublicKey,
+  programId = TOKEN_PROGRAM_ID,
 ) {
   if (!PublicKey.isOnCurve(owner.toBytes()))
     throw new Error("Invalid token owner");
   return PublicKey.findProgramAddressSync(
-    [owner.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), mint.toBuffer()],
+    [owner.toBuffer(), programId.toBuffer(), mint.toBuffer()],
     ASSOCIATED_TOKEN_PROGRAM_ID,
   )[0];
 }
@@ -26,6 +31,7 @@ export function createAssociatedTokenAccountIdempotentInstruction(
   associatedToken: PublicKey,
   owner: PublicKey,
   mint: PublicKey,
+  programId = TOKEN_PROGRAM_ID,
 ) {
   return new TransactionInstruction({
     programId: ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -36,7 +42,7 @@ export function createAssociatedTokenAccountIdempotentInstruction(
       { pubkey: owner, isSigner: false, isWritable: false },
       { pubkey: mint, isSigner: false, isWritable: false },
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: programId, isSigner: false, isWritable: false },
     ],
   });
 }
@@ -47,6 +53,7 @@ export function createTransferCheckedInstruction(
   owner: PublicKey,
   amount: bigint,
   decimals: number,
+  programId = TOKEN_PROGRAM_ID,
 ) {
   if (
     amount <= 0n ||
@@ -61,7 +68,7 @@ export function createTransferCheckedInstruction(
   data.writeBigUInt64LE(amount, 1);
   data[9] = decimals;
   return new TransactionInstruction({
-    programId: TOKEN_PROGRAM_ID,
+    programId,
     data,
     keys: [
       { pubkey: source, isSigner: false, isWritable: true },

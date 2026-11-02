@@ -96,10 +96,12 @@ test("mixed checkout asks what the customer pays with and locks the chosen instr
     });
   });
   await page.goto(`/checkout/mixed-methods#${"m".repeat(43)}`);
-  // One network: the customer only picks the token.
-  await expect(page.getByLabel("Network", { exact: true })).toHaveValue("eip155:84532");
-  await page.getByLabel("Token", { exact: true }).selectOption("direct:eth");
-  await page.getByLabel("Token", { exact: true }).selectOption("direct:usdc");
+  // Tokens the merchant takes directly come first, with their exact amounts.
+  await expect(page.getByRole("button", { name: "Token: ETH on Base Sepolia" })).toBeVisible();
+  await page.getByRole("button", { name: /^Token:/ }).click();
+  await expect(page.getByRole("button", { name: /^ETH\s*Base Sepolia/ })).toContainText("0.004");
+  await page.getByRole("button", { name: /^USDC\s*Base Sepolia/ }).click();
+  await expect(page.locator(".pc-value strong")).toHaveText("12.50");
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Pay 12.50 USDC" }),
@@ -107,7 +109,7 @@ test("mixed checkout asks what the customer pays with and locks the chosen instr
   await expect(
     page.getByRole("button", { name: "Pay with wallet", exact: true }),
   ).toBeVisible();
-  await expect(page.getByLabel("Token", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^Token:/ })).toHaveCount(0);
   expect(selectedMethods).toEqual(["stablecoin"]);
   await expect(page.getByText("USDT0", { exact: true })).toHaveCount(0);
 });
@@ -357,7 +359,7 @@ test("external wallet links include a fresh access token and open in a browser w
   await expect(page.getByRole("timer")).toBeVisible();
   await expect(page).toHaveURL(/\/checkout\/wallet-source$/);
   await page
-    .getByText("Open in an external wallet browser", { exact: true })
+    .getByText("Other ways to pay", { exact: true })
     .click();
   await page
     .getByRole("button", { name: "Copy link for wallet browser" })
@@ -529,19 +531,23 @@ test("crypto checkout selects ETH Base or exact PEPE Ethereum and sends the chos
   await page.goto(`/checkout/crypto-browser#${"a".repeat(43)}`);
   await expect(page.getByText(/Rate by CoinGecko/)).toBeVisible();
   await expect(page.getByRole("timer")).toBeVisible();
+  await page.getByRole("button", { name: /^Token:/ }).click();
   await page.getByLabel("Network", { exact: true }).selectOption("eth");
-  await page.getByLabel("Token", { exact: true }).selectOption("direct:ethereum-pepe");
+  await page.getByRole("button", { name: /^PEPE\s*Ethereum/ }).click();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Pay with wallet", exact: true }),
   ).toBeVisible();
+  // With a wallet in the browser, the address is one of the other ways.
+  await expect(page.locator("details.sc-other")).not.toHaveAttribute("open");
+  await page.getByText("Other ways to pay", { exact: true }).click();
   await expect(
     page.getByText(`0x${"a".repeat(40)}`, { exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Copy address", exact: true }),
   ).toBeVisible();
-  await expect(page.getByLabel("Token", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^Token:/ })).toHaveCount(0);
   expect(calls).toContainEqual({ action: "select", method: "crypto-app" });
   await page
     .getByRole("button", { name: "Pay with wallet", exact: true })

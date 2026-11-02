@@ -13,6 +13,9 @@ import { chain, networkName } from "@/lib/blockchain/chains";
 import { returnHandler, switchCheckout, usePopupBridge } from "./popup";
 import { CrossChain } from "./cross-chain";
 import { PayPicker, type PayChoice, type PayToken } from "./pay-picker";
+import { Receipt, Steps, eta } from "./progress-steps";
+import { solanaProvider, type Connected } from "./swap-wallet";
+import { discoverEvmWallets } from "@/lib/blockchain/wallet-discovery";
 import "./checkout.css";
 import { errorText, shown } from "@/lib/error-copy";
 type Action = {
@@ -57,6 +60,8 @@ type Progress = {
   expiresAt: string;
   returnUrl: string;
   settlement: string[];
+  // The customer's transfer, once seen on-chain.
+  transaction?: { hash: string; url: string | null } | null;
 };
 type Method = {
   method: string;
@@ -198,9 +203,23 @@ export function Checkout({ id }: { id: string }) {
       /* The choice still applies for this page view. */
     }
   }
+  // The wallet a swap is paid from, kept so the customer can retry.
+  const [connected, setConnected] = useState<Connected | null>(null);
+  function sentFrom(hash: string) {
+    setChoiceState((old) => {
+      const next = old ? { ...old, sent: hash } : old;
+      try {
+        if (next) sessionStorage.setItem(`pay-choice:${id}`, JSON.stringify(next));
+      } catch {
+        /* Shown for this page view. */
+      }
+      return next;
+    });
+  }
   // Pick the option that receives this token, then prepare payment
-  // instructions; a swap is quoted once they exist (CrossChain preset).
-  async function start(token: PayToken, next: PayChoice) {
+  // instructions; a swap is quoted once they exist (CrossChain preset), or
+  // here, for a swap paid from a connected wallet (`after`).
+  async function start(token: PayToken, next: PayChoice, after?: () => Promise<Partial<PayChoice>>) {
     mutating.current = true;
     mutationVersion.current++;
     setBusy(true);
@@ -211,7 +230,16 @@ export function Checkout({ id }: { id: string }) {
       await api({ action: "methods" });
       const selected = await api({ action: "select", method: token.method });
       await api({ action: "confirm", routeId: selected.routeId });
-      remember(next);
+      let extra: Partial<PayChoice> = {};
+      if (after)
+        try {
+          extra = await after();
+        } catch (e) {
+          const err = e as { code?: number; mayHaveSent?: boolean };
+          if (err.mayHaveSent) extra = { sent: "uncertain" };
+          setError(err.code === 4001 ? "Payment was cancelled in your wallet. You can pay below." : shown(e));
+        }
+      remember({ ...next, ...extra });
       await refresh();
     } catch (e) {
       setError(shown(e));
@@ -220,6 +248,19 @@ export function Checkout({ id }: { id: string }) {
       mutating.current = false;
       setBusy(false);
     }
+  }
+  // A swap from a connected wallet: quote with the wallet as the refund
+  // address, then send the quoted amount from it.
+  function payWithWallet(token: PayToken, next: PayChoice, wallet: Connected) {
+    setConnected(wallet);
+    void start(token, { ...next, wallet: wallet.name }, async () => {
+      const quote = (await api({ action: "cross-chain-quote", originAsset: token.assetId, refundTo: wallet.address })) as {
+        transfer?: Parameters<Connected["send"]>[0];
+        deadline?: string;
+      };
+      if (!quote.transfer) throw new Error("Send the amount below from your wallet.");
+      return { sent: await wallet.send(quote.transfer, api, quote.deadline) };
+    });
   }
   async function checkStatus() {
     setBusy(true);
@@ -296,6 +337,43 @@ export function Checkout({ id }: { id: string }) {
     method: data?.method,
   });
   const toMerchant = data ? returnHandler(id, { returnUrl: data.returnUrl, reference: data.reference }) : undefined;
+  function goToMerchant() {
+    if (!data) return;
+    let handled = false;
+    toMerchant?.({ preventDefault: () => (handled = true) });
+    if (!handled) location.assign(data.returnUrl);
+  }
+  // Whether this browser has a wallet for the payment's network; without
+  // one, the address and QR code are the way to pay.
+  const [evmWallets, setEvmWallets] = useState(0);
+  const family = payment ? chain(payment.network)?.family : undefined;
+  useEffect(() => {
+    if (family !== "evm") return;
+    return discoverEvmWallets(window, (found) => setEvmWallets(found.length));
+  }, [family]);
+  // Instructions render only in the browser, after the checkout loads.
+  const hasWallet = family === "evm" ? evmWallets > 0 : family === "solana" ? !!solanaProvider() : false;
+  // Once shown, other ways to pay stay as the customer left them.
+  const [otherOpen, setOtherOpen] = useState<boolean | null>(null);
+  const network = chain(data?.network ?? "");
+  const finality = network ? network.blockTimeSeconds * network.confirmationsForFinality + 10 : undefined;
+  const usd =
+    data?.cryptoQuote?.usdAmount ??
+    (data && ["USDC", "USDT", "USDT0", "DAI"].includes(data.symbol ?? "") ? data.amount : null);
+  const walletLinkBlock = (
+    <div className="sc-other-way">
+      <h3>Open in an external wallet browser</h3>
+      <button disabled={busy} onClick={() => void copyWalletLink()}>
+        Copy link for wallet browser
+      </button>
+      {walletLink && (
+        <p>
+          <label htmlFor="wallet-checkout-link">Private wallet browser link</label>
+          <input id="wallet-checkout-link" readOnly value={walletLink} onFocus={(e) => e.currentTarget.select()} />
+        </p>
+      )}
+    </div>
+  );
   return (
     <div className="stablecoin-checkout">
       {data?.sandbox && (
@@ -394,16 +472,37 @@ export function Checkout({ id }: { id: string }) {
             </section>
           )}
           {confirmed ? (
-            <section role="status">
-              <h2>Payment received</h2>
-              <a className="sc-primary" href={data.returnUrl} onClick={toMerchant}>
-                Return to merchant
-              </a>
-            </section>
+            <Receipt
+              merchant={data.merchant}
+              rows={[
+                ["Amount", `${displayTokenAmount(data.amount)} ${data.symbol ?? ""}`],
+                ...(choice?.route === "swap"
+                  ? ([["Paid with", `${choice.symbol} on ${choice.chainName}`]] as [string, string][])
+                  : data.network
+                    ? ([["Network", networkName(data.network)]] as [string, string][])
+                    : []),
+                ["Order", data.reference],
+              ]}
+              transactionUrl={data.transaction?.url}
+              returnHref={data.returnUrl}
+              onReturn={goToMerchant}
+            />
           ) : data?.attemptState === "Pending" ? (
             <section role="status">
               <h2>Payment detected</h2>
+              <Steps
+                steps={["Transfer sent", `Confirming on ${networkName(data.network)}`, "Payment confirmed"]}
+                current={1}
+                estimate={eta(finality)}
+              />
               <p>Do not send again.</p>
+              {data.transaction?.url && (
+                <p>
+                  <a href={data.transaction.url} target="_blank" rel="noreferrer">
+                    View on explorer
+                  </a>
+                </p>
+              )}
               <button disabled={busy} onClick={() => void checkStatus()}>
                 Check payment status
               </button>
@@ -434,15 +533,12 @@ export function Checkout({ id }: { id: string }) {
                 api={api}
                 primary
                 preset={preset}
+                wallet={connected}
+                sent={choice?.sent}
+                onSent={sentFrom}
                 onCopy={(v, l) => void copy(v, l)}
               />
               <p role="status">{copied}</p>
-              {data?.attemptState === "Pending" && (
-                <p className="sc-pending">
-                  Transfer seen. Confirmation appears here once the swap is
-                  final on NEAR.
-                </p>
-              )}
             </section>
           ) : payment && swap ? (
             <section>
@@ -453,26 +549,30 @@ export function Checkout({ id }: { id: string }) {
                 api={api}
                 primary
                 preset={preset}
+                wallet={connected}
+                sent={choice?.sent}
+                onSent={sentFrom}
                 onCopy={(v, l) => void copy(v, l)}
               />
-              <details>
-                <summary>
-                  Or send {displayTokenAmount(payment.amount)} {a?.symbol} on{" "}
-                  {networkName(payment.network)} directly
-                </summary>
-                <div className="sc-deposit">
-                  <div>
-                    <label>Exact amount</label>
-                    <code>
-                      {displayTokenAmount(payment.amount)} {a?.symbol}
-                    </code>
-                    <label>Merchant receive address</label>
-                    <code>{payment.address}</code>
-                    <button onClick={() => copy(payment!.address, "Address")}>
-                      Copy address
-                    </button>
+              <details className="sc-other">
+                <summary>Other ways to pay</summary>
+                <div className="sc-other-way">
+                  <h3>
+                    Send {displayTokenAmount(payment.amount)} {a?.symbol} on {networkName(payment.network)} instead
+                  </h3>
+                  <div className="sc-deposit">
+                    <div>
+                      <label>Exact amount</label>
+                      <code>
+                        {displayTokenAmount(payment.amount)} {a?.symbol}
+                      </code>
+                      <label>Merchant receive address</label>
+                      <code>{payment.address}</code>
+                      <button onClick={() => copy(payment!.address, "Address")}>Copy address</button>
+                    </div>
                   </div>
                 </div>
+                {walletLinkBlock}
               </details>
               <p role="status">{copied}</p>
             </section>
@@ -497,48 +597,59 @@ export function Checkout({ id }: { id: string }) {
                     .catch(() => {});
                 }}
               />
-              <details open>
-                <summary>Send from another wallet</summary>
-                <div className="sc-deposit">
-                  {a?.image && (
-                    <Image
-                      unoptimized
-                      src={a.image}
-                      width="240"
-                      height="240"
-                      alt="Stablecoin transfer QR code"
-                    />
-                  )}
-                  <div>
-                    <label>Exact amount</label>
-                    <code>
-                      {displayTokenAmount(payment.amount)} {a?.symbol}
-                    </code>
-                    <button onClick={() => copy(payment!.amount, "Amount")}>
-                      Copy exact amount
-                    </button>
-                    <label>Merchant receive address</label>
-                    <code>{payment.address}</code>
-                    <button onClick={() => copy(payment!.address, "Address")}>
-                      Copy address
-                    </button>
-                    <label>
-                      {chain(payment.network)?.family === "solana"
-                        ? "Token mint"
-                        : chain(payment.network)?.family === "stellar"
-                          ? "Token and issuer"
-                          : "Token contract"}
-                    </label>
-                    <code>
-                      {payment.identifier.slice(
-                        payment.identifier.indexOf(":") + 1,
-                      )}
-                    </code>
-                    <p>Send once, exactly this token and amount.</p>
+              <details
+                className="sc-other"
+                open={otherOpen ?? !hasWallet}
+                onToggle={(e) => {
+                  // Only the customer's own clicks; React sets it too.
+                  if (e.currentTarget.open !== (otherOpen ?? !hasWallet)) setOtherOpen(e.currentTarget.open);
+                }}
+              >
+                <summary>Other ways to pay</summary>
+                <div className="sc-other-way">
+                  <h3>Send from another wallet or exchange</h3>
+                  <div className="sc-deposit">
+                    {a?.image && (
+                      <Image
+                        unoptimized
+                        src={a.image}
+                        width="240"
+                        height="240"
+                        alt="Stablecoin transfer QR code"
+                      />
+                    )}
+                    <div>
+                      <label>Exact amount</label>
+                      <code>
+                        {displayTokenAmount(payment.amount)} {a?.symbol}
+                      </code>
+                      <button onClick={() => copy(payment!.amount, "Amount")}>
+                        Copy exact amount
+                      </button>
+                      <label>Merchant receive address</label>
+                      <code>{payment.address}</code>
+                      <button onClick={() => copy(payment!.address, "Address")}>
+                        Copy address
+                      </button>
+                      <label>
+                        {chain(payment.network)?.family === "solana"
+                          ? "Token mint"
+                          : chain(payment.network)?.family === "stellar"
+                            ? "Token and issuer"
+                            : "Token contract"}
+                      </label>
+                      <code>
+                        {payment.identifier.slice(
+                          payment.identifier.indexOf(":") + 1,
+                        )}
+                      </code>
+                      <p>Send once, exactly this token and amount.</p>
+                    </div>
                   </div>
                 </div>
+                <CrossChain api={api} onCopy={(v, l) => void copy(v, l)} />
+                {walletLinkBlock}
               </details>
-              <CrossChain api={api} onCopy={(v, l) => void copy(v, l)} />
               <p role="status">{copied}</p>
               <p className="sc-pending">Waiting for your transfer.</p>
             </section>
@@ -556,32 +667,20 @@ export function Checkout({ id }: { id: string }) {
               <PayPicker
                 api={api}
                 busy={busy}
+                usd={usd}
+                fee={data.customerFee ? { amount: data.customerFee, symbol: data.symbol ?? "" } : null}
                 onStart={(token, next) => void start(token, next)}
+                onWalletPay={payWithWallet}
               />
+              {!expired && (
+                <details className="sc-other">
+                  <summary>Other ways to pay</summary>
+                  {walletLinkBlock}
+                  <p role="status">{copied}</p>
+                </details>
+              )}
             </section>
           ) : null}
-          {data && !expired && !confirmed && (
-            <details>
-              <summary>Open in an external wallet browser</summary>
-              <button disabled={busy} onClick={() => void copyWalletLink()}>
-                Copy link for wallet browser
-              </button>
-              {walletLink && (
-                <p>
-                  <label htmlFor="wallet-checkout-link">
-                    Private wallet browser link
-                  </label>
-                  <input
-                    id="wallet-checkout-link"
-                    readOnly
-                    value={walletLink}
-                    onFocus={(e) => e.currentTarget.select()}
-                  />
-                </p>
-              )}
-              <p role="status">{copied}</p>
-            </details>
-          )}
           <footer className="sc-footer">
             <span>
               Powered by <strong>PayRouta</strong>
