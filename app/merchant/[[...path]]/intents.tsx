@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { discoverEvmWallets, type DiscoveredWallet } from "@/lib/blockchain/wallet-discovery";
 import { errorText, offline } from "@/lib/error-copy";
 import { connectEvm, connectNear, registerKey, signText, type Signer } from "./intents-wallet";
+import { CashOut, type CashOutView, type PayoutQuote } from "./cash-out";
 
 type Overview = {
   account: { id: string; accountId: string; standard: string; publicKey: string | null; keyRegistered: boolean; connectedAt: string } | null;
@@ -66,6 +67,7 @@ export function CryptoBalance({
   settleOptions,
   tokens,
   canConfigure,
+  cashOut,
 }: {
   orgId: string;
   environment: string;
@@ -74,6 +76,7 @@ export function CryptoBalance({
   settleOptions: Settle[];
   tokens: Token[];
   canConfigure: boolean;
+  cashOut?: CashOutView;
 }) {
   const router = useRouter();
   const [evmWallets, setEvmWallets] = useState<DiscoveredWallet[]>([]);
@@ -415,6 +418,24 @@ export function CryptoBalance({
             </form>
           )}
         </section>
+      )}
+      {canConfigure && account && cashOut && (
+        <CashOut
+          view={cashOut}
+          balances={balances ?? []}
+          api={api}
+          run={run}
+          busy={busy}
+          signAndSubmit={async (q: PayoutQuote) => {
+            const s = await ownSigner();
+            const i = q.sign;
+            const signed =
+              i.standard === "erc191"
+                ? await signText(s, i.payload, { nonce: "", recipient: "" })
+                : await signText(s, i.payload.message, { nonce: i.payload.nonce, recipient: i.payload.recipient });
+            await api("intents-payout-submit", { id: q.payout.id, ...signed });
+          }}
+        />
       )}
       {(error || notice) && (
         <section>

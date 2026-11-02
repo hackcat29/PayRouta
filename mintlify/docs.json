@@ -43,6 +43,7 @@
               "guides/crypto-payments",
               "guides/cross-chain",
               "guides/near-intents",
+              "guides/cash-out",
               "guides/agents",
               "guides/localization-and-tax",
               "guides/subscriptions-and-dunning"

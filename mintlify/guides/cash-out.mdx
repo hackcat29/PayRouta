@@ -1,0 +1,50 @@
+---
+title: "Cash out to your bank"
+description: "Pay crypto from your NEAR Intents account to your bank or mobile money in local currency, through Bridge or Yellow Card."
+---
+
+Crypto in your NEAR Intents account can be paid to your bank or mobile money in local currency. Cashing out is a payout from your balance that you sign in your own wallet, like any payout; a licensed partner converts it and pays you.
+
+| Paid in | Through | Paid by |
+| --- | --- | --- |
+| US dollars | Bridge | ACH or wire to a US bank account |
+| Euros | Bridge | SEPA to an IBAN |
+| Naira, Ghanaian cedi, Kenyan shilling, rand, Ugandan shilling, Tanzanian shilling, Zambian kwacha, Mexican peso | Yellow Card | Bank transfer or mobile money |
+
+Cashing out needs a live business with a connected [NEAR Intents account](/guides/near-intents).
+
+## Set up
+
+Open **Crypto balance → Cash out to your bank**.
+
+**US and EU banks (Bridge)**
+
+1. Choose US dollars or euros and choose **Verify your business with Bridge**.
+2. Complete Bridge's business verification and accept Bridge's terms, from the two links shown. Then choose **Check again**.
+3. Once Bridge approves the business, add your bank account: routing and account number for US dollars, IBAN and BIC for euros.
+
+PayRouta then shows your Bridge deposit address on Base. USDC on Base sent to it, from your NEAR Intents account or any other wallet, is converted and paid to your bank.
+
+**Local currency (Yellow Card)**
+
+1. Choose your country, then your bank or mobile money provider.
+2. Enter the account or phone number and the name on the account, and save.
+
+## Cash out
+
+Under **Cash out**, choose where you're paid, the balance to pay from and the amount, then **Review**. PayRouta quotes a payout of USDC on Base to the partner and shows what arrives and what you're paid. Sign it in your wallet to send it.
+
+| Status | Means |
+| --- | --- |
+| Awaiting signature | Quoted; sign it to send |
+| Funding | Your USDC is on its way to the partner |
+| Converting | The partner is converting and paying out |
+| Paid | Paid to your bank or mobile money |
+| Failed | The USDC never left your balance, or was returned to it |
+| Needs attention | The partner stopped the payout after receiving the USDC. PayRouta follows it up with you |
+
+Each Yellow Card payout is sent once, keyed to its cash out, so a retry never pays twice. Bridge pays each USDC deposit to your liquidation address as it arrives.
+
+## Fees and limits
+
+The partners' conversion rates and fees apply and are shown by the partner; Yellow Card's per-transaction limits vary by country and provider. ACH payments arrive in batches; wire, SEPA and mobile money are usually faster.

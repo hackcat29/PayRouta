@@ -1694,6 +1694,60 @@ model IntentsChallenge {
 // A payout or refund from a merchant's NEAR Intents balance
 // (lib/intents/payouts.ts): a 1Click quote funded from the intents account,
 // signed in the merchant's wallet and submitted without gas.
+// Cashing out a merchant's crypto to their bank or mobile money
+// (lib/treasury/offramp). One account per partner: Bridge (a liquidation
+// address that converts USDC and pays the merchant's bank) or Yellow Card
+// (local-currency payouts from PayRouta's Yellow Card balance). Bank and
+// mobile-money details are kept in the secret vault (`destinationRef`).
+model FiatPayoutAccount {
+  id                   String   @id @default(cuid())
+  orgId                String
+  environment          String
+  partner              String
+  // Verifying | Ready | Rejected
+  status               String   @default("Verifying")
+  country              String
+  currency             String
+  label                String
+  partnerCustomerId    String?
+  kycLinkId            String?
+  kycUrl               String?
+  tosUrl               String?
+  externalAccountId    String?
+  liquidationAddressId String?
+  liquidationAddress   String?
+  destinationRef       String?
+  createdBy            String
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@unique([orgId, environment, partner])
+}
+
+// One cash out: the merchant's signed payout of USDC on Base from their
+// NEAR Intents account (`payoutId`) funds it; the partner pays out fiat.
+model FiatPayout {
+  id          String   @id @default(cuid())
+  orgId       String
+  environment String
+  accountId   String
+  partner     String
+  payoutId    String   @unique
+  amountUsd   String
+  currency    String
+  // Awaiting signature | Funding | Converting | Paid | Failed | Needs attention
+  status      String   @default("Awaiting signature")
+  partnerRef  String?
+  localAmount String?
+  rate        String?
+  failure     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([orgId, environment, createdAt])
+  @@index([status])
+}
+
 model IntentsPayout {
   id                 String    @id @default(cuid())
   orgId              String

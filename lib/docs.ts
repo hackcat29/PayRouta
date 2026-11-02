@@ -23,6 +23,7 @@ export const docEntries: readonly DocEntryTuple[] = [
   ["crypto-payments", "Crypto Wallet Payments", "Core Concepts", "Concepts"],
   ["cross-chain", "Pay from Any Chain", "Core Concepts", "Concepts"],
   ["near-intents", "Your NEAR Intents Account", "Core Concepts", "Concepts"],
+  ["cash-out", "Cash out to your bank", "Core Concepts", "Concepts"],
   ["agents", "Agentic Payments", "Core Concepts", "Concepts"],
 
   // Integration

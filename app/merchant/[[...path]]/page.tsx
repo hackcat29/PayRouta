@@ -8,6 +8,7 @@ import { onchainMethod } from "@/lib/blockchain/crypto-assets";
 import { networkName } from "@/lib/blockchain/chains";
 import { destinationFor } from "@/lib/intents/oneclick";
 import { SwapSettlement } from "./swap-settlement";
+import { cashOutView } from "@/lib/treasury/offramp/cashout";
 import { Stablecoins } from "./stablecoins";
 import { stablecoinOverview } from "@/lib/merchant/stablecoins";
 import { CryptoBalance } from "./intents";
@@ -547,6 +548,7 @@ export default async function Page({
           .map((t) => ({ assetId: t.assetId, chain: t.blockchain, chainName: chainNames[t.blockchain] ?? t.blockchain.toUpperCase(), symbol: t.symbol }))
           .sort((a, b) => a.chainName.localeCompare(b.chainName) || a.symbol.localeCompare(b.symbol))}
         canConfigure={configure}
+        cashOut={overview.account ? await cashOutView(orgId, env).catch(() => undefined) : undefined}
       />
     );
   } else if (section === "disputes") {

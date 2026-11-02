@@ -5,6 +5,7 @@ import { sweepLinks } from "../lib/treasury/links";
 import { sweepPayouts } from "../lib/treasury/payouts";
 import { sweepDisputesAndRefunds } from "../lib/treasury/events";
 import { sweepReconciliation } from "../lib/treasury/reconciliation";
+import { sweepCashOuts } from "../lib/treasury/offramp/cashout";
 import { workOnce, retentionSweep } from "../lib/portal/worker";
 import { refreshObservations } from "../lib/portal/provider-probes";
 import { MarketingService } from "../lib/email/marketing-service";
@@ -21,6 +22,7 @@ async function main() {
       await sweepPayouts();
       await sweepDisputesAndRefunds();
       await sweepReconciliation();
+      await sweepCashOuts().catch(console.error);
       await MarketingService.processScheduledDrips().catch(console.error);
       maintenance = Date.now() + 60000;
     }
