@@ -685,6 +685,70 @@ function Saas() {
   );
 }
 
+// Subscriptions (lib/subscriptions): a price per period, usage meters, or
+// both. Customers pay each invoice themselves; nothing is pulled.
+function SubscriptionsPage() {
+  return (
+    <>
+      <PageHero
+        title="Bill every month. Customers pay from any wallet."
+        actions={
+          <>
+            <Btn href={paths.signUp}>Get started</Btn>
+            <Btn href={docsUrl("subscriptions")} variant="secondary">
+              Subscriptions guide
+            </Btn>
+          </>
+        }
+      />
+      <Feature title="A price, usage, or both" visual={<InvoicePreview />}>
+        <p>
+          Charge a fixed price each day, week, month or year, meter what customers use, or combine them. Each period one
+          invoice covers the next period&apos;s price and the last period&apos;s usage above what the plan includes.
+        </p>
+        <TextLink href={docsUrl("subscriptions")}>Plans and meters</TextLink>
+      </Feature>
+      <Feature title="Paid in stablecoins or any token" tone="paper">
+        <p>
+          Customers pay each invoice from whatever wallet and chain they hold, and you receive the stablecoin you chose.
+          Card, bank transfer and mobile money work too where they&apos;re on for you. Nothing is taken from a
+          customer&apos;s wallet: an unpaid invoice makes the subscription past due, and you&apos;re told by webhook.
+        </p>
+      </Feature>
+      <Feature title="Report usage from your code or your agent">
+        <p>
+          Send usage as it happens with one API call, safely repeated with an idempotency key, or let your AI assistant
+          record it over MCP. Agents paying for a subscription read an invoice&apos;s terms and pay it like a payment link.
+        </p>
+        <TextLink href={paths.agents}>Agentic payments</TextLink>
+      </Feature>
+    </>
+  );
+}
+
+function InvoicePreview() {
+  return (
+    <div className="sb-invoice" aria-label="An example invoice: Pro plan $20.00, 4,200 API calls $6.40, total $26.40">
+      <span className="sb-invoice-head">Invoice 3 · Pro</span>
+      <dl>
+        <div>
+          <dt>Pro, 1 Dec – 1 Jan</dt>
+          <dd>$20.00</dd>
+        </div>
+        <div>
+          <dt>API calls × 3,200 over 1,000 included</dt>
+          <dd>$6.40</dd>
+        </div>
+        <div className="sb-invoice-total">
+          <dt>Total</dt>
+          <dd>$26.40</dd>
+        </div>
+      </dl>
+      <span className="sb-invoice-pay">Pay $26.40</span>
+    </div>
+  );
+}
+
 // Agentic payments: agents pay links over HTTP within their key's limits,
 // and a merchant's assistant runs payments over MCP (lib/agents, lib/mcp).
 function Agents() {
@@ -703,22 +767,31 @@ function Agents() {
       />
       <Feature title="Agents pay your payment links" visual={<AgentTerms />}>
         <p>
-          Any payment link answers an AI agent with 402 Payment Required: the price, and how it can pay. The agent opens its
+          Any payment link or subscription invoice answers an AI agent with 402 Payment Required: the price, and how it can pay. The agent opens its
           own checkout and sends the exact transfer from its wallet, or signs one transfer from its NEAR Intents balance with
           no gas. You&apos;re paid, settled and notified as for any customer.
         </p>
         <TextLink href={docsUrl("agents")}>Agent API</TextLink>
       </Feature>
-      <Feature title="Limits on every agent key" tone="paper" visual={<AgentKeyCard />}>
+      <Feature title="Limits on every agent key, and what it spent" tone="paper" visual={<AgentKeyCard />}>
         <p>
           Give an agent a key with a budget per day, week or month, a most-per-payment, and the merchants it may pay.
-          PayRouta checks every payment against them before preparing it. Revoke the key and the agent stops.
+          PayRouta checks every payment against them before preparing it, and shows every payment the key made: the
+          merchant, what for and how much. Revoke the key and the agent stops.
         </p>
+      </Feature>
+      <Feature title="Agents pay over MCP too">
+        <p>
+          An agent connected with its key can read what a link or invoice costs, open a checkout and get the exact transfer
+          to send, then check it was paid, all as MCP tools. Its wallet stays its own: PayRouta says what to send and the
+          agent signs.
+        </p>
+        <TextLink href={docsUrl("mcp")}>Buyer tools</TextLink>
       </Feature>
       <Feature title="Run your payments from your AI assistant" visual={<AssistantTools />}>
         <p>
-          Connect Claude or any MCP client to PayRouta with an API key. Your assistant creates checkouts and payment links,
-          finds payments and issues refunds, with only the permissions you gave the key.
+          Connect Claude or any MCP client to PayRouta with an API key. Your assistant creates checkouts, payment links and
+          subscriptions, records usage, finds payments and issues refunds, with only the permissions you gave the key.
         </p>
         <TextLink href={docsUrl("mcp")}>MCP server</TextLink>
       </Feature>
@@ -780,7 +853,7 @@ function AgentKeyCard() {
 function AssistantTools() {
   return (
     <ul className="ag-tools" aria-label="What your assistant can do">
-      {["create_checkout", "create_payment_link", "list_payment_links", "list_payments", "get_payment", "refund_payment"].map((t) => (
+      {["create_checkout", "create_payment_link", "create_subscription", "record_usage", "list_payments", "refund_payment"].map((t) => (
         <li key={t}>
           <code>{t}</code>
         </li>
@@ -797,6 +870,7 @@ export const pageComponents: Record<PageSlug, () => React.ReactNode> = {
   credit: Credit,
   crypto: Crypto,
   agents: Agents,
+  subscriptions: SubscriptionsPage,
   "social-sellers": SocialSellers,
   "online-stores": OnlineStores,
   saas: Saas,

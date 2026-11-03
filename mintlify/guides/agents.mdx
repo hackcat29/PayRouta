@@ -50,7 +50,7 @@ POST /api/agent/v1/checkouts
 { "link": "k3Fd92xQ" }
 ```
 
-You can also pass `{ "checkoutUrl": "https://payrouta.com/checkout/…#…" }` for a checkout a merchant created for the agent. The answer (`201`) carries `checkout` and `token`, the amount, and `payWith`: each network with the tokens the agent can pay with. A token's `route` is `direct` (sent to the merchant's address as is) or `swap` (swapped by NEAR Intents into the merchant's stablecoin).
+You can also pass `{ "checkoutUrl": "https://payrouta.com/checkout/…#…" }` for a checkout a merchant created for the agent, or `{ "invoice": "<slug or invoice URL>" }` to pay a [subscription](/guides/subscriptions) invoice. An invoice's terms are at `GET /api/agent/v1/invoices/{slug}`, in the same shape as a link's. The answer (`201`) carries `checkout` and `token`, the amount, and `payWith`: each network with the tokens the agent can pay with. A token's `route` is `direct` (sent to the merchant's address as is) or `swap` (swapped by NEAR Intents into the merchant's stablecoin).
 
 ### 3. Pay
 
@@ -103,6 +103,17 @@ Create keys in the dashboard under **Developers → Agent keys**:
 A payment is reserved against the budget when the agent asks to pay, counted once it is confirmed, and released if the checkout ends unpaid or its swap is refunded. Retrying the same checkout reserves nothing new. Revoking the key stops further payments at once.
 
 The limits bound what PayRouta prepares and submits for the key. The agent's wallet and NEAR Intents account stay its owner's; PayRouta never holds their funds or keys.
+
+## What a key has spent
+
+**Developers → Agent keys** shows each key's spending this period against its budget. Open a key to see every payment it started: the merchant, what it was for, the amount and whether it was paid.
+
+The agent can check the same with `GET /api/agent/v1/spending` (its key as the bearer token) or the `get_spending` MCP tool.
+
+## Paying over MCP
+
+Agents that speak the Model Context Protocol can pay without calling the HTTP API: connect to `https://payrouta.com/api/mcp` with the agent key as the bearer token. See [MCP server](/integrate/mcp#for-a-buyers-agent).
+
 
 ## Errors
 

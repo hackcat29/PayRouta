@@ -1,3 +1,4 @@
+import { invoicePaid, overdue, renew } from "../subscriptions/service";
 import { screenStablecoinMerchant } from "../merchant/screening";
 import { paymentJob } from "../payments/jobs";
 import { partnerJob } from "../partners/service";
@@ -53,6 +54,12 @@ export async function workOnce(jobKey?: string) {
     const p = candidate.payload as Record<string, string>;
     if (candidate.kind.startsWith("payment-")) {
       await paymentJob(candidate.kind, p);
+    } else if (candidate.kind === "subscription-renew") {
+      await renew(p.subscriptionId, p.periodEnd);
+    } else if (candidate.kind === "subscription-overdue") {
+      await overdue(p.invoiceId);
+    } else if (candidate.kind === "subscription-paid") {
+      await invoicePaid(p.invoiceId, p.paymentId);
     } else if (candidate.kind === "merchant-screening") {
       await screenStablecoinMerchant(p.orgId,Number(p.version));
     } else if (candidate.kind.startsWith("partner-")) {

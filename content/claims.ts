@@ -175,7 +175,7 @@ export const platforms: { name: string; detail: string; availability: Availabili
   { name: "No website", detail: "A payment link you share on WhatsApp, Instagram, SMS or an invoice", availability: "available" },
   { name: "Any website or app", detail: "One script tag and a button", availability: "available" },
   { name: "Your own server", detail: "Node and Python SDKs, one call per order", availability: "available" },
-  { name: "AI agents", detail: "Agents pay your links over HTTP; your assistant runs payments over MCP", availability: "available" },
+  { name: "AI agents", detail: "Agents pay your links and invoices over HTTP; your assistant runs payments over MCP", availability: "available" },
   { name: "WooCommerce", detail: "PayRouta Checkout plugin", availability: "available" },
   { name: "Shopify", detail: "A Pay button on the order page after Shopify checkout", availability: "available" },
 ];

@@ -19,6 +19,12 @@ The URL must be public HTTPS. PayRouta never follows redirects, and each deliver
 | `settlement.pending` | Confirmed, but the provider has not yet settled |
 | `settlement.completed` | The provider reported settlement of this payment to you |
 | `settlement.exception` | Reconciliation found a difference that needs review |
+| `subscription.created` | A customer was subscribed to a plan |
+| `subscription.active` | Its first invoice was paid, or an overdue one was |
+| `subscription.past_due` | An invoice passed its due date unpaid |
+| `subscription.canceled` | It ended: requested, or unpaid at renewal (`reason`) |
+| `invoice.created` | A subscription invoice is ready to pay |
+| `invoice.paid` | A subscription invoice was paid |
 
 ## Payload
 

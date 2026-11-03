@@ -31,6 +31,13 @@ A `pr_sandbox_…` key works in test mode, a `pr_production_…` key live. Every
 | `list_payments` | Lists payments, by state or reference | `payments:read` |
 | `get_payment` | One payment by id | `payments:read` |
 | `refund_payment` | Refunds a card, wallet or bank payment, in full or in part | `refunds:write` |
+| `create_plan` | Creates a subscription plan: a price, usage meters or both | `subscriptions:write` |
+| `list_plans` | Lists your subscription plans | `subscriptions:read` |
+| `create_subscription` | Subscribes a customer by email and returns the first invoice's pay link | `subscriptions:write` |
+| `list_subscriptions` | Lists subscriptions, by state or customer email | `subscriptions:read` |
+| `get_subscription` | One subscription with its invoices and this period's usage | `subscriptions:read` |
+| `record_usage` | Adds usage to a meter for the current period | `subscriptions:write` |
+| `cancel_subscription` | Cancels now or at the end of the period | `subscriptions:write` |
 
 Choose **Payments and refunds** when you create the key to give it `refunds:write`. Without it, `refund_payment` answers that the key lacks the permission. Refunds are marked destructive, so clients ask before running them.
 
@@ -39,3 +46,18 @@ Crypto payments settled into your own NEAR Intents account are refunded from **C
 ## Errors
 
 A tool that fails returns `isError: true` with a code and an explanation, for example `PAYMENT_NOT_FOUND: We couldn't find that payment.` A missing or revoked key gets HTTP 401.
+
+## For a buyer's agent
+
+An agent that pays merchants connects with an **agent key** (`pra_…`, created under **Developers → Agent keys**) instead of an API key, and gets these tools instead:
+
+| Tool | Does |
+| --- | --- |
+| `get_payment_terms` | What a payment link or invoice costs and how to pay it |
+| `open_checkout` | Opens a checkout for a link, invoice or checkout URL; returns what the agent can pay with |
+| `pay_checkout` | Reserves the amount against the key's limits and returns the exact transfer to send, or a NEAR Intents payload to sign |
+| `submit_signed_intent` | Submits the signed NEAR Intents transfer |
+| `get_checkout_status` | Where the payment is; `paid` once confirmed |
+| `get_spending` | The key's budget, what it spent this period, and its payments |
+
+PayRouta never holds the agent's wallet: `pay_checkout` says what to send, and the agent's own wallet sends or signs it.

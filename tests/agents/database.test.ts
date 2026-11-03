@@ -7,7 +7,10 @@ import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";
 import { NextRequest } from "next/server";
 import { db } from "../../lib/portal/db";
-import { json } from "../../lib/portal/service";
+import { atomic, json } from "../../lib/portal/service";
+import { event } from "../../lib/payments/service";
+import { workOnce } from "../../lib/portal/worker";
+import { createPlan, createSubscription, getSubscription } from "../../lib/subscriptions/service";
 import { hash } from "../../lib/payments/contracts";
 import { createCryptoCheckout } from "../../lib/payments/crypto-checkout";
 import { newSlug } from "../../lib/merchant/payment-links";
@@ -182,4 +185,89 @@ test("MCP: a merchant's assistant creates and lists payment links with an API ke
   const missing = await rpc(refundSecret, "tools/call", { name: "refund_payment", arguments: { id: "pi_missing" } });
   assert.equal(missing.body.result.isError, true);
   assert.match(missing.body.result.content[0].text, /^PAYMENT_NOT_FOUND/);
+});
+
+test("MCP: a buyer's agent pays a payment link with its agent key, and sees what it spent", async () => {
+  const secret = `pra_sandbox_${randomBytes(32).toString("base64url")}`;
+  await db.agentKey.create({
+    data: {
+      orgId,
+      environment: "sandbox",
+      name: "Procurement agent",
+      prefix: secret.slice(0, 22),
+      verifier: hash(secret),
+      budgetMinor: "10000",
+      period: "month",
+      perPaymentMinor: "5000",
+      merchants: json([]),
+      createdBy: "test",
+    },
+  });
+  const tools = await rpc(secret, "tools/list");
+  const names = tools.body.result.tools.map((t: { name: string }) => t.name);
+  assert.deepEqual(names, ["get_payment_terms", "open_checkout", "pay_checkout", "submit_signed_intent", "get_checkout_status", "get_spending"]);
+  assert.ok(!names.includes("refund_payment"), "an agent key gets no merchant tools");
+  // A merchant tool by name is unknown to an agent key.
+  assert.equal((await rpc(secret, "tools/call", { name: "create_payment_link", arguments: {} })).body.error.code, -32602);
+
+  const link = await db.paymentLink.create({
+    data: { orgId, environment: "sandbox", slug: newSlug(), title: "Dataset licence", amount: "30.00", currency: "USD", methods: [], crypto: true, country: "NG", createdBy: "test" },
+  });
+  const url = `http://127.0.0.1:3000/pay/${link.slug}`;
+  const terms = await rpc(secret, "tools/call", { name: "get_payment_terms", arguments: { url } });
+  assert.equal(terms.body.result.structuredContent.amount, "30.00");
+  const opened = await rpc(secret, "tools/call", { name: "open_checkout", arguments: { url } });
+  assert.equal(opened.body.result.isError, undefined, JSON.stringify(opened.body));
+  const { checkout, checkoutToken, payWith } = opened.body.result.structuredContent;
+  assert.ok(checkoutToken && !("token" in opened.body.result.structuredContent));
+  const asset = payWith.flatMap((n: { tokens: { token: string; symbol: string }[] }) => n.tokens).find((t: { symbol: string }) => t.symbol === "USDC").token;
+  const paid = await rpc(secret, "tools/call", { name: "pay_checkout", arguments: { checkout, checkoutToken, asset, from: "wallet" } });
+  assert.equal(paid.body.result.isError, undefined, JSON.stringify(paid.body));
+  assert.equal(paid.body.result.structuredContent.kind, "transfer");
+  // The USD price in USDC at the observed market price.
+  assert.ok(Math.abs(Number(paid.body.result.structuredContent.amount) - 30) < 0.5);
+
+  const spending = (await rpc(secret, "tools/call", { name: "get_spending", arguments: {} })).body.result.structuredContent;
+  assert.equal(spending.spentMinor, "3000", "reserved against the budget while it's paid");
+  assert.equal(spending.budgetMinor, "10000");
+  assert.deepEqual(
+    spending.payments.map((p: { merchant: string; for: string; amountMinor: string; state: string }) => [p.merchant, p.for, p.amountMinor, p.state]),
+    [["Fictional agent store", "Dataset licence", "3000", "Pending"]],
+  );
+  // A revoked key stops at once.
+  await db.agentKey.update({ where: { verifier: hash(secret) }, data: { revokedAt: new Date() } });
+  assert.equal((await rpc(secret, "tools/list")).status, 401);
+});
+
+test("subscriptions: a crypto invoice is paid by an agent over MCP, and its confirmation marks the invoice paid", async () => {
+  const plan = await createPlan({ orgId, environment: "sandbox" }, { name: "Data feed", amount: "12", currency: "USD", interval: "month", crypto: true }, "test");
+  const sub = await createSubscription({ orgId, environment: "sandbox" }, { plan: plan.id, customer: { email: "agent-buyer@example.com" } }, "test");
+  const invoiceUrl = sub.latestInvoice!.url;
+  const secret = `pra_sandbox_${randomBytes(32).toString("base64url")}`;
+  await db.agentKey.create({
+    data: { orgId, environment: "sandbox", name: "Subscriber agent", prefix: secret.slice(0, 22), verifier: hash(secret), budgetMinor: "5000", period: "month", perPaymentMinor: "2000", merchants: json([]), createdBy: "test" },
+  });
+  const terms = (await rpc(secret, "tools/call", { name: "get_payment_terms", arguments: { url: invoiceUrl } })).body.result.structuredContent;
+  assert.equal(terms.amount, "12.00");
+  assert.deepEqual(terms.accepts.map((a: { method: string }) => a.method), ["wallet"]);
+  const opened = (await rpc(secret, "tools/call", { name: "open_checkout", arguments: { url: invoiceUrl } })).body.result.structuredContent;
+  const session = await db.checkoutSession.findUniqueOrThrow({ where: { id: opened.checkout }, include: { intent: true } });
+  assert.equal((session.intent.metadata as { subscription_invoice?: string }).subscription_invoice, sub.latestInvoice!.id, "the crypto side knows its invoice");
+  const asset = opened.payWith.flatMap((n: { tokens: { token: string; symbol: string }[] }) => n.tokens).find((t: { symbol: string }) => t.symbol === "USDC").token;
+  const paid = await rpc(secret, "tools/call", { name: "pay_checkout", arguments: { checkout: opened.checkout, checkoutToken: opened.checkoutToken, asset, from: "wallet" } });
+  assert.equal(paid.body.result.structuredContent.kind, "transfer");
+  // The chain confirms the transfer (the deposit scanner's job): the
+  // confirmed payment marks the invoice paid and the subscription active.
+  await db.paymentIntent.update({ where: { id: session.intentId }, data: { state: "Confirmed" } });
+  await atomic((tx) => event(tx, session.intentId, "payment.confirmed"));
+  const job = await db.job.findFirstOrThrow({ where: { key: `subscription-paid:${sub.latestInvoice!.id}:${session.intentId}` } });
+  await workOnce(job.key);
+  const after = await getSubscription({ orgId, environment: "sandbox" }, sub.id);
+  assert.equal(after.state, "Active");
+  assert.equal(after.invoices[0].state, "Paid");
+  const spending = (await rpc(secret, "tools/call", { name: "get_spending", arguments: {} })).body.result.structuredContent;
+  assert.deepEqual(
+    spending.payments.map((p: { for: string; amountMinor: string; state: string }) => [p.for, p.amountMinor, p.state]),
+    [["Invoice 1 · Data feed", "1200", "Paid"]],
+  );
 });

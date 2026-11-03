@@ -129,3 +129,11 @@
   background: #ebecf8;
   color: #252c8a;
 }
+
+/* Invoice lines (app/pay/invoice). */
+.pl-lines { display: grid; gap: 8px; margin: 4px 0 0; padding: 12px 0 0; border-top: 1px solid #ece7de; }
+.pl-lines > div { display: flex; justify-content: space-between; gap: 16px; }
+.pl-lines dt { color: #3d5561; }
+.pl-lines dt small { color: #6b7a86; }
+.pl-lines dd { margin: 0; font-variant-numeric: tabular-nums; font-weight: 600; }
+.pl-paid { margin: 0; padding: 12px; border-radius: 10px; background: #e6f4ec; color: #1d6b43; font-weight: 600; text-align: center; }

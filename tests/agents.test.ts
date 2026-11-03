@@ -52,7 +52,22 @@ test("MCP: tools describe their input; refunds are marked destructive", async ()
     result: { tools: { name: string; inputSchema: { type: string; properties: object }; annotations: { destructiveHint: boolean; readOnlyHint: boolean } }[] };
   };
   const names = list.result.tools.map((t) => t.name);
-  assert.deepEqual(names, ["create_checkout", "create_payment_link", "list_payment_links", "list_payments", "get_payment", "refund_payment"]);
+  assert.deepEqual(names, [
+    "create_checkout",
+    "create_payment_link",
+    "list_payment_links",
+    "list_payments",
+    "get_payment",
+    "refund_payment",
+    "create_plan",
+    "list_plans",
+    "create_subscription",
+    "list_subscriptions",
+    "get_subscription",
+    "record_usage",
+    "cancel_subscription",
+  ]);
+  assert.equal(list.result.tools.find((t) => t.name === "cancel_subscription")!.annotations.destructiveHint, true);
   for (const t of list.result.tools) assert.equal(t.inputSchema.type, "object");
   assert.ok("amount" in list.result.tools[1].inputSchema.properties);
   assert.equal(list.result.tools.find((t) => t.name === "refund_payment")!.annotations.destructiveHint, true);

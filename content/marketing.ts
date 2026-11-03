@@ -31,6 +31,11 @@ export const pages = {
     intro:
       "Customers pay from whatever wallet and chain they hold. You receive exactly the stablecoin you chose, in your own wallet. 1.5% all in.",
   },
+  subscriptions: {
+    title: "Subscriptions",
+    intro:
+      "Bill customers every period for a price, for what they use, or both. They pay each invoice from any wallet and token, or by card, bank or mobile money.",
+  },
   agents: {
     title: "Agentic payments",
     intro:

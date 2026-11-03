@@ -1,0 +1,18 @@
+---
+title: "Refunds and disputes"
+description: "Refund customers in full or in part, and answer disputes with evidence before their deadline."
+---
+
+## Refunds
+
+Refund a card, wallet or bank payment from its page in **Transactions**, in full or in part, as many times as what remains allows. Through the API, use `refund_payment` on the [MCP server](/integrate/mcp) with a key that has `refunds:write`.
+
+- You fund every refund in full. PayRouta's fee on the payment isn't returned.
+- Where the partner holds your balance, the refund comes out of it; where payments go straight to your bank, refund the customer from your bank instead.
+- Crypto paid into your own NEAR Intents account is refunded from **Crypto balance**, where your wallet signs.
+
+## Disputes
+
+When a customer's bank disputes a payment, **Disputes** shows the amount, the reason the bank gave and the date you must respond by. The amount is held from your balance while the dispute is open.
+
+Respond once, before the deadline, with what the customer bought, delivery details and any documents. A dispute you win releases the hold; one you lose sends it to the customer. You're notified of the outcome in **Disputes**.

@@ -25,6 +25,16 @@ import { db } from "@/lib/portal/db";
 import { atomic, audit } from "@/lib/portal/service";
 import { PortalError } from "@/lib/portal/domain";
 import { createIntent, intentAvailability } from "@/lib/payments/service";
+import {
+  advanceTestPeriod,
+  cancelSubscription,
+  createPlan,
+  createSubscription,
+  getSubscription,
+  listPlans,
+  listSubscriptions,
+  recordUsage,
+} from "@/lib/subscriptions/service";
 
 import { rawBody } from "@/lib/payments/http";
 export const runtime = "nodejs";
@@ -55,7 +65,8 @@ async function handle(
       action &&
       !(
         ((resource === "webhook-deliveries" && action === "redeliver") ||
-          (resource === "payment-intents" && action === "cancel")) &&
+          (resource === "payment-intents" && action === "cancel") ||
+          (resource === "subscriptions" && ["cancel", "usage", "advance"].includes(action))) &&
         request.method === "POST"
       )
     )
@@ -178,7 +189,29 @@ async function handle(
       }));
       if (id && !rows.length) throw new PortalError("NOT_FOUND", 404);
       response = id ? rows[0] : page(rows, p.limit);
-    } else throw new PortalError("NOT_FOUND", 404);
+    } else if (operation === "GET plans" && !id)
+      response = { data: await listPlans(tenant), nextCursor: null };
+    else if (operation === "POST plans" && !id) {
+      response = await createPlan(tenant, await body(), actor.keyId);
+      status = 201;
+    } else if (operation === "GET subscriptions")
+      response = id ? await getSubscription(tenant, id) : await listSubscriptions(tenant, params);
+    else if (operation === "POST subscriptions" && !id) {
+      response = await createSubscription(tenant, await body(), actor.keyId);
+      status = 201;
+    } else if (operation === "POST subscriptions" && id && action === "usage") {
+      response = await recordUsage(tenant, id, await body(), key || undefined);
+      status = 201;
+    } else if (operation === "POST subscriptions" && id && action === "cancel")
+      response = await cancelSubscription(
+        tenant,
+        id,
+        JSON.parse((request.body ? await rawBody(request) : "") || "{}"),
+        actor.keyId,
+      );
+    else if (operation === "POST subscriptions" && id && action === "advance")
+      response = await advanceTestPeriod(tenant, id);
+    else throw new PortalError("NOT_FOUND", 404);
     const validated = responseContract(operation, id, action).safeParse(
       JSON.parse(JSON.stringify(response)),
     );

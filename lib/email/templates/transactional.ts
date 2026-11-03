@@ -161,3 +161,24 @@ export function renderProviderAccessAlertEmail(p: {
     ctaUrl: p.url,
   });
 }
+
+// A subscription invoice to pay (or a reminder that it is overdue). Sent to
+// the merchant's customer on the merchant's behalf.
+export function renderInvoiceEmail(p: {
+  merchant: string;
+  plan: string;
+  amount: string;
+  due: string;
+  url: string;
+  reminder: boolean;
+}): RenderedEmail {
+  const subject = p.reminder ? `Reminder: your ${p.merchant} invoice is due` : `Your ${p.merchant} invoice for ${p.plan}`;
+  return render(subject, {
+    previewText: `${p.amount} for ${p.plan}, due ${p.due}.`,
+    headline: p.reminder ? "Your invoice is overdue" : `Invoice from ${p.merchant}`,
+    bodyContent: `<p>Hi,</p><p><strong>${esc(p.amount)}</strong> for ${esc(p.plan)} from ${esc(p.merchant)}, due <strong>${esc(p.due)}</strong>.</p>`,
+    ctaText: `Pay ${p.amount}`,
+    ctaUrl: p.url,
+    afterCta: linkFallback(p.url),
+  });
+}

@@ -1,13 +1,13 @@
 // The agent API (lib/agents/checkout.ts, docs/agents.md): AI agents pay
-// payment links and checkouts over HTTP. A checkout is authorized by its
+// payment links, subscription invoices and checkouts over HTTP. A checkout is authorized by its
 // token in the PayRouta-Checkout-Token header; an agent key, when sent as
 // a bearer token, holds the agent to its spending limits.
 import { NextRequest } from "next/server";
 import { respond, rawBody, failure } from "@/lib/payments/http";
 import { rateLimit } from "@/lib/portal/access";
 import { PortalError } from "@/lib/portal/domain";
-import { agentKeyFrom } from "@/lib/agents/keys";
-import { describe, linkTerms, openCheckout, pay, status, submit } from "@/lib/agents/checkout";
+import { agentKeyFrom, agentSpending } from "@/lib/agents/keys";
+import { describe, invoiceTerms, linkTerms, openCheckout, pay, status, submit } from "@/lib/agents/checkout";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,16 +22,24 @@ const tokenOf = (r: NextRequest) => {
 export async function GET(r: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   const [resource, id, ...rest] = (await params).path;
   // 402 Payment Required: what a payment link costs and how to pay it.
-  if (resource === "links" && id && !rest.length) {
+  if ((resource === "links" || resource === "invoices") && id && !rest.length) {
     try {
       await rateLimit(`agent:${ipOf(r)}`, 120);
-      return Response.json(await linkTerms(id, new URL(r.url).origin), { status: 402, headers: { "Cache-Control": "no-store" } });
+      const origin = new URL(r.url).origin;
+      const terms = resource === "links" ? await linkTerms(id, origin) : await invoiceTerms(id, origin);
+      return Response.json(terms, { status: "state" in terms && terms.state !== "Open" ? 200 : 402, headers: { "Cache-Control": "no-store" } });
     } catch (e) {
       const { body, status: code } = failure(e);
       return Response.json(body, { status: code });
     }
   }
   return respond(async () => {
+    // The calling agent key's budget, spending this period and payments.
+    if (resource === "spending" && !id) {
+      const key = await agentKeyFrom(r);
+      if (!key) throw new PortalError("UNAUTHORIZED", 401);
+      return { name: key.name, environment: key.environment, ...(await agentSpending(key)) };
+    }
     if (resource !== "checkouts" || !id || rest.length) throw new PortalError("NOT_FOUND", 404);
     await rateLimit(`agent-checkout:${id}`, 120);
     return status(id, tokenOf(r));

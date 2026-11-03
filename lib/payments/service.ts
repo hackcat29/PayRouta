@@ -1149,6 +1149,14 @@ export async function event(
   await queue(tx, intent.orgId, "payment-delivery", `delivery:${e.id}`, {
     eventId: e.id,
   });
+  // A subscription invoice's payment marks the invoice paid
+  // (lib/subscriptions/service.ts).
+  const invoiceId = (intent.metadata as Record<string, unknown> | null)?.subscription_invoice;
+  if (type === "payment.confirmed" && typeof invoiceId === "string")
+    await queue(tx, intent.orgId, "subscription-paid", `subscription-paid:${invoiceId}:${intentId}`, {
+      invoiceId,
+      paymentId: intentId,
+    });
   // Commerce-platform orders (lib/integrations/shopify, shopify-lite) are completed on the
   // platform once confirmed; the job does nothing for other checkouts.
   if (type === "payment.confirmed" && intent.checkoutGroup)

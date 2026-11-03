@@ -56,7 +56,7 @@ export function linkAmount(amount: string, currency: string) {
 }
 
 // Stablecoins the merchant can receive right now in this environment.
-async function cryptoOptions(orgId: string, environment: string) {
+export async function cryptoOptions(orgId: string, environment: string) {
   const config = await merchantConfiguration(orgId, environment);
   return config.stablecoinAssets
     .filter((a) => a.configured && a.executionEnabled)

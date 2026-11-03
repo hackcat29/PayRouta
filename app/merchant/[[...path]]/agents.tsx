@@ -23,7 +23,33 @@ type Key = {
 const usd = (minor: string) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(minor) / 100);
 
-export function AgentKeys({ orgId, environment, keys }: { orgId: string; environment: string; keys: Key[] }) {
+type Spending = {
+  keyId: string;
+  name: string;
+  period: string;
+  budgetMinor: string;
+  spentMinor: string;
+  paidMinor: string;
+  paidCount: number;
+  payments: { id: string; paymentId: string; merchant: string; for: string; amountMinor: string; state: string; createdAt: string }[];
+};
+const spendTone: Record<string, string> = { Paid: "good", Pending: "", "Not paid": "" };
+const when = (iso: string) =>
+  new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
+
+export function AgentKeys({
+  orgId,
+  environment,
+  keys,
+  query,
+  spending,
+}: {
+  orgId: string;
+  environment: string;
+  keys: Key[];
+  query: string;
+  spending: Spending | null;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -147,7 +173,11 @@ export function AgentKeys({ orgId, environment, keys }: { orgId: string; environ
               <tbody>
                 {keys.map((k) => (
                   <tr key={k.id}>
-                    <td>{k.name}</td>
+                    <td>
+                      <a className="ms-rowlink" href={`${query}&key=${encodeURIComponent(k.id)}#spending`} aria-current={spending?.keyId === k.id ? "true" : undefined}>
+                        {k.name}
+                      </a>
+                    </td>
                     <td>
                       <code>{k.prefix}…</code>
                     </td>
@@ -177,6 +207,72 @@ export function AgentKeys({ orgId, environment, keys }: { orgId: string; environ
           </div>
         )}
       </section>
+      {spending && (
+        <section className="ms-flush" id="spending">
+          <div className="ms-card-head">
+            <h2>{spending.name}: spending</h2>
+          </div>
+          <div className="ms-spend-summary">
+            <div>
+              <span>Spent this {spending.period}</span>
+              <strong>
+                {usd(spending.spentMinor)} <small>of {usd(spending.budgetMinor)}</small>
+              </strong>
+              <span className="ms-meter-bar" aria-hidden>
+                <i
+                  style={{
+                    width: `${Math.min(100, (Number(spending.spentMinor) / Math.max(1, Number(spending.budgetMinor))) * 100)}%`,
+                  }}
+                />
+              </span>
+            </div>
+            <div>
+              <span>Paid, all time</span>
+              <strong>
+{usd(spending.paidMinor)}
+              </strong>
+            </div>
+            <div>
+              <span>Payments</span>
+              <strong>{spending.paidCount}</strong>
+            </div>
+          </div>
+          {spending.payments.length ? (
+            <div className="p-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Date (UTC)</th>
+                    <th scope="col">Merchant</th>
+                    <th scope="col">For</th>
+                    <th scope="col" className="ms-num">
+                      Amount
+                    </th>
+                    <th scope="col">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {spending.payments.map((p) => (
+                    <tr key={p.id}>
+                      <td className="ms-dim">{when(p.createdAt)}</td>
+                      <td>{p.merchant}</td>
+                      <td>{p.for}</td>
+                      <td className="ms-num ms-amount">{usd(p.amountMinor)}</td>
+                      <td>
+                        <span className={`ms-pill ${spendTone[p.state] ?? ""}`}>{p.state}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="ms-empty">
+              <strong>No payments with this key yet</strong>
+            </div>
+          )}
+        </section>
+      )}
     </>
   );
 }

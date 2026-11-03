@@ -1,4 +1,5 @@
 import { createPaymentLink, setPaymentLinkActive } from "@/lib/merchant/payment-links";
+import { subscriptionCommand } from "@/lib/subscriptions/service";
 import { createMerchantCryptoCheckout } from "@/lib/merchant/crypto-checkout";
 import { setFeeBearer } from "@/lib/merchant/fees";
 import { createStablecoinCheckout } from "@/lib/merchant/stablecoin-checkout";
@@ -123,6 +124,9 @@ export async function POST(request: Request) {
         raw.input,
         request.headers,
       );
+    // Subscription plans, subscriptions and usage (lib/subscriptions).
+    if (typeof raw?.action === "string" && raw.action.startsWith("subscription-"))
+      return subscriptionCommand(raw, request.headers);
     // Keys AI agents pay with, and their spending limits (lib/agents).
     if (raw?.action === "agent-key-create")
       return issueAgentKey(z.string().min(1).parse(raw.orgId), raw.input, request.headers);

@@ -218,3 +218,66 @@ export async function agentKeys(orgId: string, environment: string, now = new Da
     })),
   );
 }
+
+const spendState: Record<string, string> = { Reserved: "Pending", Spent: "Paid", Released: "Not paid" };
+
+// What a key has spent and on what: totals for the current period and every
+// payment it started, newest first. For the dashboard and for the agent itself.
+export async function agentSpending(key: { id: string; period: string; budgetMinor: unknown; perPaymentMinor: unknown }, now = new Date(), take = 100) {
+  const spentMinor = await atomic((tx) => spentThisPeriod(tx, { id: key.id, period: key.period }, now));
+  const spends = await db.agentSpend.findMany({ where: { keyId: key.id }, orderBy: { createdAt: "desc" }, take });
+  const paid = await db.agentSpend.aggregate({ where: { keyId: key.id, state: "Spent" }, _sum: { amountMinor: true }, _count: true });
+  const own = await db.paymentIntent.findMany({
+    where: { id: { in: spends.map((s) => s.intentId) } },
+    select: { id: true, orgId: true, reference: true, metadata: true, checkoutGroup: true },
+  });
+  // A universal checkout's crypto side may not carry the link or invoice it
+  // was opened for; its siblings in the same checkout do.
+  const groups = [...new Set(own.map((i) => i.checkoutGroup).filter((g): g is string => !!g))];
+  const siblings = groups.length
+    ? await db.paymentIntent.findMany({ where: { checkoutGroup: { in: groups } }, select: { checkoutGroup: true, metadata: true } })
+    : [];
+  const intents = own.map((i) => ({
+    ...i,
+    metadata: Object.assign(
+      {},
+      ...siblings.filter((x) => x.checkoutGroup && x.checkoutGroup === i.checkoutGroup).map((x) => x.metadata as object),
+      i.metadata as object,
+    ),
+  }));
+  const orgs = await db.organization.findMany({ where: { id: { in: [...new Set(intents.map((i) => i.orgId))] } }, select: { id: true, name: true } });
+  const meta = (i?: { metadata: unknown }) => (i?.metadata ?? {}) as Record<string, string | undefined>;
+  const links = await db.paymentLink.findMany({
+    where: { id: { in: intents.map((i) => meta(i).payment_link).filter((x): x is string => !!x) } },
+    select: { id: true, title: true },
+  });
+  const invoices = await db.subscriptionInvoice.findMany({
+    where: { id: { in: intents.map((i) => meta(i).subscription_invoice).filter((x): x is string => !!x) } },
+    select: { id: true, number: true, subscription: { select: { plan: { select: { name: true } } } } },
+  });
+  const minor = (v: unknown) => (typeof v === "object" && v && "toFixed" in v ? (v as { toFixed(n: number): string }).toFixed(0) : String(v));
+  return {
+    period: key.period,
+    budgetMinor: minor(key.budgetMinor),
+    perPaymentMinor: minor(key.perPaymentMinor),
+    spentMinor: spentMinor.toString(),
+    paidMinor: paid._sum.amountMinor?.toFixed(0) ?? "0",
+    paidCount: paid._count,
+    payments: spends.map((s) => {
+      const intent = intents.find((i) => i.id === s.intentId);
+      const link = links.find((l) => l.id === meta(intent).payment_link);
+      const invoice = invoices.find((v) => v.id === meta(intent).subscription_invoice);
+      return {
+        id: s.id,
+        paymentId: s.intentId,
+        merchant: orgs.find((o) => o.id === intent?.orgId)?.name ?? "Unknown merchant",
+        for: invoice
+          ? `Invoice ${invoice.number} · ${invoice.subscription.plan.name}`
+          : (link?.title ?? intent?.reference ?? "Payment"),
+        amountMinor: s.amountMinor.toFixed(0),
+        state: spendState[s.state] ?? s.state,
+        createdAt: s.createdAt.toISOString(),
+      };
+    }),
+  };
+}

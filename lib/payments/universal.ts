@@ -9,6 +9,7 @@
 // (docs/crypto-payments.md), so crypto is offered only for USD orders; it is
 // never converted from another currency at an estimated rate.
 import { db } from "../portal/db";
+import { json } from "../portal/service";
 import { PortalError } from "../portal/domain";
 import { currencyExponent } from "../partners/money";
 import { session } from "../merchant/service";
@@ -72,6 +73,15 @@ export async function createUniversalCheckout(
       { returnUrl: input.returnUrl },
     );
     checkouts.push({ kind: "crypto", intentId: s.intentId, checkoutPath: s.checkoutPath, expiresAt: new Date(s.expiresAt) });
+    // The crypto side carries the order's metadata too (a payment link's id,
+    // a subscription invoice's id), so its confirmation is attributed.
+    if (input.metadata && Object.keys(input.metadata).length) {
+      const current = await db.paymentIntent.findUniqueOrThrow({ where: { id: s.intentId }, select: { metadata: true } });
+      await db.paymentIntent.update({
+        where: { id: s.intentId },
+        data: { metadata: json({ ...((current.metadata as object | null) ?? {}), ...input.metadata }) },
+      });
+    }
   }
   // Join the group. An intent already in another group means the key was
   // reused for a different order.

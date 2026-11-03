@@ -69,6 +69,8 @@ export function Keys({
                         "settlements:read",
                         "configuration:read",
                         "webhooks:read",
+                        "subscriptions:read",
+                        "subscriptions:write",
                         "refunds:write",
                       ]
                     : form.get("access") === "write"
@@ -78,12 +80,15 @@ export function Keys({
                         "settlements:read",
                         "configuration:read",
                         "webhooks:read",
+                        "subscriptions:read",
+                        "subscriptions:write",
                       ]
                     : [
                         "payments:read",
                         "settlements:read",
                         "configuration:read",
                         "webhooks:read",
+                        "subscriptions:read",
                       ],
               },
             });
@@ -93,8 +98,8 @@ export function Keys({
             Access
             <select name="access">
               <option value="read">Read only</option>
-              <option value="write">Create payments and checkout sessions</option>
-              <option value="refunds">Payments and refunds</option>
+              <option value="write">Create payments and subscriptions</option>
+              <option value="refunds">Payments, subscriptions and refunds</option>
             </select>
           </label>
           <button disabled={busy}>Create key</button>

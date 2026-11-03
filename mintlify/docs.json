@@ -33,6 +33,7 @@
               "quickstart",
               "guides/activation",
               "guides/payment-links",
+              "guides/subscriptions",
               "guides/checkout-button"
             ]
           },
@@ -54,7 +55,9 @@
             "pages": [
               "concepts/payment-intents",
               "concepts/settlement",
+              "guides/refunds-disputes",
               "concepts/billing",
+              "guides/teams",
               "concepts/provider-accounts"
             ]
           },
@@ -223,7 +226,7 @@
     },
     {
       "source": "/guides/subscriptions-and-dunning",
-      "destination": "/concepts/payment-methods"
+      "destination": "/guides/subscriptions"
     },
     {
       "source": "/concepts/fx-splicing-ledger",

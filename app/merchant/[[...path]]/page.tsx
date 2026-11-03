@@ -13,7 +13,7 @@ import { Stablecoins } from "./stablecoins";
 import { stablecoinOverview } from "@/lib/merchant/stablecoins";
 import { CryptoBalance } from "./intents";
 import { AgentKeys } from "./agents";
-import { agentKeys } from "@/lib/agents/keys";
+import { agentKeys, agentSpending } from "@/lib/agents/keys";
 import { intentsOverview } from "@/lib/intents/account";
 import { payouts } from "@/lib/intents/payouts";
 import { chainNames, destinations as intentsDestinations, tokens as oneClickTokens } from "@/lib/intents/oneclick";
@@ -40,6 +40,8 @@ import { applicationRequirements } from "@/lib/merchant/evidence";
 import { merchantMetrics } from "@/lib/merchant/metrics";
 import { WebhookControls } from "./webhooks";
 import { PaymentLinks } from "./payment-links";
+import { SubscriptionDetail, Subscriptions } from "./subscriptions";
+import { getSubscription, listPlans, listSubscriptions, planView } from "@/lib/subscriptions/service";
 import { linkMethodsOn } from "@/lib/merchant/payment-links";
 import { payoutCurrency } from "@/lib/merchant/payout-banks";
 import { platformCandidates } from "@/lib/treasury/routes";
@@ -777,8 +779,18 @@ export default async function Page({
       );
     }
   } else if (section === "developers/agents") {
+    const selected =
+      typeof query.key === "string"
+        ? await db.agentKey.findFirst({ where: { id: query.key, orgId, environment: env } })
+        : null;
     content = configure ? (
-      <AgentKeys orgId={orgId} environment={env} keys={await agentKeys(orgId, env)} />
+      <AgentKeys
+        orgId={orgId}
+        environment={env}
+        keys={await agentKeys(orgId, env)}
+        query={`?${new URLSearchParams({ orgId, environment: env })}`}
+        spending={selected ? { keyId: selected.id, name: selected.name, ...(await agentSpending(selected)) } : null}
+      />
     ) : (
       ownerOnly("create agent keys")
     );
@@ -881,6 +893,43 @@ export default async function Page({
         }))}
       />
     );
+  } else if (section === "subscriptions") {
+    const methodsOn = await linkMethodsOn(orgId, env);
+    const cryptoReady = await merchantConfiguration(orgId, env)
+      .then((c) => c.stablecoinAssets.some((a) => a.configured && a.executionEnabled))
+      .catch(() => false);
+    if (segments[1]) {
+      const sub = await getSubscription(scope, segments[1]).catch(() => null);
+      if (!sub) notFound();
+      const plan = await db.subscriptionPlan.findUniqueOrThrow({ where: { id: sub.plan.id } });
+      backLink = { href: href("subscriptions"), label: "Subscriptions" };
+      title = sub.customer.name ?? sub.customer.email;
+      content = (
+        <SubscriptionDetail
+          orgId={orgId}
+          sub={sub}
+          canManage={configure}
+          test={env === "sandbox"}
+          meters={planView(plan).meters}
+        />
+      );
+    } else {
+      const [plans, subs] = await Promise.all([listPlans(scope), listSubscriptions(scope, new URLSearchParams({ limit: "100" }))]);
+      content = (
+        <Subscriptions
+          orgId={orgId}
+          plans={plans}
+          subscriptions={subs.data}
+          canManage={configure}
+          methodsOn={[...methodsOn]}
+          cryptoReady={cryptoReady}
+          localCurrency={methodsOn.size ? (payoutCurrency(config.country) ?? "USD") : "USD"}
+          activateHref={href("activation")}
+          detailBase={`/merchant/subscriptions/`}
+          query={`?${new URLSearchParams({ orgId, environment: env })}`}
+        />
+      );
+    }
   } else if (section === "developers/integrations") {
     const shops = await db.shopifyShop.findMany({ where: { orgId, uninstalledAt: null }, orderBy: { installedAt: "desc" } });
     const liteShops = await db.shopifyLiteShop.findMany({ where: { orgId, uninstalledAt: null }, orderBy: { installedAt: "desc" } });

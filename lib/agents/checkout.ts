@@ -3,6 +3,7 @@
 //
 //   GET  links/{slug}        402 Payment Required: what the link costs and
 //                            how an agent can pay it
+//   GET  invoices/{slug}     the same for a subscription invoice
 //   POST checkouts           open a checkout from a link (or a checkout URL
 //                            the merchant gave the agent)
 //   POST checkouts/{id}/pay  what to send, or the intent to sign
@@ -24,6 +25,7 @@ import { destinationFor } from "../intents/oneclick";
 import { crossChainQuote, crossChainStatus, intentsFundedQuote, payOptions, submitFundedIntent } from "../intents/checkout";
 import type { QuotedCryptoTerms } from "../payments/crypto-checkout";
 import { reserveSpend, type AgentKey } from "./keys";
+import { publicInvoice, startInvoiceCheckout } from "../subscriptions/service";
 
 const api = "/api/agent/v1";
 
@@ -51,8 +53,36 @@ export async function linkTerms(slug: string, origin: string) {
   };
 }
 
+// What an agent learns from a subscription invoice before paying it.
+export async function invoiceTerms(slug: string, origin: string) {
+  const invoice = await publicInvoice(slug);
+  if (!invoice) throw new PortalError("INVOICE_NOT_PAYABLE", 404);
+  return {
+    error: invoice.state === "Open" ? "Payment required" : `Invoice ${invoice.state.toLowerCase()}`,
+    merchant: invoice.merchant,
+    title: `Invoice ${invoice.number} · ${invoice.plan}`,
+    amount: invoice.amount,
+    currency: invoice.currency,
+    state: invoice.state,
+    dueAt: invoice.dueAt.toISOString(),
+    lines: invoice.lines,
+    testMode: invoice.environment === "sandbox",
+    accepts:
+      invoice.crypto && invoice.state === "Open"
+        ? [
+            { method: "wallet", description: "Send a token on-chain to the address checkout gives you" },
+            ...(invoice.environment === "production"
+              ? [{ method: "intents", network: "near:mainnet", description: "Sign one transfer intent from a NEAR Intents balance; no gas" }]
+              : []),
+          ]
+        : [],
+    checkout: { method: "POST", url: `${origin}${api}/checkouts`, body: { invoice: invoice.slug } },
+  };
+}
+
 const openInput = z.union([
   z.object({ link: z.string().trim().min(1).max(300) }).strict(),
+  z.object({ invoice: z.string().trim().min(1).max(300) }).strict(),
   z.object({ checkoutUrl: z.url().max(2048) }).strict(),
 ]);
 
@@ -74,6 +104,12 @@ export async function openCheckout(raw: unknown, visitor: { ip: string; country?
     if (!link) throw new PortalError("PAYMENT_LINK_UNAVAILABLE", 404);
     if (!link.crypto || link.currency !== "USD") throw new PortalError("AGENT_PAYMENT_NOT_OFFERED", 409);
     session = sessionOf(await startPaymentLinkCheckout(slug, visitor));
+  } else if ("invoice" in input) {
+    const slug = input.invoice.match(/\/pay\/invoice\/([A-Za-z0-9]{10,20})(?:[/?#]|$)/)?.[1] ?? input.invoice;
+    const invoice = await publicInvoice(slug);
+    if (!invoice || invoice.state !== "Open") throw new PortalError("INVOICE_NOT_PAYABLE", 409);
+    if (!invoice.crypto) throw new PortalError("AGENT_PAYMENT_NOT_OFFERED", 409);
+    session = sessionOf(await startInvoiceCheckout(slug, visitor));
   } else session = sessionOf(new URL(input.checkoutUrl).pathname + new URL(input.checkoutUrl).hash);
   const { intent } = await authorizeSession(session.id, session.token, new Date());
   if ((intent.asset as { kind?: string }).kind !== "blockchain") session = sessionOf((await switchTo(session.id, session.token, "crypto")).checkoutPath);

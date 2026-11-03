@@ -1,5 +1,6 @@
 // PayRouta's MCP server (docs/mcp.md): a merchant's AI assistant creates
-// checkouts and payment links, looks up payments and issues refunds through
+// checkouts, payment links and subscriptions, records usage, looks up
+// payments and issues refunds through
 // the Model Context Protocol, with a merchant API key. Each tool needs the
 // same scope as the API it stands for; refunds need refunds:write, which a
 // key has only when the merchant grants it.
@@ -18,11 +19,30 @@ import { insertPaymentLink, listPaymentLinks, paymentLinkInput } from "../mercha
 import { intents } from "../merchant/service";
 import { requestRefund } from "../treasury/refunds";
 import { fiatPaymentMethodIds } from "../providers/normalized";
+import { planInput, subscriptionInput, usageInput } from "../subscriptions/billing";
+import { buyerTools, type BuyerContext } from "./buyer";
+import type { AgentKey } from "../agents/keys";
+import {
+  cancelSubscription,
+  createPlan,
+  createSubscription,
+  getSubscription,
+  listPlans,
+  listSubscriptions,
+  recordUsage,
+} from "../subscriptions/service";
 
 export const protocolVersions = ["2025-06-18", "2025-03-26", "2024-11-05"];
 
 type Tenant = { orgId: string; environment: string; keyId: string };
-export type McpContext = { authorize(scope?: string): Promise<Tenant>; origin: string };
+// A merchant API key gets the merchant tools; an agent key (pra_…) gets the
+// buyer tools in buyer.ts, to pay links and invoices within its limits.
+export type McpContext = {
+  authorize(scope?: string): Promise<Tenant>;
+  origin: string;
+  agent?: () => Promise<AgentKey>;
+  visitor?: BuyerContext["visitor"];
+};
 
 type Tool = {
   name: string;
@@ -156,6 +176,95 @@ const tools: Tool[] = [
       return { id: refund.id, amountMinor: refund.amountMinor.toFixed(0), state: refund.state };
     },
   },
+  {
+    name: "create_plan",
+    title: "Create a subscription plan",
+    description:
+      "A price per period, usage meters billed after each period, or both. Customers pay each invoice from any wallet; crypto plans are in USD.",
+    scope: "subscriptions:write",
+    input: planInput,
+    async run(args, t) {
+      return createPlan(t, args, t.keyId);
+    },
+  },
+  {
+    name: "list_plans",
+    title: "List subscription plans",
+    description: "Your subscription plans, newest first.",
+    scope: "subscriptions:read",
+    readOnly: true,
+    input: z.object({}).strict(),
+    async run(_args, t) {
+      return { plans: await listPlans(t) };
+    },
+  },
+  {
+    name: "create_subscription",
+    title: "Subscribe a customer",
+    description:
+      "Subscribe a customer (by email) to a plan. Returns the subscription with its first invoice's pay link; live mode emails it to the customer.",
+    scope: "subscriptions:write",
+    input: subscriptionInput,
+    async run(args, t) {
+      return createSubscription(t, args, t.keyId);
+    },
+  },
+  {
+    name: "list_subscriptions",
+    title: "List subscriptions",
+    description: "Subscriptions, newest first. Filter by state (Incomplete, Active, PastDue, Canceled) or customer email.",
+    scope: "subscriptions:read",
+    readOnly: true,
+    input: z
+      .object({
+        state: z.enum(["Incomplete", "Active", "PastDue", "Canceled"]).optional(),
+        customerEmail: z.email().optional(),
+        limit: z.number().int().min(1).max(100).default(25),
+        cursor: z.string().max(400).optional(),
+      })
+      .strict(),
+    async run(args: { state?: string; customerEmail?: string; limit: number; cursor?: string }, t) {
+      const params = new URLSearchParams({ limit: String(args.limit) });
+      if (args.state) params.set("state", args.state);
+      if (args.customerEmail) params.set("reference", args.customerEmail);
+      if (args.cursor) params.set("cursor", args.cursor);
+      return listSubscriptions(t, params);
+    },
+  },
+  {
+    name: "get_subscription",
+    title: "Get a subscription",
+    description: "One subscription with its invoices and the usage recorded this period.",
+    scope: "subscriptions:read",
+    readOnly: true,
+    input: z.object({ id: z.string().min(1).max(100) }).strict(),
+    async run(args: { id: string }, t) {
+      return getSubscription(t, args.id);
+    },
+  },
+  {
+    name: "record_usage",
+    title: "Record usage",
+    description:
+      "Add usage to a subscription's meter for the current period, e.g. 120 api_calls. Repeating an idempotencyKey records it once.",
+    scope: "subscriptions:write",
+    input: z.object({ subscription: z.string().min(1).max(100) }).extend(usageInput.shape).strict(),
+    async run(args: { subscription: string } & Record<string, unknown>, t) {
+      const { subscription, ...usage } = args;
+      return recordUsage(t, subscription, { idempotencyKey: `mcp-${randomUUID()}`, ...usage });
+    },
+  },
+  {
+    name: "cancel_subscription",
+    title: "Cancel a subscription",
+    description: "Cancel now (usage so far is invoiced) or at the end of the current period.",
+    scope: "subscriptions:write",
+    destructive: true,
+    input: z.object({ id: z.string().min(1).max(100), atPeriodEnd: z.boolean().default(false) }).strict(),
+    async run(args: { id: string; atPeriodEnd: boolean }, t) {
+      return cancelSubscription(t, args.id, { atPeriodEnd: args.atPeriodEnd }, t.keyId);
+    },
+  },
 ];
 
 const message = z.object({
@@ -178,7 +287,8 @@ export async function handleMcp(raw: unknown, ctx: McpContext) {
   try {
     if (method === "ping") return ok({});
     if (method === "initialize") {
-      await ctx.authorize();
+      if (ctx.agent) await ctx.agent();
+      else await ctx.authorize();
       const asked = typeof params?.protocolVersion === "string" ? params.protocolVersion : "";
       return ok({
         protocolVersion: protocolVersions.includes(asked) ? asked : protocolVersions[0],
@@ -187,9 +297,10 @@ export async function handleMcp(raw: unknown, ctx: McpContext) {
       });
     }
     if (method === "tools/list") {
-      await ctx.authorize();
+      if (ctx.agent) await ctx.agent();
+      else await ctx.authorize();
       return ok({
-        tools: tools.map((t) => ({
+        tools: (ctx.agent ? buyerTools : tools).map((t) => ({
           name: t.name,
           title: t.title,
           description: t.description,
@@ -197,6 +308,24 @@ export async function handleMcp(raw: unknown, ctx: McpContext) {
           annotations: { readOnlyHint: !!t.readOnly, destructiveHint: !!t.destructive, openWorldHint: false },
         })),
       });
+    }
+    if (method === "tools/call" && ctx.agent) {
+      const tool = buyerTools.find((t) => t.name === params?.name);
+      if (!tool) return error(id, -32602, `Unknown tool: ${String(params?.name)}`);
+      const args = tool.input.safeParse(params?.arguments ?? {});
+      if (!args.success) return ok(toolError(`Invalid arguments: ${args.error.issues.map((i) => `${i.path.join(".") || "input"} ${i.message}`).join("; ")}`));
+      const key = await ctx.agent();
+      try {
+        const result = JSON.parse(
+          JSON.stringify(await tool.run(args.data as never, key, { origin: ctx.origin, visitor: ctx.visitor ?? { ip: "mcp" } })),
+        );
+        return ok({ content: [{ type: "text", text: JSON.stringify(result) }], structuredContent: result });
+      } catch (e) {
+        if (e instanceof PortalError && e.status === 401) throw e;
+        const code = e instanceof PortalError ? e.message : e instanceof z.ZodError ? "INVALID_REQUEST" : "SERVICE_UNAVAILABLE";
+        if (!(e instanceof PortalError) && !(e instanceof z.ZodError)) console.error("mcp buyer tool failed", tool.name, e);
+        return ok(toolError(`${code}: ${errorText({ error: code }, e instanceof PortalError ? e.status : 500)}`));
+      }
     }
     if (method === "tools/call") {
       const tool = tools.find((t) => t.name === params?.name);
@@ -217,7 +346,7 @@ export async function handleMcp(raw: unknown, ctx: McpContext) {
     }
     return error(id, -32601, `Method not found: ${method}`);
   } catch (e) {
-    if (e instanceof PortalError && e.status === 401) return error(id, -32001, "Unauthorized: send a PayRouta API key as a bearer token");
+    if (e instanceof PortalError && e.status === 401) return error(id, -32001, "Unauthorized: send a PayRouta API key or agent key as a bearer token");
     if (e instanceof PortalError && e.status === 403) return error(id, -32003, `Forbidden: ${e.message}`);
     console.error("mcp request failed", method, e);
     return error(id, -32603, "Internal error");

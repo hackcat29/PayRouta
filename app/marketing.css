@@ -67,7 +67,7 @@ body:has(.mk-header) {
   color: var(--mk-indigo-ink);
   text-underline-offset: 3px;
 }
-:where(.mk) :is(p, li, dd) a:not(.mk-btn):not(.mk-arrow):not(.hp-link) {
+:where(.mk) :is(p, li, dd) a:not(.mk-btn):not(.mk-arrow):not(.hp-link):not(.hp-cap) {
   text-decoration: underline;
   text-decoration-thickness: 1px;
 }
@@ -687,6 +687,87 @@ body:has(.mk-header) {
 .hp-tile-crypto .hp-more {
   color: var(--mk-kola-light);
 }
+.hp-tile-subs {
+  grid-column: span 3;
+}
+.hp-tile-agents {
+  grid-column: span 3;
+  background: var(--mk-sky-wash);
+  border-color: #c9dafc;
+}
+.hp-tile-agents .hp-mini-code code {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.hp-mini-invoice {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+  border: 1px solid var(--mk-line);
+  border-radius: 14px;
+  background: #fff;
+  font-size: 14px;
+}
+.hp-mini-invoice i {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-style: normal;
+  color: var(--mk-body);
+}
+.hp-mini-invoice b {
+  color: var(--mk-ink);
+  font-variant-numeric: tabular-nums;
+}
+.hp-mini-invoice .hp-mini-total {
+  padding-top: 8px;
+  border-top: 1px solid var(--mk-line);
+  font-weight: 600;
+}
+/* Subscriptions page: an example invoice. */
+.sb-invoice {
+  display: grid;
+  gap: 14px;
+  padding: 24px;
+  border: 1px solid var(--mk-line);
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: var(--mk-shadow);
+}
+.sb-invoice-head {
+  font-family: var(--mk-display);
+  font-weight: 700;
+  color: var(--mk-ink);
+}
+.sb-invoice dl {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+.sb-invoice dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+.sb-invoice dd {
+  margin: 0;
+  font-weight: 600;
+  color: var(--mk-ink);
+  font-variant-numeric: tabular-nums;
+}
+.sb-invoice-total {
+  padding-top: 10px;
+  border-top: 1px solid var(--mk-line);
+  font-weight: 700;
+}
+.sb-invoice-pay {
+  padding: 12px;
+  border-radius: 999px;
+  background: var(--mk-ink);
+  color: #fff;
+  text-align: center;
+  font-weight: 600;
+}
 .hp-mini-code {
   display: grid;
   gap: 14px;
@@ -745,6 +826,7 @@ body:has(.mk-header) {
 }
 .hp-mini-plan i:first-child {
   background: var(--mk-gold);
+  color: var(--mk-ink);
 }
 /* The checkout preview sits on the dark hero. */
 .hp-hero .hd-tab {
@@ -2444,7 +2526,9 @@ body:has(.mk-header) {
   }
   .hp-tile-button,
   .hp-tile-credit,
-  .hp-tile-crypto {
+  .hp-tile-crypto,
+  .hp-tile-subs,
+  .hp-tile-agents {
     grid-column: span 1;
   }
   .hp-tile-crypto {
@@ -2523,7 +2607,9 @@ body:has(.mk-header) {
   .hp-tile-links,
   .hp-tile-button,
   .hp-tile-credit,
-  .hp-tile-crypto {
+  .hp-tile-crypto,
+  .hp-tile-subs,
+  .hp-tile-agents {
     grid-column: auto;
   }
   .hp-tile,
@@ -2736,4 +2822,74 @@ body:has(.mk-header) {
 .turnstile {
   min-height: 65px;
   margin: 4px 0 12px;
+}
+
+/* Homepage: what runs after the payment, and developer tools. */
+.hp-h3 {
+  margin: 56px 0 0;
+  font-family: var(--mk-display);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--mk-ink);
+}
+.hp-caps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin: 28px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.hp-cap {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  height: 100%;
+  padding: 22px;
+  border: 1px solid var(--mk-line);
+  border-radius: 18px;
+  background: var(--mk-paper);
+  color: var(--mk-body) !important;
+  font-size: 15px;
+  line-height: 1.5;
+  text-decoration: none;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.hp-cap:hover {
+  border-color: var(--mk-ink);
+  transform: translateY(-2px);
+}
+.hp-cap svg {
+  color: var(--mk-indigo-ink);
+}
+.hp-cap-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mk-display);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--mk-ink);
+}
+.hp-cap-status {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--mk-gold-wash);
+  color: #6b4d00;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+@media (max-width: 1000px) {
+  .hp-caps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .hp-caps {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

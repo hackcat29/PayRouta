@@ -4,6 +4,7 @@
 * [Quickstart](quickstart.md)
 * [Activate payments](activation.md)
 * [Payment links](payment-links.md)
+* [Subscriptions](subscriptions.md)
 * [Checkout button](checkout-button.md)
 
 ## Concepts
@@ -11,6 +12,8 @@
 * [Payment intents](payment-intents.md)
 * [Payment methods](payment-methods.md)
 * [Settlement](settlement.md)
+* [Refunds and disputes](refunds-disputes.md)
+* [Teams and security](teams.md)
 * [Pay with credit](credit.md)
 * [Pay from any chain](cross-chain.md)
 

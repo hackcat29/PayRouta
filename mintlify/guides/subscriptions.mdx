@@ -1,0 +1,73 @@
+---
+title: "Subscriptions"
+description: "Bill customers every period for a price, for usage, or both. They pay each invoice from any wallet, or by card, bank or mobile money."
+---
+
+Charge customers every period, for a fixed price, for what they use, or both. Each period PayRouta sends the customer an invoice they pay from any wallet and token you accept, or by the card, bank and mobile money methods you have on. Nothing is taken from a customer's wallet without them: they pay each invoice themselves.
+
+## How it works
+
+1. You create a **plan**: a price per day, week, month or year, usage **meters**, or both.
+2. You **subscribe** a customer by email. Their first invoice is ready straight away; the subscription is **Incomplete** until it's paid, then **Active**. A usage-only plan is Active at once.
+3. At the end of each period PayRouta issues one invoice: the next period's price plus the last period's usage above what the plan includes. In live mode the customer gets it by email; you can also copy or share its pay link.
+4. An invoice not paid within 7 days (or by the end of the period, when that's sooner) makes the subscription **Past due**. Still unpaid at the next renewal, the subscription is **Canceled** and its unpaid invoices are voided.
+
+## Plans and meters
+
+| Field | Meaning |
+| --- | --- |
+| `amount` | Charged at the start of each period. `"0"` for usage only |
+| `interval`, `intervalCount` | `month` and `1` for monthly; `week` and `2` for every two weeks |
+| `meters` | Up to 10: a `key` you report usage against, a `name` shown on invoices, a `unitAmount` and `includedUnits` |
+| `crypto` | Accept stablecoins and any token. Crypto plans are in USD |
+| `methods` | Card, wallet, bank transfer, mobile money or USSD, where they're on for your account |
+
+```bash
+curl -X POST "$PAYROUTA_API_URL/plans" \
+  -H "Authorization: Bearer $PAYROUTA_SECRET_KEY" \
+  -H "PayRouta-Environment: sandbox" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Pro","amount":"20","currency":"USD","interval":"month","crypto":true,
+       "meters":[{"key":"api_calls","name":"API calls","unitAmount":"0.002","includedUnits":"10000"}]}'
+```
+
+## Subscribe a customer
+
+```bash
+curl -X POST "$PAYROUTA_API_URL/subscriptions" \
+  -H "Authorization: Bearer $PAYROUTA_SECRET_KEY" \
+  -H "PayRouta-Environment: sandbox" \
+  -H "Content-Type: application/json" \
+  -d '{"plan":"<plan id>","customer":{"email":"ada@example.com","reference":"user_42"}}'
+```
+
+The answer's `latestInvoice.url` is the page the customer pays at.
+
+## Report usage
+
+```bash
+curl -X POST "$PAYROUTA_API_URL/subscriptions/<id>/usage" \
+  -H "Authorization: Bearer $PAYROUTA_SECRET_KEY" \
+  -H "PayRouta-Environment: sandbox" \
+  -H "Idempotency-Key: job-7781-calls" \
+  -H "Content-Type: application/json" \
+  -d '{"meter":"api_calls","quantity":"1200"}'
+```
+
+Usage counts in the current period. Send it as it happens or in batches; the same `Idempotency-Key` is recorded once. Quantities can have up to six decimal places, such as `"2.5"` GB.
+
+## Cancel
+
+`POST /subscriptions/{id}/cancel` with `{"atPeriodEnd": true}` ends it after the current period, with a final invoice for that period's usage. Without it, the subscription ends now: usage so far is invoiced and other unpaid invoices are voided.
+
+## Test mode
+
+Invoices aren't emailed in test mode; copy the pay link from the subscription instead. **Advance to next period** on a subscription (or `POST /subscriptions/{id}/advance`) closes the current period now, so you can see a renewal and its usage invoice without waiting.
+
+## Webhooks
+
+`subscription.created`, `subscription.active`, `subscription.past_due`, `subscription.canceled`, `invoice.created` and `invoice.paid`. Each carries the subscription or invoice it is about. Grant access from your app on `subscription.active` and `invoice.paid`; remove it on `subscription.canceled`.
+
+## AI agents
+
+Your assistant can create plans, subscribe customers, record usage and cancel with the MCP tools `create_plan`, `create_subscription`, `record_usage` and `cancel_subscription`. An agent paying for a subscription reads an invoice's terms at `GET /api/agent/v1/invoices/{slug}` and pays it like a payment link.

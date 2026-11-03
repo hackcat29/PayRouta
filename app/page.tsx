@@ -2,8 +2,23 @@ import Link from "next/link";
 import { HeroDemo } from "@/components/marketing/hero-demo";
 import { LinkPicture } from "@/components/marketing/add-anywhere";
 import { CoverageGrid, CreditTimeline, PaymentFlow } from "@/components/marketing/diagrams";
-import { pillars } from "@/content/claims";
-import { createLinkHref, trustedOrigin, paths } from "@/lib/site-config";
+import {
+  ArrowLeftRight,
+  Blocks,
+  Bot,
+  Braces,
+  FlaskConical,
+  Globe,
+  Landmark,
+  LineChart,
+  ReceiptText,
+  ShieldCheck,
+  Undo2,
+  Webhook,
+  type LucideIcon,
+} from "lucide-react";
+import { availabilityLabel, payouts, pillars } from "@/content/claims";
+import { createLinkHref, docsUrl, trustedOrigin, paths } from "@/lib/site-config";
 import { instalmentOffer } from "@/lib/treasury/credit";
 
 // The phone in the payment-link tile, in 4 payments two weeks apart, first
@@ -35,6 +50,93 @@ export const metadata = {
       }
     : {}),
 };
+
+type Capability = { icon: LucideIcon; title: string; text: string; href: string; label?: string };
+const bankPayouts = payouts.find((p) => p.destination === "Bank account")!.availability;
+
+// What runs after the payment, and what developers and agents build on.
+const operations: Capability[] = [
+  {
+    icon: Landmark,
+    title: "Balances and payouts",
+    text: "See what's available and what's on its way, then pay out to your bank on your schedule. Crypto lands in your own wallet.",
+    href: docsUrl("settlement"),
+    label: bankPayouts === "available" ? undefined : availabilityLabel[bankPayouts],
+  },
+  {
+    icon: ArrowLeftRight,
+    title: "Cash out crypto",
+    text: "Turn your crypto balance into money in a bank account or mobile money wallet.",
+    href: docsUrl("cash-out"),
+    label: availabilityLabel.testing,
+  },
+  {
+    icon: Undo2,
+    title: "Refunds and disputes",
+    text: "Refund in full or in part, and answer a dispute with evidence before its deadline.",
+    href: docsUrl("refunds-disputes"),
+  },
+  {
+    icon: ReceiptText,
+    title: "Customers can pay the fees",
+    text: "Absorb fees, or add them at checkout so you receive your full price.",
+    href: docsUrl("billing"),
+  },
+  {
+    icon: Globe,
+    title: "Local payment methods",
+    text: "Pix in Brazil, M-Pesa in Kenya, bank transfer in Nigeria: shown first, under the name customers know.",
+    href: paths.paymentMethods,
+  },
+  {
+    icon: Blocks,
+    title: "Shopify and WooCommerce",
+    text: "A Pay button after Shopify checkout, and a plugin for WooCommerce.",
+    href: paths.integrations,
+  },
+  {
+    icon: LineChart,
+    title: "Analytics and payment issues",
+    text: "Conversion, payments saved by a backup processor, and every reconciliation difference in one place.",
+    href: docsUrl("settlement"),
+  },
+  {
+    icon: ShieldCheck,
+    title: "Teams and security",
+    text: "Roles for your team, passkeys, an authenticator for sensitive actions, and single sign-on.",
+    href: docsUrl("teams"),
+  },
+];
+const developers: Capability[] = [
+  { icon: Braces, title: "API and SDKs", text: "One call per order from Node or Python, or plain HTTP.", href: docsUrl("api-reference") },
+  { icon: Webhook, title: "Webhooks", text: "Signed events for payments, settlements and subscriptions.", href: docsUrl("webhooks") },
+  {
+    icon: Bot,
+    title: "MCP server",
+    text: "Your assistant runs payments with an API key; a buyer's agent pays with an agent key.",
+    href: docsUrl("mcp"),
+  },
+  { icon: FlaskConical, title: "Test mode", text: "Every flow end to end with test money before you go live.", href: docsUrl("quickstart") },
+];
+
+function Capabilities({ items, label }: { items: Capability[]; label: string }) {
+  return (
+    <ul className="hp-caps" aria-label={label}>
+      {items.map(({ icon: Icon, title, text, href, label: status }) => (
+        <li key={title}>
+          <Link className="hp-cap" href={href}>
+            <Icon size={20} aria-hidden="true" />
+            <span className="hp-cap-title">
+              {title}
+              {status && <span className="hp-cap-status">{status}</span>}
+            </span>
+            <span>{text}</span>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 function More({ children }: { children: React.ReactNode }) {
   return (
@@ -121,6 +223,35 @@ export default function Home() {
                 <b>USDC</b>
               </span>
             </Link>
+            <Link className="hp-tile hp-tile-subs" href={paths.subscriptions}>
+              <span className="hp-tile-text">
+                <span className="hp-tile-title">Subscriptions</span>
+                <span>Bill every month for a price, for usage, or both. Customers pay each invoice from any wallet.</span>
+                <More>Subscriptions</More>
+              </span>
+              <span className="hp-mini-invoice" aria-hidden="true">
+                <i>
+                  Pro <b>$20.00</b>
+                </i>
+                <i>
+                  API calls × 3,200 <b>$6.40</b>
+                </i>
+                <i className="hp-mini-total">
+                  Due <b>$26.40</b>
+                </i>
+              </span>
+            </Link>
+            <Link className="hp-tile hp-tile-agents" href={paths.agents}>
+              <span className="hp-tile-text">
+                <span className="hp-tile-title">AI agents</span>
+                <span>Agents pay your links and invoices over HTTP, within the limits you set. Your assistant runs payments over MCP.</span>
+                <More>Agentic payments</More>
+              </span>
+              <span className="hp-mini-code" aria-hidden="true">
+                <code>{"402 Payment Required"}</code>
+                <code>{'"amount": "25.00", "accepts": ["wallet", "intents"]'}</code>
+              </span>
+            </Link>
           </div>
         </div>
       </section>
@@ -159,6 +290,19 @@ export default function Home() {
             Where customers can pay
           </h2>
           <CoverageGrid />
+        </div>
+      </section>
+
+      <section className="hp-sec" aria-labelledby="ops-h">
+        <div className="mk-wrap">
+          <h2 className="hp-h2" id="ops-h">
+            Everything after the payment.
+          </h2>
+          <Capabilities items={operations} label="Running your payments" />
+          <h3 className="hp-h3" id="dev-h">
+            For developers and their agents
+          </h3>
+          <Capabilities items={developers} label="For developers" />
         </div>
       </section>
 

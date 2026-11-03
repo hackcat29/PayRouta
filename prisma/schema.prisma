@@ -1904,3 +1904,112 @@ model PaymentLink {
 
   @@index([orgId, environment, createdAt])
 }
+
+// Subscriptions (lib/subscriptions): the merchant bills, the customer pays
+// each period at a hosted invoice page, by crypto from any wallet (and by
+// fiat methods that are on). Nothing is charged without the customer.
+model BillingCustomer {
+  id          String         @id @default(cuid())
+  orgId       String
+  environment String
+  email       String
+  name        String?
+  // The merchant's own id for this customer.
+  reference   String?
+  createdAt   DateTime       @default(now())
+  subscriptions Subscription[]
+
+  @@unique([orgId, environment, email])
+}
+
+model SubscriptionPlan {
+  id            String         @id @default(cuid())
+  orgId         String
+  environment   String
+  name          String
+  // Charged at the start of each period; "0" for usage-only plans.
+  amount        String
+  currency      String
+  interval      String
+  intervalCount Int            @default(1)
+  // [{ key, name, unitAmount, includedUnits }], billed after each period.
+  meters        Json
+  methods       Json
+  crypto        Boolean        @default(false)
+  active        Boolean        @default(true)
+  createdBy     String
+  createdAt     DateTime       @default(now())
+  subscriptions Subscription[]
+
+  @@index([orgId, environment, createdAt])
+}
+
+model Subscription {
+  id                 String                @id @default(cuid())
+  orgId              String
+  environment        String
+  planId             String
+  plan               SubscriptionPlan      @relation(fields: [planId], references: [id])
+  customerId         String
+  customer           BillingCustomer       @relation(fields: [customerId], references: [id])
+  // Incomplete until the first invoice is paid, then Active; PastDue while
+  // an invoice is overdue; Canceled for good.
+  state              String                @default("Incomplete")
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean               @default(false)
+  canceledAt         DateTime?
+  metadata           Json
+  createdBy          String
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  invoices           SubscriptionInvoice[]
+  usage              UsageRecord[]
+
+  @@index([orgId, environment, createdAt])
+}
+
+model SubscriptionInvoice {
+  id             String       @id @default(cuid())
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
+  orgId          String
+  environment    String
+  number         Int
+  // Public pay page /pay/invoice/{slug}.
+  slug           String       @unique
+  periodStart    DateTime
+  periodEnd      DateTime
+  amount         String
+  currency       String
+  // [{ description, quantity, unitAmount, amount }]
+  lines          Json
+  state          String       @default("Open")
+  dueAt          DateTime
+  // The checkout opened for this invoice, reused while it is still open.
+  checkoutPath   String?
+  checkoutExpiresAt DateTime?
+  paidAt         DateTime?
+  paymentId      String?
+  remindedAt     DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@unique([subscriptionId, number])
+  @@index([orgId, environment, createdAt])
+}
+
+model UsageRecord {
+  id             String       @id @default(cuid())
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
+  meter          String
+  quantity       String
+  occurredAt     DateTime
+  idempotencyKey String
+  // The invoice it was billed on; null until the period closes.
+  invoiceId      String?
+  createdAt      DateTime     @default(now())
+
+  @@unique([subscriptionId, idempotencyKey])
+  @@index([subscriptionId, meter, occurredAt])
+}

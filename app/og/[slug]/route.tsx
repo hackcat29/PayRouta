@@ -15,6 +15,7 @@ const titles: Record<"home" | PageSlug, [string, string]> = {
   credit: ["Customers pay over time.", "You're paid today."],
   crypto: ["Any wallet, any chain.", "Paid in your stablecoin."],
   agents: ["AI agents pay you.", "Your assistant runs payments."],
+  subscriptions: ["Bill every month.", "Paid from any wallet."],
   "social-sellers": ["Sell in the chat.", "Get paid in the chat."],
   "online-stores": ["Every way to pay at", "your store's checkout."],
   saas: ["Sell worldwide.", "Let customers pay their way."],

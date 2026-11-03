@@ -13,6 +13,7 @@ import {
   KeyRound,
   Landmark,
   Link2,
+  Repeat,
   Settings,
   ShieldAlert,
   TriangleAlert,
@@ -32,6 +33,7 @@ export const routeTitles = {
   overview: "Home",
   payments: "Transactions",
   "payment-links": "Payment links",
+  subscriptions: "Subscriptions",
   "payment-methods": "Payment methods",
   providers: "Providers",
   settlements: "Settlements",
@@ -54,6 +56,7 @@ const s = 16;
 const main: Item[] = [
   { label: "Home", path: "overview", icon: <House size={s} /> },
   { label: "Payment links", path: "payment-links", icon: <Link2 size={s} /> },
+  { label: "Subscriptions", path: "subscriptions", icon: <Repeat size={s} /> },
   { label: "Transactions", path: "payments", icon: <ArrowLeftRight size={s} /> },
   { label: "Balances", path: "balances", icon: <Wallet size={s} /> },
   { label: "Crypto balance", path: "crypto-balance", icon: <Coins size={s} /> },

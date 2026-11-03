@@ -7,6 +7,16 @@ import { z } from "zod";
 import { supportedPaymentMethodIds } from "../providers/normalized";
 import { assetSchema } from "../portal/domain";
 import { intentInput } from "../payments/contracts";
+import {
+  cancelInput,
+  planInput,
+  subscriptionInput,
+  usageInput,
+  wirePlan,
+  wireSubscription,
+  wireSubscriptionDetail,
+  wireUsage,
+} from "../subscriptions/billing";
 export const environment = z.enum(["sandbox", "production"]);
 export const permission = z.enum([
   "payments:read",
@@ -15,13 +25,15 @@ export const permission = z.enum([
   "webhooks:read",
   "webhooks:write",
   "configuration:read",
+  "subscriptions:read",
+  "subscriptions:write",
   // Moves money back to customers; granted only on purpose.
   "refunds:write",
 ]);
 export const keyInput = z
   .object({
     environment,
-    permissions: z.array(permission).min(1).max(7),
+    permissions: z.array(permission).min(1).max(9),
     expiresAt: z.iso.datetime().optional(),
   })
   .strict();
@@ -89,12 +101,18 @@ export const operations = {
   "DELETE webhook-endpoint": "webhooks:write",
   "GET webhook-deliveries": "webhooks:read",
   "POST webhook-deliveries": "webhooks:write",
+  "GET plans": "subscriptions:read",
+  "POST plans": "subscriptions:write",
+  "GET subscriptions": "subscriptions:read",
+  "POST subscriptions": "subscriptions:write",
 } as const;
 export const requestSchemas = {
   "POST checkouts": universalCheckoutInput,
   "POST crypto-checkouts": cryptoCheckoutInput,
   "POST payment-intents": intentInput,
   "POST checkout-sessions": sessionInput,
+  "POST plans": planInput,
+  "POST subscriptions": subscriptionInput,
 };
 export const webhookInput = z
   .object({
@@ -153,6 +171,11 @@ export function responseContract(
     return list ? wirePage(wirePayment) : wirePayment;
   if (operation === "GET settlements")
     return list ? wirePage(wireSettlement) : wireSettlement;
+  if (operation === "GET plans") return wirePage(wirePlan);
+  if (operation === "POST plans") return wirePlan;
+  if (operation === "GET subscriptions") return list ? wirePage(wireSubscription) : wireSubscriptionDetail;
+  if (operation === "POST subscriptions")
+    return action === "usage" ? wireUsage : action === "advance" ? wireSubscriptionDetail : wireSubscription;
   if (operation === "GET webhook-deliveries")
     return list ? wirePage(wireDelivery) : wireDelivery;
   if (operation === "POST webhook-deliveries" && action === "redeliver")
@@ -413,6 +436,46 @@ export function openapi() {
     },
     { method: "get", path: "/settlements/{id}", operation: "GET settlements" },
     { method: "get", path: "/configuration", operation: "GET configuration" },
+    { method: "post", path: "/plans", operation: "POST plans", body: planInput, response: wirePlan, created: true },
+    { method: "get", path: "/plans", operation: "GET plans", response: paginationSchema(wirePlan) },
+    {
+      method: "post",
+      path: "/subscriptions",
+      operation: "POST subscriptions",
+      body: subscriptionInput,
+      response: wireSubscription,
+      created: true,
+    },
+    {
+      method: "get",
+      path: "/subscriptions",
+      operation: "GET subscriptions",
+      list: true,
+      response: paginationSchema(wireSubscription),
+    },
+    { method: "get", path: "/subscriptions/{id}", operation: "GET subscriptions", response: wireSubscriptionDetail },
+    {
+      method: "post",
+      path: "/subscriptions/{id}/usage",
+      operation: "POST subscriptions",
+      body: usageInput,
+      response: wireUsage,
+      idempotency: true,
+      created: true,
+    },
+    {
+      method: "post",
+      path: "/subscriptions/{id}/cancel",
+      operation: "POST subscriptions",
+      body: cancelInput,
+      response: wireSubscription,
+    },
+    {
+      method: "post",
+      path: "/subscriptions/{id}/advance",
+      operation: "POST subscriptions",
+      response: wireSubscriptionDetail,
+    },
     {
       method: "get",
       path: "/fee-settings",
@@ -459,7 +522,7 @@ export function openapi() {
     route.response = responseContract(
       route.operation,
       route.path.includes("{id}") ? "id" : undefined,
-      route.path.endsWith("/redeliver") ? "redeliver" : undefined,
+      route.path.match(/\/\{id\}\/(\w+)$/)?.[1],
     );
     const parameters: unknown[] = [
       {
