@@ -190,14 +190,33 @@ export function BusinessDetailsForm({
   profile,
   registered,
   owners,
+  email,
+  done,
 }: {
   orgId: string;
   profile: ActivationProfile;
   registered: boolean;
   owners: boolean;
+  email?: string;
+  done: boolean;
 }) {
   const { send, busy, message } = useCommand(orgId);
   const [ownerRows, setOwnerRows] = useState(Math.max(1, profile.owners?.length ?? 0));
+  const [open, setOpen] = useState(!done);
+  if (!open)
+    return (
+      <div className="tr-saved">
+        <p>
+          {profile.productDescription && profile.productDescription.length > 80
+            ? `${profile.productDescription.slice(0, 80)}…`
+            : profile.productDescription}{" "}
+          · {profile.supportEmail}
+        </p>
+        <button type="button" className="tr-secondary" onClick={() => setOpen(true)}>
+          Edit
+        </button>
+      </div>
+    );
   return (
     <form
       className="tr-form"
@@ -237,7 +256,7 @@ export function BusinessDetailsForm({
                 })).filter((o) => o.givenName || o.familyName),
               }
             : {}),
-        });
+        }).then((ok) => ok && setOpen(false));
       }}
     >
       <div className="tr-grid">
@@ -247,7 +266,7 @@ export function BusinessDetailsForm({
         </label>
         <label>
           Customer support email
-          <input name="supportEmail" type="email" required defaultValue={profile.supportEmail} />
+          <input name="supportEmail" type="email" required defaultValue={profile.supportEmail ?? email} />
         </label>
         <label>
           Website or social page (optional)
@@ -348,11 +367,13 @@ export function DocumentUpload({
   country,
   requirementId,
   label,
+  hideLabel = false,
 }: {
   orgId: string;
   country: string;
   requirementId: string;
   label: string;
+  hideLabel?: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -387,7 +408,7 @@ export function DocumentUpload({
       }}
     >
       <label>
-        {label}
+        <span className={hideLabel ? "sr-only" : undefined}>{label}</span>
         <input name="file" type="file" accept="application/pdf,image/png,image/jpeg" required />
       </label>
       <button disabled={busy}>{busy ? "Uploading…" : "Upload"}</button>

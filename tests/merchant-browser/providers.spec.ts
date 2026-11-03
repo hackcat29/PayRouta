@@ -44,10 +44,10 @@ test("merchant stablecoins: authenticated receive setup, future methods, busines
   ).toBeTruthy();
   await page.goto(`/merchant/payment-methods?orgId=${orgId}`);
   await expect(
-    page.getByRole("heading", { name: "Stablecoin payments", exact: true }),
+    page.getByRole("heading", { name: "Stablecoin receive addresses", exact: true }),
   ).toBeVisible();
   // Every way to pay is listed with its state for this account.
-  const overview = page.getByRole("heading", { name: "Ways customers pay", exact: true }).locator("../../..");
+  const overview = page.getByRole("heading", { name: "Ways customers pay", exact: true }).locator("../..");
   for (const name of ["Cards", "Digital wallets", "Bank transfer", "Mobile money", "USSD", "Pay with credit", "Stablecoins", "Any token, any chain"])
     await expect(overview.getByText(name, { exact: true })).toBeVisible();
   await page.getByText("Volatile coins: ETH, SOL, XLM and others", { exact: true }).click();
@@ -95,7 +95,7 @@ test("merchant stablecoins: authenticated receive setup, future methods, busines
     page.getByLabel("Fresh receive addresses (one per line)", { exact: true }),
   ).toHaveValue("");
   await expect(
-    page.getByText("Testnet configured", { exact: true }).first(),
+    page.getByText("Ready", { exact: true }).first(),
   ).toBeVisible();
   const wrong = await page.request.post("/api/merchant", {
     headers: { Origin: origin },
@@ -152,13 +152,14 @@ test("merchant creates a payment link; every customer who pays gets their own ch
   });
   await page.goto(`/merchant/payment-methods?orgId=${orgId}`);
   await expect(page.getByRole("heading", { name: "Ways customers pay", exact: true })).toBeVisible();
-  await expect(page.getByRole("cell", { name: "Mainnet only", exact: true })).toHaveCount(1);
+  // USDT has no test network, so test mode doesn't offer it.
+  await expect(page.getByLabel("Token and network", { exact: true }).getByRole("option", { name: /^USDT on/ })).toHaveCount(0);
 
-  await page.goto(`/merchant/payment-links?orgId=${orgId}`);
+  await page.goto(`/merchant/payment-links?orgId=${orgId}&create=1`);
   const title = "Browser link " + Date.now();
   await page.getByLabel("What it's for", { exact: true }).fill(title);
   await page.getByLabel("Amount", { exact: true }).fill("3");
-  await page.getByLabel("Currency", { exact: true }).fill("USD");
+  await page.getByRole("combobox", { name: "Currency", exact: true }).selectOption("USD");
   // Methods that aren't on for this account can't be chosen.
   await expect(page.getByRole("checkbox", { name: /Card/ })).toBeDisabled();
   await page.getByRole("checkbox", { name: /Stablecoins/ }).check();

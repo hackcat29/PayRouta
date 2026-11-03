@@ -10,11 +10,23 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { checkoutCountdown } from "@/lib/payments/checkout-display";
 import { localizeCheckoutMethods, type LocalizedMethodDescriptor } from "@/lib/payments/localization";
 import { calculateCheckoutTax } from "@/lib/payments/tax";
+import { VenmoButton } from "./venmo-button";
 import { currencyExponent } from "@/lib/partners/money";
 import { returnHandler, switchCheckout, usePopupBridge } from "./popup";
 import { errorText, shown } from "@/lib/error-copy";
 
-type Action = { kind: string; url?: string; text?: string; provider?: string };
+type Action = {
+  kind: string;
+  url?: string;
+  text?: string;
+  provider?: string;
+  image?: string;
+  code?: string;
+  orderId?: string;
+  clientId?: string;
+  merchantId?: string;
+  environment?: "sandbox" | "production";
+};
 type Progress = {
   merchant: string;
   reference: string;
@@ -338,6 +350,35 @@ export function FiatCheckout({ id, initial }: { id: string; initial: Progress })
         >
           Continue to pay {total}
         </a>
+      </div>
+    );
+  else if (inFlight && action?.kind === "paypal-venmo" && action.orderId && action.clientId && action.merchantId && action.environment)
+    panel = (
+      <div className="fc-result">
+        <h2>Pay {total} with Venmo</h2>
+        <VenmoButton
+          action={{
+            kind: "paypal-venmo",
+            orderId: action.orderId,
+            clientId: action.clientId,
+            merchantId: action.merchantId,
+            environment: action.environment,
+          }}
+          onApproved={completeTest}
+        />
+      </div>
+    );
+  else if (inFlight && action?.kind === "qr" && action.image)
+    panel = (
+      <div className="fc-result">
+        <h2>Scan to pay {total}</h2>
+        {/* eslint-disable-next-line @next/next/no-img-element -- a data: URL from the provider */}
+        <img className="fc-qr" src={action.image} alt={`QR code to pay ${total}`} width={220} height={220} />
+        {action.code && (
+          <button type="button" className="fc-secondary" onClick={() => void navigator.clipboard?.writeText(action.code!)}>
+            Copy payment code
+          </button>
+        )}
       </div>
     );
   else if (inFlight && action?.kind === "sandbox" && data.selectedMethod === "bnpl")

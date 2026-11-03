@@ -7,24 +7,21 @@ import {
   ArrowLeftRight,
   BarChart3,
   BookOpen,
-  Check,
-  ChevronsUpDown,
   Coins,
   CreditCard,
   House,
   KeyRound,
   Landmark,
   Link2,
-  Plus,
   Settings,
   ShieldAlert,
   TriangleAlert,
-  Users,
   Wallet,
 } from "lucide-react";
 import { SignOutButton } from "@/components/portal/sign-out";
 import { NavToggle } from "@/components/portal/nav-toggle";
 import { docsUrl } from "@/lib/site-config";
+import { OrgSwitcher } from "./org-switcher";
 
 export const routeTitles = {
   onboarding: "Business setup",
@@ -35,7 +32,6 @@ export const routeTitles = {
   overview: "Home",
   payments: "Transactions",
   "payment-links": "Payment links",
-  customers: "Customers",
   "payment-methods": "Payment methods",
   providers: "Providers",
   settlements: "Settlements",
@@ -58,10 +54,9 @@ const s = 16;
 const main: Item[] = [
   { label: "Home", path: "overview", icon: <House size={s} /> },
   { label: "Payment links", path: "payment-links", icon: <Link2 size={s} /> },
+  { label: "Transactions", path: "payments", icon: <ArrowLeftRight size={s} /> },
   { label: "Balances", path: "balances", icon: <Wallet size={s} /> },
   { label: "Crypto balance", path: "crypto-balance", icon: <Coins size={s} /> },
-  { label: "Transactions", path: "payments", icon: <ArrowLeftRight size={s} /> },
-  { label: "Customers", path: "customers", icon: <Users size={s} /> },
   { label: "Disputes", path: "disputes", icon: <ShieldAlert size={s} /> },
 ];
 const setup: Item[] = [
@@ -99,21 +94,12 @@ const developerTabs = [
 const settingsTabs = [
   { label: "Business", path: "settings" as const },
   { label: "Activate payments", path: "activation" as const },
-  { label: "Business setup", path: "onboarding" as const },
   { label: "Billing", path: "billing" as const },
   { label: "Team", path: "team" as const },
   { label: "Security", path: "security" as const },
 ];
 for (const t of developerTabs) tabSets[t.path] = developerTabs;
 for (const t of settingsTabs) tabSets[t.path] = settingsTabs;
-
-const initials = (name: string) =>
-  name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]!.toUpperCase())
-    .join("") || "P";
 
 export function MerchantShell({
   section,
@@ -162,38 +148,9 @@ export function MerchantShell({
   return (
     <div className={`portal ms-app${test ? " is-test" : ""}`} id="ms-app">
       <aside className="ms-side" id="ms-side">
-        <details className="ms-org">
-          <summary>
-            <span className="ms-org-mark" aria-hidden>
-              {initials(orgName)}
-            </span>
-            <span className="ms-org-name">{orgName}</span>
-            <ChevronsUpDown size={14} aria-hidden />
-          </summary>
-          <div className="ms-org-menu">
-            <p className="ms-menu-label">Businesses</p>
-            <ul>
-              {orgs.map((o) => (
-                <li key={o.id}>
-                  <Link href={`/merchant/overview?${new URLSearchParams({ orgId: o.id })}`}>
-                    <span className="ms-org-mark small" aria-hidden>
-                      {initials(o.name)}
-                    </span>
-                    <span>{o.name}</span>
-                    {o.id === orgId && <Check size={14} aria-label="Current" />}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-            <hr />
-            <Link href="/merchant/overview?new=1">
-              <Plus size={14} aria-hidden /> New business
-            </Link>
-            {providerLink && <Link href="/provider/overview">Provider workspace</Link>}
-          </div>
-        </details>
+        <OrgSwitcher orgName={orgName} orgs={orgs} orgId={orgId} providerLink={providerLink} />
         <nav aria-label="Merchant workspace">
-          <ul>{main.map(link)}</ul>
+          <ul>{main.filter((item) => !(test && item.path === "crypto-balance")).map(link)}</ul>
           <ul>{setup.map(link)}</ul>
           <p className="ms-nav-label">Reports</p>
           <ul>{reports.map(link)}</ul>

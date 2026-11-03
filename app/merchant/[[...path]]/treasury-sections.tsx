@@ -8,7 +8,6 @@ import type { ReactNode } from "react";
 import { currencyExponent } from "@/lib/partners/money";
 import {
   accountState,
-  onboardingStatus,
   onboardingText,
   tierText,
   disputeLabel,
@@ -21,6 +20,7 @@ import {
   type Tone,
 } from "@/lib/treasury/labels";
 import type { merchantTreasury, paymentFunds } from "@/lib/treasury/views";
+import { Empty } from "./format";
 import { AcceptTerms, DisputeResponse, PayoutRequest, RefundPanel, SubmitForReview, VerificationForm } from "./treasury";
 import { BasicDetailsForm, BusinessDetailsForm, DocumentUpload, GoLiveWithCrypto, type ActivationProfile } from "./activation";
 import {
@@ -56,15 +56,30 @@ export function TreasuryBanner({ view, href }: { view: View; href: (p: string) =
   );
 }
 
-function Step({ n, done, title, children, current }: { n: number; done: boolean; title: string; children: ReactNode; current: boolean }) {
+function Step({
+  n,
+  done,
+  title,
+  children,
+  current,
+  status,
+}: {
+  n: number;
+  done: boolean;
+  title: string;
+  children: ReactNode;
+  current: boolean;
+  status?: string;
+}) {
   return (
-    <li className={`tr-step ${done ? "done" : ""}`} aria-current={current ? "step" : undefined}>
+    <li className={`tr-step ${done ? "done" : ""} ${current ? "current" : ""}`} aria-current={current ? "step" : undefined}>
       <span className="tr-step-mark" aria-hidden>
         {done ? "✓" : n}
       </span>
       <div>
         <h3>
-          {title} {done && <Pill tone="good">Complete</Pill>}
+          {title}
+          <span className="sr-only">{done ? " (done)" : ""}</span> {status && <Pill tone="neutral">{status}</Pill>}
         </h3>
         {children}
       </div>
@@ -80,14 +95,14 @@ export function ActivationSection({
   requirements: r,
   profile,
   environment,
-  currency,
+  email,
 }: {
   orgId: string;
   view: View;
   requirements: Requirements;
   profile: ActivationProfile;
   environment: string;
-  currency?: string;
+  email: string;
 }) {
   const a = view.account;
   const submitted = !!a && a.state !== "Returned";
@@ -100,6 +115,76 @@ export function ActivationSection({
   const fiatItems = r.entries.filter((e) => !["name", "country", "terms"].includes(e.id) && e.status !== "later");
   const later = r.entries.filter((e) => e.status === "later");
   const cryptoLive = environment === "production";
+  // Each step covers the requirement items it collects; a step with nothing
+  // to collect at this tier is left out.
+  const needs = (...ids: RequirementId[]) => fiatItems.filter((e) => ids.includes(e.id));
+  const businessIds: RequirementId[] = ["what-you-sell", "support-email", "registration-number", "business-address", "representative", "owners"];
+  const identityIds: RequirementId[] = ["personal-details", "id-number", "payout-account"];
+  const documentIds = Object.keys(onboardingDocuments) as OnboardingDocument[];
+  const fiatSteps = [
+    {
+      title: individual ? "Your business" : "Business details",
+      items: needs(...businessIds),
+      body: (
+        <BusinessDetailsForm
+          orgId={orgId}
+          profile={profile}
+          registered={!individual}
+          owners={open("owners") || (profile.owners?.length ?? 0) > 0}
+          email={email}
+          done={!open(...businessIds)}
+        />
+      ),
+    },
+    {
+      title: individual ? "Your identity and payout account" : "Director's identity and payout account",
+      items: needs(...identityIds),
+      body: (
+        <VerificationForm
+          orgId={orgId}
+          owners={(profile.owners ?? []).map((o) => ({ name: `${o.givenName} ${o.familyName}` }))}
+          country={country}
+          holderName={profile.legalName}
+          individual={individual}
+          saved={(view.steps.details?.summary as Parameters<typeof VerificationForm>[0]["saved"]) ?? null}
+        />
+      ),
+    },
+    {
+      title: individual ? "Photo of your ID" : "Documents",
+      items: needs(...documentIds),
+      body: (
+        <>
+          {documentIds
+            .filter((d) => open(d))
+            .map((d) => (
+              <DocumentUpload
+                key={d}
+                orgId={orgId}
+                country={country}
+                requirementId={onboardingDocuments[d]}
+                label={onboardingText[d]}
+                hideLabel={individual}
+              />
+            ))}
+        </>
+      ),
+    },
+  ]
+    .filter((step) => step.items.length > 0)
+    .map((step) => ({
+      ...step,
+      done: step.items.every((e) => e.status === "done" || e.status === "in-review"),
+      inReview: step.items.some((e) => e.status === "in-review"),
+    }));
+  if (!submitted)
+    fiatSteps.push({
+      title: a?.state === "Returned" ? "Resubmit for review" : "Submit for review",
+      items: [],
+      done: false,
+      inReview: false,
+      body: <SubmitForReview orgId={orgId} ready={r.ready.fiat} resubmit={a?.state === "Returned"} />,
+    });
   return (
     <>
       <section>
@@ -157,8 +242,8 @@ export function ActivationSection({
         {r.overCap && (
           <p role="status" className="tr-message">
             {individual
-              ? `You're selling more than $${r.capUsd!.toLocaleString("en-US")} a month. Register your business and add the items marked "To grow".`
-              : `You're selling more than $${r.capUsd!.toLocaleString("en-US")} a month. Add the items marked "To grow".`}
+              ? `You're selling more than $${r.capUsd!.toLocaleString("en-US")} a month. Register your business to go higher.`
+              : `You're selling more than $${r.capUsd!.toLocaleString("en-US")} a month. Complete the steps below to go higher.`}
           </p>
         )}
         {a?.note && (
@@ -173,53 +258,20 @@ export function ActivationSection({
             ))}
           </ul>
         )}
-        <ul className="tr-checklist">
-          {fiatItems.map((e) => (
-            <li key={e.id}>
-              <span>{onboardingText[e.id]}</span> <Pill tone={onboardingStatus[e.status].tone}>{onboardingStatus[e.status].label}</Pill>
-            </li>
+        <ol className="tr-steps">
+          {fiatSteps.map((step, i) => (
+            <Step
+              key={step.title}
+              n={i + 1}
+              done={step.done}
+              title={step.title}
+              current={basicsDone && !step.done && fiatSteps.findIndex((x) => !x.done) === i}
+              status={step.inReview ? "In review" : undefined}
+            >
+              {(basicsDone || !step.items.length) && step.body}
+            </Step>
           ))}
-        </ul>
-        {basicsDone && (
-          <>
-            {open("what-you-sell", "support-email", "registration-number", "business-address", "representative", "owners") && (
-              <details open={!submitted}>
-                <summary>{individual ? "What you sell" : "Business details"}</summary>
-                <BusinessDetailsForm
-                  orgId={orgId}
-                  profile={profile}
-                  registered={open("registration-number", "business-address", "representative")}
-                  owners={open("owners")}
-                />
-              </details>
-            )}
-            <details open={!submitted && open("personal-details", "id-number", "payout-account")}>
-              <summary>{individual ? "Your identity and payout account" : "Director's identity and payout account"}</summary>
-              <VerificationForm
-                orgId={orgId}
-                owners={open("owners") || (profile.owners?.length ?? 0) > 0 ? (profile.owners ?? []).map((o) => ({ name: `${o.givenName} ${o.familyName}` })) : []}
-                country={country}
-                currency={currency}
-                individual={individual}
-                saved={(view.steps.details?.summary as Parameters<typeof VerificationForm>[0]["saved"]) ?? null}
-              />
-            </details>
-            {(Object.keys(onboardingDocuments) as OnboardingDocument[])
-              .filter((d) => open(d))
-              .map((d) => (
-                <DocumentUpload
-                  key={d}
-                  orgId={orgId}
-                  country={country}
-                  requirementId={onboardingDocuments[d]}
-                  label={onboardingText[d]}
-                />
-              ))}
-          </>
-        )}
-        {!submitted && (
-          <SubmitForReview orgId={orgId} ready={r.ready.fiat} resubmit={a?.state === "Returned"} />
-        )}
+        </ol>
         {later.length > 0 && (
           <details>
             <summary>Needed later</summary>
@@ -235,68 +287,70 @@ export function ActivationSection({
   );
 }
 
-function Stat({ label, value, tone }: { label: string; value: string; tone?: "primary" }) {
-  return (
-    <div className={`tr-stat ${tone ?? ""}`}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
-}
-
 export function BalancesSection({ orgId, view, href }: { orgId: string; view: View; href: (p: string) => string }) {
   const live = view.account?.state === "Live" || view.account?.state === "Offboarding";
-  if (!view.account) return <TreasuryEmpty href={href} />;
-  const payable = view.balances.filter((b) => b.available !== "0");
+  const terms = view.terms;
+  const payouts = !view.account || !!view.paymentsAccount?.payoutsByPayRouta || view.payouts.length > 0;
+  const balances = view.balances.length
+    ? view.balances
+    : [{ asset: "", available: "0", pending: "0", reserve: "0", inTransit: "0", held: "0", owed: "0" }];
   return (
     <>
-      {view.balances.length === 0 && (
-        <section className="tr-empty">
-          <h2>No balance yet</h2>
-          <p>No funds yet.</p>
-        </section>
-      )}
-      {view.balances.map((b) => (
-        <section key={b.asset} className="tr-balance">
-          <h2 className="tr-balance-title">{b.asset.slice(5, 8)} balance</h2>
-          <div className="tr-stats">
-            <Stat tone="primary" label="Available to pay out" value={money(b.asset, b.available)} />
-            <Stat label="Incoming" value={money(b.asset, b.pending)} />
-            {b.reserve !== "0" && <Stat label="Reserve" value={money(b.asset, b.reserve)} />}
-            {b.inTransit !== "0" && <Stat label="On the way to your bank" value={money(b.asset, b.inTransit)} />}
-            {b.held !== "0" && <Stat label="On hold for disputes" value={money(b.asset, b.held)} />}
-            {b.owed !== "0" && <Stat label="Owed to PayRouta" value={money(b.asset, b.owed)} />}
-          </div>
-        </section>
-      ))}
-      {view.paymentsAccount?.payoutsByPayRouta && (
-        <section>
-          <div className="tr-row">
-            <div>
-              <h2>Payouts</h2>
-              <p>
-                Schedule: <strong>{view.terms ? scheduleText[view.terms.payout.schedule] : "—"}</strong>
-                {view.terms && view.terms.payout.delayDays > 0 && <> · funds wait {view.terms.payout.delayDays} days after becoming available</>}
-              </p>
+      <TreasuryBanner view={view} href={href} />
+      {balances.map((b) => {
+        const show = (minor: string) => (b.asset ? money(b.asset, minor) : "—");
+        const parts = [
+          ["Incoming", b.pending],
+          ["Reserve", b.reserve],
+          ["On the way to your bank", b.inTransit],
+          ["On hold for disputes", b.held],
+          ["Owed to PayRouta", b.owed],
+        ].filter(([, v], i) => i === 0 || v !== "0");
+        return (
+          <section key={b.asset || "none"} className="tr-balance">
+            <h2>{b.asset ? `${b.asset.slice(5, 8)} balance` : "Balance"}</h2>
+            <div className="tr-balance-head">
+              <div className="tr-balance-main">
+                <span>Available to pay out</span>
+                <strong>{show(b.available)}</strong>
+              </div>
+              {live && view.paymentsAccount?.payoutsByPayRouta && b.available !== "0" && (
+                <PayoutRequest
+                  orgId={orgId}
+                  balances={[
+                    {
+                      asset: b.asset,
+                      available: b.available,
+                      label: money(b.asset, b.available),
+                      exponent: currencyExponent(b.asset.slice(5, 8)) ?? 2,
+                    },
+                  ]}
+                />
+              )}
             </div>
+            <dl className="tr-balance-parts">
+              {parts.map(([label, v]) => (
+                <div key={label}>
+                  <dt>{label}</dt>
+                  <dd>{show(v)}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        );
+      })}
+      {payouts && (
+        <section className="ms-flush">
+          <div className="ms-card-head">
+            <h2>Payouts</h2>
+            {terms && (
+              <span className="tr-meta">
+                {scheduleText[terms.payout.schedule]}
+                {terms.payout.delayDays > 0 && <> · {terms.payout.delayDays}-day delay</>}
+              </span>
+            )}
           </div>
-          {live && (
-            <PayoutRequest
-              orgId={orgId}
-              balances={payable.map((b) => ({
-                asset: b.asset,
-                available: b.available,
-                label: money(b.asset, b.available),
-                exponent: currencyExponent(b.asset.slice(5, 8)) ?? 2,
-              }))}
-            />
-          )}
           <PayoutTable payouts={view.payouts} />
-        </section>
-      )}
-      {view.paymentsAccount && !view.paymentsAccount.payoutsByPayRouta && (
-        <section>
-          <h2>Payouts</h2>
         </section>
       )}
     </>
@@ -304,7 +358,7 @@ export function BalancesSection({ orgId, view, href }: { orgId: string; view: Vi
 }
 
 function PayoutTable({ payouts }: { payouts: View["payouts"] }) {
-  if (!payouts.length) return <p className="tr-hint">No payouts yet.</p>;
+  if (!payouts.length) return <Empty title="No payouts yet" />;
   return (
     <div className="p-table-wrap">
       <table>
@@ -334,18 +388,6 @@ function PayoutTable({ payouts }: { payouts: View["payouts"] }) {
   );
 }
 
-function TreasuryEmpty({ href }: { href: (p: string) => string }) {
-  return (
-    <section className="tr-empty">
-      <h2>Activate payments first</h2>
-      <p>Balances, payouts and disputes appear once your PayRouta payments account is active.</p>
-      <Link className="tr-button" href={href("activation")}>
-        Start activation
-      </Link>
-    </section>
-  );
-}
-
 export function DisputesSection({
   orgId,
   view,
@@ -357,10 +399,10 @@ export function DisputesSection({
   href: (p: string) => string;
   canRespond: boolean;
 }) {
-  if (!view.account) return <TreasuryEmpty href={href} />;
   const open = view.disputes.filter((d) => d.state === "Open");
   return (
     <>
+      <TreasuryBanner view={view} href={href} />
       {open.length > 0 && (
         <div className="tr-banner warn">
           <div>
@@ -370,9 +412,9 @@ export function DisputesSection({
           </div>
         </div>
       )}
-      <section>
+      <section className="ms-flush">
         {!view.disputes.length ? (
-          <p>No disputes.</p>
+          <Empty title="No disputes" />
         ) : (
           <div className="p-table-wrap">
             <table>

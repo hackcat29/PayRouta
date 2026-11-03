@@ -864,3 +864,8 @@ button.sc-method { cursor: pointer; font-weight: 600; justify-content: center; m
   .tp-filters { grid-template-columns: 1fr; }
   .tp-filters select { max-width: none; }
 }
+
+/* QR and wallet-button actions (OPay, PicPay QR; PayPal Venmo). */
+.fc-qr { width: 220px; height: 220px; border: 1px solid var(--mist); border-radius: 8px; background: white; image-rendering: pixelated; }
+.fc-secondary { min-height: 40px; padding: 8px 14px; border: 1px solid var(--mist); border-radius: 8px; background: var(--white); color: var(--navy); font-weight: 600; cursor: pointer; }
+.fc-secondary:hover { background: #fafbfb; }

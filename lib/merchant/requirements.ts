@@ -21,7 +21,7 @@ import { db } from "../portal/db";
 import type { Tx } from "../payments/service";
 import { kybProfileSchema, type KybProfile } from "../partners/kyb";
 import { merchantTermsVersion } from "../treasury/verification";
-import { approximateUsd } from "../payments/fx-splicing";
+import { approximateUsd } from "../payments/usd-estimate";
 
 export const capabilities = ["crypto", "fiat", "cash-out"] as const;
 export type Capability = (typeof capabilities)[number];

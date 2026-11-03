@@ -1228,11 +1228,6 @@ body:has(.mk-header) {
   font-weight: 600;
   font-size: 15px;
 }
-.dg-mesh-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 14px;
-}
 /* Diagrams (components/marketing/diagrams.tsx) ------------------------- */
 .dg {
   margin: 0;

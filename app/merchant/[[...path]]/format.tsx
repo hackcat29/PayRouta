@@ -1,6 +1,7 @@
 // Display helpers for the merchant dashboard: dates, amounts and status pills.
 import type { ReactNode } from "react";
 import { paymentAsset } from "@/lib/blockchain/crypto-assets";
+import { currencyExponent } from "@/lib/partners/money";
 
 const dateTime = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
@@ -38,6 +39,18 @@ export function amountText(amount: string, raw: unknown) {
   }
   const symbol = paymentAsset(a?.network || "", a?.identifier)?.symbol || a?.identifier;
   return `${amount} ${symbol}`;
+}
+// The same, from an amount in minor units (cents, or a token's base units).
+export function minorText(minor: string, raw: unknown) {
+  const a = raw as Asset;
+  const fiat = a?.kind === "fiat" || /^[A-Z]{3}$/.test(a?.identifier ?? "");
+  const exp = (fiat ? currencyExponent(a.identifier) : paymentAsset(a?.network || "", a?.identifier)?.decimals) ?? 2;
+  const v = BigInt(minor);
+  const abs = (v < 0n ? -v : v).toString().padStart(exp + 1, "0");
+  let major = exp ? `${abs.slice(0, -exp)}.${abs.slice(-exp)}` : abs;
+  // Tokens carry up to 18 decimals; show them to the cent unless more matter.
+  if (!fiat && exp > 2) major = major.replace(/0+$/, "").replace(/\.(\d?)$/, (_, d: string) => `.${d.padEnd(2, "0")}`);
+  return amountText(`${v < 0n ? "-" : ""}${major}`, raw);
 }
 export function currencyCode(raw: unknown) {
   const a = raw as Asset;

@@ -31,6 +31,8 @@ test("merchant treasury: activation, balances, disputes and refunds, only in Pay
   // A new merchant is prompted to activate: its details and the terms, then
   // what each way of getting paid still needs.
   await page.goto(`/merchant/overview${q(fresh.orgId)}`);
+  await expect(page.getByRole("heading", { name: "Setup guide" })).toBeVisible();
+  await page.goto(`/merchant/balances${q(fresh.orgId)}`);
   await expect(page.getByRole("link", { name: "Start activation" })).toBeVisible();
   await page.goto(`/merchant/activation${q(fresh.orgId)}`);
   for (const heading of ["Your details", "Merchant terms", "Crypto and stablecoins", "Cards, bank transfers and mobile money"])

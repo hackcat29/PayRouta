@@ -46,15 +46,13 @@
               "guides/near-intents",
               "guides/cash-out",
               "guides/agents",
-              "guides/localization-and-tax",
-              "guides/subscriptions-and-dunning"
+              "guides/localization-and-tax"
             ]
           },
           {
             "group": "How payments work",
             "pages": [
               "concepts/payment-intents",
-              "concepts/fx-splicing-ledger",
               "concepts/settlement",
               "concepts/billing",
               "concepts/provider-accounts"

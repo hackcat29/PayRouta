@@ -98,7 +98,10 @@ test("merchant workspace: auth, environment isolation, payment table and mobile 
   // On a phone the sidebar is a drawer.
   await page.getByRole("button", { name: "Open menu" }).click();
   await page.getByRole("link", { name: "Settings", exact: true }).click();
-  await page.getByRole("link", { name: "Business setup", exact: true }).click();
+  // The application for merchant-owned provider accounts is no longer a
+  // Settings tab (it repeated Activate payments); it stays reachable here.
+  await expect(page.getByRole("link", { name: "Business setup", exact: true })).toHaveCount(0);
+  await page.goto("/merchant/onboarding?orgId=payment-demo-merchant");
   await expect(
     page.getByRole("heading", { name: "Your business", exact: true }),
   ).toBeVisible();
@@ -137,7 +140,6 @@ test("merchant workspace: auth, environment isolation, payment table and mobile 
   await expect(
     page.getByLabel(/Account number|IBAN|Settlement bank/),
   ).toHaveCount(0);
-  await expect(page.getByRole("link", { name: "Activate payments" }).first()).toBeVisible();
   await page
     .getByLabel("Search currencies you expect to be paid in", { exact: true })
     .fill("NGN");
@@ -162,6 +164,7 @@ test("merchant workspace: auth, environment isolation, payment table and mobile 
   await expect(
     page.getByRole("heading", { name: "Verification documents" }),
   ).toBeVisible();
+  await page.getByRole("link", { name: "← Settings" }).click();
   await page.getByRole("link", { name: "Team", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Team", exact: true }),

@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { cryptoAssets, cryptoAsset } from "@/lib/blockchain/crypto-assets";
 import { isTestnet, networkName } from "@/lib/blockchain/chains";
-import type { CheckoutAsset } from "./stablecoin-checkout";
+import type { CheckoutAsset } from "./stablecoins";
 import { errorText, offline } from "@/lib/error-copy";
 type Account = {
   id: string;

@@ -8,7 +8,7 @@ import {
   ReactElement,
 } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { X, ArrowUpRight, FileCheck2 } from "lucide-react";
+import { X, FileCheck2 } from "lucide-react";
 export function Badge({ children }: { children: React.ReactNode }) {
   const value = String(children);
   return (
@@ -191,6 +191,4 @@ export function Action({
     </button>
   );
 }
-export function ExternalMark() {
-  return <ArrowUpRight size={15} />;
-}
+

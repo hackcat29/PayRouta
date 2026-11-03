@@ -32,10 +32,10 @@ test("billing: free sandbox, fee export and organization/environment isolation",
     page.getByRole("heading", { name: "Platform fees" }),
   ).toBeVisible();
   await expect(
-    page.getByText("Your sandbox is free.", { exact: false }),
+    page.getByText("Test payments are free", { exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "Download fee details" }),
+    page.getByRole("link", { name: "Fee details" }),
   ).toBeVisible();
   const month = new Date().toISOString().slice(0, 7);
   const csv = await page.request.get(
@@ -59,11 +59,10 @@ test("billing: free sandbox, fee export and organization/environment isolation",
     ).status(),
   ).toBe(403);
   await page.getByLabel("Month", { exact: true }).fill("2026-09");
-  await page.getByRole("button", { name: "View month" }).click();
+  await page.getByRole("button", { name: "View", exact: true }).click();
   await expect(page).toHaveURL(/orgId=payment-demo-merchant/);
-  await expect(
-    page.getByRole("heading", { name: "2026-09", exact: true }),
-  ).toBeVisible();
+  await expect(page).toHaveURL(/month=2026-09/);
+  await expect(page.getByLabel("Month", { exact: true })).toHaveValue("2026-09");
 });
 test("pricing: both rates, the cap and who pays fees are published", async ({
   page,

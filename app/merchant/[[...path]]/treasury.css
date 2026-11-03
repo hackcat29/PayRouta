@@ -54,18 +54,6 @@
   color: var(--navy);
   border: 1px solid var(--mist);
 }
-
-.tr-status {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 24px;
-}
-.tr-status blockquote {
-  margin: 12px 0 0;
-  padding: 12px 14px;
-  border-left: 3px solid var(--amber);
-  background: #fffaf0;
-}
 .tr-track { display: flex; gap: 0; list-style: none; margin: 0 0 4px; padding: 0; }
 .tr-track li { flex: 1; display: flex; align-items: center; gap: 10px; padding: 12px 0; font-weight: 600; color: var(--slate); position: relative; }
 .tr-track li:not(:last-child)::after { content: ""; flex: 1; height: 2px; background: var(--mist); margin: 0 12px; }
@@ -122,34 +110,11 @@
 .tr-message { margin: 8px 0 0; font-size: 14px; color: #252c8a; }
 .tr-message.error { color: var(--error); }
 .tr-saved { display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
-
-.tr-balance-title { margin: 0 0 16px; }
-.tr-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 12px;
-}
-.tr-stat {
-  display: grid;
-  gap: 4px;
-  align-content: start;
-  padding: 14px 16px;
-  border: 1px solid var(--mist);
-  border-radius: 8px;
-  background: white;
-}
-.tr-stat span { font-size: 12.5px; font-weight: 500; color: var(--slate); }
-.tr-stat strong { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
-.tr-stat small { color: var(--slate); font-size: 12px; }
-.tr-stat.primary { grid-column: span 2; background: #f6fbfa; border-color: #c9e6e0; }
-.tr-stat.primary strong { font-size: 30px; color: var(--ink); }
 .tr-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
 .tr-inline { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; margin: 12px 0 20px; }
 .tr-inline .tr-message { flex-basis: 100%; }
 .tr-amount { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
 .tr-sub { color: var(--slate); font-weight: 400; }
-.tr-empty { text-align: center; padding: 40px 24px !important; }
-.tr-empty p { max-width: 460px; margin: 8px auto 16px; }
 
 .tr-funds h3 { margin-top: 24px; }
 .tr-breakdown { margin: 8px 0; max-width: 420px; }
@@ -160,8 +125,6 @@
 .tr-list { list-style: none; padding: 0; margin: 8px 0; display: grid; gap: 6px; }
 
 @media (max-width: 760px) {
-  .tr-status { grid-template-columns: 1fr; }
-  .tr-stat.primary { grid-column: auto; }
   .tr-banner { flex-direction: column; align-items: flex-start; }
 }
 
@@ -172,3 +135,17 @@
 .tr-checklist li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--mist); }
 section > details { margin: 12px 0; }
 section > details > summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
+
+/* Balances: what can be paid out now, then where the rest of the money is. */
+.tr-balance-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px 24px; flex-wrap: wrap; margin-top: 12px; }
+.tr-balance-main { display: grid; gap: 2px; }
+.tr-balance-main span { font-size: 13px; font-weight: 500; color: var(--muted); }
+.tr-balance-main strong { font-size: 32px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.tr-balance-head .tr-inline { margin: 0; }
+.tr-balance-parts { display: flex; flex-wrap: wrap; gap: 12px 40px; margin: 20px 0 0; padding-top: 16px; border-top: 1px solid var(--line); }
+.tr-balance-parts > div { display: grid; gap: 2px; }
+.tr-balance-parts dt { font-size: 12.5px; color: var(--muted); }
+.tr-balance-parts dd { margin: 0; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.tr-meta { font-size: 13px; color: var(--muted); }
+.tr-step.current .tr-step-mark { border-color: var(--accent); color: var(--accent); }
+.tr-step:not(.current):not(.done) h3 { color: var(--muted); }

@@ -1,9 +1,18 @@
 "use client";
 import { networkName, isTestnet, chain } from "@/lib/blockchain/chains";
-import type { CheckoutAsset } from "./stablecoin-checkout";
 import { useState } from "react";
 import { tokenAssets } from "@/lib/blockchain/assets";
 import { errorText, offline } from "@/lib/error-copy";
+// A token the merchant can be paid in, as merchantConfiguration reports it.
+export type CheckoutAsset = {
+  network: string;
+  identifier: string;
+  symbol: string;
+  decimals: number;
+  configured: boolean;
+  executionEnabled: boolean;
+  reason: string | null;
+};
 type Account = {
   id: string;
   symbol: string;
@@ -37,13 +46,10 @@ export function Stablecoins({
   const [network] = chosen.split("|");
   return (
     <>
-      <section>
-        <h2>Stablecoin payments</h2>
-        <p>
-          {environment === "sandbox"
-            ? "Use test tokens on the supported test networks. Sandbox platform fees are zero."
-            : "Live payments require approved business evidence, receive-address ownership and a current processing scope. Our fee is 1.5% of each payment, all in, billed separately."}
-        </p>
+      <section className="ms-flush">
+        <div className="ms-card-head">
+          <h2>Stablecoin receive addresses</h2>
+        </div>
         {accounts.length ? (
           <div className="p-table-wrap">
             <table>
@@ -51,7 +57,7 @@ export function Stablecoins({
                 <tr>
                   <th>Token</th>
                   <th>Network</th>
-                  <th>Unused addresses</th>
+                  <th className="ms-num">Unused addresses</th>
                   <th>Status</th>
                 </tr>
               </thead>
@@ -60,13 +66,15 @@ export function Stablecoins({
                   <tr key={a.id}>
                     <td>{a.symbol}</td>
                     <td>{networkName(a.network)}</td>
-                    <td>{a.remaining}</td>
+                    <td className="ms-num">{a.remaining}</td>
                     <td>
-                      {a.remaining === 0
-                        ? "Add receive addresses"
-                        : environment === "sandbox"
-                          ? "Testnet configured"
-                          : "Subject to live scope approval"}
+                      {a.remaining === 0 ? (
+                        <span className="ms-pill warn">Add addresses</span>
+                      ) : readiness.some((r) => r.network === a.network && r.identifier === a.identifier && r.executionEnabled) ? (
+                        <span className="ms-pill good">Ready</span>
+                      ) : (
+                        <span className="ms-pill">In review</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -74,50 +82,10 @@ export function Stablecoins({
             </table>
           </div>
         ) : (
-          <p>No stablecoin receive addresses configured yet.</p>
+          <div className="ms-empty">
+            <strong>No receive addresses yet</strong>
+          </div>
         )}
-      </section>
-      <section>
-        <h2>Supported stablecoins</h2>
-        <div className="p-table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Token</th>
-                <th>Supported networks</th>
-                <th>Availability</th>
-              </tr>
-            </thead>
-            <tbody>
-              {["USDC", "USDT", "EURC"].map((symbol) => {
-                const main = tokenAssets.filter(
-                  (a) => a.symbol === symbol && !isTestnet(a.network),
-                );
-                const enabled = readiness.filter(
-                  (a) => a.symbol === symbol && a.executionEnabled,
-                );
-                const hasTestnet = tokenAssets.some(
-                  (a) => a.symbol === symbol && isTestnet(a.network),
-                );
-                return (
-                  <tr key={symbol}>
-                    <td>{symbol}</td>
-                    <td>
-                      {main.map((a) => networkName(a.network)).join(", ")}
-                    </td>
-                    <td>
-                      {environment === "sandbox" && !hasTestnet
-                        ? "Mainnet only"
-                        : enabled.length
-                          ? `${enabled.length} ${environment === "sandbox" ? "test" : "live"} networks ready`
-                          : "Receive setup or approval required"}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
       </section>
       {canConfigure && (
         <section>
@@ -195,10 +163,13 @@ export function Stablecoins({
                   }
                 />
               </label>
-              <label>
-                Alchemy API key (optional override)
-                <input name="rpcKey" type="password" autoComplete="off" />
-              </label>
+              <details>
+                <summary>Your own Alchemy key</summary>
+                <label>
+                  Alchemy API key
+                  <input name="rpcKey" type="password" autoComplete="off" />
+                </label>
+              </details>
               {chain(network)?.family === "stellar" && (
                 <p>
                   Stellar accounts must be funded and trust this token.

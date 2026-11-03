@@ -13,7 +13,6 @@ import {
   JoinSteps,
   PartnerMap,
   PaymentFlow,
-  SaasBillingDiagram,
 } from "./diagrams";
 import { AddAnywhere, LinkPicture } from "./add-anywhere";
 import { HeroDemo } from "./hero-demo";
@@ -667,9 +666,6 @@ function Saas() {
           price stops being a barrier. {!creditLive() && "Credit opens country by country as lenders join."}
         </p>
         <TextLink href={paths.credit}>Pay with credit</TextLink>
-      </Feature>
-      <Feature title="FX splicing, millisecond metering & payday dunning">
-        <SaasBillingDiagram />
       </Feature>
       <section className="pp-band pp-night">
         <div className="mk-wrap">

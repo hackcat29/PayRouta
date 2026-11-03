@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { countries } from "@/lib/portal/domain";
 import { errorText, offline } from "@/lib/error-copy";
+import { bankFields, payoutCurrency } from "@/lib/merchant/payout-banks";
 
 function useTreasury(orgId: string) {
   const router = useRouter();
@@ -139,17 +140,6 @@ function Person({ prefix, title, country }: { prefix: string; title: string; cou
           <input name={`${prefix}Phone`} required placeholder="+234 801 234 5678" autoComplete="tel" />
         </label>
         <label>
-          Nationality
-          <select name={`${prefix}Nationality`} defaultValue="">
-            <option value="">—</option>
-            {countries.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
           ID type
           <select name={`${prefix}IdType`} required defaultValue="">
             <option value="" disabled>
@@ -188,7 +178,6 @@ function person(f: FormData, prefix: string) {
     },
     idNumber: str(f, `${prefix}IdNumber`)?.replace(/\s/g, ""),
     idType: str(f, `${prefix}IdType`),
-    nationality: str(f, `${prefix}Nationality`),
     politicallyExposed: f.get(`${prefix}Pep`) === "on",
   };
 }
@@ -199,32 +188,34 @@ export function VerificationForm({
   orgId,
   owners,
   country,
-  currency,
+  holderName,
   saved,
   individual = false,
 }: {
   orgId: string;
   owners: { name: string }[];
   country?: string;
-  currency?: string;
+  holderName?: string;
   saved: { payoutAccount?: { accountLast4?: string | null; currency?: string; holderName?: string } | null } | null;
   individual?: boolean;
 }) {
   const { run, busy, message } = useTreasury(orgId);
   const [open, setOpen] = useState(!saved);
+  const [bankCountry, setBankCountry] = useState(country ?? "NG");
+  const bank = bankFields(bankCountry);
+  const bankCurrency = payoutCurrency(bankCountry);
   if (!open)
     return (
       <div className="tr-saved">
         <p>
           {saved?.payoutAccount ? (
             <>
-              Saved. Payouts go to <strong>{saved.payoutAccount.holderName}</strong> · {saved.payoutAccount.currency} account
-              ending <strong>{saved.payoutAccount.accountLast4}</strong>.
+              Payouts to <strong>{saved.payoutAccount.holderName}</strong> · {saved.payoutAccount.currency} account ending{" "}
+              <strong>{saved.payoutAccount.accountLast4}</strong>
             </>
           ) : (
-            "Saved."
-          )}{" "}
-          Identity details are stored encrypted and never shown again.
+            "Saved"
+          )}
         </p>
         <button type="button" className="tr-secondary" onClick={() => setOpen(true)}>
           Replace details
@@ -241,15 +232,13 @@ export function VerificationForm({
           {
             action: "verification-details",
             input: {
-              businessPhone: str(f, "businessPhone")?.replace(/[\s()-]/g, ""),
-              incorporationDate: str(f, "incorporationDate"),
               representative: person(f, "rep"),
               owners: owners.map((_, i) => person(f, `owner${i}`)),
               payoutAccount: {
-                country: str(f, "bankCountry"),
-                currency: str(f, "bankCurrency")?.toUpperCase(),
+                country: bankCountry,
+                currency: bankCurrency ?? str(f, "bankCurrency")?.toUpperCase(),
                 holderName: str(f, "holderName"),
-                holderType: str(f, "holderType"),
+                holderType: individual ? "individual" : "company",
                 accountNumber: str(f, "accountNumber")?.replace(/[\s-]/g, ""),
                 routingNumber: str(f, "routingNumber")?.replace(/\s/g, ""),
               },
@@ -259,18 +248,6 @@ export function VerificationForm({
         ).then((ok) => ok && setOpen(false));
       }}
     >
-      {!individual && (
-        <div className="tr-grid">
-          <label>
-            Business phone
-            <input name="businessPhone" placeholder="+234 1 234 5678" autoComplete="tel" />
-          </label>
-          <label>
-            Incorporation date
-            <input type="date" name="incorporationDate" />
-          </label>
-        </div>
-      )}
       <Person prefix="rep" title={individual ? "You" : "Director"} country={country} />
       {owners.map((o, i) => (
         <Person key={i} prefix={`owner${i}`} title={`Owner: ${o.name}`} country={country} />
@@ -278,29 +255,51 @@ export function VerificationForm({
       <fieldset className="tr-fieldset">
         <legend>Payout bank account</legend>
         <div className="tr-grid">
-          <label className="tr-wide">
-            Account holder name
-            <input name="holderName" required />
-          </label>
           <label>
-            Account type
-            <select name="holderType" defaultValue={individual ? "individual" : "company"}>
-              <option value="company">Business account</option>
-              <option value="individual">Personal account</option>
+            Bank country
+            <select name="bankCountry" required value={bankCountry} onChange={(e) => setBankCountry(e.target.value)}>
+              {countries.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
             </select>
           </label>
-          <Country name="bankCountry" label="Bank country" defaultValue={country} />
+          {!bankCurrency && (
+            <label>
+              Currency
+              <input name="bankCurrency" required maxLength={3} pattern="[A-Za-z]{3}" />
+            </label>
+          )}
+          {bank.banks ? (
+            <label>
+              {bank.code}
+              <select name="routingNumber" required defaultValue="">
+                <option value="" disabled>
+                  Choose your bank
+                </option>
+                {bank.banks.map(([code, name]) => (
+                  <option key={code} value={code}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            bank.code && (
+              <label>
+                {bank.code}
+                <input name="routingNumber" required pattern={bank.codePattern} autoComplete="off" />
+              </label>
+            )
+          )}
           <label>
-            Currency
-            <input name="bankCurrency" required defaultValue={currency} maxLength={3} pattern="[A-Za-z]{3}" />
+            {bank.account}
+            <input name="accountNumber" required pattern={bank.accountPattern} inputMode={bank.accountPattern ? "numeric" : undefined} autoComplete="off" />
           </label>
-          <label>
-            Account number or IBAN
-            <input name="accountNumber" required autoComplete="off" />
-          </label>
-          <label>
-            Routing / sort / bank code
-            <input name="routingNumber" autoComplete="off" />
+          <label className="tr-wide">
+            Account holder name
+            <input name="holderName" required defaultValue={holderName} />
           </label>
         </div>
       </fieldset>
