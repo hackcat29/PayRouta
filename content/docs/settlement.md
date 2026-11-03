@@ -1,43 +1,53 @@
 # Settlement
 
-Your providers settle to you directly, into the destination you configured in your own account with each provider. PayRouta never receives, holds or forwards your funds. What PayRouta does is **track and reconcile** settlement across all your providers in one place.
+How the money reaches you depends on how the customer paid.
 
-## Confirmation versus settlement
+| Paid with | Where the money goes | When |
+| --- | --- | --- |
+| Cards, wallets, bank transfer, mobile money, USSD | Your PayRouta balance, held by PayRouta's licensed processing partner, then paid to your bank account. In some countries the partner pays your bank directly for each payment. | On your payout schedule |
+| Stablecoins and other crypto | Your own wallet or NEAR Intents account. PayRouta never holds it. | Once the transfer is final on-chain |
+| Your own provider account | Paid to you by that provider. | On the provider's schedule |
 
-These are separate facts:
+## Your balance
+
+**Balances** in the dashboard shows, for each currency:
+
+| | |
+| --- | --- |
+| Available to pay out | Money you can pay out now |
+| Incoming | Payments that succeeded and are not yet available |
+| Reserve | The share of each payment held for a set number of days, as your merchant terms say |
+| On the way to your bank | Payouts that have left and not yet arrived |
+| On hold for disputes | The amount of open disputes |
+| Owed to PayRouta | Refunds or lost disputes your balance didn't cover |
+
+## Payouts
+
+Payouts go to the bank account you added in **Activate payments**, on the schedule in your merchant terms: daily, weekly on Mondays, monthly on the 1st, or on request. With a payout on request, press **Pay out now** on **Balances**. A payout that fails returns to your available balance.
+
+## Confirmation and settlement
 
 | Fact | Meaning | Event |
 | --- | --- | --- |
-| Confirmation | The provider accepted the customer's funds | `payment.confirmed` |
-| Settlement | The provider reported paying your share to you | `settlement.completed` |
+| Confirmation | The customer's payment succeeded | `payment.confirmed` |
+| Settlement | The processing partner reported the funds for that payment | `settlement.completed` |
 
-Fulfil orders on confirmation. Settlement timing follows each provider's own schedule, which may be daily or weekly, and differs between methods.
+Fulfil orders on confirmation. Settlement follows each partner's timing and differs between methods.
 
 ## Reconciliation
 
-PayRouta matches:
-
-- each confirmed payment
-- the provider's settlement report
-- the fee the provider actually deducted
-- the allocation of each settlement to individual payments
-
-Matching is by exact reference, never by amount or date alone. These differences become **exceptions**, which PayRouta raises instead of adjusting silently:
+PayRouta matches each confirmed payment to the partner's settlement report, the fee actually deducted and the allocation of each settlement to individual payments. Matching is by exact reference, never by amount or date alone. Differences become **exceptions** rather than silent adjustments:
 
 - missing payments
 - conflicting outcomes
 - amount or currency differences
 - fee mismatches
 - partial or unallocated settlements
-- funds that arrive after an intent expired
+- funds that arrive after a payment expired
 - outcomes still unknown after five minutes
 
-Exceptions appear in the dashboard under **Payment issues** and are sent as `settlement.exception` events.
+Exceptions appear under **Payment issues** and are sent as `settlement.exception` events. While a balance doesn't reconcile, payouts from it pause.
 
 ## Settlement API
 
-`GET /settlements` lists settlements that include your payments. Amounts are integer strings in minor units; `gross`, `fee` and `net` cover only your allocations. `reconciliation` reports whether the provider's figures matched.
-
-## Records
-
-PayRouta keeps an operational journal of what each provider reported for your payments. It is a record of your providers' activity, **not** a balance held by PayRouta.
+`GET /settlements` lists settlements that include your payments. Amounts are integer strings in minor units; `gross`, `fee` and `net` cover only your payments. `reconciliation` reports whether the partner's figures matched.

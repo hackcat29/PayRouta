@@ -1,0 +1,45 @@
+---
+title: "Local payment methods"
+description: "Checkout puts the way people pay in your customer's country first, under the name they know."
+---
+
+Checkout shows the methods you have turned on, ordered for the customer's country, and names each one the way people there know it. A customer in Lagos sees bank transfer first; one in Nairobi sees M-Pesa; one in São Paulo sees Pix. There is nothing to configure.
+
+The country is the `payerCountry` you send when you create the checkout.
+
+| Customer in | Shown first | Named as |
+| --- | --- | --- |
+| Nigeria | Bank transfer, USSD, card | NIBSS Instant Bank Transfer · USSD Bank Code · Card (Verve, Mastercard, Visa) |
+| Kenya | Mobile money, card, bank transfer | M-Pesa & Airtel Money · PesaLink Bank Transfer |
+| Ghana | Mobile money, card, bank transfer | MTN MoMo, Telecel Cash & AirtelTigo |
+| South Africa | Bank transfer, card, wallets | Instant EFT & PayShap |
+| United Kingdom | Wallets, card, bank transfer | Apple Pay & Google Pay · Pay by Bank (Faster Payments) |
+| United States | Wallets, card, direct debit | Apple Pay & Google Pay · ACH Direct Debit |
+| Canada | Wallets, card, bank transfer | Interac e-Transfer · Credit or Interac Debit Card |
+| Germany, Austria and the euro area | Direct debit, bank transfer, wallets | SEPA Direct Debit · Giropay, EPS or SEPA Instant |
+| Netherlands | Bank transfer, direct debit, wallets | iDEAL & SEPA Instant |
+| Brazil | Bank transfer, card, wallets | Pix |
+| Mexico | Bank transfer, card, wallets | SPEI |
+| India | Wallets, card, bank transfer | UPI · RuPay · IMPS / NEFT / NetBanking |
+| Indonesia | Wallets, bank transfer, card | QRIS & e-wallets · Virtual Account |
+| Japan | Wallets, card, bank transfer | PayPay & Rakuten Pay · Furikomi & Pay-easy |
+| Singapore | Bank transfer, wallets, card | PayNow QR · GrabPay |
+
+Anywhere else, card comes first, then wallets and bank transfer.
+
+<Note>
+Only methods that are on for your account appear. Ordering changes which method a customer sees first; it never adds one you haven't turned on. See [Payment methods](/concepts/payment-methods).
+</Note>
+
+## Sending the country
+
+```bash
+curl -X POST "$PAYROUTA_API_URL/checkouts" \
+  -H "Authorization: Bearer $PAYROUTA_SECRET_KEY" \
+  -H "Idempotency-Key: order-1042" \
+  -H "Content-Type: application/json" \
+  -d '{"reference":"1042","payerCountry":"NG","amount":"25000.00","currency":"NGN",
+       "methods":["bank-transfer","ussd","card"],"returnUrl":"https://shop.example/orders/1042"}'
+```
+
+Payment links use the country you choose when you create the link.

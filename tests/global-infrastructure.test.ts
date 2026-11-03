@@ -3,11 +3,6 @@ import assert from "node:assert/strict";
 import { validatePostings } from "../lib/payments/journal";
 import { localizeCheckoutMethods } from "../lib/payments/localization";
 import {
-  buildTaxComplianceReport,
-  calculateCheckoutTax,
-  validateBusinessTaxId,
-} from "../lib/payments/tax";
-import {
   assertMerchantFulfillmentAllowed,
   createCreditIntent,
   finalizeCreditPaymentSuccess,
@@ -70,103 +65,6 @@ test("Pillar 3: Localization-as-a-Service Checkout prioritizes regional payment 
   const brMethods = localizeCheckoutMethods(allMethods, { payerCountry: "BR", currency: "BRL" });
   assert.equal(brMethods[0]!.method, "bank-transfer");
   assert.match(brMethods[0]!.localizedLabel, /Pix/);
-});
-
-test("Pillar 3: Global Tax & Compliance Engine calculates EU VAT, B2B Reverse Charge, US State Sales Tax, Canada GST/QST, and RoW VAT", () => {
-  // 1. Germany B2C SaaS checkout: 19% German MwSt under EU OSS
-  const deB2c = calculateCheckoutTax({
-    amountMinor: 10_000n, // €100.00
-    currency: "EUR",
-    buyerAddress: { country: "DE", postalCode: "10115" },
-    sellerCountry: "IE",
-    productCategory: "saas",
-    taxBehavior: "exclusive",
-  });
-  assert.equal(deB2c.effectiveRateBps, 1900);
-  assert.equal(deB2c.taxMinor, "1900");
-  assert.equal(deB2c.totalMinor, "11900");
-  assert.equal(deB2c.reverseCharge, false);
-  assert.equal(deB2c.filingRegime, "EU_OSS_VAT");
-
-  // 2. Germany B2B cross-border with valid VIES VAT ID -> 0% Reverse Charge (Article 196)
-  assert.equal(validateBusinessTaxId("DE", "DE123456789").valid, true);
-  const deB2bReverse = calculateCheckoutTax({
-    amountMinor: 10_000n,
-    currency: "EUR",
-    buyerAddress: { country: "DE" },
-    sellerCountry: "IE",
-    productCategory: "saas",
-    buyerTaxId: "DE 123456789",
-  });
-  assert.equal(deB2bReverse.effectiveRateBps, 0);
-  assert.equal(deB2bReverse.taxMinor, "0");
-  assert.equal(deB2bReverse.reverseCharge, true);
-  assert.equal(deB2bReverse.exemptionReason, "B2B_REVERSE_CHARGE");
-  assert.match(deB2bReverse.statutoryNotice ?? "", /Article 196/);
-
-  // 3. US State Sales Tax: NY taxes SaaS (4% state + 4.88% local = 8.88%), CA exempts SaaS but taxes physical goods
-  const usNySaas = calculateCheckoutTax({
-    amountMinor: 10_000n, // $100.00
-    currency: "USD",
-    buyerAddress: { country: "US", stateOrProvince: "NY", postalCode: "10001" },
-    productCategory: "saas",
-  });
-  assert.equal(usNySaas.effectiveRateBps, 888);
-  assert.equal(usNySaas.taxMinor, "888");
-  assert.equal(usNySaas.totalMinor, "10888");
-  assert.equal(usNySaas.lineItems.length, 2);
-
-  const usCaSaas = calculateCheckoutTax({
-    amountMinor: 10_000n,
-    currency: "USD",
-    buyerAddress: { country: "US", stateOrProvince: "CA", postalCode: "94105" },
-    productCategory: "saas",
-  });
-  assert.equal(usCaSaas.taxMinor, "0");
-  assert.equal(usCaSaas.exemptionReason, "US_SAAS_STATE_EXEMPT");
-
-  const usCaPhysical = calculateCheckoutTax({
-    amountMinor: 10_000n,
-    currency: "USD",
-    buyerAddress: { country: "US", stateOrProvince: "CA", postalCode: "94105" },
-    productCategory: "physical",
-  });
-  assert.equal(usCaPhysical.effectiveRateBps, 885);
-  assert.equal(usCaPhysical.taxMinor, "885");
-
-  // 4. Canada Québec multi-component tax (5% GST + 9.98% QST)
-  const caQc = calculateCheckoutTax({
-    amountMinor: 10_000n,
-    currency: "CAD",
-    buyerAddress: { country: "CA", stateOrProvince: "QC" },
-    productCategory: "saas",
-  });
-  assert.equal(caQc.lineItems.length, 2);
-  assert.equal(caQc.taxMinor, "1498");
-
-  // 5. Nigeria FIRS 7.5% VAT & Japan 10% JCT (tax-inclusive extraction in 0-decimal JPY)
-  const ngVat = calculateCheckoutTax({
-    amountMinor: 100_000_00n, // 100,000.00 NGN
-    currency: "NGN",
-    buyerAddress: { country: "NG", stateOrProvince: "Lagos" },
-  });
-  assert.equal(ngVat.effectiveRateBps, 750);
-  assert.equal(ngVat.taxMinor, "750000"); // 7,500.00 NGN
-  assert.equal(ngVat.filingRegime, "NG_FIRS_TAXPRO_MAX");
-
-  const jpInclusive = calculateCheckoutTax({
-    amountMinor: 11_000n, // ¥11,000 tax-inclusive
-    currency: "JPY",
-    buyerAddress: { country: "JP" },
-    taxBehavior: "inclusive",
-  });
-  assert.equal(jpInclusive.subtotalMinor, "10000");
-  assert.equal(jpInclusive.taxMinor, "1000");
-  assert.equal(jpInclusive.totalMinor, "11000");
-
-  // Compliance reporting summary
-  const report = buildTaxComplianceReport([deB2c, deB2bReverse, usNySaas, ngVat]);
-  assert.equal(report.length, 4);
 });
 
 test("Global BNPL Backdoor Switch: maps every continent to its self-serve BNPL switch and Open Banking / Card Scheme backdoor", () => {

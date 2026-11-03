@@ -46,7 +46,7 @@
               "guides/near-intents",
               "guides/cash-out",
               "guides/agents",
-              "guides/localization-and-tax"
+              "guides/local-methods"
             ]
           },
           {
@@ -215,5 +215,19 @@
       "chatgpt",
       "claude"
     ]
-  }
+  },
+  "redirects": [
+    {
+      "source": "/guides/localization-and-tax",
+      "destination": "/guides/local-methods"
+    },
+    {
+      "source": "/guides/subscriptions-and-dunning",
+      "destination": "/concepts/payment-methods"
+    },
+    {
+      "source": "/concepts/fx-splicing-ledger",
+      "destination": "/concepts/settlement"
+    }
+  ]
 }
