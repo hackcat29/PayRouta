@@ -6,7 +6,7 @@ import type { DocItem } from "@/lib/docs";
 const navigationSections = [
   {
     title: "Getting Started",
-    slugs: ["overview", "quickstart"],
+    slugs: ["overview", "quickstart", "activation"],
   },
   {
     title: "Core Concepts",
@@ -44,7 +44,6 @@ const navigationSections = [
     title: "Cards & Schemes",
     slugs: [
       "providers/cards",
-      "providers/cards/stripe",
       "providers/cards/visa",
       "providers/cards/mastercard",
     ],

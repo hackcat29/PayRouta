@@ -1,4 +1,5 @@
 import { currentMerchantScreening } from "./screening";
+import { cryptoBlockers, isCryptoMethod } from "./go-live";
 import {
   liveScopeReasons,
   storedLiveScope,
@@ -112,7 +113,21 @@ export async function enforceRisk(
     dailyReserved: BigInt(aggregate._sum.amount?.toFixed(0) || "0"),
     alreadyReserved: !!prior,
   });
-  if (intent.environment === "production") {
+  if (intent.environment === "production" && isCryptoMethod(intent.selectedMethod)) {
+    const reasons = await cryptoBlockers(tx, intent.orgId, now);
+    outcome = reasons.length
+      ? { decision: "Deny", reasons: [...outcome.reasons, ...reasons] }
+      : riskOutcome(policy, {
+          environment: intent.environment,
+          asset,
+          amount: minor(intent.amount, intent.precision),
+          method: intent.selectedMethod,
+          evidenceCurrent: evidence.length === new Set(policy.evidenceIds).size,
+          dailyReserved: BigInt(aggregate._sum.amount?.toFixed(0) || "0"),
+          alreadyReserved: !!prior,
+          liveQualified: true,
+        });
+  } else if (intent.environment === "production") {
     const reasons = liveScopeReasons(
       config.liveScope,
       {

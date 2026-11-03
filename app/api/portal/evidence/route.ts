@@ -1,5 +1,6 @@
 import { merchantMember } from "@/lib/merchant/access";
 import { applicationRequirements } from "@/lib/merchant/evidence";
+import { onboardingDocumentIds } from "@/lib/merchant/requirements";
 import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { csrf, member, rateLimit } from "@/lib/portal/access";
@@ -48,16 +49,23 @@ export async function POST(request: Request) {
       })
       .parse(Object.fromEntries(form));
     const requirementId = String(form.get("requirementId") || "");
+    // Merchants upload for their application and for onboarding documents
+    // (ID, registration, proof of address).
     const requirements =
       audience === "merchant"
-        ? await applicationRequirements(
-            (await db.merchantConfig.findUniqueOrThrow({ where: { orgId } }))
-              .application as {
-              country?: string;
-              methods?: string[];
-              requirementIds?: string[];
-            },
-          )
+        ? [
+            ...(await applicationRequirements(
+              (await db.merchantConfig.findUniqueOrThrow({ where: { orgId } }))
+                .application as {
+                country?: string;
+                methods?: string[];
+                requirementIds?: string[];
+              },
+            )),
+            ...(await db.requirement.findMany({
+              where: { id: { in: onboardingDocumentIds }, active: true },
+            })),
+          ]
         : await matchedRequirements(
             db,
             (await db.application.findUniqueOrThrow({ where: { orgId } }))

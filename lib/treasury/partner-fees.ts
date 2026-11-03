@@ -3,7 +3,7 @@
 //
 // On split-settlement rails (Paystack, Flutterwave) the partner already takes
 // its fee from the merchant's share, so nothing is added here. Where PayRouta
-// pays the partner itself (Stripe Connect Custom, dLocal, Tink), the standard
+// pays the partner itself (dLocal, Tink), the standard
 // fee is configured on the platform account as `standardFees` and withheld
 // (or invoiced) with PayRouta's fee, so the merchant bears it either way.
 import { z } from "zod";

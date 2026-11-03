@@ -2,7 +2,7 @@
 // after `reviewSeconds`; payments reuse the simulator's durable records so the
 // sandbox checkout's "complete" action confirms them; the merchant's share is
 // available `availabilityDays` after confirmation. "sandbox-platform" holds
-// funds like Stripe Connect; "sandbox-split" settles to the merchant directly
+// funds like dLocal; "sandbox-split" settles to the merchant directly
 // and takes a 1.5% processing fee from the merchant's share, like Paystack
 // subaccounts. Never runs outside local mode.
 import { randomBytes } from "node:crypto";

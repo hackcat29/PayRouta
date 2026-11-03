@@ -134,6 +134,16 @@ const DIRECT_CORRIDOR_SPREAD_BPS: Record<string, number> = {
   "INR->USDC": 25,
 };
 
+// Approximate US dollars for an amount in minor units, from the reference
+// table above; null for a currency it doesn't list. For estimates such as a
+// merchant's monthly volume, never for pricing.
+export function approximateUsd(currency: string, amountMinor: bigint): number | null {
+  const scaled = USD_MAJOR_PER_UNIT_SCALED[currency.toUpperCase()];
+  const exponent = currencyExponent(currency) ?? 2;
+  if (!scaled) return null;
+  return Number((amountMinor * scaled) / FX_RATE_SCALE) / 10 ** exponent;
+}
+
 export function buildDefaultRateBook(now = new Date(), ttlMs = 5 * 60_000): FxRateBook {
   const quotedAt = now.toISOString();
   const expiresAt = new Date(now.getTime() + ttlMs).toISOString();

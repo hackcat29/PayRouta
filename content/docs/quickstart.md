@@ -72,10 +72,6 @@ Test wrong amounts, wrong networks and wallet cancellation with real testnet tra
 
 ## Going live
 
-Live processing needs:
-
-- merchant-owned production receive addresses and verified ownership evidence
-- a reviewed live scope for your business
-- current business screening, exact token/network approval, declared payer country and configured RPC/billing terms
+Live crypto needs your name, your country, the merchant terms and a clear automatic sanctions check. Then choose **Go live with crypto** under **Activate payments**; there's no review. Cards, bank transfers and mobile money need more, depending on whether you're an individual or a registered business and on how much you sell. See [Activate payments](activation.md).
 
 The dashboard shows what is still outstanding.

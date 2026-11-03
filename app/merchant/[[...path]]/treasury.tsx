@@ -136,7 +136,7 @@ function Person({ prefix, title, country }: { prefix: string; title: string; cou
         </label>
         <label>
           Phone
-          <input name={`${prefix}Phone`} placeholder="+234 801 234 5678" autoComplete="tel" />
+          <input name={`${prefix}Phone`} required placeholder="+234 801 234 5678" autoComplete="tel" />
         </label>
         <label>
           Nationality
@@ -150,18 +150,20 @@ function Person({ prefix, title, country }: { prefix: string; title: string; cou
           </select>
         </label>
         <label>
-          ID document
-          <select name={`${prefix}IdType`} defaultValue="">
-            <option value="">—</option>
-            <option value="national-id">National ID</option>
+          ID type
+          <select name={`${prefix}IdType`} required defaultValue="">
+            <option value="" disabled>
+              Choose
+            </option>
+            <option value="national-id">National ID (NIN)</option>
             <option value="passport">Passport</option>
             <option value="drivers-licence">Driver&apos;s licence</option>
-            <option value="tax-id">Tax ID (SSN, BVN, NIN)</option>
+            <option value="tax-id">BVN, SSN or tax ID</option>
           </select>
         </label>
         <label>
           ID number
-          <input name={`${prefix}IdNumber`} autoComplete="off" />
+          <input name={`${prefix}IdNumber`} required autoComplete="off" />
         </label>
         <label className="tr-check">
           <input type="checkbox" name={`${prefix}Pep`} /> Politically exposed person
@@ -191,18 +193,22 @@ function person(f: FormData, prefix: string) {
   };
 }
 
+// Identity and payout details. An individual gives their own; a registered
+// business gives its director's, and its owners' once its volume needs them.
 export function VerificationForm({
   orgId,
   owners,
   country,
   currency,
   saved,
+  individual = false,
 }: {
   orgId: string;
   owners: { name: string }[];
   country?: string;
   currency?: string;
-  saved: { payoutAccount?: { accountLast4?: string | null; currency?: string; holderName?: string } } | null;
+  saved: { payoutAccount?: { accountLast4?: string | null; currency?: string; holderName?: string } | null } | null;
+  individual?: boolean;
 }) {
   const { run, busy, message } = useTreasury(orgId);
   const [open, setOpen] = useState(!saved);
@@ -210,9 +216,15 @@ export function VerificationForm({
     return (
       <div className="tr-saved">
         <p>
-          Saved. Payouts go to <strong>{saved?.payoutAccount?.holderName}</strong> ·{" "}
-          {saved?.payoutAccount?.currency} account ending <strong>{saved?.payoutAccount?.accountLast4}</strong>. Identity
-          details are stored encrypted and never shown again.
+          {saved?.payoutAccount ? (
+            <>
+              Saved. Payouts go to <strong>{saved.payoutAccount.holderName}</strong> · {saved.payoutAccount.currency} account
+              ending <strong>{saved.payoutAccount.accountLast4}</strong>.
+            </>
+          ) : (
+            "Saved."
+          )}{" "}
+          Identity details are stored encrypted and never shown again.
         </p>
         <button type="button" className="tr-secondary" onClick={() => setOpen(true)}>
           Replace details
@@ -230,7 +242,6 @@ export function VerificationForm({
             action: "verification-details",
             input: {
               businessPhone: str(f, "businessPhone")?.replace(/[\s()-]/g, ""),
-              merchantCategoryCode: str(f, "mcc"),
               incorporationDate: str(f, "incorporationDate"),
               representative: person(f, "rep"),
               owners: owners.map((_, i) => person(f, `owner${i}`)),
@@ -248,40 +259,32 @@ export function VerificationForm({
         ).then((ok) => ok && setOpen(false));
       }}
     >
-      <div className="tr-grid">
-        <label>
-          Business phone
-          <input name="businessPhone" required placeholder="+44 20 7123 4567" autoComplete="tel" />
-        </label>
-        <label>
-          Incorporation date
-          <input type="date" name="incorporationDate" />
-        </label>
-        <label>
-          MCC (4 digits)
-          <input name="mcc" inputMode="numeric" pattern="\d{4}" />
-        </label>
-      </div>
-      <Person prefix="rep" title="Account representative" country={country} />
+      {!individual && (
+        <div className="tr-grid">
+          <label>
+            Business phone
+            <input name="businessPhone" placeholder="+234 1 234 5678" autoComplete="tel" />
+          </label>
+          <label>
+            Incorporation date
+            <input type="date" name="incorporationDate" />
+          </label>
+        </div>
+      )}
+      <Person prefix="rep" title={individual ? "You" : "Director"} country={country} />
       {owners.map((o, i) => (
         <Person key={i} prefix={`owner${i}`} title={`Owner: ${o.name}`} country={country} />
       ))}
       <fieldset className="tr-fieldset">
         <legend>Payout bank account</legend>
         <div className="tr-grid">
-          <label className="tr-check">
-            <input type="radio" name="settlementMode" value="bank" defaultChecked /> Local bank payout
-          </label>
-          <label className="tr-check">
-            <input type="radio" name="settlementMode" value="stablecoin" /> Auto-liquidate fiat to USDC / USDT wallet
-          </label>
           <label className="tr-wide">
             Account holder name
             <input name="holderName" required />
           </label>
           <label>
             Account type
-            <select name="holderType" defaultValue="company">
+            <select name="holderType" defaultValue={individual ? "individual" : "company"}>
               <option value="company">Business account</option>
               <option value="individual">Personal account</option>
             </select>

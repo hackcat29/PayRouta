@@ -1,5 +1,3 @@
-import { currentMerchantScreening } from "./screening";
-import { validateScopeEvidence } from "./live-scope";
 import { snapshotFees } from "../payments/pricing";
 import { stablecoinOverview } from "./stablecoins";
 import { intentsSettlementAssets } from "../intents/account";
@@ -11,6 +9,7 @@ import { enabledLaunchMethods, comingSoonMethods } from "../payments/launch";
 import { stablecoinCandidates } from "../payments/stablecoin-routes";
 import { PortalError } from "../portal/domain";
 import { storedLiveScope, scopeReviewCurrent } from "./live-scope";
+import { cryptoBlockers, cryptoMethods } from "./go-live";
 import { riskPolicySchema } from "./policy";
 
 export async function merchantConfiguration(
@@ -25,42 +24,23 @@ export async function merchantConfiguration(
   const policy = riskPolicySchema.parse(config.riskPolicy);
   const scope = storedLiveScope.safeParse(config.liveScope);
   const reviewed = scope.success && scopeReviewCurrent(config.liveScope);
+  // Live crypto needs no review (lib/merchant/go-live.ts).
+  const cryptoReasons =
+    environment === "production" ? await cryptoBlockers(db, orgId) : [];
   const methods =
     environment === "sandbox"
       ? [...enabledLaunchMethods]
-      : reviewed
-        ? scope.data.input.methods.filter((m) =>
-            ["stablecoin", "crypto-app"].includes(m),
-          )
-        : [];
+      : cryptoReasons.length
+        ? []
+        : [...cryptoMethods];
   const [candidates, pools, intents] = await Promise.all([
     stablecoinCandidates(orgId, environment),
     stablecoinOverview(orgId, environment),
     intentsSettlementAssets(orgId, environment),
   ]);
   let commonReason: string | null = policy.paused ? "PROCESSING_PAUSED" : null;
-  if (environment === "production" && !commonReason) {
-    if (!reviewed || !scope.success) commonReason = "LIVE_SCOPE_NOT_APPROVED";
-    else {
-      try {
-        const organization = await db.organization.findUniqueOrThrow({
-          where: { id: orgId },
-        });
-        if (organization.fictional)
-          throw new PortalError("FICTIONAL_ORGANIZATION", 409);
-        await currentMerchantScreening(db, orgId, config.country);
-        await validateScopeEvidence(
-          db,
-          orgId,
-          scope.data.input,
-          config.application,
-          new Date(),
-        );
-      } catch {
-        commonReason = "LIVE_EVIDENCE_OR_SCREENING_REQUIRED";
-      }
-    }
-  }
+  if (environment === "production" && !commonReason && cryptoReasons.length)
+    commonReason = cryptoReasons[0];
   const allAssets = [...tokenAssets, ...cryptoAssets]
     .filter((token) => isTestnet(token.network) === (environment === "sandbox"))
     .map((token) => {

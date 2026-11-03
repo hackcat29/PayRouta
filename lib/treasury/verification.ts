@@ -13,8 +13,7 @@ import type { Tx } from "../payments/service";
 import type { KybProfile } from "../partners/kyb";
 
 // Version of PayRouta's merchant terms. The text, approved by counsel, must
-// incorporate the processing partner's connected-account agreement (for
-// Stripe, the Stripe Connected Account Agreement).
+// incorporate any agreement a processing partner requires merchants to accept.
 export const merchantTermsVersion = "2026-10-09";
 
 const text = (max: number) => z.string().trim().min(1).max(max);
@@ -56,16 +55,19 @@ const personDetails = z
   })
   .strict();
 
+// Each field is asked for only when a capability needs it (lib/merchant/
+// requirements.ts); an individual gives their own details as the
+// representative and has no owners.
 export const verificationDetailsSchema = z
   .object({
-    businessPhone: phone,
+    businessPhone: phone.optional(),
     // ISO 18245 merchant category code, where a partner needs one (Tink).
     merchantCategoryCode: z.string().regex(/^\d{4}$/).optional(),
     incorporationDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     annualSalesUsd: z.string().regex(/^\d{1,15}(\.\d{1,2})?$/).optional(),
     representative: personDetails,
     // Same order as the KYB profile's owners.
-    owners: z.array(personDetails).max(4),
+    owners: z.array(personDetails).max(4).default([]),
     payoutAccount: z
       .object({
         country,
@@ -77,28 +79,38 @@ export const verificationDetailsSchema = z
         // Routing, sort code, BSB or bank code where the country needs one.
         routingNumber: z.string().trim().regex(/^[A-Za-z0-9-]{3,20}$/).optional(),
       })
-      .strict(),
+      .strict()
+      .optional(),
   })
   .strict();
-export type VerificationDetails = z.infer<typeof verificationDetailsSchema>;
+export type SavedDetails = z.infer<typeof verificationDetailsSchema>;
+// What a fiat platform account is opened with: the payout account is there.
+export type VerificationDetails = SavedDetails & {
+  payoutAccount: NonNullable<SavedDetails["payoutAccount"]>;
+};
 
 const last4 = (v?: string) => (v ? v.replace(/[^A-Za-z0-9]/g, "").slice(-4) : null);
 
-export function maskedSummary(d: VerificationDetails) {
-  const person = (p: VerificationDetails["representative"]) => ({
+export function maskedSummary(d: SavedDetails) {
+  const person = (p: SavedDetails["representative"]) => ({
     dateOfBirth: true,
+    phone: !!p.phone,
+    idType: p.idType ?? null,
     idNumberLast4: last4(p.idNumber),
     addressCountry: p.address.country,
   });
   return {
+    businessPhone: !!d.businessPhone,
     representative: person(d.representative),
     owners: d.owners.map(person),
-    payoutAccount: {
-      country: d.payoutAccount.country,
-      currency: d.payoutAccount.currency,
-      holderName: d.payoutAccount.holderName,
-      accountLast4: last4(d.payoutAccount.accountNumber),
-    },
+    payoutAccount: d.payoutAccount
+      ? {
+          country: d.payoutAccount.country,
+          currency: d.payoutAccount.currency,
+          holderName: d.payoutAccount.holderName,
+          accountLast4: last4(d.payoutAccount.accountNumber),
+        }
+      : null,
   };
 }
 
@@ -121,7 +133,8 @@ export async function saveVerificationDetails(
   actorId: string,
 ) {
   const details = verificationDetailsSchema.parse(raw);
-  if (details.owners.length !== profile.owners.length)
+  // Owners' details, once given, cover every owner in the profile.
+  if (details.owners.length && details.owners.length !== profile.owners.length)
     throw new PortalError("OWNER_DETAILS_MUST_MATCH_PROFILE", 400);
   const fingerprint = createHash("sha256").update(JSON.stringify(canonical(details))).digest("hex");
   const last = await tx.merchantVerificationDetails.findFirst({
@@ -145,10 +158,14 @@ export async function saveVerificationDetails(
   return saved;
 }
 
-export async function readVerificationDetails(secretRef: string) {
+// Read back only to open or pay a fiat platform account, so the payout
+// account must be there.
+export async function readVerificationDetails(secretRef: string): Promise<VerificationDetails> {
   const parsed = verificationDetailsSchema.safeParse(JSON.parse((await secretManager.get(secretRef)) || "null"));
   if (!parsed.success) throw new PortalError("VERIFICATION_DETAILS_UNAVAILABLE", 409);
-  return parsed.data;
+  const { payoutAccount } = parsed.data;
+  if (!payoutAccount) throw new PortalError("PAYOUT_ACCOUNT_REQUIRED", 409);
+  return { ...parsed.data, payoutAccount };
 }
 
 // nginx sets X-Real-IP to the connecting address (deploy/payrouta-proxy.conf).

@@ -8,7 +8,7 @@ Connect a [NEAR Intents](https://docs.near-intents.org) account you own, and eve
 PayRouta never holds the funds or the account's keys. NEAR Intents holds balances in the `intents.near` contract on behalf of the account that owns them.
 
 <Info>
-NEAR Intents runs on mainnet, so it works on live checkouts only, once PayRouta approves your settlement account.
+NEAR Intents runs on mainnet, so it works on live checkouts only, once you've gone live with crypto.
 </Info>
 
 ## Connect an account
@@ -21,7 +21,7 @@ In the dashboard, open **Crypto balance**.
    - an **EVM wallet** (MetaMask, Rabby, Coinbase Wallet and others), whose address is its NEAR Intents account.
 3. Sign the message the wallet shows. It proves you control the account and does not move funds. PayRouta checks the signature and, for a named NEAR account, that the signing key has full access to it.
 
-Connecting needs recent authenticator verification. The account then joins your live scope like a receive-address pool: operations review it before live checkouts settle into it. Connecting another account replaces the first; disconnecting stops new checkouts settling there and leaves the funds where they are.
+Connecting needs recent authenticator verification. Live checkouts settle into it once you've gone live with crypto under [Activate payments](/guides/activation): a name, a country, the merchant terms and an automatic sanctions check, with no review. Connecting another account replaces the first; disconnecting stops new checkouts settling there and leaves the funds where they are.
 
 A named NEAR account must tell NEAR Intents once which key signs its intents. **Crypto balance** shows a **Register wallet key** button until it has; it sends one transaction from your wallet with a small NEAR network fee. EVM addresses need no registration.
 
@@ -48,6 +48,6 @@ Swap costs are inside the amounts quoted to the customer and to you; you always 
 
 ## For developers
 
-- Settlement is the `near-intents-deposit` adapter. It is a deposit integration, so routing, live scope, confirmation, settlement and reconciliation work as for receive-address pools.
+- Settlement is the `near-intents-deposit` adapter. It is a deposit integration, so routing, confirmation, settlement and reconciliation work as for receive-address pools.
 - A checkout settling into an intents account returns an attempt action of kind `intents` with the account as `address`; [Pay from Any Chain](/guides/cross-chain) covers the quote calls.
 - NEAR reads use `NEAR_RPC_URL` (default `https://rpc.mainnet.near.org`) and `NEAR_ARCHIVAL_RPC_URL` for older transactions. `CROSS_CHAIN_PAYMENTS=off` stops new quotes.

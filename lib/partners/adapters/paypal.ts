@@ -65,6 +65,7 @@ const configSchema = z
   .strict();
 
 const entityType = {
+  individual: "INDIVIDUAL",
   company: "CORPORATION",
   partnership: "PARTNERSHIP",
   "sole-proprietor": "PROPRIETORSHIP",

@@ -6,10 +6,9 @@ import {
   paymentAsset as tokenAsset,
   onchainMethod,
 } from "../blockchain/crypto-assets";
-import { assetKey } from "./contracts";
 import { fingerprint } from "../portal/registry";
 import { PortalError } from "../portal/domain";
-import { approvedAssetLimits, storedLiveScope } from "../merchant/live-scope";
+import { cryptoBlockers } from "../merchant/go-live";
 import type { Tx } from "./service";
 export const depositPrefix = "deposit:";
 export const isDepositProfile = (id: string) => id.startsWith(depositPrefix);
@@ -29,6 +28,9 @@ export async function stablecoinCandidates(
   ]);
   if (!config || config.environment !== environment) return [];
   if ((config?.riskPolicy as { paused?: boolean })?.paused) return [];
+  // Live crypto settles into the merchant's own accounts and needs no
+  // review: only its crypto requirements (lib/merchant/go-live.ts).
+  if (environment === "production" && (await cryptoBlockers(client, orgId)).length) return [];
   const out = [];
   for (const integration of integrations) {
     const parsed = depositConfigSchema.safeParse(integration.config);
@@ -47,24 +49,6 @@ export async function stablecoinCandidates(
       network: c.network,
     };
     if (asset && fingerprint(asset) !== fingerprint(expected)) continue;
-    // Production eligibility is subsequently rechecked against current reviewed scope and evidence.
-    if (environment === "production") {
-      const parsedScope = storedLiveScope.safeParse(config.liveScope);
-      if (!parsedScope.success) continue;
-      const scope = parsedScope.data;
-      if (
-        scope.status !== "Approved" ||
-        new Date(scope.input.nextReviewAt) <= new Date() ||
-        !approvedAssetLimits(scope.input, assetKey(expected)) ||
-        !scope.input.methods.includes(method) ||
-        !scope.input.accounts.some(
-          (a) =>
-            a.integrationId === integration.id &&
-            a.accountReference === c.accountId,
-        )
-      )
-        continue;
-    }
     // A NEAR Intents account has no pool to run out of; it stays eligible
     // while the merchant keeps it connected.
     if (c.adapter === "near-intents-deposit") {

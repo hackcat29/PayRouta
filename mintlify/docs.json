@@ -31,6 +31,7 @@
             "pages": [
               "index",
               "quickstart",
+              "guides/activation",
               "guides/payment-links",
               "guides/checkout-button"
             ]
@@ -123,7 +124,6 @@
                 "group": "Cards",
                 "pages": [
                   "providers/cards/index",
-                  "providers/cards/stripe",
                   "providers/cards/visa",
                   "providers/cards/mastercard"
                 ]

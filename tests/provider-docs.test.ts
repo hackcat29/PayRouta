@@ -31,9 +31,9 @@ test("provider docs: dedicated provider subroutes exist under their category", (
   assert.ok(eurc, "Circle EURC doc exists under providers/stablecoins/eurc");
 
   // Category: Cards
-  const stripe = findDoc("providers/cards/stripe");
-  assert.ok(stripe, "Stripe doc exists under providers/cards/stripe");
-  assert.equal(stripe?.category, "Cards");
+  const visa = findDoc("providers/cards/visa");
+  assert.ok(visa, "Visa doc exists under providers/cards/visa");
+  assert.equal(visa?.category, "Cards");
 
   // Category: Bank Transfer
   const paystack = findDoc("providers/bank-transfer/paystack");

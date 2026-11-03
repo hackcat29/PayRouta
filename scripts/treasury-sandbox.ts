@@ -18,8 +18,6 @@
 //     and records sandbox qualification evidence on the PlatformAccount.
 //
 // Environment (only the providers you have keys for):
-//   STRIPE_TEST_SECRET_KEY            sk_test_…
-//   STRIPE_TEST_WEBHOOK_SECRET, STRIPE_TEST_CONNECT_WEBHOOK_SECRET   whsec_… (optional)
 //   PAYSTACK_TEST_SECRET_KEY          sk_test_…
 //   FLUTTERWAVE_TEST_SECRET_KEY       FLWSECK_TEST-…
 //   FLUTTERWAVE_WEBHOOK_HASH          dashboard "secret hash" (optional)
@@ -59,8 +57,6 @@ type Setup = { provider: string; countries: string[]; config: Record<string, unk
 
 function setups(): Setup[] {
   const out: Setup[] = [];
-  if (env("STRIPE_TEST_SECRET_KEY"))
-    out.push({ provider: "stripe-custom", countries: ["US", "GB", "IE", "DE", "FR", "NL", "CA", "AU"], config: {}, secrets: optional({ secretKeyRef: env("STRIPE_TEST_SECRET_KEY"), webhookSecretRef: env("STRIPE_TEST_WEBHOOK_SECRET"), connectWebhookSecretRef: env("STRIPE_TEST_CONNECT_WEBHOOK_SECRET") }) });
   if (env("PAYSTACK_TEST_SECRET_KEY"))
     out.push({ provider: "paystack-split", countries: ["NG", "GH", "KE", "ZA"], config: {}, secrets: { secretKeyRef: env("PAYSTACK_TEST_SECRET_KEY") } });
   if (env("FLUTTERWAVE_TEST_SECRET_KEY"))
@@ -145,7 +141,9 @@ async function configure() {
 async function onboardMerchant(provider: string, fixturePath: string) {
   const fixture = JSON.parse(readFileSync(fixturePath, "utf8")) as { profile: unknown; details: unknown };
   const profile = kybProfileSchema.parse(fixture.profile);
-  const details = verificationDetailsSchema.parse(fixture.details);
+  const parsed = verificationDetailsSchema.parse(fixture.details);
+  if (!parsed.payoutAccount) throw new Error("The fixture needs a payout account");
+  const details = { ...parsed, payoutAccount: parsed.payoutAccount };
   const e = await entity();
   const platform = await db.platformAccount.findUnique({
     where: { legalEntityId_provider_environment: { legalEntityId: e.id, provider, environment: "sandbox" } },

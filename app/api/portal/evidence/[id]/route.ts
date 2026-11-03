@@ -21,7 +21,7 @@ async function authorize(id: string, h: Headers) {
     where: { id: evidence.requirementId },
   });
   if (membership) {
-    if ((requirement?.scope as { audience?: string })?.audience === "merchant")
+    if (["merchant", "merchant-onboarding"].includes((requirement?.scope as { audience?: string })?.audience ?? ""))
       await merchantMember(evidence.orgId, "configure", h);
     else await member(evidence.orgId, "compliance", h);
   } else await internal(false, h);

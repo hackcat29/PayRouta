@@ -30,7 +30,6 @@ import {
   resolveContinentalCreditRoute,
   submitCreditForApproval,
 } from "../lib/payments/credit-intents";
-import { stripeBnplPlatform } from "../lib/treasury/platforms/stripe-bnpl";
 import { adyenKlarnaBnplPlatform } from "../lib/treasury/platforms/adyen-klarna-bnpl";
 import { mercadopagoBnplPlatform } from "../lib/treasury/platforms/mercadopago-bnpl";
 import { migoBnplPlatform } from "../lib/treasury/platforms/migo-bnpl";
@@ -487,13 +486,8 @@ test("Pillar 4: Global Smart Dunning syncs insufficient_funds retries to regiona
 });
 
 test("Global BNPL Backdoor Switch: maps every continent to its self-serve BNPL switch and Open Banking / Card Scheme backdoor", () => {
-  // 1. North America (US, CA): Stripe BNPL + Visa Installment Solutions (VIS) BIN detection
-  const na = resolveContinentalCreditRoute("US", "414720");
-  assert.equal(na.continent, "NORTH_AMERICA");
-  assert.equal(na.platformModuleId, "stripe-bnpl");
-  assert.deepEqual(na.coreNetworks, ["Affirm", "Afterpay", "Klarna", "Zip"]);
-  assert.equal(na.cardInstallmentInfo?.eligible, true);
-  assert.equal(na.cardInstallmentInfo?.network, "VISA_VIS");
+  // North America has no BNPL switch since Stripe was removed.
+  assert.throws(() => resolveContinentalCreditRoute("US"), /UNSUPPORTED_CREDIT_COUNTRY:US/);
 
   // 2. Europe (UK, DE, FR, NL, SE): Adyen / Klarna + Tink Open Banking PSD2 Overdraft
   const eu = resolveContinentalCreditRoute("DE");
@@ -596,44 +590,7 @@ test("Global Credit Intent & 4-Stage Asynchronous Disbursal State Machine: block
   assert.equal(declined.fallbackCheckoutOpen, true);
 });
 
-test("Continental BNPL Platform Adapters: Stripe BNPL, Adyen/Klarna, Mercado Pago, Migo, and Xendit quote plans and execute credit checkouts", async () => {
-  // 1. North America (Stripe BNPL)
-  const stripeAdapter = stripeBnplPlatform.create(
-    { environment: "sandbox", baseUrl: "https://api.stripe.com", secretKeyRef: "k" },
-    {
-      credentials: { get: async () => "sk_test_na_bnpl" },
-      http: async () => ({
-        status: 200,
-        headers: {},
-        body: JSON.stringify({
-          id: "cs_test_bnpl_1",
-          url: "https://checkout.stripe.com/c/pay/cs_test_bnpl_1",
-          payment_status: "paid",
-          currency: "usd",
-          amount_total: 20000,
-          payment_intent: { transfer_data: { destination: "acct_na1" } },
-        }),
-      }),
-    },
-  );
-  const naOffers = await stripeAdapter.creditOffers!({ amount: "200.00", precision: 2, currency: "USD", payerCountry: "US" });
-  assert.ok(naOffers.some((o) => o.id === "na-affirm-6m"));
-  const naPay = await stripeAdapter.createPayment({
-    providerAccountId: "acct_na1",
-    attemptKey: "att_na1",
-    amount: "200.00",
-    precision: 2,
-    currency: "USD",
-    method: "bnpl",
-    feeMinor: 200n,
-    reference: "ord_na1",
-    returnUrl: "https://payrouta.com/r",
-    cancelUrl: "https://payrouta.com/c",
-    payerCountry: "US",
-    credit: { offerId: "na-affirm-6m" },
-  });
-  assert.equal(naPay.state, "Requires action");
-
+test("Continental BNPL Platform Adapters: Adyen/Klarna, Mercado Pago, Migo, and Xendit quote plans and execute credit checkouts", async () => {
   // 2. Europe (Adyen Klarna + Tink Overdraft)
   const euAdapter = adyenKlarnaBnplPlatform.create(
     { environment: "sandbox", baseUrl: "https://checkout-test.adyen.com", merchantAccount: "PayRoutaEU", apiKeyRef: "k" },
@@ -735,9 +692,8 @@ test("Marketing Claims, Ops Platform Registry & UI/UX State Consistency", () => 
   assert.ok(creditPillar);
   assert.equal(creditPillar.availability, "testing");
 
-  // 4. All 13 production Ops Treasury platform modules resolve cleanly (including the 5 continental BNPL switches)
+  // 4. All 11 production Ops Treasury platform modules resolve cleanly (including the 4 continental BNPL switches)
   const opsProviderIds = [
-    "stripe-custom",
     "paystack-split",
     "flutterwave-split",
     "monnify-split",
@@ -745,7 +701,6 @@ test("Marketing Claims, Ops Platform Registry & UI/UX State Consistency", () => 
     "yellowcard-split",
     "dlocal",
     "tink",
-    "stripe-bnpl",
     "adyen-klarna-bnpl",
     "mercadopago-bnpl",
     "migo-bnpl",

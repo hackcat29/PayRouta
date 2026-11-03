@@ -7,6 +7,7 @@ import { atomic, json } from "../../lib/portal/service";
 import { baseProfile } from "../../lib/partners/conformance";
 import { fingerprint } from "../../lib/partners/kyb";
 import { submitMerchantAccount, transitionMerchantAccount } from "../../lib/treasury/merchant-account";
+import { acceptedDocuments, identity } from "./onboarding";
 import { acceptMerchantTerms, saveVerificationDetails } from "../../lib/treasury/verification";
 import { openPlatformLink, provisionLink } from "../../lib/treasury/links";
 
@@ -48,7 +49,7 @@ export async function liveMerchant(entityId: string, platformAccountIds: string[
       org.id,
       {
         businessPhone: "+442071234567",
-        representative: { dateOfBirth: "1985-04-12", address },
+        representative: { dateOfBirth: "1985-04-12", ...identity, address },
         owners: baseProfile.owners.map(() => ({ dateOfBirth: "1979-01-30", address })),
         payoutAccount: { country: "GB", currency: "GBP", holderName: baseProfile.legalName, holderType: "company", accountNumber: "GB82WEST12345698765432" },
       },
@@ -56,6 +57,7 @@ export async function liveMerchant(entityId: string, platformAccountIds: string[
       "test",
     );
     await acceptMerchantTerms(tx, org.id, "test", { ip: "127.0.0.1", userAgent: "test" });
+    await acceptedDocuments(tx, org.id);
     await submitMerchantAccount(tx, org.id, "sandbox", "test");
   });
   const review = (version: number, to: string, decision?: object) =>

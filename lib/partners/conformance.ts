@@ -88,10 +88,10 @@ const canaries: Partial<Record<KybField, (p: KybProfile) => KybProfile>> = {
   productDescription: (p) => ({ ...p, productDescription: "Canaryproduct descriptions for tests" }),
   industry: (p) => ({ ...p, industry: "Canaryindustry" }),
   supportEmail: (p) => ({ ...p, supportEmail: "canarysupport@harbor.example" }),
-  address: (p) => ({ ...p, address: { ...p.address, line1: "Canaryaddress" } }),
+  address: (p) => ({ ...p, address: { ...p.address!, line1: "Canaryaddress" } }),
   representative: (p) => ({
     ...p,
-    representative: { ...p.representative, familyName: "Canaryrep", email: "canaryrep@harbor.example" },
+    representative: { ...p.representative!, familyName: "Canaryrep", email: "canaryrep@harbor.example" },
   }),
   owners: (p) => ({
     ...p,

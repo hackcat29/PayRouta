@@ -21,7 +21,7 @@ Explore provider guides, integration options, and failover behavior organized by
 | Category | Typical Methods & Rails | Example Providers |
 | --- | --- | --- |
 | [**Stablecoins**](/providers/stablecoins) | Native on-chain USDC, USDT, EURC on Base & Ethereum | [USDC (Circle)](/providers/stablecoins/usdc), [USDT](/providers/stablecoins/usdt), [EURC](/providers/stablecoins/eurc) |
-| [**Cards & Global Schemes**](/providers/cards) | Visa, Mastercard, American Express with 3DS2 | [Stripe](/providers/cards/stripe), [Visa Direct](/providers/cards/visa), [Mastercard](/providers/cards/mastercard) |
+| [**Cards & Global Schemes**](/providers/cards) | Visa, Mastercard, American Express with 3DS2 | [Visa Direct](/providers/cards/visa), [Mastercard](/providers/cards/mastercard) |
 | [**Bank Transfer & Fast Rails**](/providers/bank-transfer) | NIP, SEPA Instant, FedNow/RTP, Pix, Instant A2A | [Paystack](/providers/bank-transfer/paystack), [Flutterwave](/providers/bank-transfer/flutterwave), [Monnify](/providers/bank-transfer/monnify), [SEPA](/providers/bank-transfer/sepa), [ACH/FedNow](/providers/bank-transfer/ach), [Pix](/providers/bank-transfer/pix) |
 | [**Digital Wallets**](/providers/digital-wallets) | 1-tap biometric wallets, global & regional super-apps | [Apple Pay](/providers/digital-wallets/apple-pay), [Google Pay](/providers/digital-wallets/google-pay), [PayPal](/providers/digital-wallets/paypal), [Alipay](/providers/digital-wallets/alipay), [WeChat Pay](/providers/digital-wallets/wechat-pay), [GrabPay](/providers/digital-wallets/grabpay), [GCash](/providers/digital-wallets/gcash), [Mercado Pago](/providers/digital-wallets/mercado-pago), [PhonePe](/providers/digital-wallets/phonepe), [PayPay](/providers/digital-wallets/paypay), [Revolut Pay](/providers/digital-wallets/revolut-pay), [Cash App](/providers/digital-wallets/cash-app), [OPay](/providers/digital-wallets/opay), [PalmPay](/providers/digital-wallets/palmpay), [Chipper Cash](/providers/digital-wallets/chipper-cash) |
 | [**Mobile Money**](/providers/mobile-money) | Telecom SIM toolkit (STK Push) and USSD prompts | [Safaricom M-Pesa](/providers/mobile-money/mpesa), [MTN MoMo](/providers/mobile-money/mtn-momo), [Airtel Money](/providers/mobile-money/airtel-money) |
@@ -42,6 +42,6 @@ A payment selected as *Card* is never converted to *Bank Transfer*, and a *Stabl
 ## Integration Modes
 
 Providers connect to PayRouta via one of three integration modes:
-- **`NATIVE`**: PayRouta maintains the provider-specific adapter according to normalized contracts (e.g., Paystack, Flutterwave, Monnify, Stripe Connect).
+- **`NATIVE`**: PayRouta maintains the provider-specific adapter according to normalized contracts (e.g., Paystack, Flutterwave, Monnify).
 - **`STANDARD`**: The provider implements the PayRouta Provider API.
 - **`CONFIGURABLE`**: Declarative mapping of a provider's existing REST API via the Provider Portal with zero custom code deployment.

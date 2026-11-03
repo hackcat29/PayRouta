@@ -22,7 +22,6 @@ Each row lists the providers PayRouta reaches a guide through, and what it needs
 | [stablecoins/usdc](providers/stablecoins/usdc.md) | stablecoin | erc20-deposit | Direct Ethereum/Base deposits; official Sepolia testnets only in sandbox. A receive-address pool and an approved live account. |
 | [stablecoins/usdt](providers/stablecoins/usdt.md) | stablecoin | erc20-deposit | Direct Ethereum mainnet only; no fabricated test USDT. An approved live account; other networks aren't supported. |
 | [stablecoins/eurc](providers/stablecoins/eurc.md) | stablecoin | erc20-deposit | Direct Ethereum/Base deposits; official Sepolia testnets only in sandbox. A receive-address pool and an approved live account. |
-| [cards/stripe](providers/cards/stripe.md) | card | stripe, stripe-connect | An eligible merchant account with this method enabled. |
 | [cards/visa](providers/cards/visa.md) | card | stripe, adyen, paystack, flutterwave | Card scheme, not a separate acquiring API. |
 | [cards/mastercard](providers/cards/mastercard.md) | card | stripe, adyen, paystack, flutterwave | Card scheme, not a separate acquiring API. |
 | [bank-transfer/paystack](providers/bank-transfer/paystack.md) | bank-transfer | paystack | An eligible merchant account with this method enabled. |
@@ -98,7 +97,7 @@ Example (secret reference is a placeholder, not a credential):
 }
 ```
 
-Stripe types: `card`, `alipay`, `wechat_pay`, `grabpay`, `cashapp`, `revolut_pay`, `paypay`, `paypal`, `klarna`, `affirm`, `sepa_debit`, `us_bank_account`, `customer_balance`, `pix`. Stripe Connect accepts the same `enabledPaymentTypes` and defaults to card only. Its routing candidates intersect enabled types with declared methods. Stripe's card Checkout may show Apple/Google Pay as card funding; a separately chosen digital-wallet Apple/Google Pay uses Adyen's explicit wallet types.
+Stripe types: `card`, `alipay`, `wechat_pay`, `grabpay`, `cashapp`, `revolut_pay`, `paypay`, `paypal`, `klarna`, `affirm`, `sepa_debit`, `us_bank_account`, `customer_balance`, `pix`. Stripe's card Checkout may show Apple/Google Pay as card funding; a separately chosen digital-wallet Apple/Google Pay uses Adyen's explicit wallet types.
 
 Adyen types: `scheme`, `applepay`, `googlepay`, `alipay`, `wechatpayWeb`, `gcash`, `grabpay_SG`, `grabpay_MY`, `kakaopay`, `cashapp`, `paypal`, `paypay`, `paytm`, `wero`, `klarna`, `affirm`, `pix`, `sepadirectdebit`. Test origin: `https://checkout-test.adyen.com`; production: your approved tenant's `https://<prefix>-checkout-live.adyenpayments.com`. These are declarations, not a promise every type is available for every currency/country/account.
 

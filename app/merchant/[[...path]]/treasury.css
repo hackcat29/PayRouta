@@ -168,3 +168,7 @@
 .tr-respond h2 { margin: 0 0 4px; font-size: 18px; }
 .tr-evidence > label { display: grid; gap: 4px; font-weight: 500; }
 .tr-evidence textarea { width: 100%; }
+.tr-checklist { list-style: none; margin: 12px 0; padding: 0; border-top: 1px solid var(--mist); }
+.tr-checklist li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--mist); }
+section > details { margin: 12px 0; }
+section > details > summary { cursor: pointer; font-weight: 600; padding: 6px 0; }

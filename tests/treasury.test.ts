@@ -4,7 +4,6 @@ import { custodyBlocker } from "../lib/treasury/custody";
 import { canTransition, permits } from "../lib/treasury/merchant-account";
 import { merchantTerms, termsBlockers } from "../lib/treasury/terms";
 import { validatePostings } from "../lib/payments/journal";
-import { stripeCustomPlatform } from "../lib/treasury/platforms/stripe-custom";
 import { platformFees } from "../lib/treasury/execution";
 import { snapshotFees } from "../lib/payments/pricing";
 import { maskedSummary, verificationDetailsSchema } from "../lib/treasury/verification";
@@ -94,28 +93,7 @@ test("journal: merchant-funds accounts balance like any other book", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Stripe Connect Custom platform module, against a fake Stripe transport.
-
 type Call = { method: string; path: string; headers: Record<string, string>; body?: string };
-function fakeStripe(routes: Record<string, unknown>, key = "sk_test_123") {
-  const calls: Call[] = [];
-  const adapter = stripeCustomPlatform.create(
-    { environment: "sandbox", secretKeyRef: "ref" },
-    {
-      credentials: { get: async () => key },
-      now: () => new Date("2026-10-09T12:00:00Z"),
-      http: async (_base, o) => {
-        calls.push({ method: o.method, path: o.path, headers: o.headers as Record<string, string>, body: o.body as string | undefined });
-        const hit = Object.entries(routes).find(([p]) => `${o.method} ${o.path}`.startsWith(p));
-        return hit
-          ? { status: 200, headers: {}, body: JSON.stringify(hit[1]) }
-          : { status: 404, headers: {}, body: "{}" };
-      },
-    },
-  );
-  return { adapter, calls };
-}
-const form = (body = "") => Object.fromEntries(new URLSearchParams(body));
 
 const details = {
   businessPhone: "+14155550100",
@@ -156,73 +134,10 @@ const profile = {
 };
 const agreement = { acceptedAt: new Date("2026-10-09T10:00:00Z"), ip: "203.0.113.7", userAgent: "Mozilla/5.0" };
 
-test("stripe custom: merchants are onboarded by API only, never on Stripe pages", async () => {
-  const { adapter, calls } = fakeStripe({
-    "POST /v1/accounts/acct_1ABC/persons": { id: "person_1" },
-    "POST /v1/accounts/acct_1ABC": {
-      id: "acct_1ABC",
-      requirements: { currently_due: ["person_1XyZ.verification.document", "company.verification.document"] },
-    },
-    "POST /v1/accounts": { id: "acct_1ABC", business_type: "company" },
-  });
-  const created = await adapter.createAccount({ linkId: "link_1", environment: "sandbox", profile, details, agreement });
-  assert.equal(created.providerAccountId, "acct_1ABC");
-  // Stripe's field paths never reach the merchant.
-  assert.equal(created.snapshot.state, "Action required");
-  assert.deepEqual(created.snapshot.requirementsDue, ["identity-document", "business-document"]);
-  assert.deepEqual(
-    calls.map((c) => `${c.method} ${c.path}`),
-    ["POST /v1/accounts", "POST /v1/accounts/acct_1ABC/persons", "POST /v1/accounts/acct_1ABC/persons", "POST /v1/accounts/acct_1ABC"],
-  );
-  assert.ok(!calls.some((c) => c.path.includes("account_links")), "no Stripe-hosted onboarding");
-  const body = form(calls[0].body);
-  assert.equal(body["controller[stripe_dashboard][type]"], "none");
-  assert.equal(body["controller[losses][payments]"], "application");
-  assert.equal(body["controller[fees][payer]"], "application");
-  assert.equal(body["controller[requirement_collection]"], "application");
-  assert.equal(body["settings[payouts][schedule][interval]"], "manual");
-  assert.equal(body["tos_acceptance[date]"], String(Date.parse("2026-10-09T10:00:00Z") / 1000));
-  assert.equal(body["tos_acceptance[ip]"], "203.0.113.7");
-  assert.equal(body["external_account[account_number]"], "000123456789");
-  assert.equal(body["external_account[currency]"], "usd");
-  assert.equal(body["company[phone]"], "+14155550100");
-  const rep = form(calls[1].body);
-  assert.equal(rep["relationship[representative]"], "true");
-  assert.equal(rep["dob[year]"], "1985");
-  assert.equal(rep["id_number"], "000000000");
-  const owner = form(calls[2].body);
-  assert.equal(owner["relationship[percent_ownership]"], "60");
-  assert.equal(owner["first_name"], "Bo");
-  assert.equal(form(calls[3].body)["company[owners_provided]"], "true");
-  assert.deepEqual(
-    calls.map((c) => c.headers["Idempotency-Key"]),
-    ["payrouta-platform-link_1", "payrouta-platform-link_1-representative", "payrouta-platform-link_1-owner-0", "payrouta-platform-link_1-attested"],
-    "a retried job resumes without duplicate accounts or persons",
-  );
-});
-
-test("stripe custom: sole proprietors are onboarded as individuals", async () => {
-  const { adapter, calls } = fakeStripe({ "POST /v1/accounts": { id: "acct_2ABC", business_type: "individual", charges_enabled: true, payouts_enabled: true } });
-  const created = await adapter.createAccount({
-    linkId: "link_2",
-    environment: "sandbox",
-    profile: { ...profile, businessType: "sole-proprietor", owners: [] },
-    details: { ...details, owners: [] },
-    agreement,
-  });
-  assert.equal(created.snapshot.state, "Approved");
-  assert.equal(calls.length, 1);
-  const body = form(calls[0].body);
-  assert.equal(body["business_type"], "individual");
-  assert.equal(body["individual[first_name]"], "Ada");
-  assert.equal(body["individual[dob][day]"], "12");
-  assert.equal(body["company[name]"], undefined);
-});
-
 test("verification details: validated, and only a masked summary is ever shown", () => {
   const parsed = verificationDetailsSchema.parse(details);
   const summary = maskedSummary(parsed);
-  assert.equal(summary.payoutAccount.accountLast4, "6789");
+  assert.equal(summary.payoutAccount?.accountLast4, "6789");
   assert.equal(summary.representative.idNumberLast4, "0000");
   assert.ok(!JSON.stringify(summary).includes("000123456789"));
   assert.ok(!JSON.stringify(summary).includes("1985"));
@@ -233,94 +148,31 @@ test("verification details: validated, and only a masked summary is ever shown",
   );
 });
 
-test("stripe custom: destination charge on behalf of the merchant with the fee withheld", async () => {
-  const { adapter, calls } = fakeStripe({
-    "POST /v1/checkout/sessions": { id: "cs_test_1", url: "https://checkout.stripe.com/c/pay/cs_test_1" },
-  });
-  const input = {
-    providerAccountId: "acct_1ABC",
-    attemptKey: "attempt:1",
-    amount: "40.00",
-    precision: 2,
-    currency: "USD",
-    method: "card" as const,
-    feeMinor: 120n,
-    reference: "order-1",
-    returnUrl: "https://payrouta.example/checkout/s?returned=1",
-    cancelUrl: "https://payrouta.example/checkout/s",
-  };
-  const r = await adapter.createPayment(input);
-  assert.deepEqual(r, { state: "Requires action", reference: "cs_test_1", actionUrl: "https://checkout.stripe.com/c/pay/cs_test_1" });
-  const body = form(calls[0].body);
-  assert.equal(body["payment_intent_data[on_behalf_of]"], "acct_1ABC");
-  assert.equal(body["payment_intent_data[transfer_data][destination]"], "acct_1ABC");
-  assert.equal(body["payment_intent_data[application_fee_amount]"], "120");
-  assert.equal(body["line_items[0][price_data][unit_amount]"], "4000");
-  assert.equal(calls[0].headers["Stripe-Account"], undefined, "charged on the platform, not the connected account");
-  // A fee that would consume the whole payment, or a non-card method, is refused before Stripe.
-  assert.equal((await adapter.createPayment({ ...input, feeMinor: 4000n })).state, "Rejected");
-  assert.equal((await adapter.createPayment({ ...input, method: "bnpl" as never })).state, "Rejected");
-  assert.equal(calls.length, 1);
-});
-
-test("stripe custom: status refuses sessions paying anyone else; availability reads the merchant's share", async () => {
-  const session = (destination: string) => ({
-    id: "cs_test_1",
-    status: "complete",
-    payment_status: "paid",
-    currency: "usd",
-    amount_total: 4000,
-    payment_intent: { transfer_data: { destination }, latest_charge: { id: "ch_1", transfer: "tr_1" } },
-  });
-  const ok = fakeStripe({
-    "GET /v1/checkout/sessions/cs_test_1": session("acct_1ABC"),
-    "GET /v1/transfers/tr_1": { destination: "acct_1ABC", destination_payment: "py_1", amount: 3880 },
-    "GET /v1/charges/py_1": { balance_transaction: { available_on: 1760400000 } },
-  });
-  assert.deepEqual(await ok.adapter.paymentStatus({ reference: "cs_test_1", providerAccountId: "acct_1ABC" }), {
-    state: "Confirmed",
-    reference: "cs_test_1",
-    amount: "40.00",
-    currency: "USD",
-  });
-  const funds = await ok.adapter.fundsAvailability({ reference: "cs_test_1", providerAccountId: "acct_1ABC", feeMinor: 120n });
-  assert.deepEqual(funds, { paymentRef: "ch_1", transferRef: "tr_1", netMinor: 3880n, availableAt: new Date(1760400000 * 1000) });
-  assert.equal(ok.calls.at(-1)!.headers["Stripe-Account"], "acct_1ABC", "the share is read on the connected account");
-
-  const other = fakeStripe({ "GET /v1/checkout/sessions/cs_test_1": session("acct_OTHER") });
-  await assert.rejects(
-    other.adapter.paymentStatus({ reference: "cs_test_1", providerAccountId: "acct_1ABC" }),
-    /PLATFORM_DESTINATION_MISMATCH/,
-  );
-  const live = fakeStripe({}, "sk_live_123");
-  await assert.rejects(live.adapter.accountStatus("acct_1ABC"), /STRIPE_KEY_ENVIRONMENT_MISMATCH/);
-});
-
 test("platform fees: 1% plus the partner's standard fee where PayRouta pays the partner", () => {
   const usd = { kind: "fiat", identifier: "USD", network: "" };
   const feeSnapshot = snapshotFees({ orgId: "o", environment: "production", asset: usd, precision: 2 });
   const intent = { feeSnapshot, selectedMethod: "card", amount: "40.00", precision: 2, asset: usd };
-  const stripe = {
-    provider: "stripe-custom",
-    config: { standardFees: { card: { bps: 290, fixedMinor: { USD: "30" }, source: "stripe.com/pricing" } } },
+  const dlocal = {
+    provider: "dlocal",
+    config: { standardFees: { card: { bps: 290, fixedMinor: { USD: "30" }, source: "dlocal.com/pricing" } } },
   };
-  // 1% of 40.00 = 0.40; Stripe's standard 2.9% + 0.30 = 1.46.
-  assert.deepEqual(platformFees(intent as never, stripe), { payroutaMinor: 40n, partnerMinor: 146n, totalMinor: 186n });
+  // 1% of 40.00 = 0.40; a standard 2.9% + 0.30 = 1.46.
+  assert.deepEqual(platformFees(intent as never, dlocal), { payroutaMinor: 40n, partnerMinor: 146n, totalMinor: 186n });
   // Paystack takes its own fee from the merchant's share: only PayRouta's 1% is withheld.
   assert.deepEqual(platformFees(intent as never, { provider: "paystack-split", config: {} }), {
     payroutaMinor: 40n,
     partnerMinor: 0n,
     totalMinor: 40n,
   });
-  assert.throws(() => platformFees(intent as never, { provider: "stripe-custom", config: {} }), /PARTNER_STANDARD_FEE_REQUIRED/);
+  assert.throws(() => platformFees(intent as never, { provider: "dlocal", config: {} }), /PARTNER_STANDARD_FEE_REQUIRED/);
   const sandbox = snapshotFees({ orgId: "o", environment: "sandbox", asset: usd, precision: 2 });
-  assert.equal(platformFees({ ...intent, feeSnapshot: sandbox } as never, stripe).totalMinor, 0n);
+  assert.equal(platformFees({ ...intent, feeSnapshot: sandbox } as never, dlocal).totalMinor, 0n);
   assert.throws(
-    () => platformFees({ ...intent, asset: { ...usd, identifier: "GBP" } } as never, stripe),
+    () => platformFees({ ...intent, asset: { ...usd, identifier: "GBP" } } as never, dlocal),
     /PLATFORM_FEE_CURRENCY_MISMATCH/,
   );
   assert.throws(
-    () => platformFees({ ...intent, amount: "0.30" } as never, stripe),
+    () => platformFees({ ...intent, amount: "0.30" } as never, dlocal),
     /PLATFORM_FEE_EXCEEDS_PAYMENT/,
   );
 });
@@ -460,7 +312,6 @@ function fake(mod: PlatformModule, config: Record<string, unknown>, keys: Record
 
 test("platform registry: every module's custody, funds and fee rules are consistent", () => {
   for (const id of [
-    "stripe-custom",
     "paystack-split",
     "flutterwave-split",
     "monnify-split",
@@ -468,7 +319,6 @@ test("platform registry: every module's custody, funds and fee rules are consist
     "yellowcard-split",
     "dlocal",
     "tink",
-    "stripe-bnpl",
     "adyen-klarna-bnpl",
     "mercadopago-bnpl",
     "migo-bnpl",
@@ -926,49 +776,6 @@ test("tink: pay by bank to the merchant's own account; fee invoiced, never withh
 // ---------------------------------------------------------------------------
 // Payouts and provider events (phase 2b)
 
-test("stripe custom: payouts from the connected balance, branded PayRouta, idempotent", async () => {
-  const { adapter, calls } = fakeStripe({
-    "POST /v1/payouts": { id: "po_123", status: "pending" },
-    "GET /v1/payouts/po_123": { id: "po_123", status: "failed", failure_code: "account_closed" },
-  });
-  const r = await adapter.createPayout!({ providerAccountId: "acct_1ABC", payoutId: "pay_1", amountMinor: 3600n, currency: "GBP" });
-  assert.deepEqual(r, { reference: "po_123", state: "In transit" });
-  const body = form(calls[0].body);
-  assert.equal(body.statement_descriptor, "PAYROUTA");
-  assert.equal(body.amount, "3600");
-  assert.equal(body.currency, "gbp");
-  assert.equal(calls[0].headers["Stripe-Account"], "acct_1ABC");
-  assert.equal(calls[0].headers["Idempotency-Key"], "payrouta-payout-pay_1");
-  assert.deepEqual(await adapter.payoutStatus!({ providerAccountId: "acct_1ABC", reference: "po_123" }), {
-    state: "Failed",
-    failureCode: "account_closed",
-  });
-});
-
-function stripeEvents(secrets: Record<string, string>, environment = "sandbox") {
-  return stripeCustomPlatform.create(
-    { environment, ...Object.fromEntries(Object.keys(secrets).map((k) => [k, k])) },
-    { credentials: { get: async (ref) => secrets[ref] ?? "" }, http: async () => ({ status: 500, headers: {}, body: "" }) },
-  );
-}
-const stripeSigned = (secret: string, raw: string, t = Math.floor(Date.now() / 1000)) =>
-  new Headers({ "stripe-signature": `t=${t},v1=${createHmac("sha256", secret).update(`${t}.${raw}`).digest("hex")}` });
-
-test("stripe custom events: platform and Connect secrets, mode check, kinds", async () => {
-  const a = stripeEvents({ webhookSecretRef: "whsec_platform", connectWebhookSecretRef: "whsec_connect" });
-  const payout = JSON.stringify({ id: "evt_1", type: "payout.paid", livemode: false, account: "acct_1ABC", data: { object: { id: "po_9" } } });
-  assert.deepEqual(await a.verifyEvent!({ rawBody: payout, headers: stripeSigned("whsec_connect", payout) }), {
-    eventId: "evt_1", type: "payout.paid", kind: "payout", accountRef: "acct_1ABC", objectRef: "po_9",
-  });
-  const session = JSON.stringify({ id: "evt_2", type: "checkout.session.completed", livemode: false, data: { object: { id: "cs_test_1" } } });
-  assert.equal((await a.verifyEvent!({ rawBody: session, headers: stripeSigned("whsec_platform", session) }))?.objectRef, "cs_test_1");
-  assert.equal(await a.verifyEvent!({ rawBody: session, headers: stripeSigned("whsec_other", session) }), null);
-  const old = Math.floor(Date.now() / 1000) - 3600;
-  assert.equal(await a.verifyEvent!({ rawBody: session, headers: stripeSigned("whsec_platform", session, old) }), null, "replays are refused");
-  const live = JSON.stringify({ id: "evt_3", type: "checkout.session.completed", livemode: true, data: { object: { id: "cs_live_1" } } });
-  assert.equal(await a.verifyEvent!({ rawBody: live, headers: stripeSigned("whsec_platform", live) }), null, "live events never reach sandbox");
-});
-
 test("paystack, flutterwave, dlocal and tink events: each provider's own signature", async () => {
   const paystack = fakePaystack({});
   const pBody = JSON.stringify({ event: "charge.success", data: { id: 42, reference: "attempt-1" } });
@@ -1053,43 +860,6 @@ test("paystack, flutterwave, dlocal and tink events: each provider's own signatu
 // ---------------------------------------------------------------------------
 // Refunds, disputes and balances (phase 2c)
 
-test("stripe custom: refunds reverse the transfer and keep PayRouta's fee; disputes and balances", async () => {
-  const { adapter, calls } = fakeStripe({
-    "POST /v1/refunds": { id: "re_1", status: "pending" },
-    "GET /v1/refunds/re_1": { id: "re_1", status: "succeeded" },
-    "GET /v1/disputes/dp_1": {
-      id: "dp_1", amount: 4000, currency: "usd", status: "needs_response", charge: "ch_1", reason: "fraudulent",
-      balance_transactions: [{ amount: -4000, fee: 1500 }], evidence_details: { due_by: 1760400000 },
-    },
-    "POST /v1/transfers/tr_1/reversals": { id: "trr_1" },
-    "POST /v1/transfers": { id: "tr_2" },
-    "GET /v1/balance": { available: [{ amount: 3000, currency: "usd" }], pending: [{ amount: 1000, currency: "usd" }, { amount: 50, currency: "eur" }] },
-  });
-  const refund = await adapter.createRefund!({ providerAccountId: "acct_1ABC", reference: "cs_test_1", paymentRef: "ch_1", refundId: "rf_1", amountMinor: 1500n, currency: "USD" });
-  assert.deepEqual(refund, { reference: "re_1", state: "Pending" });
-  const body = form(calls[0].body);
-  assert.equal(body.charge, "ch_1");
-  assert.equal(body.reverse_transfer, "true");
-  assert.equal(body.refund_application_fee, "false");
-  assert.equal(calls[0].headers["Idempotency-Key"], "payrouta-refund-rf_1");
-  assert.deepEqual(await adapter.refundStatus!({ providerAccountId: "acct_1ABC", reference: "re_1" }), { state: "Succeeded" });
-
-  const d = await adapter.disputeStatus!({ reference: "dp_1" });
-  assert.deepEqual(
-    { state: d?.state, amount: d?.amountMinor, fee: d?.feeMinor, currency: d?.currency, paymentRef: d?.paymentRef },
-    { state: "Open", amount: 4000n, fee: 1500n, currency: "USD", paymentRef: "ch_1" },
-  );
-  await adapter.holdDisputeFunds!({ providerAccountId: "acct_1ABC", transferRef: "tr_1", amountMinor: 3600n, disputeId: "d1" });
-  await adapter.releaseDisputeFunds!({ providerAccountId: "acct_1ABC", amountMinor: 4000n, currency: "USD", disputeId: "d1" });
-  const hold = calls.find((c) => c.path === "/v1/transfers/tr_1/reversals")!;
-  assert.equal(form(hold.body).amount, "3600");
-  assert.equal(hold.headers["Idempotency-Key"], "payrouta-dispute-hold-d1");
-  const release = calls.find((c) => c.path === "/v1/transfers")!;
-  assert.equal(form(release.body).destination, "acct_1ABC");
-  assert.deepEqual(await adapter.accountBalance!("acct_1ABC"), { USD: 4000n, EUR: 50n });
-  assert.equal(calls.at(-1)!.headers["Stripe-Account"], "acct_1ABC");
-});
-
 test("paystack, flutterwave and dlocal refunds; paystack disputes", async () => {
   const p = fakePaystack({
     "POST /refund": { id: 77, status: "pending" },
@@ -1164,20 +934,7 @@ test("paystack, flutterwave and dlocal refunds; paystack disputes", async () => 
   assert.equal(tinkAdapter.createRefund, undefined, "pay by bank has no refunds");
 });
 
-test("dispute evidence: Stripe submits to the network; Paystack needs the customer's contact details", async () => {
-  const { adapter, calls } = fakeStripe({ "POST /v1/disputes/dp_1": { id: "dp_1", status: "under_review" } });
-  await adapter.submitDisputeEvidence!({
-    reference: "dp_1",
-    disputeId: "d1",
-    evidence: { productDescription: "Handmade linen shirt, size M, order LT-1", shippingCarrier: "DHL", shippingTrackingNumber: "JD0001", explanation: "Signed for on delivery." },
-  });
-  const body = form(calls[0].body);
-  assert.equal(body["evidence[product_description]"], "Handmade linen shirt, size M, order LT-1");
-  assert.equal(body["evidence[shipping_tracking_number]"], "JD0001");
-  assert.equal(body["evidence[uncategorized_text]"], "Signed for on delivery.");
-  assert.equal(body.submit, "true");
-  assert.equal(calls[0].headers["Idempotency-Key"], "payrouta-dispute-evidence-d1");
-
+test("dispute evidence: Paystack needs the customer's contact details", async () => {
   const p = fakePaystack({ "POST /dispute/9/evidence": { id: 9 } });
   await assert.rejects(
     p.adapter.submitDisputeEvidence!({ reference: "9", disputeId: "d2", evidence: { productDescription: "Two loaves delivered in Lagos on 2 Oct" } }),

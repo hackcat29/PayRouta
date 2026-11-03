@@ -125,7 +125,7 @@ test("clamd: only an explicit OK is clean", () => {
 
 test("sign-in redirect only returns to internal workspace paths", () => {
   assert.equal(safeNext("/merchant"), "/merchant");
-  assert.equal(safeNext("/merchant/providers?partner=stripe-connect"), "/merchant/providers?partner=stripe-connect");
+  assert.equal(safeNext("/merchant/providers?partner=paypal"), "/merchant/providers?partner=paypal");
   for (const bad of ["//evil.example", "https://evil.example", "/merchant@evil.example", "/provider/../x", "/docs", 42])
     assert.equal(safeNext(bad), undefined);
 });
@@ -162,14 +162,14 @@ test("availability merge: the merchant's own accounts make a method available, a
   const candidate = {
     profileId: "partner:a",
     applicationId: "a",
-    partnerId: "stripe-connect",
-    name: "Stripe",
+    partnerId: "paypal",
+    name: "PayPal",
     integrationId: "i",
     method: "card",
   };
   const merged = mergeAvailability(evaluation, [candidate], ["card"]);
   assert.equal(merged.methods[0].status, "AVAILABLE");
-  assert.equal(merged.methods[0].explanation, "Through your Stripe account");
+  assert.equal(merged.methods[0].explanation, "Through your PayPal account");
   assert.equal("action" in merged.methods[0], false);
   assert.equal(mergeAvailability(evaluation, [candidate], ["bank-transfer"]).methods[0].status, "UNAVAILABLE");
   assert.equal(evaluation.methods[0].status, "UNAVAILABLE", "input is not mutated");

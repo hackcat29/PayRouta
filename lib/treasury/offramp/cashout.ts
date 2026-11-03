@@ -29,6 +29,7 @@ import { payouts, quotePayout } from "../../intents/payouts";
 import { bankInput, bridge, drainPaid, drainStopped, drains, externalAccount, externalAccountBody, kycLink, liquidationAddress } from "./bridge";
 import { destinationInput, networks, send, sendFailed, sendPaid, yellowCard, type Destination } from "./yellowcard";
 import { alpha3 } from "./iso3";
+import { loadRequirements } from "../../merchant/requirements";
 
 type Deps = { http?: Http; now?: Date };
 export const partners = ["bridge", "yellowcard"] as const;
@@ -286,6 +287,10 @@ export async function quoteCashOut(orgId: string, raw: unknown, headers: Headers
   if (config.environment !== "production") throw new PortalError("CROSS_CHAIN_LIVE_ONLY", 409);
   const account = await db.fiatPayoutAccount.findUnique({ where: { orgId_environment_partner: { orgId, environment: config.environment, partner: input.partner } } });
   if (!account || account.status !== "Ready") throw new PortalError("CASHOUT_ACCOUNT_NOT_READY", 409);
+  // PayRouta sends Yellow Card payouts itself, so it must know who is paid.
+  // Bridge verifies the business on its own.
+  if (account.partner === "yellowcard" && !(await loadRequirements(db, orgId, config.environment)).ready["cash-out"])
+    throw new PortalError("CASHOUT_IDENTITY_REQUIRED", 409);
   const recipient = fundingAddress(account);
   if (!recipient) throw new PortalError("CASHOUT_PARTNER_NOT_CONFIGURED", 503);
   const quoted = await quotePayout(

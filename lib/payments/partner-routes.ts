@@ -14,7 +14,6 @@ import {
   revalidateDepositEvaluation,
 } from "./stablecoin-routes";
 import { labelOf } from "../providers/normalized";
-import { stripeMethod } from "../providers/adapters/native/stripe-methods";
 import { db } from "../portal/db";
 import { PortalError } from "../portal/domain";
 import { revalidateSelectedMethod } from "../portal/availability-service";
@@ -76,7 +75,6 @@ export async function partnerCandidates(
     if (!own?.enabled) continue;
     if (environment === "production" && !sandbox?.qualifiedAt) continue;
     let manifest;
-    let configured: { enabledPaymentTypes?: string[] };
     try {
       const partner = partnerModule(a.partnerId);
       manifest = partner.manifest;
@@ -85,18 +83,11 @@ export async function partnerCandidates(
         environment,
       });
       if (!parsed.success) continue;
-      configured = parsed.data as { enabledPaymentTypes?: string[] };
     } catch {
       continue;
     }
     for (const m of manifest.paymentMethods ?? [])
-      if (
-        (!method || m === method) &&
-        (a.partnerId !== "stripe-connect" ||
-          (configured.enabledPaymentTypes ?? ["card"]).some(
-            (t) => stripeMethod[t as keyof typeof stripeMethod] === m,
-          ))
-      )
+      if (!method || m === method)
         out.push({
           profileId: `${partnerPrefix}${a.id}`,
           applicationId: a.id,

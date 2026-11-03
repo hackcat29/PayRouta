@@ -79,12 +79,12 @@ A connection holds PayRouta's own platform credentials with a partner for one en
 POST /api/partners
 {
   "action": "partner-connection",
-  "partnerId": "stripe-connect",
+  "partnerId": "paypal",
   "environment": "sandbox",
   "enabled": true,
   "config": {},
   "secrets": { "secretKeyRef": "sk_test_…", "webhookSecretRef": "whsec_…" },
-  "reason": "Enable Stripe Connect sandbox qualification"
+  "reason": "Enable PayPal sandbox qualification"
 }
 ```
 

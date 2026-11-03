@@ -2,7 +2,7 @@ import { z } from "zod";
 import { respond, rawBody } from "@/lib/payments/http";
 import { receivePlatformEvent } from "@/lib/treasury/events";
 
-// Events for PayRouta's platform accounts (Stripe Connect, Paystack,
+// Events for PayRouta's platform accounts (Paystack,
 // Flutterwave, dLocal, Tink). Verified with the provider's own scheme,
 // deduplicated, then processed asynchronously as a prompt to re-read state.
 export async function POST(

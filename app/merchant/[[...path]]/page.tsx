@@ -33,6 +33,8 @@ import { Download } from "lucide-react";
 import { identity } from "@/lib/portal/access";
 import { merchantMember } from "@/lib/merchant/access";
 import { db } from "@/lib/portal/db";
+import { loadRequirements } from "@/lib/merchant/requirements";
+import type { ActivationProfile } from "./activation";
 import { intents, settlements } from "@/lib/merchant/service";
 import { PortalError, can, countries } from "@/lib/portal/domain";
 import { Onboarding } from "./onboarding";
@@ -507,22 +509,23 @@ export default async function Page({
   } else if (section === "activation") {
     if (!configure) content = ownerOnly("activate payments");
     else {
-      const view = await merchantTreasury(orgId, env);
-      const overview = await partnerOverview(orgId, env);
-      const profile = (overview.profile?.data ?? overview.draft ?? {}) as {
-        country?: string;
-        settlementCurrency?: string;
+      const [view, overview, requirements] = await Promise.all([
+        merchantTreasury(orgId, env),
+        partnerOverview(orgId, env),
+        loadRequirements(db, orgId, "production"),
+      ]);
+      const profile: ActivationProfile = overview.profile?.data ?? {
+        ...overview.draft,
+        country: overview.draft?.country ?? config.country,
       };
       content = (
         <ActivationSection
           orgId={orgId}
           view={view}
-          country={profile.country ?? config.country}
+          requirements={requirements}
+          profile={profile}
+          environment={config.environment}
           currency={profile.settlementCurrency}
-          ownerNames={(overview.profile?.data.owners ?? []).map((o) => `${o.givenName} ${o.familyName}`)}
-          profilePanel={
-            <Providers profileOnly orgId={orgId} overview={overview} canConfigure={configure} />
-          }
         />
       );
     }

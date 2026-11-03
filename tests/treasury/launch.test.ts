@@ -13,6 +13,7 @@ import { baseProfile } from "../../lib/partners/conformance";
 import { fingerprint } from "../../lib/partners/kyb";
 import { enforceLaunchScope } from "../../lib/payments/launch";
 import { submitMerchantAccount, transitionMerchantAccount } from "../../lib/treasury/merchant-account";
+import { acceptedDocuments, identity } from "../fixtures/onboarding";
 import { acceptMerchantTerms, saveVerificationDetails } from "../../lib/treasury/verification";
 import { openPlatformLink, provisionLink } from "../../lib/treasury/links";
 import { confirm, createIntent, createSession, customerAction, methods, selectMethod } from "../../lib/payments/service";
@@ -61,7 +62,7 @@ async function merchant(live: boolean) {
       org.id,
       {
         businessPhone: "+442071234567",
-        representative: { dateOfBirth: "1985-04-12", address },
+        representative: { dateOfBirth: "1985-04-12", ...identity, address },
         owners: baseProfile.owners.map(() => ({ dateOfBirth: "1979-01-30", address })),
         payoutAccount: { country: "GB", currency: "GBP", holderName: baseProfile.legalName, holderType: "company", accountNumber: "GB82WEST12345698765432" },
       },
@@ -69,6 +70,7 @@ async function merchant(live: boolean) {
       "test",
     );
     await acceptMerchantTerms(tx, org.id, "test", { ip: "127.0.0.1", userAgent: "test" });
+    await acceptedDocuments(tx, org.id);
     await submitMerchantAccount(tx, org.id, "sandbox", "test");
   });
   if (!live) return org.id;

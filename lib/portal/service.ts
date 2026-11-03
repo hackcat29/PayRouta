@@ -955,7 +955,7 @@ export async function matchedRequirements(tx: Tx, draft: Draft) {
       operations?: string[];
     };
     return (
-      scope.audience !== "merchant" &&
+      (!scope.audience || scope.audience === "provider") &&
       (!scope.providerTypes?.length ||
         scope.providerTypes.includes(draft.company?.providerType || "")) &&
       (!scope.countries?.length ||

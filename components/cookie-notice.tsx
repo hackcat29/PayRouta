@@ -36,8 +36,14 @@ export function CookieNotice() {
   const pathname = usePathname();
   // The server renders it as already accepted, so it appears after hydration.
   const done = useSyncExternalStore(subscribe, read, () => true);
-  // A customer paying a business doesn't see PayRouta's site notice.
-  if (done || pathname === "/checkout" || pathname.startsWith("/checkout/") || pathname.startsWith("/pay/"))
+  // A customer paying a business doesn't see PayRouta's site notice, and the
+  // signed-in workspaces (reached through the public pages that show it)
+  // keep their forms clear.
+  if (
+    done ||
+    pathname === "/checkout" ||
+    ["/checkout/", "/pay/", "/merchant", "/ops", "/provider"].some((p) => pathname.startsWith(p))
+  )
     return null;
   return (
     <div className="cookie-notice" role="region" aria-label="Cookies">

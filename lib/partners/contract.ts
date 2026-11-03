@@ -1,8 +1,8 @@
 // Partner onboarding contract.
 //
 // A "partner" is a payment provider with a programme that lets PayRouta create
-// or pre-fill an account that the MERCHANT owns (Stripe Connect with
-// Stripe-owned losses, PayPal Partner Referrals, Mollie Client Links, ...).
+// or pre-fill an account that the MERCHANT owns (PayPal Partner Referrals,
+// Mollie Client Links, ...).
 // PayRouta never becomes the provider's merchant of record on these accounts:
 // the manifest's ownership attestation is checked when a module is registered,
 // and a module that would make PayRouta a payment facilitator is refused here.

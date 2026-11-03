@@ -1,10 +1,8 @@
 // Fake provider transports for partner conformance. They model only the
 // behaviour the adapters depend on; they are not recordings of real APIs.
-import { createHmac } from "node:crypto";
-import type { CapturedRequest, HarnessSetup, PartnerHarness, Scenario } from "../../lib/partners/conformance";
+import type { CapturedRequest, HarnessSetup, PartnerHarness } from "../../lib/partners/conformance";
 import { signature } from "../../lib/payments/contracts";
 import { sandboxPartner } from "../../lib/partners/adapters/sandbox";
-import { stripePartner } from "../../lib/partners/adapters/stripe-connect";
 import { paypalPartner } from "../../lib/partners/adapters/paypal";
 import type { ProviderHttpOptions } from "../../lib/providers/adapters/http";
 
@@ -55,101 +53,6 @@ export const sandboxHarness: PartnerHarness = {
         "payrouta-timestamp": ts,
         "payrouta-signature": sig,
       }),
-    };
-  },
-};
-
-function stripeAccount(id: string, scenario: Scenario) {
-  const base = {
-    id,
-    object: "account",
-    charges_enabled: false,
-    payouts_enabled: false,
-    details_submitted: false,
-    requirements: { currently_due: ["business_profile.mcc", "external_account"], past_due: [], disabled_reason: "requirements.past_due" },
-  };
-  if (scenario === "approved")
-    return { ...base, charges_enabled: true, payouts_enabled: true, details_submitted: true, requirements: { currently_due: [], past_due: [], disabled_reason: null } };
-  if (scenario === "rejected")
-    return { ...base, details_submitted: true, requirements: { currently_due: [], past_due: [], disabled_reason: "rejected.fraud" } };
-  return base;
-}
-
-export const stripeHarness: PartnerHarness = {
-  module: stripePartner,
-  environment: "sandbox",
-  config: { environment: "sandbox", secretKeyRef: "sk", webhookSecretRef: "wh" },
-  secrets: { sk: "sk_test_conformance", wh: "whsec_conformance" },
-  paymentAccount: { accountRef: "acct_0000000001", providerAccountId: "acct_0000000001" },
-  scenarios: ["approved", "action-required", "rejected", "garbled", "evil-link", "request-rejected", "unavailable"],
-  setup(scenario): HarnessSetup {
-    const requests: CapturedRequest[] = [];
-    const byKey = new Map<string, string>();
-    const sessions = new Map<string, { id: string; amount: number; currency: string }>();
-    return {
-      requests,
-      now: () => NOW,
-      accounts: () => byKey.size,
-      async http(baseUrl, options) {
-        recorder(requests, options);
-        if (baseUrl !== "https://api.stripe.com") return reply(404, {});
-        if (!/^Bearer sk_test_/.test(options.headers?.Authorization ?? "")) return reply(401, {});
-        if (scenario === "unavailable") return reply(500, {});
-        if (options.method === "POST" && options.path === "/v1/accounts") {
-          if (scenario === "request-rejected") return reply(400, { error: { type: "invalid_request_error" } });
-          const key = options.headers?.["Idempotency-Key"] ?? String(Math.random());
-          if (!byKey.has(key)) byKey.set(key, `acct_${String(byKey.size + 1).padStart(10, "0")}`);
-          return reply(200, stripeAccount(byKey.get(key)!, "action-required"));
-        }
-        if (options.path.startsWith("/v1/checkout/sessions")) {
-          if (!/^acct_\w+$/.test(options.headers?.["Stripe-Account"] ?? "")) return reply(400, {});
-          if (options.method === "POST") {
-            const key = options.headers?.["Idempotency-Key"] ?? String(Math.random());
-            const form = new URLSearchParams(options.body ?? "");
-            if (!sessions.has(key))
-              sessions.set(key, {
-                id: `cs_test_${sessions.size + 1}`,
-                amount: Number(form.get("line_items[0][price_data][unit_amount]")),
-                currency: form.get("line_items[0][price_data][currency]") ?? "",
-              });
-            const cs = sessions.get(key)!;
-            return reply(200, { id: cs.id, url: `https://checkout.stripe.com/c/pay/${cs.id}`, status: "open" });
-          }
-          const cs = [...sessions.values()].find((x) => options.path.endsWith(`/${x.id}`));
-          if (!cs) return reply(404, {});
-          return reply(200, {
-            id: cs.id,
-            amount_total: cs.amount,
-            currency: cs.currency,
-            status: scenario === "approved" ? "complete" : scenario === "rejected" ? "expired" : "open",
-            payment_status: scenario === "approved" ? "paid" : "unpaid",
-          });
-        }
-        if (options.method === "POST" && options.path === "/v1/account_links")
-          return reply(200, {
-            url: scenario === "evil-link" ? "https://connect.stripe.com.evil.example/x" : "https://connect.stripe.com/setup/s/acct/abc",
-            expires_at: Math.floor(NOW.getTime() / 1000) + 300,
-          });
-        const m = options.path.match(/^\/v1\/accounts\/(acct_\w+)$/);
-        if (options.method === "GET" && m)
-          return scenario === "garbled" ? reply(200, "<html>") : reply(200, stripeAccount(m[1], scenario));
-        return reply(404, {});
-      },
-    };
-  },
-  event(s, accountRef, tampered) {
-    const rawBody = JSON.stringify({
-      id: "evt_1234567890",
-      type: "account.updated",
-      account: accountRef,
-      livemode: false,
-      data: { object: { id: accountRef } },
-    });
-    const t = String(Math.floor(s.now().getTime() / 1000));
-    const v1 = createHmac("sha256", "whsec_conformance").update(`${t}.${rawBody}`).digest("hex");
-    return {
-      rawBody: tampered ? rawBody.replace("account.updated", "account.deleted") : rawBody,
-      headers: new Headers({ "stripe-signature": `t=${t},v1=${v1}` }),
     };
   },
 };
@@ -267,4 +170,4 @@ export const paypalHarness: PartnerHarness = {
   },
 };
 
-export const partnerHarnesses = [sandboxHarness, stripeHarness, paypalHarness];
+export const partnerHarnesses = [sandboxHarness, paypalHarness];

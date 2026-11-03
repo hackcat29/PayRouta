@@ -7,9 +7,8 @@ import {
 
 export async function GET(request: NextRequest) {
   try {
-    const country = request.nextUrl.searchParams.get("country") ?? "US";
-    const cardBin = request.nextUrl.searchParams.get("card_bin") ?? undefined;
-    const route = resolveContinentalCreditRoute(country, cardBin);
+    const country = request.nextUrl.searchParams.get("country") ?? "NG";
+    const route = resolveContinentalCreditRoute(country);
     return NextResponse.json({ route });
   } catch (err) {
     if (err instanceof PortalError) {

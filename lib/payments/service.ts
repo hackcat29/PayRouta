@@ -6,6 +6,7 @@ import {
 import { transactionExplorer } from "../blockchain/chains";
 import type { QuotedCryptoTerms } from "./crypto-checkout";
 import { currentMerchantScreening } from "../merchant/screening";
+import { assertCryptoReady, isCryptoMethod } from "../merchant/go-live";
 import { storedLiveScope } from "../merchant/live-scope";
 import {
   assertLaunchMethod,
@@ -436,6 +437,8 @@ export async function createIntent(
 // the requested methods. Sandbox-only scenarios are refused. On the
 // aggregator path the merchant's PayRouta underwriting (a Live merchant
 // account on a qualified platform account) replaces the live-scope review.
+// Crypto into the merchant's own account needs no review: its name, country,
+// terms and a clear sanctions check (lib/merchant/go-live.ts).
 async function assertProductionReady(
   orgId: string,
   config: { liveScope: unknown; country: string },
@@ -453,6 +456,12 @@ async function assertProductionReady(
   if (org.fictional) throw new PortalError("FICTIONAL_ORGANIZATION", 409);
   if (value.aggregator) {
     if (!(await platformCovers(orgId, "production", value.methods)))
+      throw new PortalError("EXECUTION_ADAPTER_NOT_CONFIGURED", 409);
+    return;
+  }
+  if (value.methods.length && value.methods.every(isCryptoMethod)) {
+    await assertCryptoReady(db, orgId);
+    if (!(await stablecoinCandidates(orgId, "production", value.asset)).some((c) => value.methods.includes(c.method)))
       throw new PortalError("EXECUTION_ADAPTER_NOT_CONFIGURED", 409);
     return;
   }

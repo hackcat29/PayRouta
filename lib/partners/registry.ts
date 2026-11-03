@@ -9,7 +9,6 @@ import { sandboxSimulation } from "../portal/adapters";
 import { merchantOwned, type PartnerManifest, type PartnerModule } from "./contract";
 import { kybFields } from "./kyb";
 import { sandboxPartner } from "./adapters/sandbox";
-import { stripePartner } from "./adapters/stripe-connect";
 import { paypalPartner } from "./adapters/paypal";
 
 export function validateManifest(m: PartnerManifest) {
@@ -46,7 +45,7 @@ function build(modules: PartnerModule[]) {
   return map;
 }
 
-const modules = build([sandboxPartner, stripePartner, paypalPartner]);
+const modules = build([sandboxPartner, paypalPartner]);
 
 export function partnerModule(id: string): PartnerModule {
   const mod = modules.get(id);

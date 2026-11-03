@@ -20,12 +20,11 @@ test("coverage exhaustively inventories every provider guide and distinguishes t
         .map((f) => `${d.name}/${f.slice(0, -3)}`),
     );
   assert.deepEqual(providerCoverage.map((c) => c.guide).sort(), guides.sort());
-  assert.equal(providerCoverage.length, 41);
-  assert.equal(providerCoverage.filter((c) => c.method !== null).length, 40);
+  assert.equal(providerCoverage.length, 40);
+  assert.equal(providerCoverage.filter((c) => c.method !== null).length, 39);
   assert.equal(new Set(guides.map((g) => g.split("/")[0])).size, 8);
   const known = new Set([
     ...nativeModules.map((a) => a.id),
-    "stripe-connect",
     "paypal",
     "paystack",
     "flutterwave",

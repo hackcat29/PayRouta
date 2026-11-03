@@ -8,6 +8,9 @@ import type { ReactNode } from "react";
 import { currencyExponent } from "@/lib/partners/money";
 import {
   accountState,
+  onboardingStatus,
+  onboardingText,
+  tierText,
   disputeLabel,
   disputeTone,
   money,
@@ -19,6 +22,13 @@ import {
 } from "@/lib/treasury/labels";
 import type { merchantTreasury, paymentFunds } from "@/lib/treasury/views";
 import { AcceptTerms, DisputeResponse, PayoutRequest, RefundPanel, SubmitForReview, VerificationForm } from "./treasury";
+import { BasicDetailsForm, BusinessDetailsForm, DocumentUpload, GoLiveWithCrypto, type ActivationProfile } from "./activation";
+import {
+  onboardingDocuments,
+  type OnboardingDocument,
+  type RequirementId,
+  type Requirements,
+} from "@/lib/merchant/requirements";
 
 type View = Awaited<ReturnType<typeof merchantTreasury>>;
 type Funds = NonNullable<Awaited<ReturnType<typeof paymentFunds>>>;
@@ -62,96 +72,165 @@ function Step({ n, done, title, children, current }: { n: number; done: boolean;
   );
 }
 
+// What each capability still needs: crypto goes live on its own; cards and
+// bank payments are reviewed; requirements grow with type and volume.
 export function ActivationSection({
   orgId,
   view,
-  profilePanel,
-  country,
+  requirements: r,
+  profile,
+  environment,
   currency,
-  ownerNames,
 }: {
   orgId: string;
   view: View;
-  profilePanel: ReactNode;
-  country?: string;
+  requirements: Requirements;
+  profile: ActivationProfile;
+  environment: string;
   currency?: string;
-  ownerNames: string[];
 }) {
   const a = view.account;
-  const s = view.steps;
-  const submitted = a && !["Returned"].includes(a.state);
-  const ready = !!s.profile && !!s.details && !!s.terms;
+  const submitted = !!a && a.state !== "Returned";
   const info = a ? accountState[a.state] : null;
-  const firstOpen = !s.profile ? 1 : !s.details ? 2 : !s.terms ? 3 : 4;
+  const status = new Map(r.entries.map((e) => [e.id, e.status]));
+  const open = (...ids: RequirementId[]) => ids.some((id) => ["due", "upgrade"].includes(status.get(id) ?? ""));
+  const basicsDone = status.get("name") === "done" && status.get("country") === "done";
+  const individual = r.tier === "individual";
+  const country = profile.country ?? "NG";
+  const fiatItems = r.entries.filter((e) => !["name", "country", "terms"].includes(e.id) && e.status !== "later");
+  const later = r.entries.filter((e) => e.status === "later");
+  const cryptoLive = environment === "production";
   return (
     <>
-      {a && ["Submitted", "Underwriting", "Live"].includes(a.state) && (
-        <ol className="tr-track" aria-label="Review progress">
-          {["Submitted", "In review", "Active"].map((label, i) => {
-            // Steps up to the account's state are done; the next one is current.
-            const at = ["Submitted", "Underwriting", "Live"].indexOf(a.state);
-            const done = i <= at;
-            const current = i === at + 1;
-            return (
-              <li key={label} className={done ? "done" : current ? "current" : ""} aria-current={current ? "step" : undefined}>
-                <span aria-hidden>{done ? "✓" : i + 1}</span>
-                {label}
-              </li>
-            );
-          })}
+      <section>
+        <ol className="tr-steps">
+          <Step n={1} done={basicsDone} title="Your details" current={!basicsDone}>
+            <BasicDetailsForm orgId={orgId} profile={profile} />
+          </Step>
+          <Step n={2} done={!!view.steps.terms} title="Merchant terms" current={basicsDone && !view.steps.terms}>
+            <AcceptTerms orgId={orgId} accepted={view.steps.terms?.acceptedAt ?? null} />
+          </Step>
         </ol>
-      )}
-      {a && (
-        <section className="tr-status">
-          <div>
-            <Pill tone={info!.tone}>{info!.label}</Pill>
-            {info!.detail && <p>{info!.detail}</p>}
-            {a.note && (
-              <blockquote>
-                <strong>From our review team:</strong> {a.note}
-              </blockquote>
-            )}
-          </div>
-          {view.paymentsAccount && view.paymentsAccount.requirements.length > 0 && (
-            <div>
-              <h3>Still needed</h3>
-              <ul className="tr-requirements">
-                {view.paymentsAccount.requirements.map((r) => (
-                  <li key={r}>{requirementText[r] ?? requirementText.review}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </section>
-      )}
-      {!submitted && (
-        <section>
-          <ol className="tr-steps">
-            <Step n={1} done={!!s.profile} title="Business details" current={firstOpen === 1}>
-              {profilePanel}
-            </Step>
-            <Step n={2} done={!!s.details} title="Identity and payout bank account" current={firstOpen === 2}>
-              {s.profile ? (
-                <VerificationForm
-                  orgId={orgId}
-                  owners={ownerNames.map((name) => ({ name }))}
-                  country={country}
-                  currency={currency}
-                  saved={(s.details?.summary as Parameters<typeof VerificationForm>[0]["saved"]) ?? null}
-                />
-              ) : (
-                <p className="tr-hint">Save your business details first.</p>
-              )}
-            </Step>
-            <Step n={3} done={!!s.terms} title="Merchant terms" current={firstOpen === 3}>
-              <AcceptTerms orgId={orgId} accepted={s.terms?.acceptedAt ?? null} />
-            </Step>
-            <Step n={4} done={false} title="Submit for review" current={firstOpen === 4}>
-              <SubmitForReview orgId={orgId} ready={ready} resubmit={a?.state === "Returned"} />
-            </Step>
+      </section>
+
+      <section>
+        <div className="tr-row">
+          <h2>Crypto and stablecoins</h2>
+          <Pill tone={cryptoLive ? "good" : r.ready.crypto ? "neutral" : "warn"}>
+            {cryptoLive ? "Live" : r.ready.crypto ? "Ready" : "Not live"}
+          </Pill>
+        </div>
+        {cryptoLive ? null : r.ready.crypto ? (
+          <GoLiveWithCrypto orgId={orgId} />
+        ) : r.screening === "match" ? (
+          <p>We can&apos;t activate crypto for this account. Contact PayRouta.</p>
+        ) : basicsDone && view.steps.terms ? (
+          <p>{r.screening === "review" ? "We're checking a few details." : "Running automatic checks."}</p>
+        ) : null}
+      </section>
+
+      <section>
+        <div className="tr-row">
+          <h2>Cards, bank transfers and mobile money</h2>
+          {info && <Pill tone={info.tone}>{info.label}</Pill>}
+        </div>
+        {a && ["Submitted", "Underwriting", "Live"].includes(a.state) && (
+          <ol className="tr-track" aria-label="Review progress">
+            {["Submitted", "In review", "Active"].map((label, i) => {
+              // Steps up to the account's state are done; the next one is current.
+              const at = ["Submitted", "Underwriting", "Live"].indexOf(a.state);
+              const done = i <= at;
+              const current = i === at + 1;
+              return (
+                <li key={label} className={done ? "done" : current ? "current" : ""} aria-current={current ? "step" : undefined}>
+                  <span aria-hidden>{done ? "✓" : i + 1}</span>
+                  {label}
+                </li>
+              );
+            })}
           </ol>
-        </section>
-      )}
+        )}
+        <p>
+          {tierText[r.tier]}
+          {r.capUsd !== null && <> · up to ${r.capUsd.toLocaleString("en-US")} a month</>}
+        </p>
+        {r.overCap && (
+          <p role="status" className="tr-message">
+            {individual
+              ? `You're selling more than $${r.capUsd!.toLocaleString("en-US")} a month. Register your business and add the items marked "To grow".`
+              : `You're selling more than $${r.capUsd!.toLocaleString("en-US")} a month. Add the items marked "To grow".`}
+          </p>
+        )}
+        {a?.note && (
+          <blockquote>
+            <strong>From our review team:</strong> {a.note}
+          </blockquote>
+        )}
+        {view.paymentsAccount && view.paymentsAccount.requirements.length > 0 && (
+          <ul className="tr-requirements">
+            {view.paymentsAccount.requirements.map((x) => (
+              <li key={x}>{requirementText[x] ?? requirementText.review}</li>
+            ))}
+          </ul>
+        )}
+        <ul className="tr-checklist">
+          {fiatItems.map((e) => (
+            <li key={e.id}>
+              <span>{onboardingText[e.id]}</span> <Pill tone={onboardingStatus[e.status].tone}>{onboardingStatus[e.status].label}</Pill>
+            </li>
+          ))}
+        </ul>
+        {basicsDone && (
+          <>
+            {open("what-you-sell", "support-email", "registration-number", "business-address", "representative", "owners") && (
+              <details open={!submitted}>
+                <summary>{individual ? "What you sell" : "Business details"}</summary>
+                <BusinessDetailsForm
+                  orgId={orgId}
+                  profile={profile}
+                  registered={open("registration-number", "business-address", "representative")}
+                  owners={open("owners")}
+                />
+              </details>
+            )}
+            <details open={!submitted && open("personal-details", "id-number", "payout-account")}>
+              <summary>{individual ? "Your identity and payout account" : "Director's identity and payout account"}</summary>
+              <VerificationForm
+                orgId={orgId}
+                owners={open("owners") || (profile.owners?.length ?? 0) > 0 ? (profile.owners ?? []).map((o) => ({ name: `${o.givenName} ${o.familyName}` })) : []}
+                country={country}
+                currency={currency}
+                individual={individual}
+                saved={(view.steps.details?.summary as Parameters<typeof VerificationForm>[0]["saved"]) ?? null}
+              />
+            </details>
+            {(Object.keys(onboardingDocuments) as OnboardingDocument[])
+              .filter((d) => open(d))
+              .map((d) => (
+                <DocumentUpload
+                  key={d}
+                  orgId={orgId}
+                  country={country}
+                  requirementId={onboardingDocuments[d]}
+                  label={onboardingText[d]}
+                />
+              ))}
+          </>
+        )}
+        {!submitted && (
+          <SubmitForReview orgId={orgId} ready={r.ready.fiat} resubmit={a?.state === "Returned"} />
+        )}
+        {later.length > 0 && (
+          <details>
+            <summary>Needed later</summary>
+            <ul className="tr-checklist">
+              {later.map((e) => (
+                <li key={e.id}>{onboardingText[e.id]}</li>
+              ))}
+            </ul>
+          </details>
+        )}
+      </section>
     </>
   );
 }

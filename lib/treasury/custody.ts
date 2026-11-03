@@ -2,7 +2,7 @@
 //
 //   merchant-owned    the merchant's own provider account (lib/partners)
 //   partner-held      a per-merchant balance inside the partner's licensed
-//                     platform (Stripe Connect Custom, Adyen for Platforms)
+//                     platform (Adyen for Platforms, dLocal)
 //   split-settlement  the provider pays the merchant's share straight to the
 //                     merchant's bank (Paystack/Flutterwave subaccounts)
 //   payrouta-held     PayRouta's own master account; needs PayRouta's own

@@ -108,7 +108,7 @@ Phase 2a supports cards only, with Apple Pay and Google Pay inside Stripe Checko
 
 Not done yet: uploading identity documents to Stripe when it asks for them (the merchant sees `identity-document`, but there is no forwarding yet), and resubmitting changed details to an existing sub-account.
 
-Platform modules live in `lib/treasury/platforms/`: `stripe-custom`, plus `sandbox-platform`, which is fictional and runs in local mode only.
+Platform modules live in `lib/treasury/platforms/`, plus `sandbox-platform`, which is fictional and runs in local mode only. The Stripe modules (`stripe-custom`, `stripe-bnpl`) and the `stripe-connect` partner module were removed on 2026-11-03.
 
 ## 3b. Partners under Invisible Connect
 
@@ -116,7 +116,7 @@ Each partner fits only through a platform programme that lets PayRouta onboard m
 
 | Partner | Programme | Onboarding by API | Custody | Access | Status |
 | --- | --- | --- | --- | --- | --- |
-| Stripe | Connect, Custom-equivalent accounts | Yes | partner-held | Self-serve platform review | `stripe-custom` built |
+| Stripe | Connect, Custom-equivalent accounts | Yes | partner-held | Self-serve platform review | Removed 2026-11-03: Stripe Connect does not onboard Nigerian-incorporated businesses |
 | Paystack (NG, GH, KE, ZA, CI) | Subaccounts and split payments | Yes. Paystack does not verify subaccounts, so PayRouta's underwriting is the check. | split-settlement | Self-serve | `paystack-split` built |
 | Flutterwave | Subaccounts and split payments | Yes | split-settlement | Self-serve | `flutterwave-split` built. Its verify response doesn't report the subaccount's share, so the share (amount − PayRouta fee − `app_fee`) is an estimate until settlement reports are reconciled. |
 | Adyen | Adyen for Platforms (Balance Platform, Legal Entity Management API) | Yes, API-only onboarding | partner-held | Sales contract | Next once a contract exists. Global cards, wallets and local methods. |

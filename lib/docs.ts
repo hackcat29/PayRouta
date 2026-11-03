@@ -12,6 +12,7 @@ export const docEntries: readonly DocEntryTuple[] = [
   // Core Guides & Concepts
   ["overview", "Overview", "Getting Started", "Concepts"],
   ["quickstart", "Quickstart", "Getting Started", "Concepts"],
+  ["activation", "Activate payments", "Getting Started", "Concepts"],
   ["payment-links", "Payment Links", "Getting Started", "Concepts"],
   ["checkout-button", "Checkout Button", "Getting Started", "Concepts"],
   ["provider-accounts", "Provider Accounts", "Core Concepts", "Concepts"],
@@ -48,7 +49,6 @@ export const docEntries: readonly DocEntryTuple[] = [
 
   // Category: Cards & Schemes
   ["providers/cards", "Card Payment Rails", "Cards", "Providers"],
-  ["providers/cards/stripe", "Stripe Connect", "Cards", "Providers"],
   ["providers/cards/visa", "Visa Direct", "Cards", "Providers"],
   ["providers/cards/mastercard", "Mastercard", "Cards", "Providers"],
 

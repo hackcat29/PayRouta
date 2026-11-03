@@ -6,6 +6,7 @@ import { db } from "../../lib/portal/db";
 import { atomic, json } from "../../lib/portal/service";
 import { fingerprint, type KybProfile } from "../../lib/partners/kyb";
 import { submitMerchantAccount, transitionMerchantAccount } from "../../lib/treasury/merchant-account";
+import { acceptedDocuments, identity } from "./onboarding";
 import { acceptMerchantTerms, saveVerificationDetails } from "../../lib/treasury/verification";
 import { openPlatformLink, provisionLink } from "../../lib/treasury/links";
 import { recordAvailability } from "../../lib/treasury/funds";
@@ -63,7 +64,7 @@ export async function treasuryMerchant(ownerEmail: string, stage: "fresh" | "sub
       org.id,
       {
         businessPhone: "+442071234567",
-        representative: { dateOfBirth: "1985-04-12", address: { line1: "2 Dock Street", city: "London", country: "GB" } },
+        representative: { dateOfBirth: "1985-04-12", ...identity, address: { line1: "2 Dock Street", city: "London", country: "GB" } },
         owners: [],
         payoutAccount: { country: "GB", currency: "GBP", holderName: p.legalName, holderType: "company", accountNumber: "GB82WEST12345698765432" },
       },
@@ -71,6 +72,7 @@ export async function treasuryMerchant(ownerEmail: string, stage: "fresh" | "sub
       owner.id,
     );
     await acceptMerchantTerms(tx, org.id, owner.id, { ip: "127.0.0.1", userAgent: "fixture" });
+    await acceptedDocuments(tx, org.id);
     await submitMerchantAccount(tx, org.id, "sandbox", owner.id);
   });
   if (stage === "submitted") return { orgId: org.id, name };

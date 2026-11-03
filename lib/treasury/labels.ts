@@ -18,6 +18,37 @@ export const requirementText: Record<string, string> = {
   review: "Our team is reviewing your account",
 };
 
+// Onboarding requirements (lib/merchant/requirements.ts).
+export const onboardingText: Record<string, string> = {
+  name: "Your name or business name",
+  country: "Country",
+  terms: "Merchant terms",
+  "what-you-sell": "What you sell",
+  "support-email": "Customer support email",
+  "registration-number": "Registration number",
+  "business-address": "Business address",
+  representative: "Director",
+  "personal-details": "Date of birth, phone and address",
+  "id-number": "ID number",
+  "government-id": "Photo of your ID",
+  "registration-certificate": "Registration certificate",
+  "payout-account": "Payout bank account",
+  owners: "Owners with 25% or more",
+  "proof-of-address": "Proof of address",
+};
+export const onboardingStatus: Record<string, { label: string; tone: Tone }> = {
+  done: { label: "Done", tone: "good" },
+  "in-review": { label: "In review", tone: "neutral" },
+  due: { label: "Needed", tone: "warn" },
+  upgrade: { label: "To grow", tone: "warn" },
+  later: { label: "Later", tone: "neutral" },
+};
+export const tierText: Record<string, string> = {
+  individual: "Individual",
+  business: "Registered business",
+  scaled: "Higher volume",
+};
+
 // `detail` only where it changes what the merchant does.
 export const accountState: Record<string, { label: string; tone: Tone; detail?: string }> = {
   Submitted: { label: "Submitted", tone: "neutral" },

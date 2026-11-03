@@ -42,6 +42,8 @@ import {
   selectMethod,
 } from "../../lib/payments/service";
 import { dispatch, poll } from "../../lib/payments/processing";
+import { acceptedDocuments as documents } from "../fixtures/onboarding";
+const acceptedDocuments = (orgId: string) => documents(db, orgId);
 
 const terms = {
   reserve: { basisPoints: 1000, holdDays: 90 },
@@ -54,7 +56,7 @@ function details(profile: KybProfile) {
   const address = { line1: "1 Dock Street", city: "London", postalCode: "E1 1AA", country: "GB" };
   return {
     businessPhone: "+442071234567",
-    representative: { dateOfBirth: "1985-04-12", address },
+    representative: { dateOfBirth: "1985-04-12", phone: "+447700900123", idType: "passport", idNumber: "P1234567", address },
     owners: profile.owners.map(() => ({ dateOfBirth: "1979-01-30", address })),
     payoutAccount: {
       country: "GB",
@@ -111,6 +113,7 @@ async function merchant(profile: KybProfile = baseProfile, verdict = "clear") {
     await saveVerificationDetails(tx, org.id, details(profile), profile, "merchant-user");
     await acceptMerchantTerms(tx, org.id, "merchant-user", { ip: "127.0.0.1", userAgent: "test" });
   });
+  await acceptedDocuments(org.id);
   const account = await atomic((tx) => submitMerchantAccount(tx, org.id, "sandbox", "merchant-user"));
   return { orgId: org.id, account };
 }
@@ -425,22 +428,34 @@ test("onboarding: PayRouta collects identity and payout details itself, encrypte
   await db.merchantKybProfile.create({
     data: { orgId: org.id, version: 1, data: json(baseProfile), fingerprint: fingerprint(baseProfile), createdBy: "test" },
   });
+  await db.merchantScreening.create({
+    data: { orgId: org.id, profileVersion: 1, provider: "sandbox-fixture", verdict: "clear", results: json([]), createdBy: "test" },
+  });
   await assert.rejects(
     atomic((tx) => submitMerchantAccount(tx, org.id, "sandbox", "merchant-user")),
-    /VERIFICATION_DETAILS_REQUIRED/,
+    /MERCHANT_TERMS_NOT_ACCEPTED/,
+  );
+  await atomic((tx) => acceptMerchantTerms(tx, org.id, "merchant-user", { ip: "127.0.0.1", userAgent: "test" }));
+  await assert.rejects(
+    atomic((tx) => submitMerchantAccount(tx, org.id, "sandbox", "merchant-user")),
+    /FIAT_REQUIREMENTS_DUE/,
   );
   const saved = await atomic((tx) => saveVerificationDetails(tx, org.id, details(baseProfile), baseProfile, "merchant-user"));
   assert.ok(!JSON.stringify(saved).includes("GB82WEST12345698765432"), "only a reference and a masked summary are stored");
   assert.equal((saved.summary as { payoutAccount: { accountLast4: string } }).payoutAccount.accountLast4, "5432");
   await assert.rejects(
     atomic((tx) => submitMerchantAccount(tx, org.id, "sandbox", "merchant-user")),
-    /MERCHANT_TERMS_NOT_ACCEPTED/,
+    /FIAT_REQUIREMENTS_DUE/,
+    "documents still needed",
   );
+  await acceptedDocuments(org.id);
+  await atomic((tx) => submitMerchantAccount(tx, org.id, "sandbox", "merchant-user"));
   // Saving identical details again is not a new version.
   const again = await atomic((tx) => saveVerificationDetails(tx, org.id, details(baseProfile), baseProfile, "merchant-user"));
   assert.equal(again.version, 1);
+  const owner = details(baseProfile).owners[0];
   await assert.rejects(
-    atomic((tx) => saveVerificationDetails(tx, org.id, { ...details(baseProfile), owners: [] }, baseProfile, "merchant-user")),
+    atomic((tx) => saveVerificationDetails(tx, org.id, { ...details(baseProfile), owners: [owner, owner] }, baseProfile, "merchant-user")),
     /OWNER_DETAILS_MUST_MATCH_PROFILE/,
   );
 });
@@ -645,32 +660,32 @@ test("payouts: the daily schedule pays out once per day; restricted merchants ar
 test("events: verified, deduplicated, and only prompt a re-read", async () => {
   const secret = `whsec_${randomUUID()}`;
   const entity = await db.legalEntity.create({ data: { name: `PayRouta Events ${randomUUID()}`, jurisdiction: "US-DE", updatedBy: "test" } });
-  const stripe = await db.platformAccount.create({
+  const bridge = await db.platformAccount.create({
     data: {
       legalEntityId: entity.id,
-      provider: "stripe-custom",
+      provider: "bridge-split",
       environment: "sandbox",
-      custody: "partner-held",
+      custody: "split-settlement",
       merchantCountries: json(["GB"]),
-      config: json({ connectWebhookSecretRef: await secretManager.put(secret) }),
+      config: json({ webhookSecretRef: await secretManager.put(secret) }),
       enabled: true,
       updatedBy: "test",
     },
   });
   const m = await merchant();
-  const acct = `acct_${randomUUID().replace(/-/g, "").slice(0, 16)}`;
+  const customer = randomUUID();
   const link = await db.merchantPlatformLink.create({
-    data: { orgId: m.orgId, platformAccountId: stripe.id, environment: "sandbox", profileVersion: 1, state: "Under review", providerAccountId: acct },
+    data: { orgId: m.orgId, platformAccountId: bridge.id, environment: "sandbox", profileVersion: 1, state: "Under review", providerAccountId: customer },
   });
-  const body = JSON.stringify({ id: `evt_${randomUUID().replace(/-/g, "")}`, type: "account.updated", livemode: false, account: acct, data: { object: { id: acct } } });
+  const body = JSON.stringify({ event_id: `wh_${randomUUID()}`, event_type: "customer.updated.status_transitioned", event_object_id: customer });
   const signed = (raw: string) => {
     const t = Math.floor(Date.now() / 1000);
-    return new Headers({ "stripe-signature": `t=${t},v1=${createHmac("sha256", secret).update(`${t}.${raw}`).digest("hex")}` });
+    return new Headers({ "x-webhook-signature": `t=${t},v0=${createHmac("sha256", secret).update(`${t}.${raw}`).digest("hex")}` });
   };
-  assert.deepEqual(await receivePlatformEvent("stripe-custom", "sandbox", body, signed(body)), { accepted: true });
-  assert.deepEqual(await receivePlatformEvent("stripe-custom", "sandbox", body, signed(body)), { accepted: true, duplicate: true });
-  await assert.rejects(receivePlatformEvent("stripe-custom", "sandbox", body.replace("account.updated", "account.updatex"), signed(body)), /INVALID_SIGNATURE/);
-  const row = await db.platformEvent.findFirstOrThrow({ where: { platformAccountId: stripe.id } });
+  assert.deepEqual(await receivePlatformEvent("bridge-split", "sandbox", body, signed(body)), { accepted: true });
+  assert.deepEqual(await receivePlatformEvent("bridge-split", "sandbox", body, signed(body)), { accepted: true, duplicate: true });
+  await assert.rejects(receivePlatformEvent("bridge-split", "sandbox", body.replace("customer.updated", "customer.updatex"), signed(body)), /INVALID_SIGNATURE/);
+  const row = await db.platformEvent.findFirstOrThrow({ where: { platformAccountId: bridge.id } });
   assert.equal(row.kind, "account");
   await processPlatformEvent(row.id);
   assert.ok(

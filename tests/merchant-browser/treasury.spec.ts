@@ -28,12 +28,13 @@ test("merchant treasury: activation, balances, disputes and refunds, only in Pay
   await signIn(page, "owner@harbor.example");
   const q = (org: string) => `?orgId=${org}&environment=sandbox`;
 
-  // A new merchant is prompted to activate, with the four steps.
+  // A new merchant is prompted to activate: its details and the terms, then
+  // what each way of getting paid still needs.
   await page.goto(`/merchant/overview${q(fresh.orgId)}`);
   await expect(page.getByRole("link", { name: "Start activation" })).toBeVisible();
   await page.goto(`/merchant/activation${q(fresh.orgId)}`);
-  for (const step of ["Business details", "Identity and payout bank account", "Merchant terms", "Submit for review"])
-    await expect(page.getByRole("heading", { name: step })).toBeVisible();
+  for (const heading of ["Your details", "Merchant terms", "Crypto and stablecoins", "Cards, bank transfers and mobile money"])
+    await expect(page.getByRole("heading", { name: heading })).toBeVisible();
   await expect(page.getByRole("button", { name: "Submit for review" })).toBeDisabled();
   await accessible(page);
 

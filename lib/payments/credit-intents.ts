@@ -1,8 +1,6 @@
 // Global Asynchronous Credit Intent & Continental BNPL Backdoor Switch Engine.
 //
 // 1. Universal BNPL Backdoor Partner Map by Continent:
-//    - North America (US, CA): Stripe BNPL Console (Affirm, Afterpay, Klarna, Zip)
-//      + Visa Installment Solutions (VIS) / Mastercard Installments BIN split-pay
 //    - Europe (UK, EU): Adyen Automated Signup (Klarna, Clearpay, PayPal Credit, Alma)
 //      + Tink PSD2 Open Banking overdraft-line direct debit mandates
 //    - Latin America (BR, MX, CO, AR, CL, PE): Mercado Pago Developers
@@ -20,10 +18,6 @@ import { z } from "zod";
 import { currencyExponent, fromMinorUnits } from "../partners/money";
 import { PortalError } from "../portal/domain";
 import type { CreditOffer } from "../treasury/platforms/contract";
-import {
-  detectNorthAmericaCardInstallmentBin,
-  stripeBnplOffers,
-} from "../treasury/platforms/stripe-bnpl";
 import {
   europeBnplCountries,
   europeBnplOffers,
@@ -44,7 +38,6 @@ import { post, validatePostings, type Posting } from "./journal";
 import type { Tx } from "./service";
 
 export type ContinentCode =
-  | "NORTH_AMERICA"
   | "EUROPE"
   | "LATIN_AMERICA"
   | "AFRICA"
@@ -63,7 +56,6 @@ export type ContinentalCreditSwitchRoute = {
   continent: ContinentCode;
   country: string;
   platformModuleId:
-    | "stripe-bnpl"
     | "adyen-klarna-bnpl"
     | "mercadopago-bnpl"
     | "migo-bnpl"
@@ -72,11 +64,6 @@ export type ContinentalCreditSwitchRoute = {
   coreNetworks: readonly string[];
   openBankingOrCardBackdoor: string;
   openBankingNetworks: readonly string[];
-  cardInstallmentInfo?: {
-    eligible: boolean;
-    network: string | null;
-    issuer: string | null;
-  };
 };
 
 export const creditIntentInputSchema = z.object({
@@ -92,7 +79,6 @@ export const creditIntentInputSchema = z.object({
     national_id_hash: z.string().min(4).max(128).optional(),
     country: z.string().regex(/^[A-Za-z]{2}$/),
     email: z.string().email().optional(),
-    card_bin: z.string().regex(/^\d{6,8}$/).optional(),
   }),
   credit_type: z
     .enum(["bnpl", "open_banking_overdraft", "card_installments"])
@@ -128,7 +114,7 @@ export type GlobalCreditIntent = {
     phoneMasked: string;
     country: string;
     identityVerified: boolean;
-    identityScheme: "BVN_HASH" | "NATIONAL_ID_HASH" | "PHONE_OTP_ONLY" | "CARD_BIN";
+    identityScheme: "BVN_HASH" | "NATIONAL_ID_HASH" | "PHONE_OTP_ONLY";
   };
   route: ContinentalCreditSwitchRoute;
   offers: CreditOffer[];
@@ -148,23 +134,8 @@ export type GlobalCreditIntent = {
 
 export function resolveContinentalCreditRoute(
   rawCountry: string,
-  cardBin?: string,
 ): ContinentalCreditSwitchRoute {
   const country = rawCountry.trim().toUpperCase();
-
-  if (country === "US" || country === "CA") {
-    const binCheck = cardBin ? detectNorthAmericaCardInstallmentBin(cardBin) : undefined;
-    return {
-      continent: "NORTH_AMERICA",
-      country,
-      platformModuleId: "stripe-bnpl",
-      primaryBnplSwitch: "Stripe API (Self-Serve BNPL Console)",
-      coreNetworks: ["Affirm", "Afterpay", "Klarna", "Zip"],
-      openBankingOrCardBackdoor: "Visa Installment Solutions (VIS) / Mastercard Send",
-      openBankingNetworks: ["Chase Split-Pay (VIS)", "AmEx Plan It", "Citi Flex Loan (MC)"],
-      ...(binCheck ? { cardInstallmentInfo: binCheck } : {}),
-    };
-  }
 
   if ((europeBnplCountries as readonly string[]).includes(country)) {
     return {
@@ -254,8 +225,6 @@ function offersForContinentalRoute(
   amountMinor: bigint,
 ): CreditOffer[] {
   switch (route.platformModuleId) {
-    case "stripe-bnpl":
-      return stripeBnplOffers(amountMinor, route.country);
     case "adyen-klarna-bnpl":
       return europeBnplOffers(amountMinor, route.country);
     case "mercadopago-bnpl":
@@ -279,10 +248,7 @@ export function createCreditIntent(
   const currency = parsed.currency.toUpperCase();
   const exponent = currencyExponent(currency) ?? 2;
   const principalMinor = normalizeToMinorUnits(parsed.amount, parsed.amountUnit, currency);
-  const route = resolveContinentalCreditRoute(
-    parsed.customer.country,
-    parsed.customer.card_bin,
-  );
+  const route = resolveContinentalCreditRoute(parsed.customer.country);
 
   // Africa Migo underwriting requires phone + BVN hash in NG when amount > 50,000 NGN
   if (
@@ -315,9 +281,7 @@ export function createCreditIntent(
     ? "BVN_HASH"
     : parsed.customer.national_id_hash
       ? "NATIONAL_ID_HASH"
-      : parsed.customer.card_bin
-        ? "CARD_BIN"
-        : "PHONE_OTP_ONLY";
+      : "PHONE_OTP_ONLY";
 
   const nowIso = now.toISOString();
   const id = `ci_${randomUUID().replace(/-/g, "").slice(0, 20)}`;

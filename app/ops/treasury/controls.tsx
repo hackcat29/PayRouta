@@ -505,3 +505,65 @@ export function QualifyPlatform({ platformAccountId }: { platformAccountId: stri
     </form>
   );
 }
+
+// A merchant's onboarding document (ID, registration, proof of address):
+// open it, then record a decision. Uses the evidence review every
+// document goes through.
+export function DocumentReview({ evidenceId, filename, clean }: { evidenceId: string; filename: string; clean: boolean }) {
+  const router = useRouter();
+  const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
+  const [busy, setBusy] = useState(false);
+  async function post(path: string, body: Record<string, unknown>) {
+    const response = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(String(data.error || "Request failed"));
+    return data;
+  }
+  return (
+    <form
+      className="ot-inline"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        const f = new FormData(e.currentTarget);
+        setBusy(true);
+        setMessage(null);
+        try {
+          await post("/api/portal/command", { action: "ops-evidence", evidenceId, decision: f.get("decision"), reason: f.get("reason") });
+          setMessage({ text: "Recorded.", error: false });
+          router.refresh();
+        } catch (error) {
+          setMessage({ text: error instanceof Error ? error.message : "Request failed", error: true });
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <button
+        type="button"
+        disabled={!clean || busy}
+        onClick={async () => {
+          try {
+            const { url } = await post(`/api/portal/evidence/${evidenceId}`, {});
+            window.open(url, "_blank", "noopener");
+          } catch (error) {
+            setMessage({ text: error instanceof Error ? error.message : "Request failed", error: true });
+          }
+        }}
+      >
+        Open {filename}
+      </button>
+      <select name="decision" aria-label={`Decision for ${filename}`}>
+        <option>Accepted</option>
+        <option>Changes requested</option>
+        <option>Rejected</option>
+      </select>
+      <input name="reason" required aria-label={`Reason for ${filename}`} placeholder="Reason" />
+      <button disabled={busy || !clean}>Record</button>
+      {message && <p role={message.error ? "alert" : "status"}>{message.text}</p>}
+    </form>
+  );
+}

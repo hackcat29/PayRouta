@@ -1,5 +1,9 @@
 // Merchant KYB profile ("register once").
 //
+// Only a name, a country and a business type are needed to save it. Every
+// other field is collected when a capability needs it (lib/merchant/
+// requirements.ts): a merchant taking crypto never fills in more.
+//
 // The profile holds only what partners need to PRE-FILL their onboarding.
 // PayRouta deliberately never collects government ID numbers, dates of birth,
 // bank account numbers or card data: each provider collects those on its own
@@ -16,7 +20,9 @@ const country = z
   .refine((v) => countryIds.has(v), "Unknown country");
 const text = (max: number) => z.string().trim().min(1).max(max);
 
+// "individual": a person selling without a registered business.
 export const businessTypes = [
+  "individual",
   "company",
   "sole-proprietor",
   "partnership",
@@ -41,16 +47,18 @@ const person = z
 
 export const kybProfileSchema = z
   .object({
+    // The business's legal name, or the person's full name for an individual.
     legalName: text(200),
     tradingName: text(200).optional(),
     businessType: z.enum(businessTypes),
     country,
     registrationNumber: text(60).optional(),
     taxId: text(60).optional(),
-    website: z.url().max(500).refine((v) => v.startsWith("https://"), "HTTPS required"),
-    productDescription: text(1000).refine((v) => v.length >= 20, "At least 20 characters"),
-    industry: text(100),
-    supportEmail: z.email().max(200),
+    // A website or a social page.
+    website: z.url().max(500).refine((v) => v.startsWith("https://"), "HTTPS required").optional(),
+    productDescription: text(1000).refine((v) => v.length >= 10, "At least 10 characters").optional(),
+    industry: text(100).optional(),
+    supportEmail: z.email().max(200).optional(),
     address: z
       .object({
         line1: text(200),
@@ -60,8 +68,9 @@ export const kybProfileSchema = z
         postalCode: text(20).optional(),
         country,
       })
-      .strict(),
-    representative: person.extend({ title: text(100) }).strict(),
+      .strict()
+      .optional(),
+    representative: person.extend({ title: text(100).optional() }).strict().optional(),
     // Beneficial owners with 25% or more. Names and country only; providers
     // collect identity documents themselves.
     owners: z
@@ -75,9 +84,10 @@ export const kybProfileSchema = z
           })
           .strict(),
       )
-      .max(4),
-    monthlyVolume: z.enum(volumeBands),
-    settlementCurrency: z.string().regex(/^[A-Z]{3}$/),
+      .max(4)
+      .default([]),
+    monthlyVolume: z.enum(volumeBands).default("under-10k"),
+    settlementCurrency: z.string().regex(/^[A-Z]{3}$/).optional(),
   })
   .strict()
   .superRefine((p, ctx) => {
@@ -87,12 +97,6 @@ export const kybProfileSchema = z
         code: "custom",
         path: ["owners"],
         message: "Ownership exceeds 100%",
-      });
-    if (p.businessType === "company" && !p.registrationNumber)
-      ctx.addIssue({
-        code: "custom",
-        path: ["registrationNumber"],
-        message: "Companies need a registration number",
       });
   });
 export type KybProfile = z.infer<typeof kybProfileSchema>;
@@ -121,7 +125,7 @@ export const kybFieldLabels: Record<KybField, string> = {
   legalName: "Legal business name",
   tradingName: "Trading name",
   businessType: "Business type",
-  country: "Country of registration",
+  country: "Country",
   registrationNumber: "Company registration number",
   taxId: "Tax ID",
   website: "Website or social page",

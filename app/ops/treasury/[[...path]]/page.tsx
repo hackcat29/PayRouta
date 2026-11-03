@@ -15,8 +15,11 @@ import { platformModule } from "@/lib/treasury/platforms/registry";
 import { accountState, disputeLabel, disputeTone, money, payoutTone, requirementText, scheduleText, type Tone } from "@/lib/treasury/labels";
 import { merchantTreasury } from "@/lib/treasury/views";
 import { merchantTerms } from "@/lib/treasury/terms";
+import { loadRequirements, onboardingDocumentIds } from "@/lib/merchant/requirements";
+import { onboardingStatus, onboardingText, tierText } from "@/lib/treasury/labels";
 import {
   ApproveForm,
+  DocumentReview,
   EntityForm,
   OpenSubAccount,
   PlatformForm,
@@ -263,6 +266,19 @@ async function MerchantDetail({ orgId, environment }: { orgId: string; environme
     representative?: { givenName: string; familyName: string; title: string; email: string };
     owners?: { givenName: string; familyName: string; country: string; ownershipPercent: number }[];
   };
+  const [requirements, documentRows, requirementNames] = await Promise.all([
+    loadRequirements(db, orgId, "production"),
+    db.evidence.findMany({
+      where: { orgId, requirementId: { in: onboardingDocumentIds }, deletedAt: null },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    }),
+    db.requirement.findMany({ where: { id: { in: onboardingDocumentIds } } }),
+  ]);
+  const documents = documentRows.map((d) => ({
+    ...d,
+    requirementName: requirementNames.find((r) => r.id === d.requirementId)?.name ?? "Document",
+  }));
   const [details, screening, links, entities, platforms, view, reconciliations] = await Promise.all([
     account?.detailsVersion
       ? db.merchantVerificationDetails.findUnique({ where: { orgId_version: { orgId, version: account.detailsVersion } } })
@@ -329,6 +345,39 @@ async function MerchantDetail({ orgId, environment }: { orgId: string; environme
               </Field>
               <Field label="Profile version">{profileRow ? `v${profileRow.version}` : null}</Field>
             </dl>
+          </section>
+          <section className="ot-panel">
+            <h2>Onboarding</h2>
+            <dl className="ot-fields">
+              <Field label="Tier">
+                {tierText[requirements.tier]}
+                {requirements.capUsd !== null && ` · up to $${requirements.capUsd.toLocaleString("en-US")} a month`}
+                {requirements.overCap && " · over its limit"}
+              </Field>
+              <Field label="Last 30 days">${Math.round(requirements.monthlyUsd).toLocaleString("en-US")}</Field>
+              {requirements.entries
+                .filter((e) => e.status !== "later")
+                .map((e) => (
+                  <Field key={e.id} label={onboardingText[e.id]}>
+                    <Pill tone={onboardingStatus[e.status].tone}>{onboardingStatus[e.status].label}</Pill>
+                  </Field>
+                ))}
+            </dl>
+            {documents.length > 0 && (
+              <>
+                <h3>Documents</h3>
+                {documents.map((d) => (
+                  <div key={d.id}>
+                    <p>
+                      {d.requirementName} · {d.scanStatus} · {d.reviewStatus}
+                    </p>
+                    {d.reviewStatus === "Uploaded" && (
+                      <DocumentReview evidenceId={d.id} filename={d.filename} clean={d.scanStatus === "Clean" || d.scanStatus === "Fixture only"} />
+                    )}
+                  </div>
+                ))}
+              </>
+            )}
           </section>
           <section className="ot-panel">
             <h2>Verification</h2>
@@ -673,7 +722,6 @@ async function Platforms() {
     db.platformAccount.findMany({ include: { legalEntity: true }, orderBy: [{ provider: "asc" }, { environment: "asc" }] }),
   ]);
   const providers = [
-    "stripe-custom",
     "paystack-split",
     "flutterwave-split",
     "monnify-split",
@@ -681,7 +729,6 @@ async function Platforms() {
     "yellowcard-split",
     "dlocal",
     "tink",
-    "stripe-bnpl",
     "adyen-klarna-bnpl",
     "mercadopago-bnpl",
     "migo-bnpl",

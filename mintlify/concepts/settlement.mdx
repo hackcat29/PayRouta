@@ -54,7 +54,6 @@ PayRouta operates strictly as a non-custodial software orchestration and ledger 
 | `monnify-split` | CBN-Licensed NIBSS Dedicated Virtual Accounts & Split Settlement | Provisions 10-digit NGN virtual accounts (`incomeSplitConfig`) and splits merchant net vs. PayRouta fee at the NIBSS clearing layer. |
 | `paystack-split` | Licensed Subaccount Split Acquiring (`NG`, `GH`, `KE`, `ZA`) | Routes card, bank transfer, USSD, and mobile money into merchant subaccounts with atomic `transaction_charge` fee deduction. |
 | `flutterwave-split` | Pan-African Subaccount Split Acquiring | Splits multi-country card and mobile money (`M-Pesa`, `MTN MoMo`, `Airtel`) settlements directly to the merchant's subaccount. |
-| `stripe-custom` | Global Destination Charges (`US`, `CA`, `GB`, `EU`) | Routes funds via `transfer_data[destination]` and `application_fee_amount` directly into the merchant's connected Stripe account. |
 | `dlocal` | Emerging Markets Split Settlement (`BR`, `MX`, `AR`, `NG`, `ZA`, `IN`, `ID`) | Executes local acquiring (`Pix`, `SPEI`, `UPI`, cards) with native merchant split instructions. |
 | `tink` | European PSD2 Open Banking (`EUR`, `GBP`, `SEK`) | Initiates direct account-to-account (`PIS`) payments straight to the merchant's verified IBAN. |
 | `bridge-split` | Regulated USD/EUR Virtual Accounts to `USDC` / `USDT` Liquidation | Converts incoming ACH/Wire/SEPA transfers into on-chain `USDC` or `USDT` delivered to the merchant's non-custodial wallet, minus `developer_fee_percent`. |

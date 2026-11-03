@@ -44,7 +44,6 @@ PayRouta includes five continental BNPL & Open-Banking platform modules (`lib/tr
 
 | Continent | Platform Module | Primary BNPL Networks | Open Banking / Card Scheme Backdoor |
 | --- | --- | --- | --- |
-| **North America** (`US`, `CA`) | `stripe-bnpl` | Affirm, Afterpay, Klarna, Zip | Visa Installment Solutions (VIS) / Mastercard Send |
 | **Europe** (`GB`, `EU`) | `adyen-klarna-bnpl` | Klarna, Clearpay, PayPal Credit, Alma | Tink (Visa Company) Open Banking PSD2 overdraft mandates |
 | **Latin America** (`BR`, `MX`, `CO`, `AR`, `CL`) | `mercadopago-bnpl` | Mercado Crédito, Kueski Pay, Addi, NuPay | Belvo Open Finance neobank credit draw |
 | **Africa** (`NG`, `KE`, `GH`, `ZA`) | `migo-bnpl` | Migo Credit, Carbon POS, CredPal, CDL | Mono Open Banking / Wallet Relay (OPay, FairMoney, Kuda) |

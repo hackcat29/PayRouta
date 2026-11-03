@@ -2,6 +2,7 @@
 
 * [Overview](README.md)
 * [Quickstart](quickstart.md)
+* [Activate payments](activation.md)
 * [Payment links](payment-links.md)
 * [Checkout button](checkout-button.md)
 
@@ -35,7 +36,6 @@
 
 ### Cards & Card Schemes
 * [Category Overview](providers/cards/README.md)
-* [Stripe Connect](providers/cards/stripe.md)
 * [Visa Direct](providers/cards/visa.md)
 * [Mastercard](providers/cards/mastercard.md)
 

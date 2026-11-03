@@ -1,6 +1,7 @@
 // Merchant underwriting for aggregator custody (docs/AGGREGATOR.md §3).
 //
-// A merchant submits its current KYB profile → operations underwrite it
+// A merchant submits once its fiat requirements are met (lib/merchant/
+// requirements.ts) → operations underwrite it
 // (legal entity, risk tier, terms) → only a Live merchant may take payments
 // through a PayRouta platform account. Every transition is an immutable
 // MerchantAccountTransition row; the account row carries an optimistic
@@ -13,6 +14,7 @@ import { custodyBlocker, type PlatformCustody } from "./custody";
 import { merchantTerms, riskTiers, termsBlockers, type RiskTier } from "./terms";
 import { merchantTermsVersion } from "./verification";
 import { platformModule } from "./platforms/registry";
+import { loadRequirements } from "../merchant/requirements";
 
 export const merchantAccountStates = [
   "Submitted",
@@ -90,10 +92,14 @@ export async function submitMerchantAccount(
 ) {
   const profile = await latestProfile(tx, orgId);
   if (!profile) throw new PortalError("KYB_PROFILE_REQUIRED", 409);
-  const details = await latestDetails(tx, orgId);
-  if (!details) throw new PortalError("VERIFICATION_DETAILS_REQUIRED", 409);
   const agreement = await currentAgreement(tx, orgId);
   if (!agreement) throw new PortalError("MERCHANT_TERMS_NOT_ACCEPTED", 409);
+  // What fiat needs depends on the merchant's type and volume
+  // (lib/merchant/requirements.ts); documents may still be in review.
+  if (!(await loadRequirements(tx, orgId, environment)).ready.fiat)
+    throw new PortalError("FIAT_REQUIREMENTS_DUE", 409);
+  const details = await latestDetails(tx, orgId);
+  if (!details) throw new PortalError("VERIFICATION_DETAILS_REQUIRED", 409);
   const pinned = {
     profileVersion: profile.version,
     detailsVersion: details.version,

@@ -5,7 +5,7 @@ There are two ways PayRouta processes your payments.
 
 ## PayRouta payments (most merchants)
 
-You apply once in **Activate payments**: your business details, your identity and payout bank account (stored encrypted) and PayRouta's merchant terms. PayRouta verifies your business and opens your account with its regulated processing partners for you, by API. You never fill in a provider's forms or log in to a provider.
+You apply once in **Activate payments**, giving only what your seller type and sales need: an individual gives their own ID; a registered business adds its registration; higher volume adds owners and proof of address. See [Activate payments](activation.md). PayRouta verifies you and opens your account with its regulated processing partners for you, by API. You never fill in a provider's forms or log in to a provider.
 
 - **Your balance** is held by those regulated partners, or paid by them straight to your bank, never in PayRouta's own bank accounts.
 - **Payouts** go to your bank account on your schedule (daily, weekly or monthly, or on request), shown in **Balances & payouts**. A rolling reserve may apply, depending on your business.

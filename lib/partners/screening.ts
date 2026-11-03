@@ -14,16 +14,26 @@ export interface ScreeningSubject {
 
 export function screeningSubjects(p: KybProfile): ScreeningSubject[] {
   return [
-    { subject: "business", name: p.legalName, country: p.country, kind: "organization" },
+    // An individual's "business" name is their own name.
+    {
+      subject: "business",
+      name: p.legalName,
+      country: p.country,
+      kind: p.businessType === "individual" ? ("person" as const) : ("organization" as const),
+    },
     ...(p.tradingName && p.tradingName !== p.legalName
       ? [{ subject: "business:trading-name", name: p.tradingName, country: p.country, kind: "organization" as const }]
       : []),
-    {
-      subject: "representative",
-      name: `${p.representative.givenName} ${p.representative.familyName}`,
-      country: p.country,
-      kind: "person",
-    },
+    ...(p.representative
+      ? [
+          {
+            subject: "representative",
+            name: `${p.representative.givenName} ${p.representative.familyName}`,
+            country: p.country,
+            kind: "person" as const,
+          },
+        ]
+      : []),
     ...p.owners.map((o, i) => ({
       subject: `owner:${i}`,
       name: `${o.givenName} ${o.familyName}`,

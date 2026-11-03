@@ -17,11 +17,13 @@ import {
   reviewMerchantAccount,
   submitForUnderwriting,
 } from "@/lib/treasury/service";
+import { goLiveWithCrypto } from "@/lib/merchant/go-live";
 
 const orgId = z.string().min(1).max(100);
 const command = z.discriminatedUnion("action", [
   z.object({ action: z.literal("submit"), orgId }).strict(),
   z.object({ action: z.literal("accept-terms"), orgId }).strict(),
+  z.object({ action: z.literal("go-live-crypto"), orgId }).strict(),
 ]);
 
 export async function POST(request: Request) {
@@ -47,6 +49,7 @@ export async function POST(request: Request) {
       return saveMerchantVerification(raw, request.headers);
     const b = command.parse(raw);
     if (b.action === "accept-terms") return acceptTerms(b.orgId, request.headers);
+    if (b.action === "go-live-crypto") return goLiveWithCrypto(b.orgId, request.headers);
     return submitForUnderwriting(b.orgId, request.headers);
   });
 }

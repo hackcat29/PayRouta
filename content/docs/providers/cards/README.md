@@ -10,7 +10,6 @@ PayRouta never collects, transmits, or stores primary account numbers (PANs) or 
 
 | Provider | Method | Capabilities | Settlement Model |
 | --- | --- | --- | --- |
-| [**Stripe Connect**](providers/cards/stripe.md) | `card`, `digital-wallet` | Global Visa, Mastercard, Amex, Apple Pay, Google Pay | Direct to merchant bank account |
 | [**Visa Direct**](providers/cards/visa.md) | `card` | Global Visa debit/credit auth, real-time push to card | Direct scheme settlement |
 | [**Mastercard**](providers/cards/mastercard.md) | `card` | Mastercard network tokenization, Mastercard Send | Direct acquirer settlement |
 

@@ -5,7 +5,7 @@
 // Payins API with a split: the merchant's share goes to its User account and
 // PayRouta's fee stays with the platform. Funds stay in the User account
 // until PayRouta requests a settlement (Payouts API), so this rail holds
-// funds like Stripe Connect. Processing fees are configured with dLocal as
+// funds like a connected-account platform. Processing fees are configured with dLocal as
 // liable-account fees (PayRouta pays them), so the merchant's share is exact.
 //
 // Sources: docs.dlocal.com Platforms API (accounts, split payments) and Payins

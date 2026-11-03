@@ -7,7 +7,6 @@ import type { PlatformAdapter, PlatformModule } from "./contract";
 import { splitPlatformConfig } from "../partner-fees";
 import { sandboxPlatform, sandboxSplitPlatform } from "./sandbox";
 import { sandboxCreditPlatform } from "./sandbox-credit";
-import { stripeCustomPlatform } from "./stripe-custom";
 import { paystackSplitPlatform } from "./paystack-split";
 import { flutterwaveSplitPlatform } from "./flutterwave-split";
 import { monnifySplitPlatform } from "./monnify-split";
@@ -15,7 +14,6 @@ import { bridgeSplitPlatform } from "./bridge-split";
 import { yellowcardSplitPlatform } from "./yellowcard-split";
 import { dlocalPlatform } from "./dlocal";
 import { tinkPlatform } from "./tink";
-import { stripeBnplPlatform } from "./stripe-bnpl";
 import { adyenKlarnaBnplPlatform } from "./adyen-klarna-bnpl";
 import { mercadopagoBnplPlatform } from "./mercadopago-bnpl";
 import { migoBnplPlatform } from "./migo-bnpl";
@@ -26,7 +24,6 @@ const modules = new Map<string, PlatformModule>(
     sandboxPlatform,
     sandboxSplitPlatform,
     sandboxCreditPlatform,
-    stripeCustomPlatform,
     paystackSplitPlatform,
     flutterwaveSplitPlatform,
     monnifySplitPlatform,
@@ -34,7 +31,6 @@ const modules = new Map<string, PlatformModule>(
     yellowcardSplitPlatform,
     dlocalPlatform,
     tinkPlatform,
-    stripeBnplPlatform,
     adyenKlarnaBnplPlatform,
     mercadopagoBnplPlatform,
     migoBnplPlatform,

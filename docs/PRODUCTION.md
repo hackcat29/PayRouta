@@ -75,7 +75,7 @@ Live payments go through accounts **the merchant owns** at each provider. They o
 
 ### Per partner (once)
 
-1. **Partner programme access.** Apply to the provider's partner programme where one is required (PayPal, Klarna, most others; Stripe Connect is self-serve). Confirm in writing that the accounts are merchant-owned (see `docs/PARTNER-PROGRAM.md`).
+1. **Partner programme access.** Apply to the provider's partner programme where one is required (PayPal, Klarna, most others). Confirm in writing that the accounts are merchant-owned (see `docs/PARTNER-PROGRAM.md`).
 2. **Sandbox connection.** In **Ops → Partner programmes**, configure the sandbox connection with the provider's test credentials, and register the webhook URL shown there with the provider.
 3. **Qualify in the provider's own sandbox.** Using a test merchant:
    - apply and finish the hosted onboarding until the account is Approved

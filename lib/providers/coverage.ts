@@ -31,11 +31,6 @@ export const providerCoverage: readonly Coverage[] = [
       "Direct Ethereum/Base deposits; official Sepolia testnets only in sandbox. Address pool, RPC and production review required.",
   },
   {
-    guide: "cards/stripe",
-    method: "card",
-    adapters: ["stripe", "stripe-connect"],
-  },
-  {
     guide: "cards/visa",
     method: "card",
     adapters: ["stripe", "adyen", "paystack", "flutterwave"],
