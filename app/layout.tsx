@@ -7,6 +7,7 @@ import "./globals.css";
 import "./marketing.css";
 import { JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import { SiteChrome } from "@/components/site-chrome";
+import { CookieNotice } from "@/components/cookie-notice";
 import { brandVersion } from "@/components/brand-logo";
 import { trustedOrigin } from "@/lib/site-config";
 const origin = trustedOrigin();
@@ -58,6 +59,7 @@ export default function RootLayout({
           Skip to content
         </a>
         <SiteChrome>{children}</SiteChrome>
+        <CookieNotice />
       </body>
     </html>
   );

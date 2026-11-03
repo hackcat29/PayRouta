@@ -1,11 +1,17 @@
 "use client";
 import { useState } from "react";
+import { turnstileHeader } from "@/lib/turnstile";
+import { Turnstile, turnstileSiteKey } from "../turnstile";
 
 // Double opt-in: the API emails a confirmation link; nothing else is sent
 // until it's clicked.
 export function NewsletterSignup() {
   const [email, setEmail] = useState("");
   const [honeypot, setHoneypot] = useState("");
+  // The check starts when someone reaches for the field, not on every page view.
+  const [engaged, setEngaged] = useState(false);
+  const [captcha, setCaptcha] = useState<string | null>(null);
+  const [round, setRound] = useState(0);
   const [state, setState] = useState<{ status: "idle" | "busy" | "done" | "error"; message?: string }>({
     status: "idle",
   });
@@ -19,7 +25,10 @@ export function NewsletterSignup() {
         try {
           const res = await fetch("/api/marketing/subscribe", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              ...(captcha ? { [turnstileHeader]: captcha } : {}),
+            },
             body: JSON.stringify({ email, source: "website_footer", website_url_hp: honeypot }),
           });
           const data = await res.json().catch(() => ({}));
@@ -29,6 +38,8 @@ export function NewsletterSignup() {
         } catch (err) {
           setState({ status: "error", message: err instanceof Error ? err.message : "Something went wrong." });
         }
+        setCaptcha(null);
+        setRound((n) => n + 1);
       }}
     >
       <label htmlFor="newsletter-email" className="mk-sr">Email address</label>
@@ -40,10 +51,11 @@ export function NewsletterSignup() {
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          onFocus={() => setEngaged(true)}
           required
           disabled={state.status === "busy"}
         />
-        <button className="mk-btn primary" disabled={state.status === "busy"}>
+        <button className="mk-btn primary" disabled={state.status === "busy" || (!!turnstileSiteKey && !captcha)}>
           {state.status === "busy" ? "Sending…" : "Subscribe"}
         </button>
       </div>
@@ -57,6 +69,7 @@ export function NewsletterSignup() {
         value={honeypot}
         onChange={(e) => setHoneypot(e.target.value)}
       />
+      {engaged && <Turnstile quiet onToken={setCaptcha} round={round} />}
       {state.message && (
         <p role="status" className={state.status === "error" ? "error" : undefined}>
           {state.message}

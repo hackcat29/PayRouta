@@ -2700,3 +2700,45 @@ body:has(.mk-header) {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+.cookie-notice {
+  position: fixed;
+  z-index: 60;
+  left: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  max-width: 460px;
+  padding: 14px 16px;
+  border: 1px solid var(--mk-line);
+  border-radius: 14px;
+  background: var(--mk-surface);
+  box-shadow: var(--mk-shadow);
+}
+.cookie-notice p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--mk-body);
+}
+.cookie-notice a {
+  color: var(--mk-indigo);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+}
+.cookie-notice .mk-btn {
+  flex: none;
+}
+@media (max-width: 520px) {
+  .cookie-notice {
+    right: 16px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+}
+.turnstile {
+  min-height: 65px;
+  margin: 4px 0 12px;
+}

@@ -7,6 +7,8 @@ import {
 } from "@/lib/portal/access-request-schema";
 import { track } from "@/lib/analytics";
 import { errorText } from "@/lib/error-copy";
+import { turnstileHeader } from "@/lib/turnstile";
+import { Turnstile, turnstileSiteKey } from "../turnstile";
 
 type Errors = Record<string, string[] | undefined>;
 
@@ -18,6 +20,8 @@ export function ProviderAccessForm() {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const submission = useRef("");
+  const [captcha, setCaptcha] = useState<string | null>(null);
+  const [round, setRound] = useState(0);
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -51,7 +55,10 @@ export function ProviderAccessForm() {
     try {
       const response = await fetch("/api/provider-access", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(captcha ? { [turnstileHeader]: captcha } : {}),
+        },
         body: JSON.stringify(parsed.data),
       });
       const data = await response.json().catch(() => ({}));
@@ -62,6 +69,8 @@ export function ProviderAccessForm() {
     } catch {
       setStatus("We couldn't confirm your request was saved. Please try again.");
     } finally {
+      setCaptcha(null);
+      setRound((n) => n + 1);
       setBusy(false);
     }
   }
@@ -159,7 +168,12 @@ export function ProviderAccessForm() {
           Don&apos;t include credentials, API keys or identity documents. We&apos;ll ask for documents after
           approval, inside the provider workspace.
         </p>
-        <button className="button" type="submit">
+        <Turnstile onToken={setCaptcha} round={round} />
+        <button
+          className="button"
+          type="submit"
+          disabled={!!turnstileSiteKey && !captcha}
+        >
           {busy ? "Sending…" : "Request provider access"}
         </button>
       </fieldset>

@@ -1,5 +1,6 @@
 import { enquirySchema } from "@/lib/enquiries/schema";
 import { deliver } from "@/lib/enquiries/delivery";
+import { verifyTurnstile } from "@/lib/turnstile";
 export const runtime = "nodejs";
 const MAX_BYTES = 16000;
 async function boundedBody(request: Request) {
@@ -50,6 +51,11 @@ export async function POST(request: Request) {
   const origin = request.headers.get("origin");
   if (origin && origin !== new URL(request.url).origin)
     return json({ ok: false, message: "Request origin is not allowed." }, 403);
+  if (!(await verifyTurnstile(request)))
+    return json(
+      { ok: false, message: "We couldn't confirm you're not a bot. Reload the page and try again." },
+      403,
+    );
   let raw: unknown;
   try {
     raw = await boundedBody(request);

@@ -2,6 +2,7 @@ import { ZodError } from "zod";
 import { rateLimit } from "@/lib/portal/access";
 import { submitAccessRequest } from "@/lib/portal/access-requests";
 import { PortalError } from "@/lib/portal/domain";
+import { verifyTurnstile } from "@/lib/turnstile";
 
 export const runtime = "nodejs";
 const MAX_BYTES = 16000;
@@ -15,6 +16,8 @@ export async function POST(request: Request) {
   const origin = request.headers.get("origin");
   if (origin && origin !== new URL(process.env.BETTER_AUTH_URL || request.url).origin)
     return json({ error: "Request origin is not allowed." }, 403);
+  if (!(await verifyTurnstile(request)))
+    return json({ error: "We couldn't confirm you're not a bot. Reload the page and try again." }, 403);
   const body = await request.text().catch(() => "");
   if (body.length > MAX_BYTES) return json({ error: "Request is too large." }, 413);
   try {

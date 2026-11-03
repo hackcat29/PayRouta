@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError, createAuthMiddleware } from "better-auth/api";
-import { emailOTP, twoFactor } from "better-auth/plugins";
+import { captcha, emailOTP, twoFactor } from "better-auth/plugins";
 import { passkey } from "@better-auth/passkey";
 import { sso } from "@better-auth/sso";
 import { db } from "./db";
@@ -150,6 +150,22 @@ export const auth = betterAuth({
     },
   },
   plugins: [
+    // Bot check on sign-up, sign-in and the routes that send email. The
+    // browser sends Turnstile's token in the x-captcha-response header.
+    // Enforced once TURNSTILE_SECRET_KEY is set (lib/turnstile.ts); until
+    // then no route matches, so nothing is checked.
+    captcha({
+      provider: "cloudflare-turnstile",
+      secretKey: process.env.TURNSTILE_SECRET_KEY ?? "",
+      endpoints: process.env.TURNSTILE_SECRET_KEY
+        ? [
+            "/sign-up/email",
+            "/sign-in/email",
+            "/request-password-reset",
+            "/email-otp/send-verification-otp",
+          ]
+        : ["/captcha-not-configured"],
+    }),
     twoFactor({ issuer: "PayRouta" }),
     // Passwordless sign-in with a code by email. Sign-up still goes through
     // the normal form, so a code can't create an account on its own.

@@ -135,6 +135,12 @@ export default function Privacy() {
               The checkout may save a small note in your browser so you can
               resume a crypto payment.
             </p>
+            <p>
+              Our sign-up, sign-in and contact forms use Cloudflare Turnstile to
+              tell people from bots. Cloudflare receives your IP address and
+              browser details to do this. We remember that you accepted this
+              notice in your browser, and nothing else.
+            </p>
           </>,
         ],
         [

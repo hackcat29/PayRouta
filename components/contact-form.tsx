@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { enquirySchema, safeIntent, type Intent } from "@/lib/enquiries/schema";
 import { track } from "@/lib/analytics";
+import { turnstileHeader } from "@/lib/turnstile";
+import { Turnstile, turnstileSiteKey } from "./turnstile";
 const methodNames = [
   "Instant bank transfers (iDEAL, FedNow, Pix, UPI, NIP)",
   "Digital wallets (Apple Pay, Google Pay, PayPal, OPay, PalmPay)",
@@ -41,6 +43,8 @@ export function ContactForm({
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [captcha, setCaptcha] = useState<string | null>(null);
+  const [round, setRound] = useState(0);
   const reference = useRef("");
   const locked = useRef(false);
   const controller = useRef<AbortController | null>(null);
@@ -98,7 +102,10 @@ export function ContactForm({
     try {
       const response = await fetch("/api/enquiries", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(captcha ? { [turnstileHeader]: captcha } : {}),
+        },
         body: JSON.stringify(result.data),
         signal: controller.current.signal,
       });
@@ -117,6 +124,8 @@ export function ContactForm({
       track("enquiry", { intent, outcome: "unconfirmed" });
     } finally {
       clearTimeout(timeout);
+      setCaptcha(null);
+      setRound((n) => n + 1);
       locked.current = false;
       setBusy(false);
     }
@@ -240,7 +249,12 @@ export function ContactForm({
           Please don’t include payment data, identity documents, credentials, or
           other secrets. This enquiry does not subscribe you to marketing.
         </p>
-        <button className="button" type="submit">
+        <Turnstile onToken={setCaptcha} round={round} />
+        <button
+          className="button"
+          type="submit"
+          disabled={!!turnstileSiteKey && !captcha}
+        >
           {busy ? "Sending…" : configured ? "Send enquiry" : "Check enquiry"}
         </button>
       </fieldset>

@@ -83,11 +83,15 @@ jobs:
           SHA: ${{ github.sha }}
           # Optional: synced into the server's .env when set (never echoed).
           OPENSANCTIONS_API_KEY: ${{ secrets.OPENSANCTIONS_API_KEY }}
+          # Cloudflare Turnstile on the public forms. The check is enforced
+          # once the secret key is on the server; the site key is read at build.
+          TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ secrets.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
         with:
           host: ${{ secrets.CONTABO_HOST }}
           username: ${{ secrets.CONTABO_USER }}
           key: ${{ secrets.CONTABO_SSH_KEY }}
-          envs: SHA,OPENSANCTIONS_API_KEY
+          envs: SHA,OPENSANCTIONS_API_KEY,TURNSTILE_SECRET_KEY,NEXT_PUBLIC_TURNSTILE_SITE_KEY
           script_stop: true
           script: |
             echo "==> Deploy started for SHA: $SHA"
@@ -115,6 +119,19 @@ jobs:
               )
               echo "==> OpenSanctions key synced from GitHub"
             fi
+            sync_env() {
+              [ -n "$2" ] || return 0
+              (
+                umask 077
+                grep -v "^$1=" "$ROOT/.env" > "$ROOT/.env.sync" || true
+                printf '%s=%s\n' "$1" "$2" >> "$ROOT/.env.sync"
+                cat "$ROOT/.env.sync" > "$ROOT/.env"
+                rm -f "$ROOT/.env.sync"
+              )
+              echo "==> $1 synced from GitHub"
+            }
+            sync_env TURNSTILE_SECRET_KEY "${TURNSTILE_SECRET_KEY:-}"
+            sync_env NEXT_PUBLIC_TURNSTILE_SITE_KEY "${NEXT_PUBLIC_TURNSTILE_SITE_KEY:-}"
             if grep -q '^OPENSANCTIONS_API_KEY=.' "$ROOT/.env"; then
               echo "==> OpenSanctions key present: automated merchant screening on"
             else

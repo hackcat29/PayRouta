@@ -8,6 +8,8 @@ import { passkeyClient } from "@better-auth/passkey/client";
 import { ssoClient } from "@better-auth/sso/client";
 import { BrandLogo } from "../brand-logo";
 import { Field } from "./ui";
+import { turnstileHeader } from "@/lib/turnstile";
+import { Turnstile, turnstileSiteKey } from "../turnstile";
 export const authClient = createAuthClient({
   plugins: [
     twoFactorClient(),
@@ -25,6 +27,13 @@ type Step =
   | "code-request"
   | "code"
   | "sso";
+
+// The steps whose request carries a bot check (lib/portal/auth.ts).
+const checked: Step[] = ["credentials", "reset", "code-request"];
+const captchaFailed = (error?: { code?: string } | null) =>
+  error?.code === "VERIFICATION_FAILED" || error?.code === "MISSING_RESPONSE";
+const captchaMessage =
+  "We couldn't confirm you're not a bot. Wait a moment for the check to finish, then try again.";
 
 const titles: Record<Step, [signIn: string, signUp: string]> = {
   credentials: ["Sign in", "Create your account"],
@@ -64,6 +73,12 @@ export function AuthScreen({
   const [recovery, setRecovery] = useState(false);
   const [busy, setBusy] = useState(false);
   const [email, setEmail] = useState("");
+  const [captcha, setCaptcha] = useState<string | null>(null);
+  const [round, setRound] = useState(0);
+  const needsCaptcha = !!turnstileSiteKey && checked.includes(step);
+  const fetchOptions = captcha
+    ? { headers: { [turnstileHeader]: captcha } }
+    : undefined;
   const callbackURL = next ?? (merchant ? "/merchant" : "/provider/overview");
   const invited = !!next?.includes("invitation=");
   const errorCallbackURL = `${base}/sign-in`;
@@ -103,6 +118,9 @@ export function AuthScreen({
         error: true,
       });
     } finally {
+      // A token is good for one request.
+      setCaptcha(null);
+      setRound((n) => n + 1);
       setBusy(false);
     }
   }
@@ -165,7 +183,9 @@ export function AuthScreen({
       const r = await authClient.requestPasswordReset({
         email,
         redirectTo: `${base}/reset-password`,
+        fetchOptions,
       });
+      if (captchaFailed(r.error)) throw new Error(captchaMessage);
       if (r.error) throw new Error(r.error.message);
       return go("reset-sent");
     }
@@ -173,7 +193,9 @@ export function AuthScreen({
       const r = await authClient.emailOtp.sendVerificationOtp({
         email,
         type: "sign-in",
+        fetchOptions,
       });
+      if (captchaFailed(r.error)) throw new Error(captchaMessage);
       if (r.error)
         throw new Error(
           r.error.status === 429
@@ -216,7 +238,9 @@ export function AuthScreen({
         email,
         password: String(f.get("password")),
         callbackURL,
+        fetchOptions,
       });
+      if (captchaFailed(r.error)) throw new Error(captchaMessage);
       if (r.error) throw new Error(r.error.message);
       return go("check-email");
     }
@@ -224,7 +248,9 @@ export function AuthScreen({
       email,
       password: String(f.get("password")),
       callbackURL,
+      fetchOptions,
     });
+    if (captchaFailed(r.error)) throw new Error(captchaMessage);
     if (r.error) {
       // Unverified: better-auth has just sent a fresh verification link.
       if (r.error.status === 403) return go("check-email");
@@ -474,7 +500,13 @@ export function AuthScreen({
                     {message.text}
                   </div>
                 )}
-                <button className="p-button" disabled={busy}>
+                {needsCaptcha && (
+                  <Turnstile key={step} onToken={setCaptcha} round={round} />
+                )}
+                <button
+                  className="p-button"
+                  disabled={busy || (needsCaptcha && !captcha)}
+                >
                   {busy
                     ? "Please wait…"
                     : (submitLabel[step] ??
