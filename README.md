@@ -1,8 +1,36 @@
 # PayRouta
 
-**One checkout button that lets any merchant or app take payment with whatever the customer has, including credit.** Customers pay by card, digital wallet, bank transfer, mobile money or USSD; with credit from licensed lenders in their country (PayRouta's differentiator: the merchant is paid in full, the lender carries the risk); or with stablecoins and crypto from any wallet and chain. Merchants add it with one button on any site or app, or through Shopify and WooCommerce. The thesis and its status pillar by pillar: [docs/THESIS.md](docs/THESIS.md).
+**A universal checkout button powered by NEAR Intents.** Any merchant or app adds one button. The customer pays with any token, on any chain, from any wallet, even a token PayRouta has never listed, found by pasting its contract address. The merchant is paid in the asset or currency it chose, whatever the customer paid with.
 
-Under the button, PayRouta is an aggregator (see [docs/AGGREGATOR.md](docs/AGGREGATOR.md)). Merchants apply once to PayRouta, which verifies them and opens their sub-accounts with its regulated processing partners and lenders by API. It routes each payment to a partner that can take it, keeps a backup for the same method, holds each merchant's ledger, pays merchants out on their schedule and reconciles everything in one place. Merchant balances sit with the regulated partners, never in PayRouta's own bank accounts, and PayRouta is not the merchant of record. Merchant-owned provider accounts and stablecoin deposits to the merchant's own wallet remain supported.
+```html
+<script src="https://payrouta.com/js/v1/payrouta.js" async></script>
+<button data-payrouta-checkout="/create-checkout">Checkout</button>
+```
+
+## How it works
+
+**The customer pays with whatever they hold.**
+
+- **Any token on any chain.** NEAR Intents (through its 1Click API) gives access to 125+ assets on 36+ chains, including Bitcoin, Ethereum, Solana, NEAR, Tron, TON, BNB Chain, Base, Arbitrum, Polygon, Avalanche and Stellar.
+- **Any token by contract address.** A customer holding an unlisted token, such as a coin launched on Pump.fun, pastes its contract address. The wallet swaps it into USDC on the same chain (Jupiter on Solana, LI.FI on EVM chains), and NEAR Intents takes it from there (`lib/intents/dex.ts`).
+- **Any wallet.** The checkout connects EVM wallets (EIP-6963), Solana wallets and NEAR wallets (NEAR Connect). Customers with any other wallet or an exchange account send to a one-time deposit address, with a refund address in case the swap can't complete.
+- **No crypto at all.** The same button also takes cards, digital wallets, bank transfers, mobile money, USSD and credit from licensed lenders.
+
+**The merchant is paid in its choice of asset or currency, whatever the customer paid with.**
+
+- **An exact amount, never an estimate.** Each payment is an exact-output intent: solvers compete to deliver the invoice amount in the merchant's settlement stablecoin (USDC or USDT on Base, Ethereum, Arbitrum, Polygon, Avalanche, Solana or Stellar). If they can't deliver it before the deadline, the customer is refunded and the order isn't marked paid.
+- **Into an account the merchant owns.** Payments settle into the merchant's own NEAR Intents account: a NEAR account or an EVM address, proved with a signed challenge (NEP-413 or ERC-191). PayRouta never holds the keys or the funds. Settlement is confirmed from the swap's `intents.near` events (`lib/intents/near.ts`).
+- **Then into any token or fiat.** From that balance, the merchant converts to any token on any chain that NEAR Intents supports, pays suppliers and staff, and refunds customers to the chain they paid from. Each transfer is one signature with no gas (`lib/intents/payouts.ts`). They can also cash out to a bank or mobile money in US dollars, euros, naira, cedi, Kenyan, Ugandan and Tanzanian shillings, rand, kwacha or Mexican pesos, through Bridge and Yellow Card (`docs/cash-out.md`).
+
+So one button works for every customer, and the merchant never has to hold the token or chain the customer paid with.
+
+## Also in the box
+
+- **Credit at checkout.** Customers in the global south can pay or subscribe with credit from a licensed lender in their country. The merchant is paid in full and the lender carries the risk.
+- **Fiat through regulated partners.** PayRouta is an aggregator (see [docs/AGGREGATOR.md](docs/AGGREGATOR.md)). It verifies merchants once, opens their sub-accounts with regulated processing partners, routes each payment with a backup, and holds each merchant's ledger. Merchant balances sit with the regulated partners, never in PayRouta's bank accounts, and PayRouta is not the merchant of record.
+- **Everywhere merchants sell.** The button, payment links, invoices, a Shopify payments app and a WooCommerce plugin.
+
+The thesis and its status pillar by pillar: [docs/THESIS.md](docs/THESIS.md). Cross-chain details: [docs/cross-chain.md](docs/cross-chain.md).
 
 ## What is in this repository
 
@@ -12,9 +40,9 @@ Under the button, PayRouta is an aggregator (see [docs/AGGREGATOR.md](docs/AGGRE
 | Merchant workspace | `app/merchant`, `lib/merchant` |
 | Partner onboarding (merchant-owned accounts) | `lib/partners`, `app/api/partners`, `app/merchant/[[...path]]/providers.tsx` |
 | Payments: intents, checkout, routing, execution, reconciliation | `lib/payments`, `app/checkout`, `app/api/v1` (merchant API) |
-| Checkout button and universal checkout | `public/js/v1/payrouta.js`, `sdks/checkout`, `lib/payments/universal.ts`, `lib/payments/checkout-group.ts` |
+| Universal checkout button | `public/js/v1/payrouta.js`, `sdks/checkout`, `lib/payments/universal.ts`, `lib/payments/checkout-group.ts` |
 | Credit at checkout (lenders as platform modules) | `lib/treasury/credit.ts`, `lib/treasury/credit-checkout.ts`, `lib/treasury/platforms/sandbox-credit.ts` |
-| Cross-chain crypto (NEAR Intents) | `lib/intents` |
+| NEAR Intents: cross-chain checkout, merchant intents account, payouts and refunds, contract-address tokens | `lib/intents`, `app/checkout/[sessionId]/cross-chain.tsx`, `pay-picker.tsx`, `swap-wallet.ts`, `app/merchant/[[...path]]/intents.tsx` |
 | Shopify payments app, WooCommerce plugin | `lib/integrations/shopify.ts`, `app/api/integrations/shopify`, `integrations/` |
 | Provider portal (Provider API, certification, registry) | `app/provider`, `lib/portal`, `lib/providers` |
 | Operations console | `app/ops` |
@@ -64,7 +92,7 @@ npm run test:e2e           # marketing site journeys
 
 ## Status
 
-Early access. The sandbox works end to end. Live payments open partner by partner, once each partner module has passed qualification in that provider's own sandbox and the partner connection is enabled. See `docs/PRODUCTION.md` for the launch sequence and the items that code cannot supply.
+Early access. NEAR Intents payments are on for production checkouts. 1Click runs on mainnet only, so sandbox checkouts test direct testnet transfers instead. The sandbox works end to end for everything else. Live payments open partner by partner, once each partner module has passed qualification in that provider's own sandbox and the partner connection is enabled. See `docs/PRODUCTION.md` for the launch sequence and the items that code cannot supply.
 
 ## Pricing and launch readiness
 

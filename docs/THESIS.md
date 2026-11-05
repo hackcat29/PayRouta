@@ -1,16 +1,18 @@
 # PayRouta thesis
 
-**One checkout button that lets any merchant or app take payment with whatever the customer has, including credit.**
+**A universal checkout button powered by NEAR Intents: any merchant or app takes payment with whatever the customer has.**
 
-Most payment processors promise a long list of payment methods. That solves the ease of paying, but not the bigger problem for most people in the global south: they can't pay for many things in one go, and few have a credit card. PayRouta's distinctive competency is credit at checkout. A customer can pay for, or subscribe to, a product on credit from a licensed lender in their country, while the merchant is paid in full.
+The customer pays with any token on any chain, from any wallet, even an unlisted token found by its contract address. The merchant is paid in the stablecoin it chose, exactly the invoice amount, into a NEAR Intents account it owns. From there it converts to any token on any chain, or cashes out to fiat. How the customer paid never decides what the merchant receives.
 
-## The four pillars
+The same button reaches customers who hold no crypto: card, wallets, bank, mobile money and USSD, and credit. Credit at checkout is PayRouta's answer to the global south's other problem: many people can't pay for things in one go, and few have a credit card. A licensed lender in the customer's country pays the merchant in full and carries the risk.
+
+## The pillars
 
 | Pillar | What it means | Where it lives |
 | --- | --- | --- |
 | **1. One checkout button** | A merchant or app adds one button. The customer pays with any method the merchant accepts where the customer is. | `public/js/v1/payrouta.js`, `sdks/checkout`, `POST /checkouts` (`lib/payments/universal.ts`), checkout bridge `app/checkout/[sessionId]/popup.ts` |
-| **2. Credit for the global south** | "Pay with credit" is a method like any other. Licensed lenders (for example a lender such as OPay in Nigeria) price plans per payment; the customer chooses, the lender approves and pays the merchant, and the customer repays the lender. Subscriptions are sold on credit as term plans repaid monthly. | `lib/treasury/credit.ts`, `lib/treasury/credit-checkout.ts`, credit contract in `lib/treasury/platforms/contract.ts`, sandbox lender `sandbox-credit.ts`, plan picker in `fiat-view.tsx` |
-| **3. Crypto from any wallet and chain** | The same button takes stablecoins and crypto to the merchant's own wallet, from any wallet; customers holding another token on another chain pay through intents (exact-output swaps) and the merchant still receives exactly what it asked for. | `lib/blockchain` (direct), `lib/intents` (NEAR Intents, a universal liquidity layer for 125+ assets across 36+ chains, via its 1Click API), `cross-chain.tsx` |
+| **2. Any token, any chain, any wallet (NEAR Intents)** | The customer pays with any of 125+ assets on 36+ chains through 1Click, or with any token that has DEX liquidity by pasting its contract address (swapped in the wallet to USDC, then through intents). EVM, Solana and NEAR wallets connect, and any other wallet or exchange pays a one-time deposit address. Each payment is an exact-output intent, so the merchant receives exactly the invoice amount in its settlement stablecoin, into its own NEAR Intents account. From that account the merchant converts to any token on any chain, pays out and refunds gas-free, or cashes out to fiat (Bridge, Yellow Card). | `lib/intents` (`checkout.ts`, `oneclick.ts`, `dex.ts`, `account.ts`, `near.ts`, `payouts.ts`), `lib/blockchain` (direct), `app/checkout/[sessionId]/cross-chain.tsx`, `pay-picker.tsx`, `lib/treasury/offramp` |
+| **3. Credit for the global south** | "Pay with credit" is a method like any other. Licensed lenders (for example a lender such as OPay in Nigeria) price plans per payment; the customer chooses, the lender approves and pays the merchant, and the customer repays the lender. Subscriptions are sold on credit as term plans repaid monthly. | `lib/treasury/credit.ts`, `lib/treasury/credit-checkout.ts`, credit contract in `lib/treasury/platforms/contract.ts`, sandbox lender `sandbox-credit.ts`, plan picker in `fiat-view.tsx` |
 | **4. Everywhere merchants sell** | Global merchants, and platforms where they already sell: Shopify, WooCommerce and similar. | `integrations/woocommerce`, `integrations/shopify`, `lib/integrations/shopify.ts`, `app/api/integrations/shopify` |
 
 ## Status (20 October 2026)
