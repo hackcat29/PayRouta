@@ -131,7 +131,8 @@ function parse<T>(schema: z.ZodType<T>, response: Response, code: string) {
     if (/minimum/i.test(message)) throw new PortalError("CROSS_CHAIN_AMOUNT_TOO_SMALL", 409);
     throw new PortalError(code, 409);
   }
-  if (response.status !== 200) throw new PortalError("CROSS_CHAIN_UNAVAILABLE", 503);
+  // 1Click answers quotes with 201 Created (checked live, 5 Nov 2026).
+  if (response.status < 200 || response.status > 299) throw new PortalError("CROSS_CHAIN_UNAVAILABLE", 503);
   let body: unknown;
   try {
     body = JSON.parse(response.body);
@@ -204,6 +205,60 @@ export async function quote(
     maxResponseBytes: 262144,
   });
   return parse(quoteResponse, response, "CROSS_CHAIN_QUOTE_REFUSED");
+}
+
+// A dry EXACT_OUTPUT quote: what the customer would send today for the
+// merchant to receive exactly `amountOut`. 1Click prices it with live solver
+// liquidity but opens no deposit address, so nothing can be paid to it. The
+// demo checkout (lib/intents/demo.ts) uses it to show real routes and prices.
+const dryQuoteResponse = z
+  .object({
+    quote: z
+      .object({
+        amountIn: z.string().regex(/^\d+$/),
+        amountInFormatted: z.string().max(80),
+        amountInUsd: z.string().max(80).optional(),
+        amountOut: z.string().regex(/^\d+$/),
+        amountOutFormatted: z.string().max(80),
+        minAmountOut: z.string().regex(/^\d+$/).optional(),
+        timeEstimate: z.number().nonnegative().optional(),
+      })
+      .passthrough(),
+  })
+  .passthrough();
+export type OneClickDryQuote = z.infer<typeof dryQuoteResponse>;
+
+export async function dryQuote(
+  input: { originAsset: string; destinationAsset: string; amount: string; exactInput?: boolean; deadline: Date },
+  http: Http = providerRequest,
+) {
+  // Dry quotes deliver nowhere; intents.near is a valid account for both
+  // ends, so any origin and destination chain can be priced.
+  const body = {
+    dry: true,
+    swapType: input.exactInput ? "EXACT_INPUT" : "EXACT_OUTPUT",
+    slippageTolerance: 100,
+    originAsset: input.originAsset,
+    depositType: "ORIGIN_CHAIN",
+    destinationAsset: input.destinationAsset,
+    amount: input.amount,
+    refundTo: "intents.near",
+    refundType: "INTENTS",
+    recipient: "intents.near",
+    recipientType: "INTENTS",
+    deadline: input.deadline.toISOString(),
+    referral: "payrouta",
+    quoteWaitingTimeMs: 3000,
+  };
+  const response = await http(oneClickBase, {
+    method: "POST",
+    path: "/v0/quote",
+    headers: await headers(),
+    body: JSON.stringify(body),
+    timeoutMs: 12000,
+    maxResponseBytes: 262144,
+  });
+  return parse(dryQuoteResponse, response, "CROSS_CHAIN_QUOTE_REFUSED");
 }
 
 export async function status(depositAddress: string, depositMemo: string | null, http: Http = providerRequest) {

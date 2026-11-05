@@ -117,6 +117,12 @@ async function solanaToken(http: Http, mint: string) {
 export async function lookupToken(sessionId: string, token: string, address: string, deps: Deps = {}): Promise<{ tokens: DexToken[] }> {
   const http = deps.http ?? providerRequest;
   await authorizeSession(sessionId, token, deps.now ?? new Date(), true);
+  return findToken(address, http);
+}
+
+// The lookup itself, without a checkout session (also used by the demo
+// checkout, lib/intents/demo.ts).
+export async function findToken(address: string, http: Http = providerRequest): Promise<{ tokens: DexToken[] }> {
   const a = address.trim();
   if (isSolanaAddress(a)) {
     if (a === usdcMint) return { tokens: [] };

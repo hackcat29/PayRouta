@@ -130,15 +130,16 @@ test("stablecoin checkout: actual testnet instructions, wallet submission stays 
   const axe = await new AxeBuilder({ page }).analyze();
   expect(axe.violations).toEqual([]);
 });
-test("checkout preview is visibly nonpayable and lists no unavailable methods", async ({
+test("demo checkout is labelled as a demo and opens the any-token picker", async ({
   page,
 }) => {
   await page.goto("/checkout/demo");
+  await expect(page.getByText(/no money moves/i)).toBeVisible();
+  await page.getByRole("button", { name: /^Checkout/ }).click();
   await expect(
-    page.getByText("Preview only. Not payable.", { exact: true }),
+    page.getByRole("heading", { name: "What do you want to pay with?" }),
   ).toBeVisible();
-  await expect(page.getByText("Coming soon", { exact: true })).toHaveCount(0);
   await expect(
-    page.getByRole("button", { name: "Pay with wallet" }),
+    page.locator("input[type=password], input[autocomplete=cc-number]"),
   ).toHaveCount(0);
 });

@@ -1,0 +1,103 @@
+/* Intents-first demo checkout (intents-demo.tsx), on the portal colour
+   tokens from globals.css. */
+.idemo {
+  min-height: 100vh;
+  background: var(--cloud);
+  color: var(--navy);
+  font-family: var(--font-inter), sans-serif;
+  padding-bottom: 48px;
+}
+.idemo-banner {
+  margin: 0;
+  background: var(--navy);
+  color: #fff;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+}
+.idemo-hero { max-width: 1040px; margin: 0 auto; padding: 48px 16px 24px; }
+.idemo-kicker { color: var(--mint); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; font-size: 13px; margin-bottom: 8px; }
+.idemo-hero h1 { font-size: clamp(30px, 5vw, 48px); line-height: 1.1; letter-spacing: -0.02em; margin: 0 0 16px; max-width: 760px; }
+.idemo-hero p:last-child { color: var(--slate); font-size: 18px; line-height: 1.55; max-width: 720px; margin: 0; }
+.idemo-grid { max-width: 1040px; margin: 0 auto; padding: 0 16px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.idemo-panel { background: var(--white); border: 1px solid var(--mist); border-radius: 16px; padding: 28px; }
+.idemo-panel h2 { font-size: 22px; margin: 0 0 6px; }
+.idemo-step { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--teal); margin: 0 0 10px; }
+.idemo-panel .idemo-step:not(:first-child) { margin-top: 24px; }
+.idemo-muted { color: var(--slate); font-size: 14px; line-height: 1.5; margin: 0; }
+.idemo-center { text-align: center; margin-top: 12px; }
+.idemo-tabs { display: flex; gap: 4px; background: var(--cloud); border-radius: 10px; padding: 4px; margin: 18px 0 14px; }
+.idemo-tabs button { flex: 1; border: 0; background: transparent; border-radius: 8px; padding: 10px 8px; font: inherit; font-weight: 600; font-size: 14px; color: var(--slate); cursor: pointer; }
+.idemo-tabs button[aria-selected="true"] { background: var(--navy); color: #fff; }
+.idemo-field { display: grid; gap: 6px; font-size: 14px; font-weight: 600; }
+.idemo-field select, .idemo-total input, .idemo-search {
+  font: inherit; font-weight: 400; color: var(--navy); background: var(--white);
+  border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; width: 100%; box-sizing: border-box;
+}
+.idemo-points { margin: 18px 0 0; padding-left: 20px; color: var(--slate); font-size: 14px; line-height: 1.55; }
+.idemo-points li + li { margin-top: 6px; }
+.idemo-panel h2 + .idemo-code { margin-top: 12px; }
+.idemo-field + h2, .idemo-tabs + h2 { margin-top: 28px; }
+.idemo-code { margin: 0; background: var(--navy); color: #e8e9f7; border-radius: 10px; padding: 14px 16px; font-size: 13px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.idemo-product { display: flex; gap: 20px; align-items: center; margin-bottom: 20px; }
+.idemo-art { flex: none; width: 120px; height: 120px; border-radius: 14px; background: linear-gradient(135deg, var(--teal), var(--blue)); color: #fff; display: grid; place-items: center; font-size: 56px; }
+.idemo-total { display: flex; align-items: center; gap: 6px; font-size: 22px; font-weight: 700; margin-top: 10px; max-width: 160px; }
+.idemo-total input { font-size: 18px; font-weight: 600; }
+.idemo-checkout {
+  display: block; width: 100%; min-height: 50px; border: 0; border-radius: 10px;
+  background: var(--teal); color: #fff; font: inherit; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 8px;
+}
+.idemo-checkout:hover:not(:disabled) { background: var(--navy); }
+.idemo-checkout:disabled { opacity: 0.5; cursor: default; }
+.idemo-footer { max-width: 1040px; margin: 32px auto 0; padding: 0 16px; display: flex; flex-wrap: wrap; gap: 20px; font-size: 14px; }
+.idemo-footer a { color: var(--teal); font-weight: 600; }
+.idemo-error { color: var(--error); font-size: 14px; margin: 12px 0 0; }
+.idemo-hero + .idemo-error { max-width: 1040px; margin: 0 auto 16px; padding: 0 16px; }
+
+.idemo-overlay { position: fixed; inset: 0; background: rgb(30 36 102 / 0.45); display: grid; place-items: center; padding: 16px; z-index: 50; }
+.idemo-modal { background: var(--white); width: 100%; max-width: 440px; max-height: calc(100vh - 32px); overflow-y: auto; border-radius: 18px; padding: 24px; box-sizing: border-box; box-shadow: 0 20px 60px rgb(30 36 102 / 0.3); }
+.idemo-modal:focus { outline: none; }
+.idemo-modal h2 { font-size: 18px; margin: 16px 0 12px; }
+.idemo-modal-head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--mist); padding-bottom: 14px; }
+.idemo-amount { font-size: 28px; font-weight: 700; margin: 2px 0 0; font-variant-numeric: tabular-nums; }
+.idemo-close { border: 0; background: var(--cloud); width: 34px; height: 34px; border-radius: 50%; font-size: 20px; cursor: pointer; color: var(--navy); }
+.idemo-list { list-style: none; margin: 10px 0 0; padding: 0; max-height: 340px; overflow-y: auto; border: 1px solid var(--mist); border-radius: 10px; }
+.idemo-list li + li { border-top: 1px solid var(--mist); }
+.idemo-list button { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 12px; border: 0; background: transparent; font: inherit; color: var(--navy); cursor: pointer; text-align: left; }
+.idemo-list button:hover { background: var(--cloud); }
+.idemo-tok { flex: 1; min-width: 0; display: grid; }
+.idemo-tok span { color: var(--slate); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.idemo-tag { font-style: normal; font-size: 11px; font-weight: 600; color: var(--mint); margin-left: 4px; }
+.idemo-approx { color: var(--slate); font-size: 13px; font-variant-numeric: tabular-nums; }
+.idemo-hint { color: var(--slate); font-size: 13px; margin: 10px 0 0; }
+.idemo-back { border: 0; background: none; padding: 0; margin-top: 14px; color: var(--teal); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.idemo-quote { margin: 0 0 12px; }
+.idemo-quote > div { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--mist); font-size: 14px; }
+.idemo-quote dt { color: var(--slate); flex: none; }
+.idemo-quote dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+.idemo-quote dd span { color: var(--slate); }
+.idemo-live { text-align: center; font-size: 12px; color: var(--slate); margin: 8px 0 0; }
+.idemo-progress { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.idemo-progress li { position: relative; padding-left: 32px; font-size: 14px; line-height: 1.5; color: var(--slate); }
+.idemo-progress li::before { content: ""; position: absolute; left: 0; top: 1px; width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--mist); box-sizing: border-box; }
+.idemo-progress li[data-state="active"] { color: var(--navy); font-weight: 600; }
+.idemo-progress li[data-state="active"]::before { border-color: var(--teal); border-top-color: transparent; animation: idemo-spin 0.8s linear infinite; }
+.idemo-progress li[data-state="done"] { color: var(--navy); }
+.idemo-progress li[data-state="done"]::before { content: "✓"; background: var(--teal); border-color: var(--teal); color: #fff; font-size: 12px; display: grid; place-items: center; }
+@keyframes idemo-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .idemo-progress li[data-state="active"]::before { animation: none; border-top-color: var(--teal); } }
+.idemo-receipt { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--mist); }
+.idemo-receipt p { font-size: 14px; line-height: 1.55; margin: 0 0 8px; }
+
+@media (max-width: 780px) {
+  .idemo-grid { grid-template-columns: minmax(0, 1fr); }
+  .idemo-panel { padding: 20px; }
+  .idemo-product { gap: 14px; }
+  .idemo-art { width: 84px; height: 84px; font-size: 40px; }
+  .idemo-hero { padding-top: 32px; }
+}
+
+/* Token marks (token-icon.tsx); the same rules as checkout.css. */
+.idemo .tk-icon::before { content: attr(data-glyph); }
+.idemo .tk-icon { display: inline-grid; place-items: center; flex: none; border-radius: 50%; font-weight: 750; letter-spacing: -0.02em; }

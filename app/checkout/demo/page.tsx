@@ -1,11 +1,11 @@
-import { Checkout } from "../[sessionId]/view";
+import { IntentsDemo } from "./intents-demo";
 
 export const metadata = {
   title: "Live Checkout Demo | PayRouta",
   description:
-    "Test PayRouta's unified checkout experience with automatic provider routing and instant confirmation.",
+    "Pay with any token on any chain, from any wallet, through NEAR Intents. Merchants get paid exactly in the stablecoin, token or currency they choose.",
 };
 
 export default function CheckoutDemoPage() {
-  return <Checkout id="demo" />;
+  return <IntentsDemo />;
 }
