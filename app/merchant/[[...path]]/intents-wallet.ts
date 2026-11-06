@@ -8,7 +8,7 @@ import { nonceBytes, type Nep413Payload } from "@/lib/intents/signing";
 
 export type Signer =
   | { kind: "near"; accountId: string; wallet: NearWalletBase }
-  | { kind: "evm"; accountId: string; provider: WalletProvider };
+  | { kind: "evm"; accountId: string; provider: WalletProvider; source?: "privy" };
 
 let connector: Promise<NearConnector> | null = null;
 function near() {

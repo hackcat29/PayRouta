@@ -59,6 +59,17 @@ const statusText: Record<string, string> = {
   EXPIRED: "Not signed in time",
 };
 
+export type CryptoBalanceProps = {
+  orgId: string;
+  environment: string;
+  overview: Overview;
+  payouts: Payout[];
+  settleOptions: Settle[];
+  tokens: Token[];
+  canConfigure: boolean;
+  cashOut?: CashOutView;
+};
+
 export function CryptoBalance({
   orgId,
   environment,
@@ -68,15 +79,11 @@ export function CryptoBalance({
   tokens,
   canConfigure,
   cashOut,
-}: {
-  orgId: string;
-  environment: string;
-  overview: Overview;
-  payouts: Payout[];
-  settleOptions: Settle[];
-  tokens: Token[];
-  canConfigure: boolean;
-  cashOut?: CashOutView;
+  walletControls,
+  embeddedSigner,
+}: CryptoBalanceProps & {
+  walletControls?: (connect: (make: () => Promise<Signer>) => Promise<void>, disabled: boolean) => React.ReactNode;
+  embeddedSigner?: (accountId: string) => Promise<Signer | null>;
 }) {
   const router = useRouter();
   const [evmWallets, setEvmWallets] = useState<DiscoveredWallet[]>([]);
@@ -121,9 +128,11 @@ export function CryptoBalance({
   }
   // The wallet that controls the connected account.
   async function ownSigner(make?: () => Promise<Signer>) {
-    if (signer && signer.accountId === account?.accountId) return signer;
-    const evm = () => {
-      if (!evmWallets.length) throw new Error("Open this page in a browser with your EVM wallet installed.");
+    if (signer && (signer.kind === "near" || signer.source !== "privy") && signer.accountId === account?.accountId) return signer;
+    const evm = async () => {
+      const embedded = account && await embeddedSigner?.(account.accountId);
+      if (embedded) return embedded;
+      if (!evmWallets.length) throw new Error("Sign in to your PayRouta wallet, or connect the external wallet that owns this account.");
       return connectEvm(evmWallets[0].provider);
     };
     const s = await (make ?? (account?.standard === "erc191" ? evm : connectNear))();
@@ -177,6 +186,7 @@ export function CryptoBalance({
                 );
               })}
             </fieldset>
+            {walletControls?.(connect, busy || !settle.length)}
             <div className="ms-link-actions">
               <button className="ms-btn primary" disabled={busy || !settle.length} onClick={() => void connect(connectNear)}>
                 {busy ? "Waiting for your wallet…" : "Connect a NEAR wallet"}
@@ -203,6 +213,7 @@ export function CryptoBalance({
 
   return (
     <>
+      {canConfigure && walletControls?.(connect, busy)}
       <section className="ms-flush">
         <div className="ms-card-head">
           <div>

@@ -11,7 +11,7 @@ import { SwapSettlement } from "./swap-settlement";
 import { cashOutView } from "@/lib/treasury/offramp/cashout";
 import { Stablecoins } from "./stablecoins";
 import { stablecoinOverview } from "@/lib/merchant/stablecoins";
-import { CryptoBalance } from "./intents";
+import { CryptoBalance } from "./crypto-balance";
 import { AgentKeys } from "./agents";
 import { agentKeys, agentSpending } from "@/lib/agents/keys";
 import { intentsOverview } from "@/lib/intents/account";
@@ -534,6 +534,7 @@ export default async function Page({
     const listed = overview.account ? await oneClickTokens().catch(() => []) : [];
     content = (
       <CryptoBalance
+        portalUserId={user.user.id}
         orgId={orgId}
         environment={env}
         overview={overview}

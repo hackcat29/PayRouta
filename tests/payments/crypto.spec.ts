@@ -455,7 +455,7 @@ test("crypto checkout selects ETH Base or exact PEPE Ethereum and sends the chos
     };
     win.walletCalls = [];
     win.ethereum = {
-      request: async (q) => {
+      request: async (q: { method: string; params?: unknown[] }) => {
         win.walletCalls.push(q);
         return q.method === "eth_chainId"
           ? "0x1"

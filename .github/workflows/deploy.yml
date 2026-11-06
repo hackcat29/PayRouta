@@ -87,11 +87,13 @@ jobs:
           # once the secret key is on the server; the site key is read at build.
           TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
           NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ secrets.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+          NEXT_PUBLIC_PRIVY_APP_ID: ${{ vars.NEXT_PUBLIC_PRIVY_APP_ID }}
+          NEXT_PUBLIC_PRIVY_CLIENT_ID: ${{ vars.NEXT_PUBLIC_PRIVY_CLIENT_ID }}
         with:
           host: ${{ secrets.CONTABO_HOST }}
           username: ${{ secrets.CONTABO_USER }}
           key: ${{ secrets.CONTABO_SSH_KEY }}
-          envs: SHA,OPENSANCTIONS_API_KEY,TURNSTILE_SECRET_KEY,NEXT_PUBLIC_TURNSTILE_SITE_KEY
+          envs: SHA,OPENSANCTIONS_API_KEY,TURNSTILE_SECRET_KEY,NEXT_PUBLIC_TURNSTILE_SITE_KEY,NEXT_PUBLIC_PRIVY_APP_ID,NEXT_PUBLIC_PRIVY_CLIENT_ID
           script_stop: true
           script: |
             echo "==> Deploy started for SHA: $SHA"
@@ -132,6 +134,8 @@ jobs:
             }
             sync_env TURNSTILE_SECRET_KEY "${TURNSTILE_SECRET_KEY:-}"
             sync_env NEXT_PUBLIC_TURNSTILE_SITE_KEY "${NEXT_PUBLIC_TURNSTILE_SITE_KEY:-}"
+            sync_env NEXT_PUBLIC_PRIVY_APP_ID "${NEXT_PUBLIC_PRIVY_APP_ID:-}"
+            sync_env NEXT_PUBLIC_PRIVY_CLIENT_ID "${NEXT_PUBLIC_PRIVY_CLIENT_ID:-}"
             if grep -q '^OPENSANCTIONS_API_KEY=.' "$ROOT/.env"; then
               echo "==> OpenSanctions key present: automated merchant screening on"
             else
