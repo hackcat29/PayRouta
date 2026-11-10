@@ -31,11 +31,14 @@ export async function stepUp(h?: Headers) {
   const grant = await db.stepUp.findUnique({
     where: { sessionId: session.session.id },
   });
-  if (!session.user.twoFactorEnabled || !grant || grant.expiresAt < new Date())
-    throw new PortalError(
-      "Verify your authenticator in Settings before this sensitive action",
-      403,
-    );
+  // Two-step verification is an authenticator app or a passkey (or both);
+  // a confirmation with either lasts 15 minutes (lib/portal/step-up.ts).
+  const protectedAccount =
+    !!session.user.twoFactorEnabled ||
+    (await db.passkey.count({ where: { userId: session.user.id } })) > 0;
+  if (!protectedAccount) throw new PortalError("TWO_STEP_REQUIRED", 403);
+  if (!grant || grant.expiresAt < new Date())
+    throw new PortalError("STEP_UP_REQUIRED", 403);
   return session;
 }
 export async function internal(admin = false, h?: Headers) {

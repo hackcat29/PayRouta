@@ -1,4 +1,5 @@
 "use client";
+import { errorText } from "@/lib/error-copy";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 export function OperatorAction({
@@ -24,7 +25,7 @@ export function OperatorAction({
             body: JSON.stringify({ ...command, reason: form.get("reason") }),
           });
           const body = await response.json();
-          setMessage(response.ok ? "Saved." : body.error || "Unable to save");
+          setMessage(response.ok ? "Saved." : errorText(body, response.status));
           if (response.ok) router.refresh();
         } catch {
           setMessage("Request unavailable");

@@ -32,8 +32,8 @@ export async function stablecoinCandidates(
   // review: only its crypto requirements (lib/merchant/go-live.ts).
   if (environment === "production" && (await cryptoBlockers(client, orgId)).length) return [];
   const out = [];
-  // While bank settlement is on it takes its token's checkouts, whichever
-  // settlement was set up last.
+  // While settlement straight to the bank or an address is on, it takes its
+  // token's checkouts, whichever settlement was set up last.
   const toBank = new Set<string>(),
     toIntents = new Map<string, string>();
   for (const integration of integrations) {
@@ -67,6 +67,12 @@ export async function stablecoinCandidates(
         account.accountId !== c.account
       )
         continue;
+    } else if (c.adapter === "near-intents-address") {
+      // Straight to the merchant's address: while that address is the
+      // active settlement.
+      const s = await client.settlementAddress.findUnique({ where: { id: c.settlementAddressId } });
+      if (!s || !s.active || s.orgId !== orgId || s.environment !== environment || s.address !== c.address || s.assetId !== c.destination.assetId) continue;
+      toBank.add(`${c.network}|${c.identifier}`);
     } else if (c.adapter === "near-intents-offramp") {
       // Straight to the bank: eligible while the cash-out account is ready
       // and still funded at this address.
@@ -105,7 +111,7 @@ export async function stablecoinCandidates(
       integrationId: integration.id,
       method,
       name: `${tokenAsset(c.network, c.identifier)!.symbol} on ${c.network}`,
-      intents: c.adapter === "near-intents-deposit" || c.adapter === "near-intents-offramp",
+      intents: c.adapter === "near-intents-deposit" || c.adapter === "near-intents-offramp" || c.adapter === "near-intents-address",
       asset: expected,
     });
   }

@@ -196,5 +196,7 @@ test("merchant workspace: auth, environment isolation, payment table and mobile 
   await page.getByRole("button", { name: "Open menu" }).focus();
   await page.keyboard.press("Tab");
   await page.keyboard.press("Tab");
+  await expect(page.getByRole("switch", { name: "Dark mode" })).toBeFocused();
+  await page.keyboard.press("Tab");
   await expect(page.getByRole("switch", { name: "Test mode" })).toBeFocused();
 });

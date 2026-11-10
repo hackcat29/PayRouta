@@ -21,6 +21,8 @@ import { isDepositAdapter, stablecoinDepositConfig } from "../lib/blockchain/dep
 import type { DepositBinding } from "../lib/blockchain/deposit-types";
 import { directFeeInAsset } from "../lib/payments/pricing";
 import { offrampConfigSchema, offrampExecutionAdapter } from "../lib/providers/adapters/native/near-intents-offramp";
+import { addressConfigSchema, addressExecutionAdapter } from "../lib/providers/adapters/native/near-intents-address";
+import { addressFits } from "../lib/intents/settlement-address";
 
 const ok = (body: unknown) => ({ status: 200, headers: {}, body: JSON.stringify(body) });
 const baseUsdc = { network: "eip155:8453", identifier: "erc20:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913" };
@@ -435,6 +437,85 @@ test("settled straight to the bank: confirmed only by the swap's own finalized U
     if (saved.mode === undefined) delete process.env.PAYMENT_RPC_MODE;
     else process.env.PAYMENT_RPC_MODE = saved.mode;
   }
+});
+
+test("settled to an address on any chain: Tron is confirmed by 1Click's delivery, Base is read back on-chain", async () => {
+  const usdc = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913";
+  const run = async (destination: { assetId: string; blockchain: string; symbol: "USDT" | "USDC"; decimals: number; contract: string | null }, address: string, amountOut: string, fee: string, rpcAmount?: bigint) => {
+    const delivery = destination.blockchain === "tron" ? "a".repeat(64) : `0x${"d".repeat(64)}`;
+    const http = async (base: string, o: { path: string; body?: string }) => {
+      if (base === oneClickBase) return ok({ status: "SUCCESS", swapDetails: { destinationChainTxHashes: [{ hash: delivery }] } });
+      const rpc = JSON.parse(o.body!);
+      const result =
+        rpc.method === "eth_chainId"
+          ? "0x2105"
+          : rpc.method === "eth_getBlockByNumber"
+            ? { number: "0x64" }
+            : {
+                status: "0x1",
+                transactionHash: delivery,
+                blockHash: `0x${"e".repeat(64)}`,
+                blockNumber: "0x64",
+                logs: [
+                  {
+                    address: destination.contract,
+                    topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", `0x${"0".repeat(64)}`, `0x${"0".repeat(24)}${address.slice(2).toLowerCase()}`],
+                    data: `0x${(rpcAmount ?? BigInt(amountOut)).toString(16).padStart(64, "0")}`,
+                    logIndex: "0x2",
+                  },
+                ],
+              };
+      return ok({ jsonrpc: "2.0", id: rpc.id, result });
+    };
+    const config = { mode: "NATIVE", adapter: "near-intents-address", environment: "production", network: "eip155:8453", identifier: `erc20:${usdc}`, settlementAddressId: "sa_1", destination, address };
+    assert.ok(addressConfigSchema.safeParse(config).success);
+    let binding: DepositBinding | null = null;
+    const claims: { txHash: string; logIndex: string; amount: string }[] = [];
+    const swaps: IntentsSwap[] = [
+      { id: "s1", depositAddress: "dep1", depositMemo: null, destinationAsset: destination.assetId, amountOut, appFeeMinor: fee, status: "PENDING_DEPOSIT", details: null, checkedAt: null },
+    ];
+    const adapter = addressExecutionAdapter(config, {
+      http,
+      credentials: { get: async () => "" },
+      now: () => new Date("2026-11-10T12:00:00Z"),
+      deposits: {
+        allocate: async (input) => (binding = { ...input, address: input.addresses[0], integrationId: "int_1" }),
+        find: async () => binding,
+        claim: async (_b, evidence) => void claims.push(evidence),
+      },
+      swaps: { forAttempt: async (_id, type) => (assert.equal(type, "ADDRESS"), swaps), record: async () => {} },
+    });
+    const attempt = { id: "att_1", key: "key_1", environment: "production" };
+    const created = await adapter.create(attempt, { reference: "ORDER-1", amount: "25", asset: { kind: "blockchain", network: "eip155:8453", identifier: `erc20:${usdc}` }, selectedMethod: "stablecoin", precision: 6 });
+    assert.ok(factAction.safeParse(created.action).success);
+    return { status: await adapter.status(attempt), claims };
+  };
+  const saved = { key: process.env.ALCHEMY_RPC_KEY_REF, mode: process.env.PAYMENT_RPC_MODE };
+  delete process.env.ALCHEMY_RPC_KEY_REF;
+  process.env.PAYMENT_RPC_MODE = "public";
+  try {
+    // USDT on Tron (6 decimals): 25 less the 1.5% fee, confirmed from 1Click.
+    const tron = await run({ assetId: "nep141:tron-usdt.omft.near", blockchain: "tron", symbol: "USDT", decimals: 6, contract: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t" }, "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf", "24625000", "375000");
+    assert.equal(tron.status!.state, "Confirmed");
+    assert.equal(tron.claims[0].logIndex, "1click");
+    // USDC on Base: read from the chain.
+    const base = await run({ assetId: "nep141:base-usdc.omft.near", blockchain: "base", symbol: "USDC", decimals: 6, contract: usdc }, `0x${"b".repeat(40)}`, "24625000", "375000");
+    assert.equal(base.status!.state, "Confirmed");
+    assert.equal(base.claims[0].logIndex, "0x2");
+    await assert.rejects(run({ assetId: "nep141:base-usdc.omft.near", blockchain: "base", symbol: "USDC", decimals: 6, contract: usdc }, `0x${"b".repeat(40)}`, "24625000", "375000", 25000000n), /DEPOSIT_AMOUNT_MISMATCH/);
+  } finally {
+    if (saved.key === undefined) delete process.env.ALCHEMY_RPC_KEY_REF;
+    else process.env.ALCHEMY_RPC_KEY_REF = saved.key;
+    if (saved.mode === undefined) delete process.env.PAYMENT_RPC_MODE;
+    else process.env.PAYMENT_RPC_MODE = saved.mode;
+  }
+  // Addresses are checked against their network where its shape is known.
+  assert.ok(addressFits("tron", "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf"));
+  assert.ok(!addressFits("tron", `0x${"b".repeat(40)}`));
+  assert.ok(addressFits("base", `0x${"b".repeat(40)}`));
+  assert.ok(!addressFits("base", "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf"));
+  assert.ok(addressFits("near", "shop.near"));
+  assert.ok(!addressFits("sol", "not-a-key"));
 });
 
 // The checkout's one crypto question: what do you pay with?

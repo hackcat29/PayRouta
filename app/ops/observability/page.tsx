@@ -1,3 +1,4 @@
+import { VerifyGate } from "@/components/portal/verify-gate";
 import Link from "next/link";
 import { internal } from "@/lib/portal/access";
 import { PortalError } from "@/lib/portal/domain";
@@ -13,12 +14,7 @@ export default async function Page({
     await internal();
   } catch (error) {
     if (error instanceof PortalError)
-      return (
-        <div className="portal p-simple">
-          <h1>Operations verification required</h1>
-          <Link href="/provider/settings">Verify your authenticator</Link>
-        </div>
-      );
+      return <VerifyGate code={error.message} />;
     throw error;
   }
   const environment =

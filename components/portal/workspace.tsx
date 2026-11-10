@@ -9,7 +9,7 @@ import { BrandLogo } from "../brand-logo";
 import { Action, DateText, Field, JsonView, Modal, Table } from "./ui";
 import { Badge, Empty, Kpi, Panel } from "./provider-ui";
 import { CapabilityForm, CompanyForm, CoverageForm, Execute, IntegrationForm, SettlementForm } from "./forms";
-import { PasskeySettings, SecuritySettings } from "./auth-screen";
+import { AccountSecurity } from "./account-security";
 import { Compliance, Credentials, Team } from "./workspace-tools";
 import { ProviderShell } from "./provider-shell";
 import { SignOutButton } from "./sign-out";
@@ -105,16 +105,7 @@ export function Workspace({
       </button>
     </div>
   );
-  const security = (
-    <>
-      <Panel title="Two-step verification">
-        <SecuritySettings enabled={!!data.me.twoFactorEnabled} execute={execute} />
-      </Panel>
-      <Panel title="Passkeys">
-        <PasskeySettings />
-      </Panel>
-    </>
-  );
+  const security = <AccountSecurity twoFactorEnabled={!!data.me.twoFactorEnabled} />;
 
   if (!data.org) {
     const foot = (
@@ -147,7 +138,7 @@ export function Workspace({
               {security}
               {data.internalRole && (
                 <Panel title="Internal access">
-                  <p>{data.internalRole}. Verify a fresh authenticator code above before using the operations console.</p>
+                  <p>{data.internalRole}</p>
                   <Link className="ms-btn primary" href="/ops/applications">
                     Open operations console
                   </Link>
@@ -456,7 +447,7 @@ export function Workspace({
           {security}
           {data.internalRole && (
             <Panel title="Internal access">
-              <p>{data.internalRole}. A fresh authenticator check is required.</p>
+              <p>{data.internalRole}</p>
               <Link className="ms-btn" href="/ops/applications">
                 Open operations console
               </Link>

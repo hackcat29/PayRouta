@@ -2035,3 +2035,26 @@ model MerchantLogo {
   updatedBy String
   updatedAt DateTime @updatedAt
 }
+
+// Crypto checkouts settled straight to an address the merchant gives, on any
+// chain NEAR Intents delivers to (near-intents-address). One per business
+// and mode; `active` is off when they settle another way.
+model SettlementAddress {
+  id          String   @id @default(cuid())
+  orgId       String
+  environment String
+  // The 1Click token delivered: its asset id, chain, symbol, decimals and
+  // contract (as the 1Click token list gives them).
+  assetId     String
+  blockchain  String
+  symbol      String
+  decimals    Int
+  contract    String?
+  address     String
+  active      Boolean  @default(true)
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([orgId, environment])
+}

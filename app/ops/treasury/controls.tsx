@@ -3,6 +3,7 @@
 // opening, PayRouta companies and platform accounts, reconciliation re-runs.
 // All actions require an Operations admin with a recent authenticator check.
 import { useState } from "react";
+import { errorText } from "@/lib/error-copy";
 import { useRouter } from "next/navigation";
 import { currencyExponent } from "@/lib/partners/money";
 
@@ -21,7 +22,7 @@ function useCommand() {
       });
       const data = await response.json();
       if (!response.ok) {
-        setMessage({ text: String(data.error || "Request failed"), error: true });
+        setMessage({ text: errorText(data, response.status), error: true });
         return null;
       }
       setMessage({ text: done, error: false });
@@ -520,7 +521,7 @@ export function DocumentReview({ evidenceId, filename, clean }: { evidenceId: st
       body: JSON.stringify(body),
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(String(data.error || "Request failed"));
+    if (!response.ok) throw new Error(errorText(data, response.status));
     return data;
   }
   return (

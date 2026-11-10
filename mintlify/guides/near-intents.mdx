@@ -24,7 +24,7 @@ In the dashboard, open **Balances → Crypto**.
    An EVM address is its own NEAR Intents account; a Solana address owns the account named by its key in hex.
 3. Sign the message the wallet shows. It proves you control the account and does not move funds. PayRouta checks the signature and, for a named NEAR account, that the signing key has full access to it.
 
-Connecting needs recent authenticator verification. Live checkouts settle into it once you've gone live with crypto under [Activate payments](/guides/activation): a name, a country, the merchant terms and an automatic sanctions check, with no review. Connecting another account replaces the first; disconnecting stops new checkouts settling there and leaves the funds where they are.
+Connecting asks you to confirm it's you (a passkey or authenticator code). Live checkouts settle into it once you've gone live with crypto under [Activate payments](/guides/activation): a name, a country, the merchant terms and an automatic sanctions check, with no review. Connecting another account replaces the first; disconnecting stops new checkouts settling there and leaves the funds where they are.
 
 A named NEAR account must tell NEAR Intents once which key signs its intents. **Balances → Crypto** shows a **Register wallet key** button until it has; it sends one transaction from your wallet with a small NEAR network fee. EVM addresses need no registration.
 
@@ -36,6 +36,14 @@ A named NEAR account must tell NEAR Intents once which key signs its intents. **
 4. Settlement is recorded as for any other crypto payment, with the NEAR transaction as evidence.
 
 If the swap can't complete, NEAR Intents refunds the customer on their own chain, and they can pay another way on the same checkout.
+
+## Settle to an address on any chain
+
+No wallet to connect: under **Settle in**, choose **An address on any chain**, pick the stablecoin and network (USDT on Tron, USDC on Solana, USDT on TON, USDC on Base and every other chain NEAR Intents delivers to), and paste your address twice.
+
+Checkouts stay priced in USDC; each one delivers the same amount of your chosen stablecoin, less PayRouta's fee, straight to that address. PayRouta confirms a payment only by its own swap's delivery: read back from the chain on EVM networks and Solana, and on other chains taken from NEAR Intents' report of the delivery transaction, which is kept as evidence. Settling to an address turns off settling to your bank, and the other way round. Refunds to customers are sent from that address, outside PayRouta.
+
+Send only to an address you control on the network you chose: a payment to a wrong address can't be recovered.
 
 ## Settle in your bank
 

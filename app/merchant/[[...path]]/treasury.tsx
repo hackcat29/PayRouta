@@ -2,9 +2,9 @@
 // Merchant-side treasury controls: account activation (identity and payout
 // details, terms, submission), payouts and refunds. Every call goes to
 // /api/treasury; sensitive ones need a recent authenticator check (step-up).
+import { StepUpLink } from "@/components/portal/step-up";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { countries } from "@/lib/portal/domain";
 import { errorText, offline } from "@/lib/error-copy";
 import { bankFields, payoutCurrency } from "@/lib/merchant/payout-banks";
@@ -25,7 +25,7 @@ function useTreasury(orgId: string) {
       const data = await response.json().catch(() => null);
       if (!response.ok) {
         const code = String(data?.error || "");
-        setMessage({ text: errors[code] ?? errorText(data, response.status), error: true, stepUp: /authenticator/i.test(code) });
+        setMessage({ text: errors[code] ?? errorText(data, response.status), error: true, stepUp: code === "STEP_UP_REQUIRED" || code === "TWO_STEP_REQUIRED" });
         return null;
       }
       setMessage({ text: done, error: false });
@@ -66,7 +66,7 @@ function Message({ message }: { message: { text: string; error: boolean; stepUp?
   return (
     <p role={message.error ? "alert" : "status"} className={`tr-message ${message.error ? "error" : ""}`}>
       {message.text}{" "}
-      {message.stepUp && <Link href="/provider/settings">Verify your authenticator</Link>}
+      {message.stepUp && <StepUpLink />}
     </p>
   );
 }

@@ -6,6 +6,7 @@ import { chain } from "./chains";
 import { nativeDepositConfigSchema } from "../providers/adapters/native/evm-native-deposit";
 import { intentsDepositConfigSchema } from "../providers/adapters/native/near-intents-deposit";
 import { offrampConfigSchema } from "../providers/adapters/native/near-intents-offramp";
+import { addressConfigSchema } from "../providers/adapters/native/near-intents-address";
 // Receive-address pools, plus settlement into a merchant's NEAR Intents
 // account (one account, no address pool) or straight to their bank through
 // a cash-out partner (one funding address).
@@ -16,6 +17,7 @@ export const stablecoinDepositConfig = z.union([
   stellarDepositConfigSchema,
   intentsDepositConfigSchema,
   offrampConfigSchema,
+  addressConfigSchema,
 ]);
 export const depositAdapters = [
   "evm-native-deposit",
@@ -24,6 +26,7 @@ export const depositAdapters = [
   "stellar-deposit",
   "near-intents-deposit",
   "near-intents-offramp",
+  "near-intents-address",
 ];
 export function isDepositAdapter(adapter?: string) {
   return depositAdapters.includes(adapter || "");

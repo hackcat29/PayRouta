@@ -25,6 +25,46 @@
   --slate: var(--muted);
   --mist: var(--line);
   --radius: 10px;
+  /* Quiet surfaces: code, neutral pills, table hovers. */
+  --chip: #eef1f2;
+  /* Dark fills that stay dark in both themes: the sidebar, initials. */
+  --side: #1e2466;
+  --fill-ink: #1e2466;
+  --cloud: var(--canvas);
+  --danger: var(--bad);
+  --danger-bg: var(--bad-bg);
+  color-scheme: light;
+}
+/* Dark mode for the dashboards (components/portal/theme-toggle.tsx sets
+   data-theme on <html>). Text stays at 4.5:1 or better on its surface. */
+:root[data-theme="dark"] .portal {
+  --ink: #e7e8f6;
+  --ink-2: #c9cbe6;
+  --muted: #a6a9c8;
+  --faint: #9497b9;
+  --line: #2a2e50;
+  --line-2: #3b406c;
+  --canvas: #0d0f22;
+  --card: #161935;
+  --accent: #5058dc;
+  --accent-ink: #b3b8ff;
+  --accent-bg: #23285a;
+  --test: #f5b14a;
+  --test-bg: #3a2a10;
+  --good: #6fd6a0;
+  --good-bg: #133626;
+  --bad: #ff9a90;
+  --bad-bg: #40191a;
+  --warn: #f3c46b;
+  --warn-bg: #3a2c12;
+  --info: #9cc0ff;
+  --info-bg: #182b52;
+  --side: #090b1c;
+  --fill-ink: #2c3275;
+  --test-ink: #f5c87a;
+  --chip: #23274a;
+  --test-line: #5a4318;
+  color-scheme: dark;
 }
 .portal {
   font-family: Inter, Arial, sans-serif;
@@ -85,7 +125,7 @@
 .portal select,
 .portal textarea {
   max-width: 100%;
-  background: white;
+  background: var(--card);
   border: 1px solid #8d90ab;
   border-radius: 7px;
   padding: 10px 12px;
@@ -118,7 +158,7 @@
   width: 238px;
   display: flex;
   flex-direction: column;
-  background: var(--navy);
+  background: var(--fill-ink);
   color: white;
   z-index: 30;
   overflow: auto;
@@ -208,7 +248,7 @@
 }
 .p-topbar {
   height: 74px;
-  background: white;
+  background: var(--card);
   border-bottom: 1px solid var(--mist);
   display: flex;
   align-items: center;
@@ -278,7 +318,7 @@
 .p-icon-button {
   padding: 9px;
   border: 1px solid var(--mist);
-  background: white;
+  background: var(--card);
   border-radius: 7px;
   display: flex;
   align-items: center;
@@ -304,7 +344,7 @@
   min-width: 0;
 }
 .p-panel {
-  background: white;
+  background: var(--card);
   border: 1px solid var(--mist);
   border-radius: 10px;
   padding: 24px;
@@ -391,12 +431,12 @@
   width: auto;
 }
 .p-button.secondary {
-  background: white;
+  background: var(--card);
   color: var(--navy) !important;
   border-color: #a5b6be;
 }
 .p-button.danger {
-  background: white;
+  background: var(--card);
   color: #9f2336 !important;
   border-color: #d4a1aa;
 }
@@ -432,7 +472,7 @@
   align-items: center;
   gap: 14px;
   padding: 17px 0;
-  border-bottom: 1px solid #e8edef;
+  border-bottom: 1px solid var(--line);
 }
 .p-checklist > a:last-child {
   border-bottom: 0;
@@ -784,7 +824,7 @@
 }
 .p-definition > div {
   padding: 10px 0;
-  border-bottom: 1px solid #e8edef;
+  border-bottom: 1px solid var(--line);
 }
 .p-definition dt {
   font-size: 11px;
@@ -825,7 +865,7 @@
   width: min(780px, calc(100vw - 32px));
   max-height: 88vh;
   overflow: auto;
-  background: white;
+  background: var(--card);
   border-radius: 12px;
   padding: 30px;
   z-index: 100;
@@ -851,7 +891,7 @@
   padding: 10px;
   font-size: 14px;
   max-width: 100%;
-  background: white;
+  background: var(--card);
 }
 .p-dialog input[type="checkbox"] {
   width: 16px;
@@ -879,7 +919,7 @@
   min-height: 100vh;
 }
 .p-auth-brand {
-  background: var(--navy);
+  background: var(--fill-ink);
   color: white;
   padding: 50px 55px;
   display: flex;
@@ -906,7 +946,7 @@
   align-items: center;
   justify-content: center;
   padding: 45px 35px;
-  background: #fbfcfc;
+  background: var(--chip);
 }
 .p-auth-card {
   width: 100%;
@@ -980,7 +1020,7 @@
   align-items: center;
   justify-content: center;
   padding: 48px 20px;
-  background: #fbfcfc;
+  background: var(--chip);
 }
 .p-auth-solo .p-auth-card h1 {
   margin-top: 36px;
@@ -1202,7 +1242,7 @@
 }
 .p-sidebar {
   width: 240px;
-  background: #fbfcfc;
+  background: var(--chip);
   color: var(--ink);
   border-right: 1px solid var(--line);
   padding: 4px 0 0;
@@ -1238,7 +1278,7 @@
   font-weight: 500;
 }
 .p-sidebar nav a:hover {
-  background: #eef2f3;
+  background: var(--chip);
   color: var(--ink);
 }
 .p-sidebar nav a.active {
@@ -1288,7 +1328,7 @@
 .p-env {
   border-color: var(--line-2);
   border-radius: 999px;
-  background: white;
+  background: var(--card);
   padding: 0 4px 0 10px;
 }
 .p-env select {
@@ -1339,7 +1379,7 @@
   letter-spacing: -0.02em;
 }
 .p-welcome {
-  background: white;
+  background: var(--card);
   border: 1px solid var(--line);
   border-left: 3px solid var(--accent);
   box-shadow: 0 1px 2px rgba(14, 31, 37, 0.03);
@@ -1365,7 +1405,7 @@
 }
 .p-button.secondary:hover,
 .p-button.danger:hover {
-  background: #f4f7f7;
+  background: var(--chip);
 }
 .p-button.danger {
   color: var(--bad) !important;
@@ -1431,7 +1471,7 @@
 .p-step {
   width: 26px;
   height: 26px;
-  background: white;
+  background: var(--card);
   border: 1.5px solid var(--line-2);
   font-weight: 600;
   font-size: 11.5px;
@@ -1453,10 +1493,10 @@
   border-radius: 999px;
   overflow: hidden;
   appearance: none;
-  background: #edf1f2;
+  background: var(--chip);
 }
 .portal progress::-webkit-progress-bar {
-  background: #edf1f2;
+  background: var(--chip);
 }
 .portal progress::-webkit-progress-value {
   background: var(--accent);
@@ -1575,7 +1615,7 @@
 .p-auth-card {
   width: 100%;
   max-width: 420px;
-  background: white;
+  background: var(--card);
   border: 1px solid var(--line);
   border-radius: 24px;
   padding: 40px;
@@ -1619,12 +1659,12 @@
   max-width: 340px;
   animation: p-card-in 1s cubic-bezier(0.16, 1, 0.3, 1) 0.2s backwards;
 }
-.p-auth-link { display: grid; gap: 6px; padding: 22px; border-radius: 20px; background: #fff; border: 1px solid #e6e1d8; box-shadow: 0 40px 80px -32px rgba(5, 8, 40, 0.7); }
-.p-auth-link-shop { font-size: 12.5px; color: #62668a; }
-.p-auth-link strong { color: #1e2466; }
-.p-auth-link-price { font-family: var(--font-display), Inter, sans-serif; font-size: 32px; font-weight: 700; letter-spacing: -0.04em; color: #1e2466; }
+.p-auth-link { display: grid; gap: 6px; padding: 22px; border-radius: 20px; background: var(--card); border: 1px solid #e6e1d8; box-shadow: 0 40px 80px -32px rgba(5, 8, 40, 0.7); }
+.p-auth-link-shop { font-size: 12.5px; color: var(--muted); }
+.p-auth-link strong { color: var(--ink); }
+.p-auth-link-price { font-family: var(--font-display), Inter, sans-serif; font-size: 32px; font-weight: 700; letter-spacing: -0.04em; color: var(--ink); }
 .p-auth-link-ways { display: flex; flex-wrap: wrap; gap: 5px; }
-.p-auth-link-ways i { font-style: normal; font-size: 12px; padding: 2px 9px; border: 1px solid #e6e1d8; border-radius: 999px; color: #1e2466; }
+.p-auth-link-ways i { font-style: normal; font-size: 12px; padding: 2px 9px; border: 1px solid #e6e1d8; border-radius: 999px; color: var(--ink); }
 .p-auth-link-ways i.credit { background: #fff2d9; border-color: #f5b700; font-weight: 600; }
 .p-auth-link-pay { margin-top: 8px; padding: 12px; border-radius: 999px; background: #f26b1d; color: #1e2466; text-align: center; font-weight: 600; font-size: 14px; }
 .p-auth-steps { position: relative; z-index: 2; margin: 0; padding: 0; list-style: none; counter-reset: step; display: grid; gap: 14px; max-width: 360px; }

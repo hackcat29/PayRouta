@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { VerifyGate } from "@/components/portal/verify-gate";
 import { notFound, redirect } from "next/navigation";
 import { Ops } from "@/components/portal/ops";
 import { opsData } from "@/lib/portal/queries";
@@ -31,15 +31,7 @@ export default async function OpsPage({
     if (e instanceof PortalError) {
       if (e.status === 401) redirect("/provider/sign-in");
       if (e.status === 404) notFound();
-      return (
-        <div className="portal p-simple">
-          <h1>Internal access requires verification</h1>
-          <p>{e.message}</p>
-          <Link className="p-button" href="/provider/settings">
-            Open account security
-          </Link>
-        </div>
-      );
+      return <VerifyGate code={e.message} />;
     }
     throw e;
   }

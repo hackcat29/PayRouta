@@ -665,12 +665,13 @@ test("access request, ops approval, invited sign-up, MFA and recipient-bound inv
   await expect(page.getByLabel("Legal name", { exact: true })).toHaveValue(
     "Saved incomplete legal name",
   );
+  // Two-step verification: scan the QR code, confirm a code, save the
+  // recovery codes; then confirm it's you for sensitive actions.
   await page.goto(`/provider/settings?org=${membership.orgId}`);
-  await page.getByLabel("Current password").fill("New-Local-Account-123!");
-  await page.getByRole("button", { name: "Set up authenticator" }).click();
-  await expect(
-    page.getByText("Authenticator secret", { exact: true }),
-  ).toBeVisible();
+  await page.getByRole("button", { name: "Set up", exact: true }).click();
+  await page.getByLabel("Your password").fill("New-Local-Account-123!");
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(page.getByRole("img", { name: "QR code for your authenticator app" })).toBeVisible();
   const factor = await db.twoFactor.findFirstOrThrow({
     where: { userId: user.id },
   });
@@ -678,13 +679,13 @@ test("access request, ops approval, invited sign-up, MFA and recipient-bound inv
     key: process.env.BETTER_AUTH_SECRET!,
     data: factor.secret,
   });
-  await page.getByLabel("Authenticator code").fill(await createOTP(raw).totp());
-  await page
-    .getByRole("button", { name: "Verify for sensitive actions" })
-    .click();
-  await expect(page.getByRole("status")).toContainText(
-    "authorized for 15 minutes",
-  );
+  await page.getByLabel("6-digit code").fill(await createOTP(raw).totp());
+  await page.getByRole("button", { name: "Turn on", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Save your recovery codes" })).toBeVisible();
+  await page.getByRole("button", { name: "I've saved them" }).click();
+  expect((await db.user.findUniqueOrThrow({ where: { id: user.id } })).twoFactorEnabled).toBe(true);
+  r = await cmd(page.request, { action: "step-up", code: await createOTP(raw).totp() });
+  expect(await r.text()).toContain("authorized for 15 minutes");
   r = await cmd(page.request, {
     action: "member-remove",
     orgId: membership.orgId,

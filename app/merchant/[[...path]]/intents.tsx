@@ -3,6 +3,7 @@
 // payouts.ts). Connect an account you own, choose the stablecoins checkouts
 // settle in, see what it holds, and pay out or refund from it to any chain by
 // signing in your own wallet. PayRouta never holds the funds or the keys.
+import { AddressSettlement, type AddressView } from "./address-settlement";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { discoverEvmWallets, type DiscoveredWallet } from "@/lib/blockchain/wallet-discovery";
@@ -78,6 +79,8 @@ export type CryptoBalanceProps = {
   tokens: Token[];
   canConfigure: boolean;
   cashOut?: CashOutView;
+  // Settling straight to an address on any chain.
+  address?: AddressView | null;
 };
 
 export function CryptoBalance({
@@ -89,6 +92,7 @@ export function CryptoBalance({
   tokens,
   canConfigure,
   cashOut,
+  address,
   privy,
 }: CryptoBalanceProps & {
   privy?: PrivyWallets;
@@ -102,7 +106,9 @@ export function CryptoBalance({
   const [settle, setSettle] = useState<string[]>(settleOptions.slice(0, 1).map((s) => `${s.network}|${s.identifier}`));
   const [quote, setQuote] = useState<Quote | null>(null);
   // Without an account yet: settle in stablecoins, or straight to the bank.
-  const [mode, setMode] = useState<"crypto" | "bank">(cashOut?.accounts.some((a) => a.settleCheckouts) ? "bank" : "crypto");
+  const [mode, setMode] = useState<"crypto" | "address" | "bank">(
+    address?.active ? "address" : cashOut?.accounts.some((a) => a.settleCheckouts) ? "bank" : "crypto",
+  );
   const [form, setForm] = useState({ originAsset: "", amount: "", chain: "", destinationAsset: "", recipient: "", note: "", refundOf: "" });
   const account = overview.account;
 
@@ -192,6 +198,10 @@ export function CryptoBalance({
                   Stablecoins
                 </label>
                 <label>
+                  <input type="radio" name="settle-mode" checked={mode === "address"} onChange={() => setMode("address")} />
+                  An address on any chain
+                </label>
+                <label>
                   <input type="radio" name="settle-mode" checked={mode === "bank"} onChange={() => setMode("bank")} />
                   Your bank
                 </label>
@@ -242,6 +252,8 @@ export function CryptoBalance({
                   {!settle.length && <p className="p-notice error">Choose at least one stablecoin to settle in.</p>}
                   {privy?.manage}
                 </>
+              ) : mode === "address" ? (
+                <AddressSettlement orgId={orgId} current={address ?? null} canConfigure={canConfigure} />
               ) : (
                 bankOn && <p role="status">Checkouts settle to {bankOn.label}.</p>
               )}
@@ -275,7 +287,9 @@ export function CryptoBalance({
               {new Date(account.connectedAt).toLocaleDateString()}
             </p>
             <p>
-              {bankOn
+              {address?.active
+                ? `Checkouts settle in ${address.symbol} on ${address.chainName} to ${address.address}.`
+                : bankOn
                 ? `Checkouts settle to ${bankOn.label}.`
                 : `Checkouts settle in ${overview.settlement?.map((s) => `${s.symbol} on ${s.chainName}`).join(", ") || "no stablecoins yet"}.`}
             </p>
@@ -481,6 +495,21 @@ export function CryptoBalance({
             </form>
           )}
         </section>
+      )}
+      {address?.active ? (
+        <section>
+          <h2>Settle to an address</h2>
+          <AddressSettlement orgId={orgId} current={address} canConfigure={canConfigure} />
+        </section>
+      ) : (
+        canConfigure && (
+          <details className="ms-details">
+            <summary>Settle to an address on any chain instead</summary>
+            <div className="ms-details-body">
+              <AddressSettlement orgId={orgId} current={address ?? null} canConfigure={canConfigure} />
+            </div>
+          </details>
+        )
       )}
       {canConfigure && account && cashOut && (
         <CashOut

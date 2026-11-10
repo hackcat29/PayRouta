@@ -15,6 +15,16 @@ const copy: Record<string, string> = {
   MERCHANT_NOT_CONFIGURED: "This business isn't set up yet. Finish business setup first.",
   ENVIRONMENT_NOT_CONFIGURED: "Live mode isn't on for this business yet. Switch to test mode, or activate payments.",
   WORKSPACE_LIMIT_REACHED: "You've reached the number of businesses you can create. Contact support to add more.",
+  // Settling to an address (lib/intents/settlement-address.ts)
+  SETTLEMENT_ADDRESS_MISMATCH: "The two addresses don't match. Paste the same address in both.",
+  SETTLEMENT_ADDRESS_INVALID: "That doesn't look like an address on that network. Check you've chosen the right network.",
+  // Confirming it's you (lib/portal/step-up.ts)
+  STEP_UP_REQUIRED: "Confirm it's you to continue.",
+  TWO_STEP_REQUIRED: "Turn on two-step verification to do this: add a passkey or an authenticator app.",
+  NO_PASSKEYS: "You haven't added a passkey yet. Use your authenticator app instead.",
+  PASSKEY_CHALLENGE_EXPIRED: "That took too long. Try your passkey again.",
+  PASSKEY_NOT_RECOGNISED: "That passkey isn't on this account.",
+  PASSKEY_NOT_VERIFIED: "Your passkey couldn't be checked. Try again.",
   // Requests
   INVALID_REQUEST: "Some details aren't valid. Check the highlighted fields and try again.",
   MISSING_BODY: "Some details are missing. Fill in the form and try again.",

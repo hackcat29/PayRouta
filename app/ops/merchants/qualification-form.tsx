@@ -1,4 +1,5 @@
 "use client";
+import { errorText } from "@/lib/error-copy";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 export function QualificationForm({
@@ -36,7 +37,7 @@ export function QualificationForm({
           setMessage(
             response.ok
               ? "Saved. Processing remains subject to qualification gates."
-              : data.error || "Unable to save",
+              : errorText(data, 400),
           );
           if (response.ok) router.refresh();
         } catch {

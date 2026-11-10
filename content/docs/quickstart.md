@@ -4,10 +4,10 @@ Create a sandbox payment, send a customer through hosted checkout, and verify th
 
 ## 1. Create your workspace
 
-1. Sign up, verify your email, and turn on an authenticator app under **Settings**.
+1. Sign up, verify your email, and turn on two-step verification (a passkey or an authenticator app) under **Settings → Security**.
 2. Create a merchant workspace. Enter your business name and the origin customers return to after checkout (for example `https://shop.example`). New workspaces start in the **sandbox** environment.
 3. Under **Payment methods**, configure fresh merchant-controlled USDC receive addresses on Base Sepolia.
-4. Under **Developers → API keys**, verify your authenticator and create a sandbox key with payment-creation access. The secret (`pr_sandbox_…`) is shown once. Store it on your server only.
+4. Under **Developers → API keys**, create a sandbox key (confirm it's you when asked) with payment-creation access. The secret (`pr_sandbox_…`) is shown once. Store it on your server only.
 
 ## 2. Install an SDK
 

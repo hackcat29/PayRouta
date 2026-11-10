@@ -1,3 +1,4 @@
+import { setSettlementAddress, settlementAssets, stopSettlementAddress } from "@/lib/intents/settlement-address";
 import { createPaymentLink, setPaymentLinkActive } from "@/lib/merchant/payment-links";
 import { subscriptionCommand } from "@/lib/subscriptions/service";
 import { createMerchantCryptoCheckout } from "@/lib/merchant/crypto-checkout";
@@ -116,6 +117,14 @@ export async function POST(request: Request) {
       if (raw.action === "cashout-settle-checkouts") return setBankSettlement(orgId, raw.input, request.headers);
       throw new PortalError("UNKNOWN_ACTION", 400);
     }
+    // Settling crypto checkouts to an address on any chain.
+    if (raw?.action === "settlement-address-options") {
+      await merchantMember(z.string().min(1).parse(raw.orgId), "read", request.headers);
+      return { assets: await settlementAssets() };
+    }
+    if (raw?.action === "settlement-address-set")
+      return setSettlementAddress(z.string().min(1).parse(raw.orgId), raw.input, request.headers);
+    if (raw?.action === "settlement-address-stop") return stopSettlementAddress(z.string().min(1).parse(raw.orgId), request.headers);
     // Which receive stablecoin payments in other tokens settle into.
     if (raw?.action === "swap-settlement")
       return setSwapSettlement(z.string().min(1).parse(raw.orgId), raw.input ?? null, request.headers);

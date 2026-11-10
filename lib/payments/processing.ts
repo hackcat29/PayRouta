@@ -1,6 +1,7 @@
 import { isDepositAdapter } from "../blockchain/deposit-config";
 import { assertLaunchMethod } from "./launch";
 import { offrampConfigSchema } from "../providers/adapters/native/near-intents-offramp";
+import { addressConfigSchema } from "../providers/adapters/native/near-intents-address";
 import { startBankCashOut } from "../treasury/offramp/cashout";
 import { accrueFee } from "./billing";
 import { simulatedIntegration } from "../providers/adapters/native/registry";
@@ -232,7 +233,7 @@ export async function applyFact(
     } else if (fact.state === "Confirmed") {
       // A NEAR Intents checkout may have had PayRouta's fee withheld at source.
       const atSource = await tx.crossChainPayment.findFirst({
-        where: { attemptId: a.id, recipientType: { in: ["INTENTS", "BANK"] }, status: "SUCCESS", appFeeMinor: { not: null } },
+        where: { attemptId: a.id, recipientType: { in: ["INTENTS", "BANK", "ADDRESS"] }, status: "SUCCESS", appFeeMinor: { not: null } },
         select: { id: true },
       });
       await accrueFee(tx, i, now, atSource ? "withheld" : "invoice");
@@ -868,15 +869,23 @@ export async function settle(attemptId: string, now = new Date()) {
     const gross = minor(a.intent.amount, a.intent.precision).toString();
     // PayRouta's fee withheld at source on a NEAR Intents checkout arrives
     // as the difference between the invoice and what the account received.
-    const withheld =
-      ["near-intents-deposit", "near-intents-offramp"].includes((integration.config as { adapter?: string }).adapter ?? "")
-        ? ((
-            await db.crossChainPayment.findFirst({
-              where: { attemptId: a.id, recipientType: { in: ["INTENTS", "BANK"] }, status: "SUCCESS", appFeeMinor: { not: null } },
-              select: { appFeeMinor: true },
-            })
-          )?.appFeeMinor ?? "0")
-        : "0";
+    const adapter = (integration.config as { adapter?: string }).adapter ?? "";
+    const atSource = ["near-intents-deposit", "near-intents-offramp", "near-intents-address"].includes(adapter)
+      ? ((
+          await db.crossChainPayment.findFirst({
+            where: { attemptId: a.id, recipientType: { in: ["INTENTS", "BANK", "ADDRESS"] }, status: "SUCCESS", appFeeMinor: { not: null } },
+            select: { appFeeMinor: true },
+          })
+        )?.appFeeMinor ?? "0")
+      : "0";
+    // Delivered to an address in another stablecoin, the fee is in that
+    // token's units; the settlement is in the price's.
+    const delivered = adapter === "near-intents-address" ? addressConfigSchema.parse(integration.config).destination.decimals : a.intent.precision;
+    const withheld = (
+      delivered >= a.intent.precision
+        ? BigInt(atSource) / 10n ** BigInt(delivered - a.intent.precision)
+        : BigInt(atSource) * 10n ** BigInt(a.intent.precision - delivered)
+    ).toString();
     return recordSettlement(
       {
         integrationId: a.integrationId,
@@ -893,6 +902,8 @@ export async function settle(attemptId: string, now = new Date()) {
               ? "near-intents-transfer"
               : (integration.config as { adapter?: string }).adapter === "near-intents-offramp"
                 ? "near-intents-bank-delivery"
+                : (integration.config as { adapter?: string }).adapter === "near-intents-address"
+                  ? "near-intents-address-delivery"
               : a.intent.cryptoQuoteId
                 ? "finalized-crypto-transfer"
                 : "finalized-stablecoin-transfer",

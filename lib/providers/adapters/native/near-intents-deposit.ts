@@ -59,7 +59,7 @@ export type IntentsSwap = {
 export interface IntentsSwaps {
   // INTENTS: into the merchant's intents account; BANK: to their cash-out
   // partner (near-intents-offramp).
-  forAttempt(attemptId: string, recipientType?: "INTENTS" | "BANK"): Promise<IntentsSwap[]>;
+  forAttempt(attemptId: string, recipientType?: "INTENTS" | "BANK" | "ADDRESS"): Promise<IntentsSwap[]>;
   record(id: string, status: string, details: unknown, at: Date): Promise<void>;
 }
 

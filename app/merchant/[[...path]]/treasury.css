@@ -12,7 +12,7 @@
   font-weight: 600;
   line-height: 18px;
   white-space: nowrap;
-  background: #eef2f4;
+  background: var(--chip);
   color: var(--slate);
 }
 .tr-pill.good { background: #e3f6ee; color: #252c8a; }
@@ -28,7 +28,7 @@
   padding: 16px 20px;
   border-radius: 10px;
   border: 1px solid #cfe3ea;
-  background: #f3f8fb;
+  background: var(--chip);
 }
 .portal .tr-banner p { margin: 2px 0 0; }
 .tr-banner.warn { border-color: #f1d6a6; background: #fff8ec; }
@@ -43,14 +43,14 @@
   min-height: 38px;
   padding: 8px 16px;
   border-radius: 6px;
-  background: var(--navy);
+  background: var(--fill-ink);
   color: white;
   font-weight: 600;
   white-space: nowrap;
   text-decoration: none;
 }
 .merchant-workspace .tr-secondary {
-  background: white;
+  background: var(--card);
   color: var(--navy);
   border: 1px solid var(--mist);
 }
@@ -58,7 +58,7 @@
 .tr-track li { flex: 1; display: flex; align-items: center; gap: 10px; padding: 12px 0; font-weight: 600; color: var(--slate); position: relative; }
 .tr-track li:not(:last-child)::after { content: ""; flex: 1; height: 2px; background: var(--mist); margin: 0 12px; }
 .tr-track li.done:not(:last-child)::after { background: var(--teal); }
-.tr-track span { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--mist); background: white; font-size: 13px; }
+.tr-track span { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--mist); background: var(--card); font-size: 13px; }
 .tr-track li.done { color: var(--navy); }
 .tr-track li.done span { background: var(--teal); border-color: var(--teal); color: white; }
 .tr-track li.current { color: var(--navy); }
@@ -86,7 +86,7 @@
   border: 2px solid var(--mist);
   font-weight: 700;
   color: var(--slate);
-  background: white;
+  background: var(--card);
 }
 .tr-step.done .tr-step-mark { background: var(--teal); border-color: var(--teal); color: white; }
 .tr-step[aria-current="step"] .tr-step-mark { border-color: var(--teal); color: var(--teal); }

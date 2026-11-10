@@ -1,5 +1,8 @@
 // The provider workspace frame, matching the merchant dashboard: a quiet
 // sidebar, a top bar with the sandbox switch, and a page header with tabs.
+import { themeScript } from "./theme-script";
+import { ThemeToggle } from "./theme-toggle";
+import { StepUpProvider } from "./step-up";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import {
@@ -126,6 +129,7 @@ export function ProviderShell({
   const tabs = tabSets.find((set) => set.some((t) => t.path === section))?.filter((t) => allowedRoute(role, t.path));
   return (
     <div className={`portal ms-app${test ? " is-test" : ""}`} id="ms-app">
+      <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       <aside className="ms-side" id="ms-side">
         <div className="ms-side-in">
         <details className="ms-org">
@@ -184,6 +188,7 @@ export function ProviderShell({
             <a className="ms-top-link" href={docsUrl("provider-integration")}>
               <BookOpen size={15} aria-hidden /> Docs
             </a>
+            <ThemeToggle />
             <Link
               className="ms-switch"
               role="switch"
@@ -221,7 +226,9 @@ export function ProviderShell({
               ))}
             </nav>
           )}
-          <div className="ms-body">{children}</div>
+          <div className="ms-body">
+            <StepUpProvider securityHref="/provider/settings">{children}</StepUpProvider>
+          </div>
         </div>
       </div>
     </div>

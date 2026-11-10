@@ -28,6 +28,7 @@ import { paymentAsset, onchainMethod } from "../blockchain/crypto-assets";
 import { z } from "zod";
 import { chainNames, destinationFor, generateIntent, quote, status, submitIntent, tokens, type GeneratedIntent, type Http } from "./oneclick";
 import { intentsAccount, solanaOwner } from "./near";
+import { evmChainIds } from "./evm-chains";
 import { checkFundingIntent } from "./payouts";
 import { ed25519Signature, secp256k1Signature, type SignedIntent } from "./signing";
 import { erc191Signer, verifyNep413 } from "./verify";
@@ -62,17 +63,40 @@ function withheld(
   decimals: number,
 ) {
   const recipient = feeAccount();
-  if (!recipient || !intent.feeSnapshot || !intent.selectedMethod || intent.precision !== decimals) return null;
-  const fee = directFeeInAsset(intent.feeSnapshot, intent.selectedMethod, intent.amount, intent.precision);
+  if (!recipient || !intent.feeSnapshot || !intent.selectedMethod) return null;
+  // The fee in the price's units, then in the delivered token's (a stablecoin
+  // at par with the price, possibly with other decimals).
+  const priced = directFeeInAsset(intent.feeSnapshot, intent.selectedMethod, intent.amount, intent.precision);
+  const fee =
+    decimals >= intent.precision ? priced * 10n ** BigInt(decimals - intent.precision) : priced / 10n ** BigInt(intent.precision - decimals);
   if (fee <= 0n || fee >= gross) return null;
   const bps = Number((fee * 10000n * 2n + gross) / (gross * 2n));
   return bps > 0 ? { recipient, bps, fee } : null;
 }
 
+// What a checkout delivers: the registered stablecoin, or for settlement to
+// an address the merchant's chosen token from the 1Click list.
+function deliveredAsset(
+  scope: { destination: { assetId: string; decimals: number; symbol: string; contract: string }; destinationAsset: string | null },
+  list: Awaited<ReturnType<typeof tokens>>,
+) {
+  if (!scope.destinationAsset) return scope.destination;
+  const t = list.find((x) => x.assetId === scope.destinationAsset);
+  return t ? { assetId: t.assetId, decimals: t.decimals, symbol: t.symbol, contract: t.contractAddress ?? "" } : null;
+}
+
 async function awaitingDeposit(sessionId: string, token: string, now: Date) {
   const { intent } = await authorizeSession(sessionId, token, now);
   const attempt = await db.paymentAttempt.findFirst({ where: { intentId: intent.id }, orderBy: { number: "desc" } });
-  const action = attempt?.action as { kind?: string; settle?: string; address?: string; network?: string; identifier?: string; amount?: string } | null;
+  const action = attempt?.action as {
+    kind?: string;
+    settle?: string;
+    destinationAsset?: string;
+    address?: string;
+    network?: string;
+    identifier?: string;
+    amount?: string;
+  } | null;
   if (
     !attempt ||
     attempt.state !== "Requires action" ||
@@ -93,10 +117,13 @@ async function awaitingDeposit(sessionId: string, token: string, now: Date) {
     attempt,
     action: { ...action, address: action.address, amount: action.amount },
     destination,
-    // Into the merchant's intents account, or straight to their bank's
-    // funding address (delivered on chain).
-    intoIntents: action.kind === "intents" && action.settle !== "bank",
+    // Into the merchant's intents account, or delivered on chain: to their
+    // bank's funding address, or to an address of theirs on any chain (in
+    // the stablecoin `destinationAsset`, from the 1Click token list).
+    intoIntents: action.kind === "intents" && !action.settle,
     toBank: action.kind === "intents" && action.settle === "bank",
+    toAddress: action.kind === "intents" && action.settle === "address",
+    destinationAsset: action.settle === "address" ? (action.destinationAsset ?? null) : null,
     reason: null,
   } as const;
 }
@@ -121,20 +148,7 @@ export type WalletTarget =
   | { family: "near" };
 
 // EVM chains NEAR Intents takes deposits on, by 1Click blockchain code.
-export const evmChainIds: Record<string, number> = {
-  eth: 1,
-  base: 8453,
-  arb: 42161,
-  op: 10,
-  pol: 137,
-  avax: 43114,
-  bsc: 56,
-  gnosis: 100,
-  scroll: 534352,
-  bera: 80094,
-  xlayer: 196,
-  abs: 2741,
-};
+export { evmChainIds };
 export function swapWallet(blockchain: string): WalletTarget | undefined {
   if (evmChainIds[blockchain]) return { family: "evm", chainId: evmChainIds[blockchain] };
   if (blockchain === "sol") return { family: "solana" };
@@ -286,14 +300,14 @@ export async function crossChainOptions(sessionId: string, token: string, deps: 
   if (!scope.attempt) return { available: false, reason: scope.reason, assets: [] };
   const list = await tokens(deps.http ?? providerRequest, now.getTime());
   const assets = list
-    .filter((t) => scope.intoIntents || scope.toBank || t.assetId !== scope.destination.assetId)
+    .filter((t) => scope.intoIntents || scope.toBank || scope.toAddress || t.assetId !== scope.destination.assetId)
     .map((t) => ({ assetId: t.assetId, chain: t.blockchain, chainName: chainNames[t.blockchain] ?? t.blockchain.toUpperCase(), symbol: t.symbol }))
     .sort((a, b) => a.chainName.localeCompare(b.chainName) || a.symbol.localeCompare(b.symbol));
   return {
     available: true,
     reason: null,
     assets,
-    intents: scope.intoIntents || scope.toBank,
+    intents: scope.intoIntents || scope.toBank || scope.toAddress,
     receive: { symbol: scope.destination.symbol, amount: scope.action.amount, assetId: scope.destination.assetId },
   };
 }
@@ -309,8 +323,10 @@ export async function crossChainQuote(
   if (!(deps.enabled ?? crossChainEnabled())) throw new PortalError("CROSS_CHAIN_OFF", 409);
   const scope = await awaitingDeposit(sessionId, token, now);
   if (!scope.attempt) throw new PortalError(scope.reason, 409);
-  const { intent, attempt, action, destination, intoIntents, toBank } = scope;
+  const { intent, attempt, action, intoIntents, toBank, toAddress } = scope;
   const list = await tokens(http, now.getTime());
+  const destination = deliveredAsset(scope, list);
+  if (!destination) throw new PortalError("CROSS_CHAIN_ASSET_NOT_SUPPORTED", 409);
   const origin = list.find((t) => t.assetId === input.originAsset);
   const listed = list.find((t) => t.assetId === destination.assetId);
   // The destination must still be the exact token PayRouta registered.
@@ -321,14 +337,14 @@ export async function crossChainQuote(
     (listed.contractAddress ?? "").toLowerCase() !== destination.contract.toLowerCase()
   )
     throw new PortalError("CROSS_CHAIN_ASSET_NOT_SUPPORTED", 409);
-  if (!origin || (!intoIntents && !toBank && origin.assetId === destination.assetId)) throw new PortalError("CROSS_CHAIN_ORIGIN_NOT_SUPPORTED", 409);
+  if (!origin || (!intoIntents && !toBank && !toAddress && origin.assetId === destination.assetId)) throw new PortalError("CROSS_CHAIN_ORIGIN_NOT_SUPPORTED", 409);
   if (!/^[A-Za-z0-9:._@-]{20,140}$/.test(input.refundTo) || (/^0x/i.test(input.refundTo) && !/^0x[0-9a-fA-F]{40}$/.test(input.refundTo)))
     throw new PortalError("CROSS_CHAIN_REFUND_ADDRESS_INVALID", 400);
   const gross = minor(action.amount, destination.decimals);
   // Into a merchant's intents account or bank PayRouta's fee is taken at
   // source; a receive address is confirmed by its exact amount, so it gets
   // the invoice.
-  const fee = intoIntents || toBank ? withheld(intent, gross, destination.decimals) : null;
+  const fee = intoIntents || toBank || toAddress ? withheld(intent, gross, destination.decimals) : null;
   const amountOut = (gross - (fee?.fee ?? 0n)).toString();
   const deadline = new Date(intent.expiresAt.getTime() - deadlineMarginMs);
   const result = await quote(
@@ -360,7 +376,7 @@ export async function crossChainQuote(
       originChain: origin.blockchain,
       originSymbol: origin.symbol,
       destinationAsset: destination.assetId,
-      recipientType: intoIntents ? "INTENTS" : toBank ? "BANK" : "DESTINATION_CHAIN",
+      recipientType: intoIntents ? "INTENTS" : toBank ? "BANK" : toAddress ? "ADDRESS" : "DESTINATION_CHAIN",
       depositAddress: result.quote.depositAddress,
       depositMemo: result.quote.depositMemo ?? null,
       amountIn: result.quote.amountIn,
@@ -483,12 +499,14 @@ export async function intentsFundedQuote(
   if (!payer) throw new PortalError("INTENTS_ACCOUNT_INVALID", 400);
   const scope = await awaitingDeposit(sessionId, token, now);
   if (!scope.attempt) throw new PortalError(scope.reason, 409);
-  const { intent, attempt, action, destination, intoIntents, toBank } = scope;
+  const { intent, attempt, action, intoIntents, toBank, toAddress } = scope;
   const list = await tokens(http, now.getTime());
+  const destination = deliveredAsset(scope, list);
+  if (!destination) throw new PortalError("CROSS_CHAIN_ASSET_NOT_SUPPORTED", 409);
   const origin = list.find((t) => t.assetId === input.originAsset);
   if (!origin || !list.some((t) => t.assetId === destination.assetId)) throw new PortalError("CROSS_CHAIN_ORIGIN_NOT_SUPPORTED", 409);
   const gross = minor(action.amount, destination.decimals);
-  const fee = intoIntents || toBank ? withheld(intent, gross, destination.decimals) : null;
+  const fee = intoIntents || toBank || toAddress ? withheld(intent, gross, destination.decimals) : null;
   const amountOut = (gross - (fee?.fee ?? 0n)).toString();
   const deadline = new Date(intent.expiresAt.getTime() - deadlineMarginMs);
   const result = await quote(
@@ -519,7 +537,7 @@ export async function intentsFundedQuote(
       originChain: origin.blockchain,
       originSymbol: origin.symbol,
       destinationAsset: destination.assetId,
-      recipientType: intoIntents ? "INTENTS" : toBank ? "BANK" : "DESTINATION_CHAIN",
+      recipientType: intoIntents ? "INTENTS" : toBank ? "BANK" : toAddress ? "ADDRESS" : "DESTINATION_CHAIN",
       fundedBy: "INTENTS",
       payer: payer.accountId,
       payload: json(sign),

@@ -1,3 +1,4 @@
+import { settlementAddressView } from "@/lib/intents/settlement-address";
 import { merchantConfiguration } from "@/lib/merchant/configuration";
 import { transactionExplorer } from "@/lib/blockchain/chains";
 import { Providers } from "./providers";
@@ -46,7 +47,7 @@ import { Keys } from "./keys";
 import { BrandLogo } from "@/components/brand-logo";
 import { CreateWorkspace } from "./create-workspace";
 import { SignOutButton } from "@/components/portal/sign-out";
-import { PasskeySettings } from "@/components/portal/auth-screen";
+import { AccountSecurity } from "@/components/portal/account-security";
 import { FeeBearerSetting } from "./fees";
 import { LogoSetting } from "./logo";
 import { logoUrl, merchantBrand } from "@/lib/merchant/branding";
@@ -549,6 +550,7 @@ export default async function Page({
           .sort((a, b) => a.chainName.localeCompare(b.chainName) || a.symbol.localeCompare(b.symbol))}
         canConfigure={configure}
         cashOut={await cashOutView(orgId, env).catch(() => undefined)}
+        address={await settlementAddressView(orgId, env)}
       />
     );
   } else if (section === "disputes") {
@@ -576,7 +578,8 @@ export default async function Page({
     const intentsConnected =
       env === "production" &&
       ((await db.intentsAccount.count({ where: { orgId, environment: env, revokedAt: null } })) > 0 ||
-        (await db.fiatPayoutAccount.count({ where: { orgId, environment: env, settleCheckouts: true } })) > 0);
+        (await db.fiatPayoutAccount.count({ where: { orgId, environment: env, settleCheckouts: true } })) > 0 ||
+        (await db.settlementAddress.count({ where: { orgId, environment: env, active: true } })) > 0);
     const live = env === "production";
     const cryptoOn = intentsConnected || stableNetworks > 0;
     const receiveAccounts = accounts.filter((a) => onchainMethod(a.network, a.identifier) === "stablecoin");
@@ -1266,22 +1269,7 @@ export default async function Page({
   } else if (section === "security")
     content = (
       <>
-        <section>
-          <h2>Passkeys</h2>
-          <PasskeySettings />
-        </section>
-        <section>
-          <h2>Two-step verification</h2>
-          <p>
-            Your authenticator app protects sign-in and sensitive actions such
-            as API keys and payouts.
-          </p>
-          <p>
-            <Link className="ms-btn" href="/provider/settings">
-              Manage authenticator and sessions
-            </Link>
-          </p>
-        </section>
+        <AccountSecurity twoFactorEnabled={!!user.user.twoFactorEnabled} />
       </>
     );
   else if (section === "settings") {
@@ -1375,7 +1363,9 @@ export default async function Page({
       db.paymentLink.count({ where: scope }),
       db.shopifyLiteShop.count({ where: { orgId, uninstalledAt: null } }),
       db.intentsAccount.count({ where: { orgId, environment: env, revokedAt: null } }),
-      db.fiatPayoutAccount.count({ where: { orgId, environment: env, settleCheckouts: true } }),
+      db.fiatPayoutAccount.count({ where: { orgId, environment: env, settleCheckouts: true } }).then(
+        async (n) => n + (await db.settlementAddress.count({ where: { orgId, environment: env, active: true } })),
+      ),
       stablecoinOverview(orgId, env).then((a) => a.filter((x) => x.remaining > 0).length),
     ]);
     const live = env === "production";

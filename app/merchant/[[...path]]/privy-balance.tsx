@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   PrivyProvider,
   getEmbeddedConnectedWallet,
@@ -49,57 +49,8 @@ export default function PrivyBalance({
         },
       }}
     >
-      <WalletSession
-        portalUserId={portalUserId}
-        fallback={<CryptoBalance {...props} />}
-      >
-        <MerchantWallet {...props} />
-      </WalletSession>
+      <MerchantWallet {...props} portalUserId={portalUserId} />
     </PrivyProvider>
-  );
-}
-
-// Privy authentication is separate from the portal session. Clear a saved
-// wallet session before exposing it to a different PayRouta user on this browser.
-function WalletSession({
-  portalUserId,
-  children,
-  fallback,
-}: {
-  portalUserId: string;
-  children: ReactNode;
-  fallback: ReactNode;
-}) {
-  const { ready, authenticated, logout } = usePrivy();
-  const [checked, setChecked] = useState(false);
-  const [error, setError] = useState(false);
-  useEffect(() => {
-    let active = true;
-    async function check() {
-      if (!ready) return;
-      const key = "payrouta.privy.portal-user";
-      if (localStorage.getItem(key) !== portalUserId) {
-        if (authenticated) await logout();
-        if (!active) return;
-        localStorage.setItem(key, portalUserId);
-      }
-      if (active) setChecked(true);
-    }
-    void check().catch(() => {
-      if (active) setError(true);
-    });
-    return () => {
-      active = false;
-    };
-  }, [ready, authenticated, logout, portalUserId]);
-  if (error) throw new Error("Wallet session could not be verified");
-  return checked ? (
-    children
-  ) : (
-    <>
-      <p role="status">Checking your wallet session…</p>
-      {fallback}
-    </>
   );
 }
 
@@ -112,8 +63,32 @@ const solanaAccount = (address: string) => {
   }
 };
 
-function MerchantWallet(props: CryptoBalanceProps) {
+function MerchantWallet({ portalUserId, ...props }: CryptoBalanceProps & { portalUserId: string }) {
   const { ready, authenticated, login, logout, user } = usePrivy();
+  // Privy's sign-in is separate from the portal session: a saved wallet
+  // session is cleared before it is shown to a different PayRouta user on
+  // this browser. Until that check passes the page works without Privy, on
+  // the same screen, so nothing the merchant has chosen is lost.
+  const [sessionChecked, setSessionChecked] = useState(false);
+  useEffect(() => {
+    let active = true;
+    async function check() {
+      if (!ready) return;
+      const key = "payrouta.privy.portal-user";
+      if (localStorage.getItem(key) !== portalUserId) {
+        if (authenticated) await logout();
+        if (!active) return;
+        localStorage.setItem(key, portalUserId);
+      }
+      if (active) setSessionChecked(true);
+    }
+    void check().catch(() => {
+      /* Wallet session unverified: external wallets only. */
+    });
+    return () => {
+      active = false;
+    };
+  }, [ready, authenticated, logout, portalUserId]);
   const { wallets, ready: walletsReady } = useWallets();
   const { wallets: solanaWallets } = useSolanaWallets();
   const { createWallet } = useCreateWallet();
@@ -265,5 +240,5 @@ function MerchantWallet(props: CryptoBalanceProps) {
       )}
     </div>
   );
-  return <CryptoBalance {...props} privy={{ tiles, manage, signer }} />;
+  return <CryptoBalance {...props} privy={sessionChecked ? { tiles, manage, signer } : undefined} />;
 }

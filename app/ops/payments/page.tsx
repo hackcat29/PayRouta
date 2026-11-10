@@ -1,3 +1,4 @@
+import { VerifyGate } from "@/components/portal/verify-gate";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PortalError } from "@/lib/portal/domain";
@@ -13,13 +14,7 @@ export default async function Page() {
     if (error instanceof PortalError && error.status === 401)
       redirect("/provider/sign-in");
     if (error instanceof PortalError)
-      return (
-        <div className="portal p-simple">
-          <h1>Operations verification required</h1>
-          <p>{error.message}</p>
-          <Link href="/provider/settings">Open account security</Link>
-        </div>
-      );
+      return <VerifyGate code={error.message} />;
     throw error;
   }
   const [attempts, exceptions, deliveries, journal, routes, runs] =

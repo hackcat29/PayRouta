@@ -288,6 +288,8 @@ export async function setBankSettlementAs({ orgId, environment, userId }: Actor,
   if (chosen && !address) throw new PortalError("CASHOUT_PARTNER_NOT_CONFIGURED", 503);
   return atomic(async (tx) => {
     for (const a of accounts) await tx.fiatPayoutAccount.update({ where: { id: a.id }, data: { settleCheckouts: a.id === chosen?.id } });
+    // One direct settlement at a time (lib/intents/settlement-address.ts).
+    if (chosen) await tx.settlementAddress.updateMany({ where: { orgId, environment }, data: { active: false } });
     if (chosen && address) {
       const integrations = await tx.integration.findMany({ where: { orgId, environment }, orderBy: { version: "desc" } });
       const exists = integrations.some((i) => {

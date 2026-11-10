@@ -93,39 +93,21 @@ export async function command(raw: unknown, h: Headers) {
     const { reviewAccessRequest } = await import("./access-requests");
     return reviewAccessRequest(data, who.user.id);
   }
+  // Confirming it's you before a sensitive action (lib/portal/step-up.ts).
   if (base.action === "step-up") {
-    const { code } = z
-      .object({ code: z.string().regex(/^\d{6}$/) })
-      .parse(data);
-    await rateLimit(`mfa:${who.user.id}`, 5);
-    const { auth } = await import("./auth");
-    let verificationCode = code;
-    if (localMode() && code === "123456") {
-      const { createOTP } = await import("@better-auth/utils/otp");
-      verificationCode = await createOTP("payrouta-fictional-totp-secret").totp();
-    }
-    await auth.api.verifyTOTP({
-      headers: h,
-      body: { code: verificationCode, trustDevice: false },
-    });
-    await db.stepUp.upsert({
-      where: { sessionId: who.session.id },
-      create: {
-        sessionId: who.session.id,
-        expiresAt: new Date(Date.now() + 15 * 60000),
-      },
-      update: { expiresAt: new Date(Date.now() + 15 * 60000) },
-    });
-    await audit(
-      db,
-      null,
-      who.user.id,
-      "Sensitive action verification",
-      who.session.id,
-      {},
-      true,
-    );
-    return { message: "Sensitive actions authorized for 15 minutes" };
+    const { confirmStepUp } = await import("./step-up");
+    const { action: _action, orgId: _org, ...rest } = data;
+    void _action;
+    void _org;
+    return { message: "Sensitive actions authorized for 15 minutes", ...(await confirmStepUp(h!, rest, localMode())) };
+  }
+  if (base.action === "step-up-methods") {
+    const { stepUpMethods } = await import("./step-up");
+    return stepUpMethods(h!);
+  }
+  if (base.action === "step-up-passkey-options") {
+    const { stepUpPasskeyOptions } = await import("./step-up");
+    return stepUpPasskeyOptions(h!);
   }
   if (base.action === "accept-invitation") {
     const { token } = z

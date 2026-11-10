@@ -1,3 +1,4 @@
+import { VerifyGate } from "@/components/portal/verify-gate";
 import React from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -20,15 +21,7 @@ export default async function OpsMarketingPage() {
     if (e instanceof PortalError && e.status === 401)
       redirect("/provider/sign-in?next=/provider/settings");
     if (e instanceof PortalError)
-      return (
-        <div className="portal p-simple">
-          <h1>Operations admins only</h1>
-          <p>{e.message}</p>
-          <Link className="p-button" href="/provider/settings">
-            Open account security
-          </Link>
-        </div>
-      );
+      return <VerifyGate code={e.message} />;
     throw e;
   }
   return (

@@ -8,7 +8,7 @@
   gap: 5px;
   padding: 2px 9px;
   border-radius: 999px;
-  background: #eef2f3;
+  background: var(--chip);
   color: var(--ink-2);
   font-size: 12px;
   font-weight: 500;
@@ -73,7 +73,7 @@
   overflow-wrap: anywhere;
 }
 .pv-runs details {
-  border-bottom: 1px solid #eef1f2;
+  border-bottom: 1px solid var(--line);
   padding: 10px 0;
 }
 .pv-runs details:last-child {
@@ -131,16 +131,16 @@
 }
 .ms-body .p-button.secondary,
 .ms-body form .p-button.secondary {
-  background: white;
+  background: var(--card);
   border-color: var(--line-2);
   color: var(--ink);
 }
 .ms-body .p-button.secondary:hover {
-  background: #f4f7f7;
+  background: var(--chip);
 }
 .ms-body .p-button.danger,
 .ms-body form .p-button.danger {
-  background: white;
+  background: var(--card);
   border-color: #f0c8c4;
   color: var(--bad);
 }
@@ -188,7 +188,7 @@
 }
 .ms-body .p-requirement {
   padding: 12px 0;
-  border-bottom: 1px solid #eef1f2;
+  border-bottom: 1px solid var(--line);
 }
 .ms-body .p-requirement:last-child {
   border-bottom: 0;
@@ -202,7 +202,7 @@
   overflow: auto;
   padding: 12px;
   border-radius: 8px;
-  background: #f4f7f8;
+  background: var(--chip);
   font-size: 12px;
 }
 .ms-body > .p-json {

@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { errorText } from "@/lib/error-copy";
 import { useRouter } from "next/navigation";
 
 function useCommand() {
@@ -16,7 +17,7 @@ function useCommand() {
         body: JSON.stringify(body),
       });
       const data = await response.json();
-      setMessage(response.ok ? "Saved." : data.error || "Unable to save");
+      setMessage(response.ok ? "Saved." : errorText(data, response.status));
       if (response.ok) router.refresh();
     } catch {
       setMessage("Request unavailable");

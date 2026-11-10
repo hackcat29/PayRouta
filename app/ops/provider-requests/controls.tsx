@@ -1,4 +1,5 @@
 "use client";
+import { errorText } from "@/lib/error-copy";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -26,7 +27,7 @@ export function ReviewRequest({ requestId, company }: { requestId: string; compa
         }),
       });
       const body = await response.json();
-      setMessage(body.message || body.error || "Unable to save");
+      setMessage(body.error ? errorText(body, 400) : body.message || "Saved.");
       if (response.ok) router.refresh();
     } catch {
       setMessage("Request unavailable");

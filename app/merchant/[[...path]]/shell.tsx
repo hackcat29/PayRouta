@@ -1,6 +1,9 @@
 // The merchant dashboard frame: a quiet sidebar, a top bar with the test
 // mode switch, and a page header with optional tabs. Patterned on the
 // processor dashboards merchants already know (Stripe, Adyen, Paystack).
+import { themeScript } from "@/components/portal/theme-script";
+import { ThemeToggle } from "@/components/portal/theme-toggle";
+import { StepUpProvider } from "@/components/portal/step-up";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import {
@@ -153,6 +156,7 @@ export function MerchantShell({
   const tabs = tabSets[section];
   return (
     <div className={`portal ms-app${test ? " is-test" : ""}`} id="ms-app">
+      <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       <aside className="ms-side" id="ms-side">
         <div className="ms-side-in">
         <OrgSwitcher orgName={orgName} orgs={orgs} orgId={orgId} providerLink={providerLink} />
@@ -181,6 +185,7 @@ export function MerchantShell({
             <a className="ms-top-link" href={docsUrl("overview")}>
               <BookOpen size={15} aria-hidden /> Docs
             </a>
+            <ThemeToggle />
             <form className="ms-mode" action={`/merchant/${section}`}>
               <input type="hidden" name="orgId" value={orgId} />
               <input type="hidden" name="environment" value={test ? "production" : "sandbox"} />
@@ -217,7 +222,9 @@ export function MerchantShell({
               ))}
             </nav>
           )}
-          <div className="ms-body">{children}</div>
+          <div className="ms-body">
+            <StepUpProvider securityHref={href("security")}>{children}</StepUpProvider>
+          </div>
         </div>
       </div>
     </div>

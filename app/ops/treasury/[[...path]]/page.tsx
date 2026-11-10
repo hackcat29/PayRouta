@@ -2,6 +2,7 @@
 // connected accounts: an underwriting queue, a merchant page with everything
 // needed for a decision, PayRouta's companies and platform accounts, and a
 // risk view of disputes, reconciliation mismatches, money owed and failures.
+import { VerifyGate } from "@/components/portal/verify-gate";
 import Link from "next/link";
 import { BrandLogo } from "@/components/brand-logo";
 import { notFound, redirect } from "next/navigation";
@@ -59,13 +60,7 @@ export default async function Page({
   } catch (error) {
     if (error instanceof PortalError && error.status === 401) redirect("/provider/sign-in");
     if (error instanceof PortalError)
-      return (
-        <div className="portal p-simple">
-          <h1>Operations verification required</h1>
-          <p>{error.message}</p>
-          <Link href="/provider/settings">Open account security</Link>
-        </div>
-      );
+      return <VerifyGate code={error.message} />;
     throw error;
   }
   const parts = (await params).path ?? ["underwriting"];

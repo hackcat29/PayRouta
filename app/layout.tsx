@@ -51,7 +51,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html
+    <html suppressHydrationWarning
       lang="en"
       className={`${mono.variable} ${display.variable}`}
     >
