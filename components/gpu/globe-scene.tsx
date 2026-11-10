@@ -137,7 +137,17 @@ function Cities({ focus }: { focus: string | null }) {
 
 export const cameraDistance = 3.2;
 
-export default function GlobeScene({ focus, still }: { focus: string | null; still: boolean }) {
+export default function GlobeScene({
+  focus,
+  still,
+  lift = 0.22,
+  turn = 0,
+}: {
+  focus: string | null;
+  still: boolean;
+  lift?: number;
+  turn?: number;
+}) {
   const root = useRef<THREE.Group>(null);
   const { gl, invalidate } = useThree();
   const view = useRef({ yaw: 0.4, pitch: 0.25, tYaw: 0.4, tPitch: 0.25, drag: false, idleAt: 0 });
@@ -148,8 +158,8 @@ export default function GlobeScene({ focus, still }: { focus: string | null; sti
     const p = focus ? heroCities[focus] : null;
     if (p) {
       const [x, y, z] = toVec(p);
-      const yaw = Math.atan2(-x, z);
-      const pitch = Math.atan2(y, Math.hypot(x, z)) - 0.22;
+      const yaw = Math.atan2(-x, z) + turn;
+      const pitch = Math.atan2(y, Math.hypot(x, z)) - lift;
       v.tYaw = v.yaw + Math.atan2(Math.sin(yaw - v.yaw), Math.cos(yaw - v.yaw));
       v.tPitch = pitch;
     }
@@ -159,7 +169,7 @@ export default function GlobeScene({ focus, still }: { focus: string | null; sti
       v.pitch = v.tPitch;
     }
     invalidate();
-  }, [focus, still, invalidate]);
+  }, [focus, still, invalidate, lift, turn]);
 
   // Drag to turn. Touch drags stay horizontal so the page still scrolls.
   useEffect(() => {

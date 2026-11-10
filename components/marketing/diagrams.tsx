@@ -139,7 +139,7 @@ export function CryptoRoute() {
         <div className="dg-node dg-hub">
           <span className="dg-node-title">PayRouta</span>
           <span className="dg-hub-stats">
-            <b>125+</b> assets
+            <b>Any</b> token
             <b>36+</b> chains
           </span>
         </div>

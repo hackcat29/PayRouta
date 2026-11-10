@@ -160,7 +160,7 @@ export const pillars: {
     id: "anyChain",
     title: "Any wallet, any chain",
     availability: "available",
-    note: "Pay from a wallet on eight networks, or with any of 125+ assets on 36+ chains, converted on the way through NEAR Intents.",
+    note: "Pay with any token on any chain: 125+ listed through NEAR Intents across 36+ chains, and any other by its contract address, swapped to the merchant's stablecoin before the payment completes.",
   },
   {
     id: "platforms",
@@ -215,39 +215,54 @@ export const pricing = {
   volumeThreshold: "$100,000 a month",
 } as const;
 
-// The front page's figures. Each one restates a line above, so keep them in
-// step: assets and chains from pillars.anyChain, the rate from pricing.
+// The front page's figures. Each restates a line above: ways to pay from
+// methodFamilies, chains from pillars.anyChain. "Any" token: listed ones
+// through NEAR Intents, any other by its contract address.
 export const figures: { value: string; prefix?: string; suffix?: string; label: string }[] = [
-  { value: "125", suffix: "+", label: "tokens accepted" },
+  { value: "1", label: "checkout for every customer" },
+  { value: String(methodFamilies.length), label: "ways to pay" },
+  { value: "Any", label: "token, listed or by contract address" },
   { value: "36", suffix: "+", label: "chains" },
-  { value: pricing.payroutaOnly.rate.replace("%", ""), suffix: "%", label: "on stablecoins, all in" },
-  { value: "0", prefix: "$", label: "setup or monthly fees" },
 ];
 
-// Names in the front page's moving strip of ways to pay, by family. Payment
+// The front page's strip of ways to pay, by family, with the brand mark from
+// components/marketing/brand-logos.ts (none: drawn as a wordmark). Payment
 // methods only: lenders are named only once they're live partners.
-export const waysToPay: { name: string; family: "card" | "wallet" | "bank" | "mobile" | "crypto" }[] = [
-  { name: "Visa", family: "card" },
-  { name: "Mastercard", family: "card" },
-  { name: "Verve", family: "card" },
-  { name: "Apple Pay", family: "wallet" },
-  { name: "Google Pay", family: "wallet" },
-  { name: "Pix", family: "bank" },
-  { name: "UPI", family: "bank" },
-  { name: "SEPA", family: "bank" },
-  { name: "Faster Payments", family: "bank" },
-  { name: "SPEI", family: "bank" },
-  { name: "M-Pesa", family: "mobile" },
-  { name: "MTN MoMo", family: "mobile" },
-  { name: "USSD", family: "mobile" },
-  { name: "QRIS", family: "wallet" },
-  { name: "GoPay", family: "wallet" },
-  { name: "USDC", family: "crypto" },
-  { name: "USDT", family: "crypto" },
-  { name: "EURC", family: "crypto" },
-  { name: "ETH", family: "crypto" },
-  { name: "SOL", family: "crypto" },
-  { name: "XLM", family: "crypto" },
+export type WayToPay = {
+  name: string;
+  family: "card" | "wallet" | "bank" | "mobile" | "crypto";
+  logo?: string;
+  // Wordmark tiles for brands with no openly licensed mark.
+  mark?: { text: string; color: string; bg?: string };
+};
+export const waysToPay: WayToPay[] = [
+  { name: "Visa", family: "card", logo: "visa" },
+  { name: "Mastercard", family: "card", logo: "mastercard" },
+  { name: "American Express", family: "card", logo: "amex" },
+  { name: "Apple Pay", family: "wallet", logo: "applepay" },
+  { name: "Google Pay", family: "wallet", logo: "googlepay" },
+  { name: "PayPal", family: "wallet", logo: "paypal" },
+  { name: "Venmo", family: "wallet", logo: "venmo" },
+  { name: "PicPay", family: "wallet", logo: "picpay" },
+  { name: "Pix", family: "bank", logo: "pix" },
+  { name: "SEPA", family: "bank", logo: "sepa" },
+  { name: "UPI", family: "bank", mark: { text: "UPI", color: "#097939" } },
+  { name: "Faster Payments", family: "bank", mark: { text: "FPS", color: "#2e37a4" } },
+  { name: "M-Pesa", family: "mobile", mark: { text: "M", color: "#ffffff", bg: "#00a650" } },
+  { name: "MTN MoMo", family: "mobile", mark: { text: "MoMo", color: "#1e2466", bg: "#ffcb05" } },
+  { name: "USSD", family: "mobile", mark: { text: "*#", color: "#ffffff", bg: "#1e2466" } },
+  { name: "USDC", family: "crypto", logo: "usdc" },
+  { name: "USDT", family: "crypto", logo: "usdt" },
+  { name: "Bitcoin", family: "crypto", logo: "btc" },
+  { name: "Ethereum", family: "crypto", logo: "eth" },
+  { name: "Solana", family: "crypto", logo: "sol" },
+  { name: "NEAR", family: "crypto", logo: "near" },
+  { name: "Stellar", family: "crypto", logo: "xlm" },
+  { name: "Polygon", family: "crypto", logo: "matic" },
+  { name: "Avalanche", family: "crypto", logo: "avax" },
+  { name: "Tron", family: "crypto", logo: "trx" },
+  { name: "BNB Chain", family: "crypto", logo: "bnb" },
+  { name: "Optimism", family: "crypto", logo: "optimism" },
 ];
 
 // What a merchant can be settled in, whatever the customer paid with. Card,

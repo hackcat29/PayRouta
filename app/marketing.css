@@ -668,30 +668,29 @@ body:has(.pp-hero) .mk-header {
   background: var(--mk-adire-dots), var(--mk-night);
   color: var(--mk-night-text);
 }
-.hp-hero-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
-  gap: 40px;
-  align-items: center;
-  min-height: min(820px, calc(100svh - 150px));
-  padding-top: 40px;
-  padding-bottom: 56px;
+/* Centred headline and actions, then the stage. */
+.hp-hero-top {
+  position: relative;
+  z-index: 3;
+  padding-top: 48px;
+  text-align: center;
 }
 .hp-hero-copy {
-  position: relative;
-  z-index: 2;
+  max-width: 1120px;
+  margin: 0 auto;
 }
 .hp-h1 {
   font-size: clamp(48px, 6.6vw, 100px);
-  line-height: 0.93;
-  letter-spacing: -0.055em;
+  line-height: 0.92;
+  letter-spacing: -0.058em;
   color: #fff;
 }
 .hp-cta {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 12px;
-  margin-top: 44px;
+  margin-top: 40px;
   animation: mk-up 0.9s var(--mk-ease-out) 0.55s backwards;
 }
 .hp-sec {
@@ -732,13 +731,12 @@ body:has(.pp-hero) .mk-header {
   max-width: 34em;
 }
 
-/* Hero stage: the checkout floating over the globe. */
+/* Hero stage: the checkout over the horizon of a globe, payments landing
+   either side (components/marketing/hero.tsx). */
 .hp-stage {
   position: relative;
-  width: 100%;
-  aspect-ratio: 1;
-  max-width: 640px;
-  justify-self: end;
+  height: clamp(580px, 46vw, 660px);
+  margin-top: 40px;
 }
 .gpu-globe,
 .gpu-loop,
@@ -761,63 +759,168 @@ body:has(.pp-hero) .mk-header {
 .hp-globe {
   position: absolute;
   z-index: 0;
-  inset: -12% -30% -12% 6%;
-  animation: mk-globe-in 1.6s var(--mk-ease-out) 0.2s backwards;
+  left: 50%;
+  top: 70px;
+  width: min(1320px, 135vw);
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+  animation: mk-globe-in 1.8s var(--mk-ease-out) 0.15s backwards;
 }
-/* Before the scene draws: the globe's disc, in adire dots. */
+/* Before the scene draws: the globe's disc. */
 .hp-globe::before {
   content: "";
   position: absolute;
-  inset: 4.5%;
+  inset: 5%;
   border-radius: 50%;
   background: var(--mk-night-2);
   z-index: -1;
 }
 @keyframes mk-globe-in {
   from {
-    transform: scale(0.86) rotate(-8deg);
+    transform: translateX(-50%) translateY(120px) scale(0.92);
   }
 }
 .hp-stage-card {
-  position: absolute;
+  position: relative;
   z-index: 2;
-  left: -4%;
-  bottom: 0;
-  width: min(390px, 64%);
+  width: min(430px, 100%);
+  margin: 0 auto;
   animation: mk-card-in 1.1s var(--mk-ease-out) 0.35s backwards;
 }
 @keyframes mk-card-in {
   from {
-    transform: translateY(48px) rotate(-2deg);
+    transform: translateY(48px) scale(0.97);
   }
 }
-
-/* The moving strip of ways to pay. */
-.mq {
-  position: relative;
+.hp-feed {
+  position: absolute;
   z-index: 2;
+  width: 290px;
+  pointer-events: none;
+}
+.hp-feed-left {
+  top: 120px;
+  right: calc(50% + 250px);
+}
+.hp-feed-right {
+  top: 40px;
+  left: calc(50% + 250px);
+}
+.hp-toast {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 30px 60px -28px rgba(5, 8, 40, 0.8);
+  backdrop-filter: blur(10px);
+  animation: hp-toast-in 0.7s var(--mk-ease-out);
+}
+@keyframes hp-toast-in {
+  from {
+    transform: translateY(18px) scale(0.94);
+    clip-path: inset(0 0 100% 0 round 18px);
+  }
+  to {
+    clip-path: inset(0 0 0 0 round 18px);
+  }
+}
+.hp-toast-mark {
   display: grid;
-  gap: 10px;
-  padding: 26px 0 30px;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--mk-paper);
+}
+.hp-toast-mark .bm:not(.bm-word) {
+  width: 30px;
+  height: 30px;
+  margin: 0 !important;
+}
+.hp-toast-text {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+.hp-toast-text b {
+  overflow: hidden;
+  color: var(--mk-ink);
+  font-family: var(--mk-display);
+  font-size: 16px;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.hp-toast-text small {
+  color: var(--mk-quiet);
+  font-size: 12.5px;
+}
+.hp-toast-ok {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: var(--mk-kola);
+  color: var(--mk-ink);
+}
+
+/* Brand marks (components/marketing/logos.tsx). */
+.bm {
+  display: block;
+  flex: none;
+}
+.bm-word {
+  display: grid;
+  place-items: center;
+  width: var(--bm-size);
+  height: var(--bm-size);
+  border-radius: 7px;
+  font-family: var(--mk-display);
+  font-size: calc(var(--bm-size) * 0.4);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.bm-word[style*="transparent"] {
+  background: color-mix(in srgb, currentColor 12%, #fff) !important;
+}
+
+/* Ways customers pay: brand tiles in two drifting rows that speed up and
+   lean with the scroll (components/marketing/logo-marquee.tsx). */
+.lm {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  gap: 12px;
+  padding: 28px 0 32px;
   border-top: 1px solid var(--mk-night-line);
   background: var(--mk-night);
-}
-.mq-row {
-  display: flex;
   overflow: hidden;
 }
-.mq-track {
+.lm-row {
+  display: flex;
+  transform: skewX(var(--lean, 0deg));
+  transition: transform 0.4s var(--mk-ease-out);
+}
+.lm-track {
   display: flex;
   flex: none;
-  gap: 10px;
-  padding-right: 10px;
-  animation: mq-slide 60s linear infinite;
+  gap: 12px;
+  padding-right: 12px;
+  animation: mq-slide 70s linear infinite;
 }
-.mq-rev .mq-track {
+.lm-rev .lm-track {
   animation-direction: reverse;
-  animation-duration: 70s;
+  animation-duration: 80s;
 }
-.mq:hover .mq-track {
+.lm-row:hover .lm-track {
   animation-play-state: paused;
 }
 @keyframes mq-slide {
@@ -825,35 +928,34 @@ body:has(.pp-hero) .mk-header {
     transform: translateX(-100%);
   }
 }
-.mq-item {
+.lm-tile {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 18px;
-  border: 1px solid var(--mk-night-line);
-  border-radius: 999px;
-  color: #fff;
+  gap: 12px;
+  height: 60px;
+  padding: 0 20px 0 14px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 16px;
+  background: #fff;
+  color: var(--mk-ink);
   font-family: var(--mk-display);
   font-size: 16px;
-  font-weight: 500;
-  letter-spacing: -0.01em;
+  font-weight: 600;
+  letter-spacing: -0.015em;
   white-space: nowrap;
-  transition: border-color 0.2s, background 0.2s;
+  transition: transform 0.4s var(--mk-ease-out), box-shadow 0.3s, border-color 0.2s;
 }
-.mq-item:hover {
+.lm-tile .bm {
+  transition: transform 0.5s var(--mk-ease-out);
+}
+.lm-tile:hover {
   border-color: var(--mk-kola);
-  background: var(--mk-night-2);
+  box-shadow: 0 0 0 2px var(--mk-kola), 0 18px 36px -18px rgba(0, 0, 0, 0.7);
+  transform: translateY(-3px);
 }
-.mq-item i {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+.lm-tile:hover .bm {
+  transform: scale(1.15) rotate(-6deg);
 }
-.mq-card i { background: var(--mk-sky); }
-.mq-wallet i { background: #ff7a59; }
-.mq-bank i { background: #b7bcf0; }
-.mq-mobile i { background: #43d1a0; }
-.mq-crypto i { background: var(--mk-kola); }
 
 /* Figures */
 .hp-figures {
@@ -865,7 +967,8 @@ body:has(.pp-hero) .mk-header {
 }
 .fig {
   display: grid;
-  gap: 6px;
+  align-content: start;
+  gap: 10px;
   padding: 56px 28px 52px;
   border-left: 1px solid var(--mk-line);
 }
@@ -2031,30 +2134,13 @@ body:has(.pp-hero) .mk-header {
   }
 }
 @media (max-width: 1000px) {
-  .hp-hero-grid,
   .hp-split,
   .hp-dev-grid {
     grid-template-columns: minmax(0, 1fr);
     gap: 40px;
   }
-  .hp-hero-grid {
-    min-height: 0;
-  }
-  .hp-stage {
-    justify-self: center;
-    aspect-ratio: auto;
-    max-width: 560px;
-    padding-top: 58%;
-  }
-  .hp-globe {
-    inset: 0 -14% auto;
-    aspect-ratio: 1;
-  }
-  .hp-stage-card {
-    position: relative;
-    left: 0;
-    bottom: 0;
-    width: 100%;
+  .hp-feed {
+    display: none;
   }
   .hp-sec {
     padding: 96px 0;
@@ -2087,10 +2173,8 @@ body:has(.pp-hero) .mk-header {
   }
 }
 @media (max-width: 720px) {
-  .hp-hero-grid {
-    gap: 36px;
+  .hp-hero-top {
     padding-top: 36px;
-    padding-bottom: 40px;
   }
   /* Phones: the headline fills the screen, Lemon Squeezy style. */
   .hp-h1 {
@@ -2105,11 +2189,16 @@ body:has(.pp-hero) .mk-header {
   .hp-cta .mk-btn {
     flex: 1 1 100%;
   }
+  /* Phones: the card first, the globe's horizon rising under it. */
   .hp-stage {
-    padding-top: 70%;
+    height: auto;
+    margin-top: 40px;
+    padding: 0 16px 46vw;
   }
   .hp-globe {
-    inset: -4% -22% auto;
+    top: auto;
+    bottom: -92vw;
+    width: 165vw;
   }
   .hp-sec {
     padding: 72px 0;
@@ -2158,11 +2247,13 @@ body:has(.pp-hero) .mk-header {
   .fig span {
     font-size: 14px;
   }
-  .mq {
+  .lm {
     padding: 20px 0 24px;
+    gap: 10px;
   }
-  .mq-item {
-    padding: 8px 14px;
+  .lm-tile {
+    height: 52px;
+    padding: 0 16px 0 12px;
     font-size: 14.5px;
   }
   .hp-flow-stage {
@@ -3957,17 +4048,17 @@ html:not(.motion) .pp-steps li::after {
     transition-duration: 0.01ms !important;
     transition-delay: 0ms !important;
   }
-  .mq-track {
+  .lm-track {
     animation: none !important;
   }
-  .mq-row {
+  .lm-row {
     flex-wrap: wrap;
     justify-content: center;
   }
-  .mq-track[aria-hidden] {
+  .lm-track[aria-hidden] {
     display: none;
   }
-  .mq-track {
+  .lm-track {
     flex-wrap: wrap;
     justify-content: center;
     padding: 0 16px;

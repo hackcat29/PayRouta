@@ -13,6 +13,8 @@ export type ThreeCanvasProps = {
   active: boolean;
   camera?: { position: [number, number, number]; fov?: number };
   className?: string;
+  /** Upper bound on device pixel ratio, for large canvases. */
+  maxDpr?: number;
 };
 
 // A scene that fails (no GPU, lost context) leaves the page as it was.
@@ -29,7 +31,7 @@ class Quiet extends Component<{ children: ReactNode }, { failed: boolean }> {
   }
 }
 
-export default function ThreeCanvas({ children, active, camera, className }: ThreeCanvasProps) {
+export default function ThreeCanvas({ children, active, camera, className, maxDpr = 1.75 }: ThreeCanvasProps) {
   return (
     <Quiet>
       <Canvas
@@ -37,7 +39,7 @@ export default function ThreeCanvas({ children, active, camera, className }: Thr
         frameloop={active ? "always" : "demand"}
         // Brand colours exactly as written: no tone mapping.
         flat
-        dpr={[1, 1.75]}
+        dpr={[1, maxDpr]}
         camera={{ position: camera?.position ?? [0, 0, 3], fov: camera?.fov ?? 40 }}
         gl={async (props) => {
           const renderer = new WebGPURenderer({

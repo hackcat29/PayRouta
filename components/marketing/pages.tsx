@@ -254,8 +254,8 @@ function Crypto() {
       </section>
       <Feature title="Whatever your customer holds" tone="paper">
         <p>
-          Customers pay with any of 125+ assets on 36+ chains through NEAR Intents, or with any token by pasting its
-          contract address: Jupiter swaps it on Solana, LI.FI on EVM networks. The swap must succeed before the payment
+          Customers pay with any token on any chain: 125+ listed through NEAR Intents across 36+ chains, and any other by
+          pasting its contract address, swapped by Jupiter on Solana and LI.FI on EVM networks. The swap must succeed before the payment
           does, and you receive exactly the amount you asked for. If a swap can&apos;t complete, the customer is refunded on
           their own chain.
         </p>

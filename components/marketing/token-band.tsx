@@ -7,7 +7,7 @@ export function TokenBand() {
     <div className="hp-flow-stage">
       <TokenFlow />
       <ul className="hp-flow-in" aria-label="Paid with">
-        {["ETH", "SOL", "USDT", "XLM", "125+ more"].map((t) => (
+        {["ETH", "SOL", "USDT", "XLM", "Any token"].map((t) => (
           <li key={t}>{t}</li>
         ))}
       </ul>

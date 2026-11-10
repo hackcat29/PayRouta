@@ -5,8 +5,8 @@
 //   data-reveal           rises into place when it scrolls into view
 //   data-reveal="stagger" its children rise one after another
 //   data-tilt             leans toward the pointer (devices that hover)
-//   data-count="125"      counts up to its number when revealed; the text
-//                         already holds the final value ("125+")
+//   data-count="36"       counts up to its number when revealed; the text
+//                         already holds the final value ("36+")
 //
 // Mounted once in the root layout. Reduced motion turns all of it off.
 import { useLayoutEffect } from "react";

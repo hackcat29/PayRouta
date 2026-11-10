@@ -7,12 +7,24 @@ import { useStage } from "./use-stage";
 
 const GlobeCanvas = dynamic(() => import("./globe-canvas"), { ssr: false });
 
-export function Globe({ focus, className }: { focus: string | null; className?: string }) {
+// lift and turn frame the chosen city: radians up from the centre, and
+// around to the right (the hero keeps it beside the checkout card).
+export function Globe({
+  focus,
+  className,
+  lift,
+  turn,
+}: {
+  focus: string | null;
+  className?: string;
+  lift?: number;
+  turn?: number;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const { near, visible, still } = useStage(ref);
   return (
     <div ref={ref} className={`gpu-globe ${className ?? ""}`} aria-hidden="true">
-      {near && <GlobeCanvas focus={focus} active={visible} still={still} />}
+      {near && <GlobeCanvas focus={focus} active={visible} still={still} lift={lift} turn={turn} />}
     </div>
   );
 }

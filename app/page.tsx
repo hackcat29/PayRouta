@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { HeroStage } from "@/components/marketing/hero";
 import { DevTabs } from "@/components/marketing/dev-tabs";
-import { Figure, Marquee, RiseWords } from "@/components/marketing/motion";
+import { Figure, RiseWords } from "@/components/marketing/motion";
+import { LogoMarquee } from "@/components/marketing/logo-marquee";
+import { LogoSprite } from "@/components/marketing/logos";
 import { TokenBand } from "@/components/marketing/token-band";
 import { StorePlatforms } from "@/components/marketing/commerce";
 import { SettleChooser } from "@/components/marketing/settle";
@@ -157,8 +159,9 @@ export default function Home() {
   const origin = trustedOrigin() ?? "https://payrouta.com";
   return (
     <div className="mk hp">
+      <LogoSprite />
       <section className="hp-hero">
-        <div className="mk-wrap hp-hero-grid">
+        <div className="mk-wrap hp-hero-top">
           <div className="hp-hero-copy">
             <h1 className="hp-h1">
               <RiseWords text="One checkout for every way the world pays." />
@@ -172,9 +175,9 @@ export default function Home() {
               </Link>
             </div>
           </div>
-          <HeroStage />
         </div>
-        <Marquee items={waysToPay} label="Ways customers pay" />
+        <HeroStage />
+        <LogoMarquee items={waysToPay} label="Ways customers pay" />
       </section>
 
       <section className="hp-figures" aria-label="PayRouta in numbers">
@@ -240,11 +243,11 @@ export default function Home() {
             <Link data-tilt className="hp-tile hp-tile-crypto" href={paths.crypto}>
               <span className="hp-tile-text">
                 <span className="hp-tile-title">Crypto payments</span>
-                <span>Customers pay from any wallet on any chain. You receive the stablecoin you chose.</span>
+                <span>Customers pay with any token from any wallet on any chain. You receive the stablecoin you chose.</span>
                 <More>Crypto payments</More>
               </span>
               <span className="hp-mini-route" aria-hidden="true">
-                <b>125+ assets</b>
+                <b>Any token</b>
                 <i />
                 <b>USDC</b>
               </span>
