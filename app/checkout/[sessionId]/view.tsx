@@ -265,7 +265,7 @@ export function Checkout({ id }: { id: string }) {
           let deadline: string | undefined;
           if (via.route === "swap")
             deadline = ((await api({ action: "cross-chain-quote", originAsset: via.assetId, refundTo: wallet.address })) as { deadline?: string }).deadline;
-          if (!wallet.payDex) throw new Error("This wallet can't swap that token. Choose another token.");
+          if (!wallet.payDex) throw new Error("This wallet can't pay with that token. Choose another token.");
           return { sent: await wallet.payDex(found, api, deadline ?? current.current?.expiresAt) };
         },
       );
@@ -609,7 +609,7 @@ export function Checkout({ id }: { id: string }) {
                 Pay with {choice.symbol} on {choice.chainName}
               </h2>
               <Steps
-                steps={[`Swapped to ${a?.symbol ?? "USDC"} and sent`, `Confirming on ${networkName(payment.network)}`, "Payment confirmed"]}
+                steps={["Payment sent", `Confirming on ${networkName(payment.network)}`, "Payment confirmed"]}
                 current={1}
                 estimate={eta(finality)}
               />

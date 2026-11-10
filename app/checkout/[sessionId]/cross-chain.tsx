@@ -40,7 +40,7 @@ const errors: Record<string, string> = {
 // Where the swap is: the step it's on, and what the customer needs to know.
 const stage: Record<string, { step: number; text?: string }> = {
   PENDING_DEPOSIT: { step: 0 },
-  KNOWN_DEPOSIT_TX: { step: 1, text: "Transfer seen. The swap starts once it's final." },
+  KNOWN_DEPOSIT_TX: { step: 1, text: "Transfer seen. Your payment completes once it's final." },
   INCOMPLETE_DEPOSIT: { step: 1, text: "Less than the quoted amount arrived. Send the rest, or it will be refunded to your address." },
   PROCESSING: { step: 1 },
   SUCCESS: { step: 2 },
@@ -197,8 +197,8 @@ export function CrossChain({
       <div className="sc-swap">
         <p role="status">
           {payment.status === "REFUNDED"
-            ? "The swap couldn't complete. Your funds were refunded to your address."
-            : "The swap failed. Your funds will be refunded to your address."}
+            ? "The payment couldn't complete. Your funds were refunded to your address."
+            : "The payment couldn't complete. Your funds will be refunded to your address."}
         </p>
         <button type="button" onClick={() => setPayment(null)}>
           Pay another way
@@ -267,7 +267,7 @@ export function CrossChain({
     ) : (
       <div className="sc-swap">
         <Steps
-          steps={["Transfer sent", "Swapping", "Payment confirmed"]}
+          steps={["Transfer sent", "Processing", "Payment confirmed"]}
           current={payment.status === "PENDING_DEPOSIT" ? 0 : (where?.step ?? 1)}
           estimate={payment.status === "SUCCESS" ? undefined : eta(payment.timeEstimate)}
         />

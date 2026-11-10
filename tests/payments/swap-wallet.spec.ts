@@ -119,7 +119,8 @@ test("a swap is priced up front, paid from a connected wallet, and ends on a rec
   await expect(page.locator(".pc-value strong")).toHaveText("≈ 40.0161");
   await page.getByText("Details", { exact: true }).click();
   await expect(page.locator(".pc-lines")).toContainText("Merchant receives40.00 USDC");
-  await expect(page.locator(".pc-lines")).toContainText("Swapped by NEAR Intents");
+  // The conversion is internal: customers see what they pay, never a swap.
+  await expect(page.locator(".pc-lines")).not.toContainText(/swap/i);
   await expect(page.locator(".pc-lines")).toContainText("Paid in ETH by your wallet");
   // The list finds a token by a pasted contract address.
   await page.getByRole("button", { name: /^Token:/ }).click();
@@ -147,7 +148,7 @@ test("a swap is priced up front, paid from a connected wallet, and ends on a rec
   // Progress: sent, then swapping, with NEAR Intents' estimate.
   await expect(page.locator(".sc-steps li.active")).toHaveText(/Transfer sent/);
   swap = "PROCESSING";
-  await expect(page.locator(".sc-steps li.active")).toHaveText(/Swapping/, { timeout: 10000 });
+  await expect(page.locator(".sc-steps li.active")).toHaveText(/Processing/, { timeout: 10000 });
   await expect(page.getByText("Usually under a minute")).toBeVisible();
   swap = "SUCCESS";
   confirmed = true;

@@ -102,7 +102,8 @@ async function checkout(page: Page, swapOk: boolean) {
   expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze()).violations).toEqual([]);
   await page.getByRole("button", { name: /^DEGEN\s*Base/ }).click();
   await page.getByText("Details", { exact: true }).click();
-  await expect(page.locator(".pc-lines")).toContainText("Swapped to USDC in your wallet, then paid");
+  // The conversion is internal: customers see what they pay, never a swap.
+  await expect(page.locator(".pc-lines")).not.toContainText(/swap/i);
   await page.getByRole("button", { name: "Connect wallet", exact: true }).click();
   await page.getByRole("button", { name: "Pay ≈ 40000 DEGEN", exact: true }).click();
   return calls;

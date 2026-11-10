@@ -1,10 +1,9 @@
 "use client";
-// Paying with a token by its contract address, as checkout does it
-// (content/docs/cross-chain.md, app/checkout/[sessionId]/token-picker.tsx):
-// the address is pasted into the token search, checkout finds the token and
-// its price, the wallet swaps it into USDC (Jupiter on Solana, LI.FI on EVM
-// networks), and only then pays the exact amount. The examples are real
-// contract addresses; token amounts are illustrative.
+// Paying with a token by its contract address, as the customer sees it in
+// checkout (app/checkout/[sessionId]/token-picker.tsx): paste the address,
+// checkout finds the token and what it costs in it, pay. Converting it into
+// the merchant's stablecoin happens behind the scenes, so it isn't shown.
+// The examples are real contract addresses; token amounts are illustrative.
 import { useEffect, useRef, useState } from "react";
 import { Check, Search } from "lucide-react";
 import { useStage } from "@/components/gpu/use-stage";
@@ -18,7 +17,6 @@ type Example = {
   name: string;
   symbol: string;
   color: string;
-  via: string;
   amount: string;
 };
 
@@ -31,8 +29,7 @@ const examples: Example[] = [
     name: "Bonk",
     symbol: "BONK",
     color: "#fc8e03",
-    via: "Jupiter",
-    amount: "≈ 2,150,000 BONK",
+    amount: "2,150,000 BONK",
   },
   {
     id: "base",
@@ -42,8 +39,7 @@ const examples: Example[] = [
     name: "Degen",
     symbol: "DEGEN",
     color: "#a36efd",
-    via: "LI.FI",
-    amount: "≈ 13,400 DEGEN",
+    amount: "13,400 DEGEN",
   },
   {
     id: "ethereum",
@@ -53,23 +49,22 @@ const examples: Example[] = [
     name: "Pepe",
     symbol: "PEPE",
     color: "#3d9a37",
-    via: "LI.FI",
-    amount: "≈ 4,200,000 PEPE",
+    amount: "4,200,000 PEPE",
   },
 ];
 
-// typing → found → swapping → paid, then the next example, timed from
+// typing → found → paying → paid, then the next example, timed from
 // when the example started.
 function stageAt(ms: number, length: number) {
   const typeEnd = 300 + length * 28;
   const found = typeEnd + 700;
-  const swap = found + 1300;
-  const paid = swap + 1700;
+  const pay = found + 1300;
+  const paid = pay + 1700;
   if (ms < typeEnd) return { typed: Math.max(0, Math.floor((ms - 300) / 28)), step: 0, next: false };
-  return { typed: length, step: ms < found ? 0 : ms < swap ? 1 : ms < paid ? 2 : 3, next: ms >= paid + 2600 };
+  return { typed: length, step: ms < found ? 0 : ms < pay ? 1 : ms < paid ? 2 : 3, next: ms >= paid + 2600 };
 }
 
-export function PayWithCa({ total = "40.00" }: { total?: string }) {
+export function PayWithCa({ total = "$40.00" }: { total?: string }) {
   const box = useRef<HTMLDivElement>(null);
   const { visible, still } = useStage(box);
   const [at, setAt] = useState(0);
@@ -105,8 +100,8 @@ export function PayWithCa({ total = "40.00" }: { total?: string }) {
       </div>
       <div className="ca-card" aria-hidden="true">
         <div className="ca-head">
-          <span>Pay</span>
-          <b>{total} USDC</b>
+          <span>Total</span>
+          <b>{total}</b>
         </div>
         <div className={`ca-search${full ? " done" : ""}`}>
           <Search size={16} />
@@ -136,21 +131,15 @@ export function PayWithCa({ total = "40.00" }: { total?: string }) {
             <span className="ca-skeleton" />
           )}
         </div>
-        <div className={`ca-route${stage.step >= 2 ? " on" : ""}${stage.step >= 3 ? " paid" : ""}`}>
-          <span className="ca-route-label">
-            {ex.symbol} <i>→</i> USDC <small>via {ex.via}</small>
-          </span>
-          <span className="ca-bar">
-            <i />
-          </span>
-        </div>
-        <div className={`ca-pay${stage.step >= 3 ? " paid" : ""}`}>
+        <div className={`ca-pay${stage.step === 2 ? " paying" : ""}${stage.step >= 3 ? " paid" : ""}`}>
           {stage.step >= 3 ? (
             <>
-              <Check size={16} strokeWidth={3} /> Paid {total} USDC
+              <Check size={16} strokeWidth={3} /> Paid with {ex.symbol}
             </>
+          ) : stage.step >= 1 ? (
+            `Pay ${ex.amount}`
           ) : (
-            `Swap and pay ${total} USDC`
+            "Pay"
           )}
         </div>
       </div>

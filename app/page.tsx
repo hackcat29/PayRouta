@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { HeroStage } from "@/components/marketing/hero";
+import { HeroBackdrop } from "@/components/marketing/hero";
+import { HeroDemo } from "@/components/marketing/hero-demo";
 import { DevTabs } from "@/components/marketing/dev-tabs";
 import { Figure, RiseWords } from "@/components/marketing/motion";
 import { LogoMarquee } from "@/components/marketing/logo-marquee";
@@ -162,6 +163,7 @@ export default function Home() {
     <div className="mk hp">
       <LogoSprite />
       <section className="hp-hero">
+        <HeroBackdrop />
         <div className="mk-wrap hp-hero-top">
           <div className="hp-hero-copy">
             <h1 className="hp-h1">
@@ -177,7 +179,6 @@ export default function Home() {
             </div>
           </div>
         </div>
-        <HeroStage />
         <LogoMarquee items={waysToPay} label="Ways customers pay" />
       </section>
 
@@ -186,6 +187,22 @@ export default function Home() {
           {figures.map((f) => (
             <Figure key={f.label} {...f} />
           ))}
+        </div>
+      </section>
+
+      <section className="hp-sec hp-showcase" aria-labelledby="showcase-h">
+        <div className="mk-wrap hp-split">
+          <div className="hp-text" data-reveal>
+            <h2 className="hp-h2" id="showcase-h">
+              Each customer sees the ways they pay.
+            </h2>
+            <Link className="hp-link" href={paths.paymentMethods}>
+              Payment methods <span aria-hidden="true">→</span>
+            </Link>
+          </div>
+          <div className="hp-showcase-demo" data-reveal>
+            <HeroDemo />
+          </div>
         </div>
       </section>
 

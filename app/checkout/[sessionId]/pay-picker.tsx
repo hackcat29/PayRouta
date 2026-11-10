@@ -281,16 +281,6 @@ export function PayPicker({
                 </dd>
               </div>
             )}
-            <div>
-              <dt>Route</dt>
-              <dd>
-                {token.route === "direct"
-                  ? "Straight to the merchant"
-                  : token.route === "dex"
-                    ? "Swapped to USDC in your wallet, then paid"
-                    : "Swapped by NEAR Intents"}
-              </dd>
-            </div>
             {token.route === "dex" && token.contract && (
               <div>
                 <dt>Token</dt>
