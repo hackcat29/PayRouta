@@ -11,7 +11,8 @@ import { json } from "../../lib/portal/service";
 import { secretManager } from "../../lib/portal/adapters";
 import { baseProfile } from "../../lib/partners/conformance";
 import { fingerprint } from "../../lib/partners/kyb";
-import { addBridgeBankAs, advanceCashOut, setYellowCardAs, startBridgeAs, yellowCardNetworksAs } from "../../lib/treasury/offramp/cashout";
+import { addBridgeBankAs, advanceCashOut, setBankSettlementAs, setYellowCardAs, startBankCashOut, startBridgeAs, yellowCardNetworksAs } from "../../lib/treasury/offramp/cashout";
+import { offrampConfigSchema } from "../../lib/providers/adapters/native/near-intents-offramp";
 import { ycSignature } from "../../lib/treasury/offramp/yellowcard";
 import type { Http } from "../../lib/intents/oneclick";
 
@@ -169,4 +170,65 @@ test("Yellow Card: save a mobile money account, then send once the USDC has arri
   const attention = await advanceCashOut(c2.id, { http });
   assert.equal(attention.status, "Needs attention");
   assert.equal(attention.failure, "Yellow Card: NAME_MISMATCH");
+});
+
+test("Settle crypto checkouts straight to the bank: on and off, and a confirmed checkout's cash out", async () => {
+  // The Bridge account from the first test is ready, paid at 0xbbbb….
+  const account = await db.fiatPayoutAccount.findFirstOrThrow({ where: { orgId, partner: "bridge" } });
+  assert.equal(account.status, "Ready");
+  await setBankSettlementAs(actor(), { partner: "bridge" });
+  assert.equal((await db.fiatPayoutAccount.findUniqueOrThrow({ where: { id: account.id } })).settleCheckouts, true);
+  const integrations = (await db.integration.findMany({ where: { orgId, environment } })).filter((i) => offrampConfigSchema.safeParse(i.config).success);
+  assert.equal(integrations.length, 1);
+  assert.deepEqual(
+    (({ partner, fiatAccountId, address }) => ({ partner, fiatAccountId, address }))(offrampConfigSchema.parse(integrations[0].config)),
+    { partner: "bridge", fiatAccountId: account.id, address: `0x${"b".repeat(40)}` },
+  );
+  // Turning it on again reuses the same settlement.
+  await setBankSettlementAs(actor(), { partner: "bridge" });
+  assert.equal((await db.integration.findMany({ where: { orgId, environment } })).filter((i) => offrampConfigSchema.safeParse(i.config).success).length, 1);
+  // Not ready: refused.
+  await assert.rejects(setBankSettlementAs(actor(), { partner: "yellowcard" }), /CASHOUT_ACCOUNT_NOT_READY|CASHOUT_IDENTITY_REQUIRED/);
+
+  // A checkout delivered 39.40 USDC (40 less PayRouta's fee) to the funding
+  // address: its cash out starts once, and follows Bridge's drain.
+  const tx = `0x${randomBytes(32).toString("hex")}`;
+  const attemptId = `att-${randomUUID()}`;
+  const swap = await db.crossChainPayment.create({
+    data: {
+      intentId: `pi-${randomUUID()}`,
+      attemptId,
+      environment,
+      provider: "near-intents",
+      originAsset: "nep141:tron-usdt",
+      originChain: "tron",
+      originSymbol: "USDT",
+      destinationAsset: "nep141:base-usdc",
+      recipientType: "BANK",
+      depositAddress: `0x${randomBytes(20).toString("hex")}`,
+      amountIn: "40100000",
+      amountInFormatted: "40.1",
+      amountOut: "39400000",
+      appFeeMinor: "600000",
+      appFeeBps: 150,
+      refundTo: "TFictionalRefundAddress000000000000",
+      deadline: new Date(Date.now() + 600000),
+      quote: json({}),
+      status: "SUCCESS",
+      details: json({ destinationChainTxHashes: [{ hash: tx }] }),
+    },
+  });
+  const input = { orgId, environment, intentId: swap.intentId, attemptId, fiatAccountId: account.id, partner: "bridge", now: new Date() };
+  const started = await startBankCashOut(db, input);
+  assert.deepEqual({ status: started.status, amountUsd: started.amountUsd, payoutId: started.payoutId }, { status: "Converting", amountUsd: "39.40", payoutId: null });
+  assert.equal((await startBankCashOut(db, input)).id, started.id, "started once");
+  const http: Http = async (_base, o) =>
+    o.path.endsWith("/drains")
+      ? reply(200, [{ id: "drain_9", amount: "39.40", currency: "usd", state: "payment_processed", deposit_tx_hash: tx, created_at: "2026-11-10T10:00:00Z" }])
+      : reply(404, {});
+  const paid = await advanceCashOut(started.id, { http });
+  assert.deepEqual({ status: paid.status, partnerRef: paid.partnerRef }, { status: "Paid", partnerRef: "drain_9" });
+
+  await setBankSettlementAs(actor(), { partner: null });
+  assert.equal((await db.fiatPayoutAccount.findUniqueOrThrow({ where: { id: account.id } })).settleCheckouts, false);
 });

@@ -1,7 +1,8 @@
 // A merchant's NEAR Intents account (docs/near-intents.md).
 //
 // The merchant connects an account they own: a NEAR account (signs NEP-413
-// with a full-access key) or an EVM address (signs ERC-191). Signing a
+// with a full-access key), an EVM address (signs ERC-191) or a Solana
+// address (signs raw_ed25519; its account is the key in hex). Signing a
 // one-time challenge proves control; PayRouta never holds the keys. Each
 // stablecoin the merchant picks becomes a near-intents-deposit integration,
 // so crypto checkouts for it settle into the account from any token on any
@@ -17,9 +18,9 @@ import { PortalError } from "../portal/domain";
 import { merchantMember } from "../merchant/access";
 import { intentsDepositConfigSchema } from "../providers/adapters/native/near-intents-deposit";
 import { chainNames, destinationFor, destinations } from "./oneclick";
-import { fullAccessKey, intentsAccount, intentsBalances, intentsKeyRegistered } from "./near";
+import { fullAccessKey, intentsAccount, intentsBalances, intentsKeyRegistered, solanaOwner } from "./near";
 import { ed25519Signature, secp256k1Signature } from "./signing";
-import { erc191Signer, verifyNep413 } from "./verify";
+import { erc191Signer, verifyNep413, verifyRawEd25519 } from "./verify";
 
 // NEP-413 `recipient`: who the signature is for.
 export const signatureRecipient = "PayRouta";
@@ -54,12 +55,15 @@ export async function intentsSettlementAssets(orgId: string, environment: string
   );
 }
 
-const challengeInput = z.object({ account: z.string().min(2).max(64) }).strict();
+// `chain: "solana"`: the account is a Solana address's (raw_ed25519).
+const challengeInput = z.object({ account: z.string().min(2).max(64), chain: z.literal("solana").optional() }).strict();
 export async function intentsChallenge(orgId: string, raw: unknown, headers: Headers) {
   const { config } = await merchantMember(orgId, "configure", headers);
   liveOnly(config.environment);
   await rateLimit(`intents-challenge:${orgId}`, 20);
-  const account = intentsAccount(challengeInput.parse(raw).account);
+  const input = challengeInput.parse(raw);
+  const solana = input.chain === "solana" ? solanaOwner(input.account) : null;
+  const account = solana ? { accountId: solana.accountId, standard: solana.standard } : input.chain ? null : intentsAccount(input.account);
   if (!account) throw new PortalError("INTENTS_ACCOUNT_INVALID", 400);
   const org = await db.organization.findUniqueOrThrow({ where: { id: orgId } });
   const nonce = randomBytes(32).toString("base64"),
@@ -111,6 +115,12 @@ export async function connectIntentsAccount(orgId: string, raw: unknown, headers
   }
   if (challenge.standard === "erc191") {
     if (erc191Signer(challenge.message, signature) !== challenge.accountId) throw new PortalError("INTENTS_SIGNATURE_INVALID", 403);
+  } else if (challenge.standard === "raw_ed25519") {
+    // The key must be the account's own: its hex is the account id.
+    const owner = input.publicKey?.startsWith("ed25519:") ? solanaOwner(input.publicKey.slice(8)) : null;
+    if (!owner || owner.accountId !== challenge.accountId || !verifyRawEd25519(challenge.message, owner.publicKey, signature))
+      throw new PortalError("INTENTS_SIGNATURE_INVALID", 403);
+    publicKey = owner.publicKey;
   } else {
     publicKey = input.publicKey ?? null;
     if (!publicKey || !verifyNep413({ message: challenge.message, nonce: challenge.nonce, recipient: signatureRecipient }, publicKey, signature))

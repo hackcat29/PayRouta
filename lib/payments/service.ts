@@ -3,6 +3,7 @@ import {
   paymentAsset as tokenAsset,
   onchainMethod,
 } from "../blockchain/crypto-assets";
+import { merchantBrand } from "../merchant/branding";
 import { transactionExplorer } from "../blockchain/chains";
 import type { QuotedCryptoTerms } from "./crypto-checkout";
 import { currentMerchantScreening } from "../merchant/screening";
@@ -583,6 +584,8 @@ export async function progress(id: string, token: string, now = new Date()) {
     selectedOption: intent.selectedOption,
     ...feeFields(intent),
     merchant: merchant.name,
+    // The verified tick, logo and contact links (lib/merchant/branding.ts).
+    ...(await merchantBrand(intent.orgId)),
     reference: intent.reference,
     amount: intent.amount,
     asset: intent.asset,

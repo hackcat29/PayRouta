@@ -10,8 +10,8 @@
 // Confirmation is on-chain, like every other deposit adapter: once 1Click
 // reports the swap SUCCESS, its NEAR transactions are read back and the
 // payment is confirmed only by an intents.near transfer of exactly the
-// invoice amount into the merchant's account, made by one of the swap's own
-// intents. The transfer is claimed once (DepositClaim), so one delivery can
+// invoice amount (less PayRouta's fee, when 1Click withholds it at source)
+// into the merchant's account, made by one of the swap's own intents. The transfer is claimed once (DepositClaim), so one delivery can
 // never pay two checkouts. PayRouta never holds the funds or the account keys.
 import { z } from "zod";
 import { paymentAsset as tokenAsset, onchainMethod } from "../../../blockchain/crypto-assets";
@@ -50,12 +50,16 @@ export type IntentsSwap = {
   depositMemo: string | null;
   destinationAsset: string;
   amountOut: string;
+  // PayRouta's fee withheld at source: the account receives the invoice less this.
+  appFeeMinor?: string | null;
   status: string;
   details: unknown;
   checkedAt: Date | null;
 };
 export interface IntentsSwaps {
-  forAttempt(attemptId: string): Promise<IntentsSwap[]>;
+  // INTENTS: into the merchant's intents account; BANK: to their cash-out
+  // partner (near-intents-offramp).
+  forAttempt(attemptId: string, recipientType?: "INTENTS" | "BANK"): Promise<IntentsSwap[]>;
   record(id: string, status: string, details: unknown, at: Date): Promise<void>;
 }
 
@@ -131,7 +135,10 @@ export function intentsDepositExecutionAdapter(config: unknown, deps: NativeDeps
       const now = deps.now?.() ?? new Date();
       let seen = false;
       for (const swap of await swaps.forAttempt(a.id)) {
-        if (swap.destinationAsset !== destination.assetId || swap.amountOut !== expected.toString()) continue;
+        const fee = BigInt(swap.appFeeMinor ?? "0");
+        if (fee < 0n || fee >= expected) continue;
+        const net = expected - fee;
+        if (swap.destinationAsset !== destination.assetId || swap.amountOut !== net.toString()) continue;
         let state = swap.status,
           details = swap.details as OneClickStatus["swapDetails"];
         if (!finished.includes(state) && (!swap.checkedAt || now.getTime() - swap.checkedAt.getTime() >= 5000)) {
@@ -153,7 +160,7 @@ export function intentsDepositExecutionAdapter(config: unknown, deps: NativeDeps
         }
         if (!found.length) continue;
         if (found.length !== 1) throw new PortalError("DEPOSIT_MULTIPLE_TRANSFERS", 409);
-        if (found[0].amount !== expected) throw new PortalError("DEPOSIT_AMOUNT_MISMATCH", 409);
+        if (found[0].amount !== net) throw new PortalError("DEPOSIT_AMOUNT_MISMATCH", 409);
         await store.claim(b, {
           txHash: found[0].txHash,
           logIndex: `${found[0].receiptId}:${found[0].intentHash}`,

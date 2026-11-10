@@ -127,6 +127,7 @@ export function ProviderShell({
   return (
     <div className={`portal ms-app${test ? " is-test" : ""}`} id="ms-app">
       <aside className="ms-side" id="ms-side">
+        <div className="ms-side-in">
         <details className="ms-org">
           <summary>
             <span className="ms-org-mark" aria-hidden>
@@ -167,6 +168,7 @@ export function ProviderShell({
             {email}
           </span>
           <SignOutButton className="ms-signout" to="/provider/sign-in" />
+        </div>
         </div>
       </aside>
       <div className="ms-main">

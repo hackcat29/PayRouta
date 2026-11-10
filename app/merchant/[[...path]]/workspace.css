@@ -17,17 +17,21 @@
   color: var(--ink);
   font-size: 14px;
 }
+/* The column runs the full height of the page; its contents stay in view. */
 .ms-side {
+  position: relative;
+  background: var(--ms-dots), var(--ink);
+  color: #c9cceb;
+  z-index: 40;
+}
+.ms-side-in {
   position: sticky;
   top: 0;
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: var(--ms-dots), var(--ink);
-  color: #c9cceb;
   padding: 14px 12px;
   overflow-y: auto;
-  z-index: 40;
 }
 .ms-org {
   position: relative;
@@ -480,22 +484,22 @@ a.ms-org-item:hover {
   overflow: hidden;
 }
 .ms-flush > .ms-card-head {
-  padding: 18px 20px 0;
+  padding: 24px 26px 0;
 }
 .ms-flush .p-table-wrap {
   margin: 0;
 }
 .ms-flush th:first-child,
 .ms-flush td:first-child {
-  padding-left: 20px;
+  padding-left: 26px;
 }
 .ms-flush th:last-child,
 .ms-flush td:last-child {
-  padding-right: 20px;
+  padding-right: 26px;
 }
 .ms-flush > .ms-empty,
 .ms-flush > .ms-foot {
-  padding: 16px 20px;
+  padding: 16px 26px;
 }
 
 /* Buttons. Submit buttons in forms are primary; other buttons secondary. */
@@ -937,21 +941,7 @@ a.ms-org-item:hover {
   border-color: var(--ink);
   box-shadow: 0 22px 40px -28px rgba(30, 36, 102, 0.5);
 }
-.ms-kpi::after {
-  content: "";
-  position: absolute;
-  top: 22px;
-  right: 22px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #f26b1d;
-}
-.ms-kpi:nth-child(2)::after { background: #4f8bff; }
-.ms-kpi:nth-child(3)::after { background: #f5b700; }
-.ms-kpi:nth-child(4)::after { background: #2e37a4; }
 .ms-kpi > span {
-  padding-right: 16px;
   font-size: 13px;
   color: var(--muted);
   font-weight: 500;
@@ -1475,6 +1465,10 @@ a.ms-org-item:hover {
   .ms-side {
     visibility: hidden;
   }
+  .ms-side-in {
+    position: static;
+    height: 100%;
+  }
   .ms-app[data-nav-open] .ms-side {
     transform: none;
     visibility: visible;
@@ -1683,22 +1677,23 @@ a.ms-org-item:hover {
 .ms-link-actions { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
 td.ms-link-actions { display: table-cell; text-align: right; white-space: nowrap; }
 td.ms-link-actions > * + * { margin-left: 6px; }
-.ms-empty-line { padding: 0 24px 24px; }
+.ms-empty-line { padding: 0 26px 24px; }
 @media (max-width: 720px) { .ms-link-form { grid-template-columns: minmax(0, 1fr); } }
 
 /* Payment methods overview */
 .ms-methods { list-style: none; margin: 0; padding: 0; }
-.ms-methods li { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 14px 24px; border-top: 1px solid var(--line, #e2e7e8); }
+.ms-methods li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 14px 26px; border-top: 1px solid var(--line, #e2e7e8); }
 .ms-methods li strong { display: block; color: #1e2466; }
 .ms-methods li small { color: #62668a; font-size: 13px; }
-.ms-methods-dot { width: 10px; height: 10px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px #8a9ba3; }
-.ms-methods li.on .ms-methods-dot { background: #2e37a4; box-shadow: none; }
 .ms-methods-state { font-size: 13.5px; font-weight: 600; color: #1e2466; text-align: right; }
-.ms-methods li.on .ms-methods-state { color: #252c8a; }
 .ms-details { margin-top: 16px; border: 1px solid var(--line, #e2e7e8); border-radius: 12px; background: #fff; }
-.ms-details > summary { padding: 16px 24px; cursor: pointer; font-weight: 600; color: #1e2466; }
+.ms-body .ms-details > summary { padding: 16px 26px; cursor: pointer; font-weight: 600; color: #1e2466; }
+.ms-details-body { display: grid; gap: 16px; padding: 16px; }
+.ms-body .ms-details-body > section { box-shadow: none; }
+.ms-body .ms-details-body section .p-table-wrap { margin-bottom: 16px; }
+.ms-coin-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; margin: 20px 0 12px; }
 .ms-details[open] > summary { border-bottom: 1px solid var(--line, #e2e7e8); }
-@media (max-width: 720px) { .ms-methods li { grid-template-columns: 12px minmax(0, 1fr); } .ms-methods-state { grid-column: 2; text-align: left; } }
+@media (max-width: 720px) { .ms-methods li { padding: 14px 16px; } .ms-coin-filters { grid-template-columns: minmax(0, 1fr); } }
 
 .ms-check-off { color: #8a9ba3; }
 .ms-check small { color: #8a9ba3; font-size: 12px; font-weight: 400; }
@@ -1719,7 +1714,6 @@ td.ms-link-actions > * + * { margin-left: 6px; }
 .ms-list-pad { padding: 0 20px 8px !important; }
 .ms-body section.ms-callout { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .portal .ms-body section.ms-callout h2 { margin: 0; }
-.ms-body #receive { display: grid; gap: 20px; }
 
 /* Subscriptions */
 .ms-link-form fieldset.ms-meter { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 16px; padding: 14px; border: 1px dashed var(--line-2); border-radius: 10px; }
@@ -1753,3 +1747,167 @@ td.ms-link-actions > * + * { margin-left: 6px; }
   letter-spacing: 0;
   vertical-align: middle;
 }
+
+/* Get paid in crypto (intents.tsx): stablecoins to settle in as chips
+   grouped by token, then one tile per wallet. */
+.ms-body .ms-intents-setup fieldset.ms-settle {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  border-top: 0;
+  margin: 20px 0 26px;
+  padding: 0;
+}
+.ms-body .ms-intents-setup fieldset.ms-settle legend {
+  margin-bottom: 8px;
+}
+.ms-settle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px 14px;
+  flex-wrap: wrap;
+}
+.ms-settle-token {
+  width: 44px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.ms-settle-chips {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+.ms-body .ms-settle label.ms-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 13px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  background: white;
+  font-weight: 500;
+  line-height: 1.2;
+  transition: border-color 0.15s, background 0.15s;
+}
+.ms-body .ms-settle label.ms-chip:hover {
+  border-color: var(--accent);
+}
+.ms-body .ms-settle label.ms-chip:has(input:checked) {
+  border-color: var(--accent);
+  background: #ebecf8;
+}
+.ms-body .ms-settle label.ms-chip:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.ms-body .ms-settle .ms-chip input {
+  margin: 0;
+}
+.portal .ms-body .ms-intents-setup h3 {
+  margin: 0 0 10px;
+}
+.ms-wallets {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.ms-body button.ms-wallet {
+  justify-content: flex-start;
+  gap: 10px;
+  min-height: 52px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  white-space: normal;
+}
+.ms-body button.ms-wallet:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+.ms-wallet img {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  flex: none;
+}
+.ms-wallet svg {
+  color: var(--accent);
+  flex: none;
+}
+.ms-wallet-manage {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.ms-wallet-manage:empty {
+  display: none;
+}
+.portal .ms-wallet-manage .p-notice {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+/* Settle in: stablecoins or the bank (intents.tsx), and the bank accounts
+   checkouts can settle to (cash-out.tsx). */
+.ms-body .ms-intents-setup fieldset.ms-settle-mode {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  border-top: 0;
+  margin: 20px 0 6px;
+  padding: 0;
+}
+.ms-body .ms-intents-setup fieldset.ms-settle-mode legend {
+  margin-bottom: 8px;
+}
+.ms-body .ms-intents-setup .ms-settle-mode label {
+  display: inline-flex;
+  align-items: center;
+  grid-column: auto;
+  gap: 8px;
+  padding: 9px 16px;
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ms-body .ms-intents-setup .ms-settle-mode label:has(input:checked) {
+  border-color: var(--accent);
+  background: #ebecf8;
+}
+.ms-body .ms-intents-setup .ms-settle-mode input {
+  margin: 0;
+}
+.ms-settle-bank {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.ms-settle-bank li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.ms-settle-bank li strong {
+  margin-right: auto;
+}
+
+/* Settings → Logo (logo.tsx). */
+.ms-logo-setting { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 24px; }
+.ms-logo-preview { display: grid; place-items: center; width: 120px; height: 64px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.ms-logo-preview img { max-width: 104px; max-height: 48px; object-fit: contain; }
+.ms-logo-preview span { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: var(--ink); color: #fff; font-weight: 700; }
+.ms-logo-setting .ms-inline-form { flex: 1; min-width: 260px; }
+.ms-logo-setting .ms-inline-form input[type="file"] { min-width: 0; }

@@ -292,6 +292,21 @@ export function calculateFee(snapshot: unknown, method: string, amount: string, 
   };
 }
 
+// PayRouta's fee on a stablecoin or crypto payment in the payment's own token
+// (minor units), for taking it at source: the same rate and cap as
+// calculateFee, before conversion to the billing currency. 0 when free.
+export function directFeeInAsset(snapshot: unknown, method: string, amount: string, precision: number) {
+  const terms = feeSnapshotSchema.parse(snapshot);
+  if (terms.free || terms.version !== pricingVersion || !(directMethods as readonly string[]).includes(method)) return 0n;
+  const s = terms.schedule as FeeSchedule | null;
+  if (!s || s.inputPrecision !== precision) throw new PortalError("INVALID_FEE_SNAPSHOT", 409);
+  const gross = minor(amount, precision);
+  const fee = (gross * BigInt(s.directBps) * 2n + 10000n) / 20000n;
+  // The cap is in billing units; convert it back into the token, rounding down.
+  const cap = s.directCapMinor ? (BigInt(s.directCapMinor) * BigInt(s.conversionDenominator)) / BigInt(s.conversionNumerator) : undefined;
+  return cap !== undefined && fee > cap ? cap : fee;
+}
+
 export function formatFee(amount: string, precision: number) {
   const text = BigInt(amount)
     .toString()

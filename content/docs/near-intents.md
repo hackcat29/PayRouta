@@ -8,26 +8,40 @@ PayRouta never holds the funds or the account's keys. NEAR Intents holds balance
 
 ## Connect an account
 
-In the dashboard, open **Crypto balance**.
+In the dashboard, open **Balances → Crypto**.
 
-1. Choose the stablecoins checkouts settle in: USDC on Base, Ethereum, Arbitrum, Polygon, Avalanche, Solana or Stellar, or USDT on Ethereum, Avalanche or Solana.
-2. Connect the wallet that owns the account:
-   - a **NEAR wallet** (HOT, Meteor, Intear, MyNearWallet and others) for a NEAR account such as `shop.near`, or
-   - an **EVM wallet** (MetaMask, Rabby, Coinbase Wallet and others), whose address is its NEAR Intents account.
+1. Under **Settle in**, choose **Stablecoins**, then the ones checkouts settle in: USDC on Base, Ethereum, Arbitrum, Polygon, Avalanche, Solana or Stellar, or USDT on Ethereum, Avalanche or Solana. To be paid in your bank's currency instead, see [Settle in your bank](#settle-in-your-bank).
+2. Choose the wallet that owns the account:
+   - **Create a wallet**: sign in with Google, Apple, X or email, and a new wallet is created for you. You own its key and can export it.
+   - **Connect a wallet**: any wallet you already have on an EVM chain (MetaMask, Rabby, Coinbase Wallet and others) or on Solana (Phantom, Solflare, Backpack and others).
+   - **NEAR wallet** (HOT, Meteor, Intear, MyNearWallet and others) for a NEAR account such as `shop.near`.
+
+   An EVM address is its own NEAR Intents account; a Solana address owns the account named by its key in hex.
 3. Sign the message the wallet shows. It proves you control the account and does not move funds. PayRouta checks the signature and, for a named NEAR account, that the signing key has full access to it.
 
 Connecting needs recent authenticator verification. Live checkouts settle into it once you've gone live with crypto under [Activate payments](activation.md): a name, a country, the merchant terms and an automatic sanctions check, with no review. Connecting another account replaces the first; disconnecting stops new checkouts settling there and leaves the funds where they are.
 
-A named NEAR account must tell NEAR Intents once which key signs its intents. **Crypto balance** shows a **Register wallet key** button until it has; it sends one transaction from your wallet with a small NEAR network fee. EVM addresses need no registration.
+A named NEAR account must tell NEAR Intents once which key signs its intents. **Balances → Crypto** shows a **Register wallet key** button until it has; it sends one transaction from your wallet with a small NEAR network fee. EVM addresses need no registration.
 
 ## How a payment settles
 
 1. The checkout asks for, say, 40.00 USDC. The customer picks what they hold, for example USDT on Tron, and gives their own address on that chain for refunds.
-2. PayRouta asks NEAR Intents' 1Click API for an **exact-output** quote that delivers exactly 40.00 USDC into your account. The customer sends the quoted amount to a one-time deposit address. Paying in the invoice token itself works the same way.
-3. When 1Click reports the swap complete, PayRouta reads the swap's NEAR transactions back from the chain. The payment is confirmed only by a final `intents.near` transfer of exactly 40.00 USDC into your account, made by one of that swap's own intents. Each transfer can confirm one payment only.
+2. PayRouta asks NEAR Intents' 1Click API for an **exact-output** quote that delivers exactly 40.00 USDC, less PayRouta's 1.5% fee, into your account; NEAR Intents sends the fee to PayRouta in the same swap ([Fees and billing](billing.md)). The customer sends the quoted amount to a one-time deposit address. Paying in the invoice token itself works the same way.
+3. When 1Click reports the swap complete, PayRouta reads the swap's NEAR transactions back from the chain. The payment is confirmed only by a final `intents.near` transfer of exactly that amount into your account, made by one of that swap's own intents. Each transfer can confirm one payment only.
 4. Settlement is recorded as for any other crypto payment, with the NEAR transaction as evidence.
 
 If the swap can't complete, NEAR Intents refunds the customer on their own chain, and they can pay another way on the same checkout.
+
+## Settle in your bank
+
+Under **Settle in**, choose **Your bank**, and crypto checkouts are paid out in your bank's currency with nothing to sign per payment:
+
+1. Set up where you're paid, as for [cashing out](cash-out.md): Bridge for US dollars or euros, or Yellow Card for naira, cedi, shillings, rand, kwacha and pesos to a bank or mobile money.
+2. Choose **Settle crypto checkouts here** on that account.
+
+Each checkout's quote then delivers USDC on Base, less PayRouta's fee, straight to the partner: your Bridge liquidation address, or PayRouta's Yellow Card balance. PayRouta confirms the payment only when that swap's own transfer of exactly that amount is final on Base, then follows the partner until your bank or mobile money is paid. You see each one under **Cash outs**. **Stop** goes back to settling in crypto.
+
+Customers pay exactly as before: any token, any chain.
 
 ## Pay out and refund
 

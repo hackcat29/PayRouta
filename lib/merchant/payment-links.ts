@@ -4,6 +4,7 @@
 // who presses Pay on the link's page gets their own universal checkout
 // (lib/payments/universal.ts), so one link takes any number of payments.
 // Opening the page creates nothing, so link previews in chat apps are safe.
+import { merchantBrand } from "./branding";
 import { randomBytes, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { db } from "../portal/db";
@@ -141,7 +142,7 @@ export async function publicPaymentLink(slug: string) {
   const link = await db.paymentLink.findUnique({ where: { slug } });
   if (!link || !link.active) return null;
   const org = await db.organization.findUnique({ where: { id: link.orgId }, select: { name: true } });
-  return { ...link, merchant: org?.name ?? "Merchant", methods: link.methods as string[] };
+  return { ...link, merchant: org?.name ?? "Merchant", ...(await merchantBrand(link.orgId)), methods: link.methods as string[] };
 }
 
 function origin() {

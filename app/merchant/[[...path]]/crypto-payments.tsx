@@ -44,9 +44,72 @@ export function CryptoPayments({
     return body;
   };
   return (
-    <>
-      <section>
-        <h2>Crypto wallet payments</h2>
+    <section>
+      <h2>Other coins: ETH, SOL, XLM and more</h2>
+      {canConfigure && (
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget,
+              data = new FormData(form);
+            setBusy(true);
+            setMessage("");
+            try {
+              const [network, identifier] = selected.split("|");
+              await command("crypto-wallets", {
+                network,
+                identifier,
+                addresses: String(data.get("addresses"))
+                  .trim()
+                  .split(/[\s,]+/),
+              });
+              location.reload();
+            } catch (error) {
+              setMessage(error instanceof TypeError ? offline : (error as Error).message);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <fieldset disabled={busy}>
+            <label>
+              Crypto coin and network
+              <select
+                aria-label="Crypto coin and network"
+                value={selected}
+                onChange={(e) => setSelected(e.target.value)}
+              >
+                {supported.map((a) => (
+                  <option
+                    key={a.network + a.identifier}
+                    value={`${a.network}|${a.identifier}`}
+                  >
+                    {a.symbol} on {networkName(a.network)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Coin addresses, one per line
+              <textarea
+                name="addresses"
+                required
+                rows={4}
+                placeholder={
+                  selected.startsWith("stellar:")
+                    ? "G…"
+                    : selected.startsWith("solana:")
+                      ? "Solana wallet address"
+                      : "0x…"
+                }
+              />
+            </label>
+            <button>Save coin addresses</button>
+          </fieldset>
+        </form>
+      )}
+      <p role="status">{message}</p>
+      <div className="ms-coin-filters">
         <label>
           Filter crypto network
           <select
@@ -72,6 +135,7 @@ export function CryptoPayments({
             placeholder="Coin name or symbol"
           />
         </label>
+      </div>
         <div className="p-table-wrap">
           <table>
             <thead>
@@ -120,75 +184,6 @@ export function CryptoPayments({
             addresses
           </p>
         ))}
-      </section>
-      {canConfigure && (
-        <>
-          <section>
-            <h2>Add crypto receive addresses</h2>
-            <form
-              onSubmit={async (e) => {
-                e.preventDefault();
-                const form = e.currentTarget,
-                  data = new FormData(form);
-                setBusy(true);
-                setMessage("");
-                try {
-                  const [network, identifier] = selected.split("|");
-                  await command("crypto-wallets", {
-                    network,
-                    identifier,
-                    addresses: String(data.get("addresses"))
-                      .trim()
-                      .split(/[\s,]+/),
-                  });
-                  location.reload();
-                } catch (error) {
-                  setMessage(error instanceof TypeError ? offline : (error as Error).message);
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            >
-              <fieldset disabled={busy}>
-                <label>
-                  Crypto coin and network
-                  <select
-                    aria-label="Crypto coin and network"
-                    value={selected}
-                    onChange={(e) => setSelected(e.target.value)}
-                  >
-                    {supported.map((a) => (
-                      <option
-                        key={a.network + a.identifier}
-                        value={`${a.network}|${a.identifier}`}
-                      >
-                        {a.symbol} on {networkName(a.network)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Fresh crypto receive addresses
-                  <textarea
-                    name="addresses"
-                    required
-                    rows={4}
-                    placeholder={
-                      selected.startsWith("stellar:")
-                        ? "G…"
-                        : selected.startsWith("solana:")
-                          ? "Solana wallet address"
-                          : "0x…"
-                    }
-                  />
-                </label>
-                <button>Save crypto receive addresses</button>
-              </fieldset>
-            </form>
-          </section>
-        </>
-      )}
-      <p role="status">{message}</p>
-    </>
+    </section>
   );
 }

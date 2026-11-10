@@ -21,9 +21,11 @@ import {
 } from "@/lib/treasury/labels";
 import type { merchantTreasury, paymentFunds } from "@/lib/treasury/views";
 import { Empty } from "./format";
+import { VerifiedTick } from "@/components/verified-tick";
 import { AcceptTerms, DisputeResponse, PayoutRequest, RefundPanel, SubmitForReview, VerificationForm } from "./treasury";
 import { BasicDetailsForm, BusinessDetailsForm, DocumentUpload, GoLiveWithCrypto, type ActivationProfile } from "./activation";
 import {
+  identityVerified,
   onboardingDocuments,
   type OnboardingDocument,
   type RequirementId,
@@ -214,6 +216,8 @@ export function ActivationSection({
         ) : null}
       </section>
 
+      <VerifiedTickSection orgId={orgId} requirements={r} country={country} basicsDone={basicsDone} status={status} />
+
       <section>
         <div className="tr-row">
           <h2>Cards, bank transfers and mobile money</h2>
@@ -284,6 +288,45 @@ export function ActivationSection({
         )}
       </section>
     </>
+  );
+}
+
+// The verified tick customers see beside the business at checkout. Cards,
+// bank and cash out need these documents anyway; a merchant who only takes
+// and keeps crypto can choose to send them for the tick.
+function VerifiedTickSection({
+  orgId,
+  requirements: r,
+  country,
+  basicsDone,
+  status,
+}: {
+  orgId: string;
+  requirements: Requirements;
+  country: string;
+  basicsDone: boolean;
+  status: Map<RequirementId, string>;
+}) {
+  const verified = identityVerified(r);
+  const needed: OnboardingDocument[] = r.tier === "individual" ? ["government-id"] : ["government-id", "registration-certificate"];
+  const missing = needed.filter((d) => !["done", "in-review"].includes(status.get(d) ?? ""));
+  const inReview = needed.some((d) => status.get(d) === "in-review");
+  return (
+    <section>
+      <div className="tr-row">
+        <h2 className="tr-tick-title">
+          Verified tick <VerifiedTick />
+        </h2>
+        <Pill tone={verified ? "good" : "neutral"}>{verified ? "Verified" : inReview && !missing.length ? "In review" : "Optional"}</Pill>
+      </div>
+      {!verified && basicsDone && missing.length > 0 && (
+        <>
+          {missing.map((d) => (
+            <DocumentUpload key={d} orgId={orgId} country={country} requirementId={onboardingDocuments[d]} label={onboardingText[d]} />
+          ))}
+        </>
+      )}
+    </section>
   );
 }
 

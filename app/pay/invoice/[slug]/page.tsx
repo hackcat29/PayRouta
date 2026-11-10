@@ -1,5 +1,7 @@
 // A subscription invoice: what it's for and a Pay button that opens (or
 // reopens) this invoice's checkout. Checkout returns here once paid.
+import { MerchantContact, MerchantMark } from "@/components/merchant-mark";
+import { VerifiedTick } from "@/components/verified-tick";
 import { notFound } from "next/navigation";
 import { formatMoney, publicInvoice } from "@/lib/subscriptions/service";
 import "../../pay.css";
@@ -37,10 +39,9 @@ export default async function InvoicePage({
       {invoice.environment === "sandbox" && <div className="pl-test">Test mode · no real money moves</div>}
       <form className="pl-card" method="post" action={`/api/pay/invoice/${invoice.slug}`}>
         <p className="pl-merchant">
-          <span className="pl-avatar" aria-hidden="true">
-            {invoice.merchant.slice(0, 1).toUpperCase()}
-          </span>
+          <MerchantMark className="pl-avatar" name={invoice.merchant} logo={invoice.logo} />
           {invoice.merchant}
+          {invoice.verified && <VerifiedTick />}
         </p>
         <h1 className="pl-title">{invoice.plan}</h1>
         <p className="pl-desc">
@@ -75,6 +76,7 @@ export default async function InvoicePage({
             <p className="pl-desc">Due {day(invoice.dueAt)}</p>
           </>
         )}
+        <MerchantContact className="pl-contact" name={invoice.merchant} website={invoice.website} supportEmail={invoice.supportEmail} />
         <p className="pl-foot">
           Secured by <strong>PayRouta</strong>
         </p>

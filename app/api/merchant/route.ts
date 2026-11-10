@@ -7,7 +7,7 @@ import { configureStablecoins } from "@/lib/merchant/stablecoins";
 import { connectIntentsAccount, disconnectIntentsAccount, intentsChallenge } from "@/lib/intents/account";
 import { setSwapSettlement } from "@/lib/intents/checkout";
 import { PortalError } from "@/lib/portal/domain";
-import { addBridgeBank, cashOutsFor, quoteCashOut, setYellowCard, startBridge, yellowCardNetworks } from "@/lib/treasury/offramp/cashout";
+import { addBridgeBank, cashOutsFor, quoteCashOut, setBankSettlement, setYellowCard, startBridge, yellowCardNetworks } from "@/lib/treasury/offramp/cashout";
 import { payoutsFor, quotePayout, submitPayout } from "@/lib/intents/payouts";
 import { issueAgentKey, revokeAgentKey } from "@/lib/agents/keys";
 import { liveScopeCommand } from "@/lib/merchant/live-scope";
@@ -113,6 +113,7 @@ export async function POST(request: Request) {
       if (raw.action === "cashout-yellowcard-account") return setYellowCard(orgId, raw.input, request.headers);
       if (raw.action === "cashout-quote") return quoteCashOut(orgId, raw.input, request.headers);
       if (raw.action === "cashout-list") return cashOutsFor(orgId, request.headers);
+      if (raw.action === "cashout-settle-checkouts") return setBankSettlement(orgId, raw.input, request.headers);
       throw new PortalError("UNKNOWN_ACTION", 400);
     }
     // Which receive stablecoin payments in other tokens settle into.

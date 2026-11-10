@@ -5,9 +5,6 @@ import { partnerOverview } from "@/lib/partners/service";
 import { labelOf } from "@/lib/providers/normalized";
 import { CryptoPayments } from "./crypto-payments";
 import { onchainMethod } from "@/lib/blockchain/crypto-assets";
-import { networkName } from "@/lib/blockchain/chains";
-import { destinationFor } from "@/lib/intents/oneclick";
-import { SwapSettlement } from "./swap-settlement";
 import { cashOutView } from "@/lib/treasury/offramp/cashout";
 import { Stablecoins } from "./stablecoins";
 import { stablecoinOverview } from "@/lib/merchant/stablecoins";
@@ -51,6 +48,8 @@ import { CreateWorkspace } from "./create-workspace";
 import { SignOutButton } from "@/components/portal/sign-out";
 import { PasskeySettings } from "@/components/portal/auth-screen";
 import { FeeBearerSetting } from "./fees";
+import { LogoSetting } from "./logo";
+import { logoUrl, merchantBrand } from "@/lib/merchant/branding";
 import { SsoSettings } from "./sso";
 import { surchargeBannedCountry } from "@/lib/payments/fee-bearer";
 import { safeNext } from "@/lib/portal/next-path";
@@ -522,7 +521,7 @@ export default async function Page({
   } else if (section === "crypto-balance" && env !== "production") {
     content = (
       <section className="ms-callout">
-        <h2>Crypto balance is in live mode</h2>
+        <h2>Crypto settles in live mode</h2>
         <Link className="ms-btn primary" href={`/merchant/activation?${new URLSearchParams({ orgId, environment: env })}`}>
           Go live with crypto
         </Link>
@@ -549,7 +548,7 @@ export default async function Page({
           .map((t) => ({ assetId: t.assetId, chain: t.blockchain, chainName: chainNames[t.blockchain] ?? t.blockchain.toUpperCase(), symbol: t.symbol }))
           .sort((a, b) => a.chainName.localeCompare(b.chainName) || a.symbol.localeCompare(b.symbol))}
         canConfigure={configure}
-        cashOut={overview.account ? await cashOutView(orgId, env).catch(() => undefined) : undefined}
+        cashOut={await cashOutView(orgId, env).catch(() => undefined)}
       />
     );
   } else if (section === "disputes") {
@@ -566,13 +565,6 @@ export default async function Page({
     const accounts = await stablecoinOverview(orgId, env);
     const offered = new Set((await platformCandidates(orgId, env)).map((c) => c.method));
     const stableNetworks = configuration.stablecoinAssets.filter((a) => a.configured).length;
-    // Receive stablecoins NEAR Intents can swap other tokens into.
-    const settleChoices = accounts
-      .filter((a) => onchainMethod(a.network, a.identifier) === "stablecoin" && destinationFor(a.network, a.identifier))
-      .map((a) => ({ value: `${a.network}|${a.identifier}`, label: `${destinationFor(a.network, a.identifier)!.symbol} on ${networkName(a.network)}` }))
-      .filter((c, i, all) => all.findIndex((x) => x.value === c.value) === i);
-    const swapSettlement = (await db.merchantConfig.findUnique({ where: { orgId }, select: { swapSettlement: true } }))
-      ?.swapSettlement as { network: string; identifier: string } | null | undefined;
     const fiatMethods = [
       ["Cards", "card"],
       ["Digital wallets", "digital-wallet"],
@@ -581,14 +573,19 @@ export default async function Page({
       ["USSD", "ussd"],
       ["Pay with credit", "bnpl"],
     ] as const;
+    const intentsConnected =
+      env === "production" &&
+      ((await db.intentsAccount.count({ where: { orgId, environment: env, revokedAt: null } })) > 0 ||
+        (await db.fiatPayoutAccount.count({ where: { orgId, environment: env, settleCheckouts: true } })) > 0);
+    const live = env === "production";
+    const cryptoOn = intentsConnected || stableNetworks > 0;
+    const receiveAccounts = accounts.filter((a) => onchainMethod(a.network, a.identifier) === "stablecoin");
     const methodsOverview: { name: string; on: boolean; next?: ReactNode }[] = [
       ...fiatMethods.map(([name, id]) => ({ name, on: offered.has(id) })),
-      { name: "Stablecoins", on: stableNetworks > 0, next: <a href="#receive">Add receive addresses ↓</a> },
       {
-        name: "Any token, any chain",
-        on: stableNetworks > 0 && env === "production",
-        next:
-          env === "production" ? <Link href={href("crypto-balance")}>Connect →</Link> : <span className="ms-dim">Live mode only</span>,
+        name: live ? "Crypto: any token, any chain" : "Stablecoins",
+        on: cryptoOn,
+        next: <Link href={live ? href("crypto-balance") : "#receive"}>Set up</Link>,
       },
     ];
     content = (
@@ -604,45 +601,42 @@ export default async function Page({
           </div>
           <ul className="ms-methods">
             {methodsOverview.map((m) => (
-              <li key={m.name} className={m.on ? "on" : undefined}>
-                <span className="ms-methods-dot" aria-hidden="true" />
+              <li key={m.name}>
                 <strong>{m.name}</strong>
-                <span className="ms-methods-state">{m.on ? "On" : (m.next ?? <span className="ms-dim">Off</span>)}</span>
+                {m.on ? (
+                  <span className="ms-pill good">On</span>
+                ) : m.next ? (
+                  <span className="ms-methods-state">{m.next}</span>
+                ) : (
+                  <span className="ms-pill">Off</span>
+                )}
               </li>
             ))}
           </ul>
         </section>
-        <div id="receive">
-          <Stablecoins
-            orgId={orgId}
-            environment={env}
-            accounts={accounts.filter(
-              (a) => onchainMethod(a.network, a.identifier) === "stablecoin",
-            )}
-            readiness={configuration.stablecoinAssets}
-            canConfigure={configure}
-          />
-        </div>
-        {env === "production" && settleChoices.length > 0 && (
-          <SwapSettlement
-            orgId={orgId}
-            choices={settleChoices}
-            current={swapSettlement ? `${swapSettlement.network}|${swapSettlement.identifier}` : ""}
-            canConfigure={configure}
-          />
+        {!live && (
+          <details className="ms-details" id="receive" open>
+            <summary>Receive addresses</summary>
+            <div className="ms-details-body">
+              <Stablecoins
+                orgId={orgId}
+                environment={env}
+                accounts={receiveAccounts}
+                readiness={configuration.stablecoinAssets}
+                canConfigure={configure}
+              />
+              <CryptoPayments
+                orgId={orgId}
+                environment={env}
+                assets={configuration.cryptoAssets}
+                accounts={accounts.filter(
+                  (a) => onchainMethod(a.network, a.identifier) === "crypto-app",
+                )}
+                canConfigure={configure}
+              />
+            </div>
+          </details>
         )}
-        <details className="ms-details">
-          <summary>Volatile coins: ETH, SOL, XLM and others</summary>
-          <CryptoPayments
-            orgId={orgId}
-            environment={env}
-            assets={configuration.cryptoAssets}
-            accounts={accounts.filter(
-              (a) => onchainMethod(a.network, a.identifier) === "crypto-app",
-            )}
-            canConfigure={configure}
-          />
-        </details>
         {section === "providers" && (
           <Providers
             profileOnly
@@ -940,15 +934,7 @@ export default async function Page({
     const paymentsApp = !!process.env.SHOPIFY_API_KEY;
     content = (
       <>
-        <section>
-          <h2>Checkout button</h2>
-          <pre className="ms-code">{`<script src="${appOrigin}/js/v1/payrouta.js" async></script>
-<button data-payrouta-checkout="/create-checkout">Checkout</button>`}</pre>
-          <p className="ms-dim">
-            <a href={docsUrl("checkout-button")}>Checkout button guide</a>
-          </p>
-        </section>
-        <section>
+        <section id="shopify">
           <h2>Shopify</h2>
           {query.shopifyError && <p className="p-notice error">The Shopify connection didn&apos;t complete. Try again.</p>}
           {liteShops.length > 0 && (
@@ -1030,7 +1016,7 @@ export default async function Page({
             <a href={docsUrl("shopify")}>Shopify guide</a>
           </p>
         </section>
-        <section>
+        <section id="woocommerce">
           <h2>WooCommerce</h2>
           <ol>
             <li>
@@ -1050,6 +1036,14 @@ export default async function Page({
           </ol>
           <p className="ms-dim">
             <a href={docsUrl("woocommerce")}>WooCommerce guide</a>
+          </p>
+        </section>
+        <section id="checkout-button">
+          <h2>Checkout button</h2>
+          <pre className="ms-code">{`<script src="${appOrigin}/js/v1/payrouta.js" async></script>
+<button data-payrouta-checkout="/create-checkout">Checkout</button>`}</pre>
+          <p className="ms-dim">
+            <a href={docsUrl("checkout-button")}>Checkout button guide</a>
           </p>
         </section>
       </>
@@ -1290,7 +1284,11 @@ export default async function Page({
         </section>
       </>
     );
-  else if (section === "settings")
+  else if (section === "settings") {
+    const [logo, brand] = await Promise.all([
+      db.merchantLogo.findUnique({ where: { orgId }, select: { key: true } }),
+      merchantBrand(orgId),
+    ]);
     content = (
       <>
         <section>
@@ -1298,6 +1296,10 @@ export default async function Page({
           <dl className="ms-props">
             <dt>Business name</dt>
             <dd>{membership.org.name}</dd>
+            <dt>Website</dt>
+            <dd>{brand.website ?? <Link href={href("activation")}>Add</Link>}</dd>
+            <dt>Support email</dt>
+            <dd>{brand.supportEmail ?? <Link href={href("activation")}>Add</Link>}</dd>
             <dt>Country</dt>
             <dd>{countries.find((c) => c.id === config.country)?.name ?? config.country}</dd>
             <dt>Checkout return website</dt>
@@ -1306,6 +1308,7 @@ export default async function Page({
             <dd>{membership.role}</dd>
           </dl>
         </section>
+        {configure && <LogoSetting orgId={orgId} name={membership.org.name} logo={logo ? logoUrl(logo.key) : null} />}
         {configure && (
           <FeeBearerSetting
             orgId={orgId}
@@ -1329,7 +1332,7 @@ export default async function Page({
         )}
       </>
     );
-  else {
+  } else {
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 6 * 86400000);
     weekAgo.setUTCHours(0, 0, 0, 0);
@@ -1368,35 +1371,47 @@ export default async function Page({
       }),
     ]);
     const treasury = await merchantTreasury(orgId, env);
-    const [linkCount, shopCount] = await Promise.all([
+    const [linkCount, shopCount, intentsCount, bankCount, receiveCount] = await Promise.all([
       db.paymentLink.count({ where: scope }),
       db.shopifyLiteShop.count({ where: { orgId, uninstalledAt: null } }),
+      db.intentsAccount.count({ where: { orgId, environment: env, revokedAt: null } }),
+      db.fiatPayoutAccount.count({ where: { orgId, environment: env, settleCheckouts: true } }),
+      stablecoinOverview(orgId, env).then((a) => a.filter((x) => x.remaining > 0).length),
     ]);
+    const live = env === "production";
     const cryptoLive = config.environment === "production";
     const fiatLive = approvedAccounts > 0 || treasury.account?.state === "Live";
     const setup: { done: boolean; label: string; path: string; also?: [string, string][] }[] = [
+      { done: live ? cryptoLive || fiatLive : !!treasury.steps.terms || cryptoLive, label: "Activate payments", path: "activation" },
       {
-        done: !!treasury.steps.terms || !!treasury.account || cryptoLive,
-        label: "Add your details",
-        path: "activation",
+        done: intentsCount > 0 || bankCount > 0 || receiveCount > 0 || fiatLive,
+        label: "Choose where you get paid",
+        path: live ? "crypto-balance" : "payment-methods",
       },
       {
         done: linkCount > 0 || keyCount > 0 || shopCount > 0,
-        label: "Create a payment link",
+        label: "Start selling",
         path: "payment-links?create=1",
         also: [
-          ["Checkout button", "developers/integrations"],
-          ["Shopify or WooCommerce", "developers/integrations"],
+          ["Payment link", "payment-links?create=1"],
+          ["Shopify", "developers/integrations#shopify"],
+          ["WooCommerce", "developers/integrations#woocommerce"],
+          ["Checkout button", "developers/integrations#checkout-button"],
         ],
       },
       {
         done: count > 0,
-        label: env === "production" ? "Take your first payment" : "Take a test payment",
+        label: live ? "Take your first payment" : "Take a test payment",
         path: "payment-links",
       },
-      { done: cryptoLive || fiatLive, label: "Go live", path: "activation" },
     ];
     const next = setup.findIndex((x) => !x.done);
+    // A dashboard path that may carry its own query or #anchor.
+    const to = (path: string) => {
+      const [rest, hash] = path.split("#");
+      const [p, q] = rest.split("?");
+      return href(p) + (q ? `&${q}` : "") + (hash ? `#${hash}` : "");
+    };
     const successRate =
       count === 0 ? null : Math.round((confirmed / count) * 100);
     const byDay = Array.from({ length: 7 }, (_, i) => {
@@ -1441,21 +1456,18 @@ export default async function Page({
                   <span className="ms-guide-label">
                     {s.label}
                     <span className="sr-only">{s.done ? " (done)" : " (to do)"}</span>
-                    {!s.done && s.also && (
+                    {i === next && s.also && (
                       <span className="ms-guide-also">
                         {s.also.map(([label, path]) => (
-                          <Link key={label} href={href(path)}>
+                          <Link key={label} href={to(path)}>
                             {label}
                           </Link>
                         ))}
                       </span>
                     )}
                   </span>
-                  {!s.done && (
-                    <Link
-                      className={i === next ? "ms-btn primary" : "ms-btn"}
-                      href={href(s.path.split("?")[0]) + (s.path.includes("?") ? `&${s.path.split("?")[1]}` : "")}
-                    >
+                  {i === next && (
+                    <Link className="ms-btn primary" href={to(s.path)}>
                       Start
                     </Link>
                   )}
@@ -1484,6 +1496,7 @@ export default async function Page({
             <strong>{attention ? <Link href={href("reconciliation")}>{attention}</Link> : attention}</strong>
           </div>
         </div>
+        {count > 0 && (
         <section>
           <h2>Successful payments, last 7 days</h2>
           <div
@@ -1507,6 +1520,7 @@ export default async function Page({
             ))}
           </div>
         </section>
+        )}
         <section className="ms-flush">
           <div className="ms-card-head">
             <h2>Recent payments</h2>

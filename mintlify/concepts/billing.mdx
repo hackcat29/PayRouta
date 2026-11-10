@@ -22,7 +22,8 @@ Volume rates (from $100,000 a month) are agreed in your merchant agreement.
 ## How fees are collected
 
 - **Cards, bank and mobile money processed through PayRouta:** taken from the payment before it reaches your balance. Nothing to pay later.
-- **Stablecoins and crypto:** the payment goes straight to your wallet, so the fee is valued in USD from the quote used at checkout and billed on your monthly statement.
+- **Crypto through NEAR Intents** (settled into your [NEAR Intents account](/guides/near-intents) or straight to your bank): taken during the payment. NEAR Intents sends PayRouta's 1.5% to PayRouta and the rest to you, so the payment shows the full amount, the fee and what you received, and nothing is billed later.
+- **Crypto paid straight to your own receive addresses** (test mode): the payment goes straight to your wallet, so the fee is valued in USD from the quote used at checkout and billed on your monthly statement.
 - **Your own processor accounts:** your processor charges you its fee directly; PayRouta's 1% is billed monthly.
 
 Open **Settings → Billing** to see monthly totals and download payment-level detail. Periods are UTC calendar months, by when the payment was confirmed. Statements are pretax usage records, not tax invoices.
@@ -51,4 +52,4 @@ Adding card or bank fees for customers is banned in the EU and UK, so merchants 
 - A $2,000.00 card payment on the same rail: PayRouta's fee is capped at $5.00, the partner fee is $58.30.
 - The same payment with customers paying the fees: the customer pays $104.37 and you receive $100.00.
 - A ₦185,000 bank transfer on a rail where the partner deducts its own fee: PayRouta's fee is ₦1,850, plus the partner's fee. On ₦1,000,000 it would be capped at ₦7,500.
-- A 500 USDC payment: the fee is 1.5% of its USD value at checkout, billed monthly.
+- A 500 USDC payment through NEAR Intents: 492.50 USDC reaches you and 7.50 USDC goes to PayRouta.

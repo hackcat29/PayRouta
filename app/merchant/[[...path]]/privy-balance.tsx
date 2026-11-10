@@ -1,16 +1,21 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   PrivyProvider,
   getEmbeddedConnectedWallet,
+  useConnectWallet,
   useCreateWallet,
   useExportWallet,
   usePrivy,
   useWallets,
+  type BaseConnectedEthereumWallet,
+  type BaseConnectedSolanaWallet,
 } from "@privy-io/react-auth";
+import { toSolanaWalletConnectors, useWallets as useSolanaWallets } from "@privy-io/react-auth/solana";
 import { CryptoBalance, type CryptoBalanceProps } from "./intents";
-import { connectEvm, type Signer } from "./intents-wallet";
+import { Sparkles, WalletCards } from "lucide-react";
+import { connectEvm, solanaSigner, walletErrorText, type Signer } from "./intents-wallet";
 import { embeddedEvmSigner } from "@/lib/blockchain/embedded-signer";
 
 export default function PrivyBalance({
@@ -28,12 +33,16 @@ export default function PrivyBalance({
       appId={appId}
       clientId={clientId}
       config={{
-        loginMethods: ["email"],
+        // Social sign-in creates a new wallet; each method must also be on
+        // in the Privy dashboard (docs/privy-wallets.md).
+        loginMethods: ["google", "apple", "twitter", "email"],
         appearance: {
           theme: "light",
-          accentColor: "#5046e5",
-          walletChainType: "ethereum-only",
+          accentColor: "#2e37a4",
+          // Existing wallets on EVM chains and Solana.
+          walletChainType: "ethereum-and-solana",
         },
+        externalWallets: { solana: { connectors: toSolanaWalletConnectors() } },
         embeddedWallets: {
           ethereum: { createOnLogin: "off" },
           showWalletUIs: true,
@@ -94,154 +103,167 @@ function WalletSession({
   );
 }
 
+// A Solana address's NEAR Intents account: its key in hex.
+const solanaAccount = (address: string) => {
+  try {
+    return solanaSigner(address, async () => ({ signature: new Uint8Array() })).accountId;
+  } catch {
+    return null;
+  }
+};
+
 function MerchantWallet(props: CryptoBalanceProps) {
   const { ready, authenticated, login, logout, user } = usePrivy();
   const { wallets, ready: walletsReady } = useWallets();
+  const { wallets: solanaWallets } = useSolanaWallets();
   const { createWallet } = useCreateWallet();
   const { exportWallet } = useExportWallet();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  // "create": signing in to create a wallet; "connect": choosing a wallet.
+  const [pending, setPending] = useState<null | "create" | "connect">(null);
+  // Read by Privy's connect callback, which may hold an older render.
+  const pendingRef = useRef(pending);
+  useEffect(() => {
+    pendingRef.current = pending;
+  }, [pending]);
+  const connectRef = useRef<((make: () => Promise<Signer>) => Promise<void>) | null>(null);
   const embedded = getEmbeddedConnectedWallet(wallets);
-  const accountId = props.overview.account?.accountId;
-  // Match the saved business account, never whichever wallet happens to be first.
-  const matching = wallets.find(
-    (wallet) =>
-      getEmbeddedConnectedWallet([wallet]) &&
-      wallet.address.toLowerCase() === accountId?.toLowerCase(),
-  );
+  const account = props.overview.account;
   async function run(work: () => Promise<unknown>) {
     setBusy(true);
     setMessage("");
     try {
       await work();
     } catch (error) {
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : "Your wallet could not complete this request. Try again.",
-      );
+      setMessage(walletErrorText(error));
     } finally {
       setBusy(false);
     }
   }
-  async function embeddedSigner(address: string): Promise<Signer | null> {
-    return embeddedEvmSigner(
-      authenticated,
-      ready && walletsReady,
-      wallets,
-      address,
-    );
+  // A wallet Privy connected, as the signer for an intents account.
+  const asSigner = async (w: BaseConnectedEthereumWallet | BaseConnectedSolanaWallet): Promise<Signer> =>
+    w.type === "solana"
+      ? solanaSigner(w.address, async (message) => {
+          const out = await w.provider.signMessage({ message });
+          return { signature: out.signature, signedMessage: out.signedMessage };
+        })
+      : connectEvm(await w.getEthereumProvider());
+  const { connectWallet } = useConnectWallet({
+    onSuccess: ({ wallet }) => {
+      const connect = connectRef.current;
+      if (pendingRef.current !== "connect" || !connect) return;
+      setPending(null);
+      void connect(() => asSigner(wallet));
+    },
+    onError: () => setPending(null),
+  });
+  // After social sign-in: create the wallet if there isn't one, then use it.
+  useEffect(() => {
+    if (pending !== "create" || !authenticated || !walletsReady || busy) return;
+    const connect = connectRef.current;
+    if (!connect) return;
+    // Continue once this render has settled.
+    const next = setTimeout(() => {
+      if (!embedded) {
+        void run(() => createWallet());
+        return;
+      }
+      setPending(null);
+      void connect(async () => ({ ...(await connectEvm(await embedded.getEthereumProvider())), source: "privy" as const }));
+    });
+    return () => clearTimeout(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending, authenticated, walletsReady, embedded, busy]);
+
+  // The wallet that owns the connected account, if Privy has it.
+  async function signer(target: { accountId: string; standard: string }): Promise<Signer | null> {
+    if (target.standard === "raw_ed25519") {
+      const w = solanaWallets.find((x) => solanaAccount(x.address) === target.accountId);
+      return w
+        ? solanaSigner(w.address, async (message) => {
+            const out = await w.signMessage({ message });
+            return { signature: out.signature, signedMessage: out.signedMessage };
+          })
+        : null;
+    }
+    if (target.standard !== "erc191") return null;
+    const own = await embeddedEvmSigner(authenticated, ready && walletsReady, wallets, target.accountId);
+    if (own) return own;
+    const external = wallets.find((w) => w.address.toLowerCase() === target.accountId);
+    return external ? connectEvm(await external.getEthereumProvider()) : null;
   }
-  return (
-    <CryptoBalance
-      {...props}
-      embeddedSigner={embeddedSigner}
-      walletControls={(connect, disabled) => (
-        <div className="ms-callout">
-          <h3>Your PayRouta wallet</h3>
-          <p>
-            Create a wallet with your email, or keep using an external wallet.
-            You approve signatures; PayRouta does not hold your private key.
-          </p>
-          {authenticated && (
-            <p>Wallet sign-in: {user?.email?.address || "Signed in"}</p>
-          )}
-          {embedded && (
-            <p>
-              Signing wallet: <code>{embedded.address}</code>
-            </p>
-          )}
-          {embedded && (
-            <p>
-              Your checkout balance is held in your NEAR Intents account.
-              Transfers sent directly to this wallet are not included in that
-              balance.
-            </p>
-          )}
-          {!accountId && embedded && (
-            <p>
-              Connecting this wallet makes it the receive account for this
-              business. It belongs to your wallet login, not every member of
-              your team.
-            </p>
-          )}
-          {accountId && authenticated && !matching && (
-            <p>
-              This wallet does not control the connected receive account. Sign
-              in with its wallet login or use the matching external wallet.
-            </p>
-          )}
-          <div className="ms-link-actions">
-            {!authenticated ? (
-              <button
-                type="button"
-                className="ms-btn"
-                disabled={!ready || busy}
-                onClick={() => login()}
-              >
-                {ready ? "Sign in to your wallet" : "Loading wallet…"}
-              </button>
-            ) : (
-              <>
-                {!embedded && (
-                  <button
-                    type="button"
-                    className="ms-btn"
-                    disabled={!walletsReady || busy}
-                    onClick={() => void run(() => createWallet())}
-                  >
-                    {busy ? "Creating wallet…" : "Create a wallet"}
-                  </button>
-                )}
-                {!accountId && embedded && (
-                  <button
-                    type="button"
-                    className="ms-btn primary"
-                    disabled={disabled || busy || !walletsReady}
-                    onClick={() =>
-                      void run(() =>
-                        connect(async () => ({
-                          ...(await connectEvm(
-                            await embedded.getEthereumProvider(),
-                          )),
-                          source: "privy",
-                        })),
-                      )
-                    }
-                  >
-                    Connect this wallet
-                  </button>
-                )}
-                {embedded && (
-                  <button
-                    type="button"
-                    className="ms-btn"
-                    disabled={busy || !walletsReady}
-                    onClick={() =>
-                      void run(() =>
-                        exportWallet({
-                          address: (matching ?? embedded).address,
-                        }),
-                      )
-                    }
-                  >
-                    Export wallet
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="ms-btn"
-                  disabled={busy}
-                  onClick={() => void run(() => logout())}
-                >
-                  Sign out of wallet
-                </button>
-              </>
-            )}
-          </div>
-          {message && <p role="alert">{message}</p>}
-        </div>
+
+  const tiles = (connect: (make: () => Promise<Signer>) => Promise<void>, disabled: boolean) => {
+    connectRef.current = connect;
+    return (
+      <>
+        <button
+          type="button"
+          className="ms-wallet"
+          disabled={!ready || busy || disabled}
+          onClick={() => {
+            setPending("create");
+            if (!authenticated) login();
+          }}
+        >
+          <Sparkles size={20} aria-hidden />
+          {pending === "create" && busy ? "Creating wallet…" : "Create a wallet"}
+        </button>
+        <button
+          type="button"
+          className="ms-wallet"
+          disabled={!ready || busy || disabled}
+          onClick={() => {
+            setPending("connect");
+            connectWallet();
+          }}
+        >
+          <WalletCards size={20} aria-hidden />
+          Connect a wallet
+        </button>
+      </>
+    );
+  };
+  const owned = account && (account.standard === "raw_ed25519"
+    ? solanaWallets.some((w) => solanaAccount(w.address) === account.accountId)
+    : wallets.some((w) => w.address.toLowerCase() === account.accountId));
+  const manage = (
+    <div className="ms-wallet-manage">
+      {account && account.standard !== "nep413" && !owned && (
+        <button
+          type="button"
+          className="ms-btn"
+          disabled={!ready || busy}
+          onClick={() => (account.standard === "erc191" && embedded === undefined && !authenticated ? login() : connectWallet())}
+        >
+          Connect the wallet that owns this account
+        </button>
       )}
-    />
+      {authenticated && (
+        <>
+          <span className="ms-dim">{user?.email?.address ?? user?.google?.email ?? user?.apple?.email ?? user?.twitter?.username}</span>
+          {embedded && (
+            <button
+              type="button"
+              className="ms-btn"
+              disabled={busy || !walletsReady}
+              onClick={() => void run(() => exportWallet({ address: embedded.address }))}
+            >
+              Export wallet
+            </button>
+          )}
+          <button type="button" className="ms-btn" disabled={busy} onClick={() => void run(() => logout())}>
+            Sign out of wallet
+          </button>
+        </>
+      )}
+      {message && (
+        <p className="p-notice error" role="alert">
+          {message}
+        </p>
+      )}
+    </div>
   );
+  return <CryptoBalance {...props} privy={{ tiles, manage, signer }} />;
 }

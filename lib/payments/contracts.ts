@@ -153,6 +153,9 @@ export const activeStates = [
 export const factAction = z
   .object({
     kind: z.enum(["redirect", "sandbox", "qr", "deposit", "paypal-venmo", "intents"]),
+    // intents only: "bank" delivers to the merchant's cash-out partner
+    // (an EVM funding address) instead of their intents account.
+    settle: z.enum(["bank"]).optional(),
     url: z.url().max(2048).optional(),
     image: z
       .string()
@@ -233,7 +236,7 @@ export const factAction = z
           : undefined;
       if (
         !action.address ||
-        intentsAccount(action.address)?.accountId !== action.address ||
+        (action.settle === "bank" ? !/^0x[0-9a-f]{40}$/.test(action.address) : intentsAccount(action.address)?.accountId !== action.address) ||
         !token ||
         action.symbol !== token.symbol ||
         !action.amount ||

@@ -1,3 +1,5 @@
+import { MerchantContact, MerchantMark } from "@/components/merchant-mark";
+import { VerifiedTick } from "@/components/verified-tick";
 import { notFound } from "next/navigation";
 import { publicPaymentLink } from "@/lib/merchant/payment-links";
 import { currencyExponent } from "@/lib/partners/money";
@@ -49,10 +51,9 @@ export default async function PaymentLinkPage({
       {link.environment === "sandbox" && <div className="pl-test">Test mode · no real money moves</div>}
       <form className="pl-card" method="post" action={`/api/pay/${link.slug}`}>
         <p className="pl-merchant">
-          <span className="pl-avatar" aria-hidden="true">
-            {link.merchant.slice(0, 1).toUpperCase()}
-          </span>
+          <MerchantMark className="pl-avatar" name={link.merchant} logo={link.logo} />
           {link.merchant}
+          {link.verified && <VerifiedTick />}
         </p>
         <h1 className="pl-title">{link.title}</h1>
         {link.description && <p className="pl-desc">{link.description}</p>}
@@ -65,6 +66,7 @@ export default async function PaymentLinkPage({
         <button className="pl-pay" type="submit">
           Pay {formatMoney(link.amount, link.currency)}
         </button>
+        <MerchantContact className="pl-contact" name={link.merchant} website={link.website} supportEmail={link.supportEmail} />
         <p className="pl-foot">
           Secured by <strong>PayRouta</strong>
         </p>

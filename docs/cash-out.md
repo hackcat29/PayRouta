@@ -12,7 +12,7 @@ Cashing out needs a live business with a connected [NEAR Intents account](near-i
 
 ## Set up
 
-Open **Crypto balance → Cash out to your bank**.
+Open **Balances → Crypto → Cash out to your bank**.
 
 **US and EU banks (Bridge)**
 

@@ -2,7 +2,9 @@
 // bank or mobile money in local currency.
 //
 //   1. Funding. The merchant signs a payout of USDC on Base from their
-//      NEAR Intents account (lib/intents/payouts.ts) to the partner:
+//      NEAR Intents account (lib/intents/payouts.ts) to the partner, or a
+//      crypto checkout settles straight to the bank, its swap delivering to
+//      the partner (near-intents-offramp, startBankCashOut below):
 //        Bridge       the merchant's own liquidation address, which converts
 //                     and pays their bank (USD by ACH or wire, EUR by SEPA);
 //        Yellow Card  PayRouta's Yellow Card top-up address.
@@ -18,11 +20,12 @@
 // the partner holds or returns the funds, and operations settle it.
 import { z } from "zod";
 import { db } from "../../portal/db";
-import { atomic, audit } from "../../portal/service";
+import { atomic, audit, json } from "../../portal/service";
 import { PortalError } from "../../portal/domain";
 import { secretManager } from "../../portal/adapters";
 import { merchantMember } from "../../merchant/access";
-import { rateLimit } from "../../portal/access";
+import { rateLimit, stepUp } from "../../portal/access";
+import { offrampConfigSchema, usdcBase as usdcBaseAsset } from "../../providers/adapters/native/near-intents-offramp";
 import { providerRequest } from "../../providers/adapters/http";
 import { destinations, type Http } from "../../intents/oneclick";
 import { payouts, quotePayout } from "../../intents/payouts";
@@ -73,9 +76,11 @@ function presentAccount(a: {
   tosUrl: string | null;
   partnerCustomerId: string | null;
   liquidationAddress: string | null;
+  settleCheckouts?: boolean;
 }) {
   return {
     id: a.id,
+    settleCheckouts: !!a.settleCheckouts,
     partner: a.partner,
     status: a.status,
     country: a.country,
@@ -258,6 +263,63 @@ export async function setYellowCardAs({ orgId, environment, userId }: Actor, raw
   return { account: presentAccount(account) };
 }
 
+// --- Settle checkouts straight to the bank ---------------------------------
+
+// Turns on (partner) or off (null) settling crypto checkouts straight to a
+// ready cash-out account: each checkout's swap then delivers USDC on Base to
+// the partner, which pays the bank (near-intents-offramp). Live only.
+export const setBankSettlement = async (orgId: string, raw: unknown, headers: Headers) => {
+  const actor = await member(orgId, headers);
+  await stepUp(headers);
+  return setBankSettlementAs(actor, raw);
+};
+export async function setBankSettlementAs({ orgId, environment, userId }: Actor, raw: unknown) {
+  const { partner } = z.object({ partner: z.enum(partners).nullable() }).strict().parse(raw);
+  if (environment !== "production") throw new PortalError("CROSS_CHAIN_LIVE_ONLY", 409);
+  const accounts = await db.fiatPayoutAccount.findMany({ where: { orgId, environment } });
+  const chosen = partner ? accounts.find((a) => a.partner === partner) : null;
+  if (partner) {
+    if (!chosen || chosen.status !== "Ready") throw new PortalError("CASHOUT_ACCOUNT_NOT_READY", 409);
+    // PayRouta sends Yellow Card payouts itself, so it must know who is paid.
+    if (chosen.partner === "yellowcard" && !(await loadRequirements(db, orgId, environment)).ready["cash-out"])
+      throw new PortalError("CASHOUT_IDENTITY_REQUIRED", 409);
+  }
+  const address = chosen ? fundingAddress(chosen)?.toLowerCase() : null;
+  if (chosen && !address) throw new PortalError("CASHOUT_PARTNER_NOT_CONFIGURED", 503);
+  return atomic(async (tx) => {
+    for (const a of accounts) await tx.fiatPayoutAccount.update({ where: { id: a.id }, data: { settleCheckouts: a.id === chosen?.id } });
+    if (chosen && address) {
+      const integrations = await tx.integration.findMany({ where: { orgId, environment }, orderBy: { version: "desc" } });
+      const exists = integrations.some((i) => {
+        const c = offrampConfigSchema.safeParse(i.config);
+        return c.success && c.data.fiatAccountId === chosen.id && c.data.address === address;
+      });
+      if (!exists)
+        await tx.integration.create({
+          data: {
+            orgId,
+            environment,
+            version: (integrations[0]?.version ?? 0) + 1,
+            config: json(
+              offrampConfigSchema.parse({
+                mode: "NATIVE",
+                adapter: "near-intents-offramp",
+                environment,
+                ...usdcBaseAsset,
+                partner: chosen.partner,
+                fiatAccountId: chosen.id,
+                address,
+                accountId: `offramp-${chosen.id}`,
+              }),
+            ),
+          },
+        });
+    }
+    await audit(tx, orgId, userId, "merchant.cashout.settle_checkouts", chosen?.id ?? orgId, { partner });
+    return { settleCheckouts: chosen?.partner ?? null };
+  });
+}
+
 // --- Cash out -------------------------------------------------------------------
 
 export function fundingAddress(a: { partner: string; liquidationAddress: string | null }) {
@@ -312,7 +374,11 @@ export async function advanceCashOut(id: string, deps: Deps = {}) {
   const now = deps.now ?? new Date();
   const c = await db.fiatPayout.findUniqueOrThrow({ where: { id } });
   if (["Paid", "Failed", "Needs attention"].includes(c.status)) return c;
-  const payout = await db.intentsPayout.findUniqueOrThrow({ where: { id: c.payoutId } });
+  // What funded it: the merchant's signed payout, or a checkout delivered
+  // straight to the partner (already confirmed on chain when this was made).
+  const payout = c.payoutId
+    ? await db.intentsPayout.findUniqueOrThrow({ where: { id: c.payoutId } })
+    : await db.crossChainPayment.findUniqueOrThrow({ where: { id: c.crossChainPaymentId! } });
   const set = (data: Partial<{ status: string; partnerRef: string; localAmount: string; rate: string; failure: string }>) =>
     db.fiatPayout.update({ where: { id: c.id }, data });
   if (["EXPIRED", "REFUNDED", "FAILED"].includes(payout.status))
@@ -391,6 +457,35 @@ export async function advanceCashOut(id: string, deps: Deps = {}) {
   if (sendPaid.has(s.status)) return set({ status: "Paid", ...amounts });
   if (sendFailed.has(s.status)) return set({ status: "Needs attention", failure: `Yellow Card: ${s.errorCode ?? s.status}`, ...amounts });
   return set({ status: "Converting", ...amounts });
+}
+
+// A checkout settled straight to the bank has delivered its USDC to the
+// partner (confirmed on chain by near-intents-offramp): its cash out starts
+// here, once, keyed to the delivering swap.
+export async function startBankCashOut(
+  tx: Pick<typeof db, "fiatPayout" | "crossChainPayment">,
+  input: { orgId: string; environment: string; intentId: string; attemptId: string; fiatAccountId: string; partner: string; now: Date },
+) {
+  const swap = await tx.crossChainPayment.findFirst({ where: { attemptId: input.attemptId, recipientType: "BANK", status: "SUCCESS" } });
+  if (!swap) throw new PortalError("DEPOSIT_SETTLEMENT_EVIDENCE_REQUIRED", 409);
+  const existing = await tx.fiatPayout.findUnique({ where: { crossChainPaymentId: swap.id } });
+  if (existing) return existing;
+  const account = await db.fiatPayoutAccount.findUniqueOrThrow({ where: { id: input.fiatAccountId } });
+  const usdc = usdcBase();
+  const units = swap.amountOut.padStart(usdc.decimals + 1, "0");
+  return tx.fiatPayout.create({
+    data: {
+      orgId: input.orgId,
+      environment: input.environment,
+      accountId: account.id,
+      partner: input.partner,
+      crossChainPaymentId: swap.id,
+      intentId: input.intentId,
+      amountUsd: centsDown(`${units.slice(0, -usdc.decimals)}.${units.slice(-usdc.decimals)}`),
+      currency: account.currency,
+      status: "Converting",
+    },
+  });
 }
 
 // Worker sweep: refresh funding payouts, then move every open cash out on.

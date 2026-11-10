@@ -1,5 +1,7 @@
 import { isDepositAdapter } from "../blockchain/deposit-config";
 import { assertLaunchMethod } from "./launch";
+import { offrampConfigSchema } from "../providers/adapters/native/near-intents-offramp";
+import { startBankCashOut } from "../treasury/offramp/cashout";
 import { accrueFee } from "./billing";
 import { simulatedIntegration } from "../providers/adapters/native/registry";
 import { enforceRisk } from "../merchant/policy";
@@ -228,7 +230,24 @@ export async function applyFact(
         new Date(now.getTime() + 2000),
       );
     } else if (fact.state === "Confirmed") {
-      await accrueFee(tx, i, now);
+      // A NEAR Intents checkout may have had PayRouta's fee withheld at source.
+      const atSource = await tx.crossChainPayment.findFirst({
+        where: { attemptId: a.id, recipientType: { in: ["INTENTS", "BANK"] }, status: "SUCCESS", appFeeMinor: { not: null } },
+        select: { id: true },
+      });
+      await accrueFee(tx, i, now, atSource ? "withheld" : "invoice");
+      // Settled straight to the bank: the partner now converts and pays out.
+      const bank = offrampConfigSchema.safeParse(integration.config);
+      if (bank.success)
+        await startBankCashOut(tx, {
+          orgId: i.orgId,
+          environment: i.environment,
+          intentId: i.id,
+          attemptId: a.id,
+          fiatAccountId: bank.data.fiatAccountId,
+          partner: bank.data.partner,
+          now,
+        });
       const n = minor(i.amount, i.precision).toString();
       await post(
         tx,
@@ -847,6 +866,17 @@ export async function settle(attemptId: string, now = new Date()) {
     if (verified?.state !== "Confirmed")
       throw new PortalError("DEPOSIT_NOT_FINALIZED", 409);
     const gross = minor(a.intent.amount, a.intent.precision).toString();
+    // PayRouta's fee withheld at source on a NEAR Intents checkout arrives
+    // as the difference between the invoice and what the account received.
+    const withheld =
+      ["near-intents-deposit", "near-intents-offramp"].includes((integration.config as { adapter?: string }).adapter ?? "")
+        ? ((
+            await db.crossChainPayment.findFirst({
+              where: { attemptId: a.id, recipientType: { in: ["INTENTS", "BANK"] }, status: "SUCCESS", appFeeMinor: { not: null } },
+              select: { appFeeMinor: true },
+            })
+          )?.appFeeMinor ?? "0")
+        : "0";
     return recordSettlement(
       {
         integrationId: a.integrationId,
@@ -854,13 +884,15 @@ export async function settle(attemptId: string, now = new Date()) {
         reference: `chain:${claims[0].txHash}:${claims[0].logIndex}`,
         asset,
         gross,
-        fee: "0",
-        net: gross,
+        fee: withheld,
+        net: (BigInt(gross) - BigInt(withheld)).toString(),
         evidence: JSON.stringify({
           source:
             (integration.config as { adapter?: string }).adapter ===
             "near-intents-deposit"
               ? "near-intents-transfer"
+              : (integration.config as { adapter?: string }).adapter === "near-intents-offramp"
+                ? "near-intents-bank-delivery"
               : a.intent.cryptoQuoteId
                 ? "finalized-crypto-transfer"
                 : "finalized-stablecoin-transfer",
@@ -870,7 +902,7 @@ export async function settle(attemptId: string, now = new Date()) {
           logIndex: claims[0].logIndex,
           blockHash: claims[0].blockHash,
         }),
-        allocations: [{ intentId: a.intentId, amount: gross, fee: "0" }],
+        allocations: [{ intentId: a.intentId, amount: gross, fee: withheld }],
       },
       now,
     );

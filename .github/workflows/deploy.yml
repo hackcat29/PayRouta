@@ -89,11 +89,14 @@ jobs:
           NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ secrets.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
           NEXT_PUBLIC_PRIVY_APP_ID: ${{ vars.NEXT_PUBLIC_PRIVY_APP_ID }}
           NEXT_PUBLIC_PRIVY_CLIENT_ID: ${{ vars.NEXT_PUBLIC_PRIVY_CLIENT_ID }}
+          # PayRouta's NEAR Intents account, paid its fee at source on crypto
+          # checkouts (lib/intents/checkout.ts feeAccount).
+          PAYROUTA_INTENTS_FEE_ACCOUNT: ${{ vars.PAYROUTA_INTENTS_FEE_ACCOUNT }}
         with:
           host: ${{ secrets.CONTABO_HOST }}
           username: ${{ secrets.CONTABO_USER }}
           key: ${{ secrets.CONTABO_SSH_KEY }}
-          envs: SHA,OPENSANCTIONS_API_KEY,TURNSTILE_SECRET_KEY,NEXT_PUBLIC_TURNSTILE_SITE_KEY,NEXT_PUBLIC_PRIVY_APP_ID,NEXT_PUBLIC_PRIVY_CLIENT_ID
+          envs: SHA,OPENSANCTIONS_API_KEY,TURNSTILE_SECRET_KEY,NEXT_PUBLIC_TURNSTILE_SITE_KEY,NEXT_PUBLIC_PRIVY_APP_ID,NEXT_PUBLIC_PRIVY_CLIENT_ID,PAYROUTA_INTENTS_FEE_ACCOUNT
           script_stop: true
           script: |
             echo "==> Deploy started for SHA: $SHA"
@@ -136,6 +139,7 @@ jobs:
             sync_env NEXT_PUBLIC_TURNSTILE_SITE_KEY "${NEXT_PUBLIC_TURNSTILE_SITE_KEY:-}"
             sync_env NEXT_PUBLIC_PRIVY_APP_ID "${NEXT_PUBLIC_PRIVY_APP_ID:-}"
             sync_env NEXT_PUBLIC_PRIVY_CLIENT_ID "${NEXT_PUBLIC_PRIVY_CLIENT_ID:-}"
+            sync_env PAYROUTA_INTENTS_FEE_ACCOUNT "${PAYROUTA_INTENTS_FEE_ACCOUNT:-}"
             if grep -q '^OPENSANCTIONS_API_KEY=.' "$ROOT/.env"; then
               echo "==> OpenSanctions key present: automated merchant screening on"
             else

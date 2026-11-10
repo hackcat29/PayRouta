@@ -32,7 +32,7 @@ Invoices are denominated in USD. Rates come from [CoinGecko Simple Price](https:
 
 The rate source must include its update timestamp. Public/demo prices must be at most five minutes old; Pro prices must be at most two minutes old. Quotes last two minutes after the price response. Missing, stale, future, malformed and rate-limited prices fail closed. No estimated substitute rate is used. For production traffic, configure an appropriate CoinGecko API plan and an encrypted `COINGECKO_API_KEY_REF`; use `COINGECKO_API_PLAN=pro` for Pro. The key remains server-side.
 
-Live fees are 1.5% of each successful crypto payment, valued in USD from the checkout quote and billed monthly (or added to the quoted amount if customers pay the fees; see [Fees and billing](/concepts/billing)). Sandbox platform fees are zero and non-billable. Customers also pay their wallet’s network fee. Merchants receive the invoice coin amount directly.
+Live fees are 1.5% of each successful crypto payment, taken during the payment when it settles through NEAR Intents, otherwise valued in USD from the checkout quote and billed monthly (or added to the quoted amount if customers pay the fees; see [Fees and billing](/concepts/billing)). Sandbox platform fees are zero and non-billable. Customers also pay their wallet’s network fee. Merchants receive the invoice coin amount directly.
 
 The chosen network and coin are locked once an attempt starts. A successful transfer must match the original deployment, recipient and exact amount. Finality and canonical block or closed-ledger evidence are required. For crypto, the transfer must be included before the immutable quote deadline; later finality and settlement can complete after expiry. A late, mismatched or uncertain payment requires inspection and is never silently repriced. Refunds remain the merchant’s responsibility.
 
@@ -40,7 +40,7 @@ EVM checkout discovers installed wallets through [EIP-6963](https://eips.ethereu
 
 ## Creating a checkout
 
-Configure fresh merchant-owned receive addresses from Crypto wallet payments in the merchant dashboard. Stellar receivers must be funded and have receivable trustlines for issued assets; native XLM needs a funded account only. Each receive address is consumed permanently for the network, preventing reuse across assets or invoices. Production still requires approved merchant/country/asset scope and evidence.
+Configure fresh merchant-owned receive addresses under **Payment methods → Receive to your own addresses → Other coins** in the merchant dashboard. Stellar receivers must be funded and have receivable trustlines for issued assets; native XLM needs a funded account only. Each receive address is consumed permanently for the network, preventing reuse across assets or invoices. Production still requires approved merchant/country/asset scope and evidence.
 
 Create a USD checkout through `POST /api/v1/crypto-checkouts`, with a `payments:write` API key, `PayRouta-Environment` and an `Idempotency-Key` of 8–90 letters, digits, underscores or hyphens:
 

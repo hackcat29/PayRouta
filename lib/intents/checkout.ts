@@ -21,12 +21,13 @@ import { json } from "../portal/service";
 import { PortalError } from "../portal/domain";
 import { authorizeSession, checkoutOptions, refreshAttempt } from "../payments/service";
 import { minor } from "../payments/contracts";
+import { directFeeInAsset } from "../payments/pricing";
 import { stablecoinCandidates } from "../payments/stablecoin-routes";
 import { chain as registeredChain, networkName } from "../blockchain/chains";
 import { paymentAsset, onchainMethod } from "../blockchain/crypto-assets";
 import { z } from "zod";
 import { chainNames, destinationFor, generateIntent, quote, status, submitIntent, tokens, type GeneratedIntent, type Http } from "./oneclick";
-import { intentsAccount } from "./near";
+import { intentsAccount, solanaOwner } from "./near";
 import { checkFundingIntent } from "./payouts";
 import { ed25519Signature, secp256k1Signature, type SignedIntent } from "./signing";
 import { erc191Signer, verifyNep413 } from "./verify";
@@ -42,10 +43,36 @@ const deadlineMarginMs = 90000;
 
 type Deps = { http?: Http; now?: Date; enabled?: boolean };
 
+// PayRouta's own NEAR Intents account, paid its fee at source on checkouts
+// that settle through NEAR Intents: a NEAR account, an EVM address, or a
+// Solana address (its account is the key in hex). The fee is held for it in
+// intents.near, withdrawn by signing with that wallet. Unset: the fee is
+// billed on the monthly statement instead.
+export function feeAccount() {
+  const raw = process.env.PAYROUTA_INTENTS_FEE_ACCOUNT?.trim();
+  return raw ? (intentsAccount(raw)?.accountId ?? solanaOwner(raw)?.accountId ?? null) : null;
+}
+
+// What the merchant's account receives and what 1Click withholds for
+// PayRouta: the invoice less PayRouta's fee, the fee as a share of the
+// amount in. The rate in basis points is rounded to the nearest whole one.
+function withheld(
+  intent: { feeSnapshot: unknown; selectedMethod: string | null; amount: string; precision: number },
+  gross: bigint,
+  decimals: number,
+) {
+  const recipient = feeAccount();
+  if (!recipient || !intent.feeSnapshot || !intent.selectedMethod || intent.precision !== decimals) return null;
+  const fee = directFeeInAsset(intent.feeSnapshot, intent.selectedMethod, intent.amount, intent.precision);
+  if (fee <= 0n || fee >= gross) return null;
+  const bps = Number((fee * 10000n * 2n + gross) / (gross * 2n));
+  return bps > 0 ? { recipient, bps, fee } : null;
+}
+
 async function awaitingDeposit(sessionId: string, token: string, now: Date) {
   const { intent } = await authorizeSession(sessionId, token, now);
   const attempt = await db.paymentAttempt.findFirst({ where: { intentId: intent.id }, orderBy: { number: "desc" } });
-  const action = attempt?.action as { kind?: string; address?: string; network?: string; identifier?: string; amount?: string } | null;
+  const action = attempt?.action as { kind?: string; settle?: string; address?: string; network?: string; identifier?: string; amount?: string } | null;
   if (
     !attempt ||
     attempt.state !== "Requires action" ||
@@ -66,7 +93,10 @@ async function awaitingDeposit(sessionId: string, token: string, now: Date) {
     attempt,
     action: { ...action, address: action.address, amount: action.amount },
     destination,
-    intoIntents: action.kind === "intents",
+    // Into the merchant's intents account, or straight to their bank's
+    // funding address (delivered on chain).
+    intoIntents: action.kind === "intents" && action.settle !== "bank",
+    toBank: action.kind === "intents" && action.settle === "bank",
     reason: null,
   } as const;
 }
@@ -256,14 +286,14 @@ export async function crossChainOptions(sessionId: string, token: string, deps: 
   if (!scope.attempt) return { available: false, reason: scope.reason, assets: [] };
   const list = await tokens(deps.http ?? providerRequest, now.getTime());
   const assets = list
-    .filter((t) => scope.intoIntents || t.assetId !== scope.destination.assetId)
+    .filter((t) => scope.intoIntents || scope.toBank || t.assetId !== scope.destination.assetId)
     .map((t) => ({ assetId: t.assetId, chain: t.blockchain, chainName: chainNames[t.blockchain] ?? t.blockchain.toUpperCase(), symbol: t.symbol }))
     .sort((a, b) => a.chainName.localeCompare(b.chainName) || a.symbol.localeCompare(b.symbol));
   return {
     available: true,
     reason: null,
     assets,
-    intents: scope.intoIntents,
+    intents: scope.intoIntents || scope.toBank,
     receive: { symbol: scope.destination.symbol, amount: scope.action.amount, assetId: scope.destination.assetId },
   };
 }
@@ -279,7 +309,7 @@ export async function crossChainQuote(
   if (!(deps.enabled ?? crossChainEnabled())) throw new PortalError("CROSS_CHAIN_OFF", 409);
   const scope = await awaitingDeposit(sessionId, token, now);
   if (!scope.attempt) throw new PortalError(scope.reason, 409);
-  const { intent, attempt, action, destination, intoIntents } = scope;
+  const { intent, attempt, action, destination, intoIntents, toBank } = scope;
   const list = await tokens(http, now.getTime());
   const origin = list.find((t) => t.assetId === input.originAsset);
   const listed = list.find((t) => t.assetId === destination.assetId);
@@ -291,10 +321,15 @@ export async function crossChainQuote(
     (listed.contractAddress ?? "").toLowerCase() !== destination.contract.toLowerCase()
   )
     throw new PortalError("CROSS_CHAIN_ASSET_NOT_SUPPORTED", 409);
-  if (!origin || (!intoIntents && origin.assetId === destination.assetId)) throw new PortalError("CROSS_CHAIN_ORIGIN_NOT_SUPPORTED", 409);
+  if (!origin || (!intoIntents && !toBank && origin.assetId === destination.assetId)) throw new PortalError("CROSS_CHAIN_ORIGIN_NOT_SUPPORTED", 409);
   if (!/^[A-Za-z0-9:._@-]{20,140}$/.test(input.refundTo) || (/^0x/i.test(input.refundTo) && !/^0x[0-9a-fA-F]{40}$/.test(input.refundTo)))
     throw new PortalError("CROSS_CHAIN_REFUND_ADDRESS_INVALID", 400);
-  const amountOut = minor(action.amount, destination.decimals).toString();
+  const gross = minor(action.amount, destination.decimals);
+  // Into a merchant's intents account or bank PayRouta's fee is taken at
+  // source; a receive address is confirmed by its exact amount, so it gets
+  // the invoice.
+  const fee = intoIntents || toBank ? withheld(intent, gross, destination.decimals) : null;
+  const amountOut = (gross - (fee?.fee ?? 0n)).toString();
   const deadline = new Date(intent.expiresAt.getTime() - deadlineMarginMs);
   const result = await quote(
     {
@@ -305,6 +340,7 @@ export async function crossChainQuote(
       refundTo: input.refundTo,
       deadline,
       to: intoIntents ? "INTENTS" : "CHAIN",
+      ...(fee ? { appFee: { recipient: fee.recipient, bps: fee.bps } } : {}),
     },
     http,
   );
@@ -324,12 +360,13 @@ export async function crossChainQuote(
       originChain: origin.blockchain,
       originSymbol: origin.symbol,
       destinationAsset: destination.assetId,
-      recipientType: intoIntents ? "INTENTS" : "DESTINATION_CHAIN",
+      recipientType: intoIntents ? "INTENTS" : toBank ? "BANK" : "DESTINATION_CHAIN",
       depositAddress: result.quote.depositAddress,
       depositMemo: result.quote.depositMemo ?? null,
       amountIn: result.quote.amountIn,
       amountInFormatted: result.quote.amountInFormatted,
       amountOut,
+      ...(fee ? { appFeeMinor: fee.fee.toString(), appFeeBps: fee.bps } : {}),
       refundTo: input.refundTo,
       deadline,
       quote: json(result),
@@ -446,11 +483,13 @@ export async function intentsFundedQuote(
   if (!payer) throw new PortalError("INTENTS_ACCOUNT_INVALID", 400);
   const scope = await awaitingDeposit(sessionId, token, now);
   if (!scope.attempt) throw new PortalError(scope.reason, 409);
-  const { intent, attempt, action, destination, intoIntents } = scope;
+  const { intent, attempt, action, destination, intoIntents, toBank } = scope;
   const list = await tokens(http, now.getTime());
   const origin = list.find((t) => t.assetId === input.originAsset);
   if (!origin || !list.some((t) => t.assetId === destination.assetId)) throw new PortalError("CROSS_CHAIN_ORIGIN_NOT_SUPPORTED", 409);
-  const amountOut = minor(action.amount, destination.decimals).toString();
+  const gross = minor(action.amount, destination.decimals);
+  const fee = intoIntents || toBank ? withheld(intent, gross, destination.decimals) : null;
+  const amountOut = (gross - (fee?.fee ?? 0n)).toString();
   const deadline = new Date(intent.expiresAt.getTime() - deadlineMarginMs);
   const result = await quote(
     {
@@ -462,6 +501,7 @@ export async function intentsFundedQuote(
       deadline,
       from: "INTENTS",
       to: intoIntents ? "INTENTS" : "CHAIN",
+      ...(fee ? { appFee: { recipient: fee.recipient, bps: fee.bps } } : {}),
     },
     http,
   );
@@ -479,7 +519,7 @@ export async function intentsFundedQuote(
       originChain: origin.blockchain,
       originSymbol: origin.symbol,
       destinationAsset: destination.assetId,
-      recipientType: intoIntents ? "INTENTS" : "DESTINATION_CHAIN",
+      recipientType: intoIntents ? "INTENTS" : toBank ? "BANK" : "DESTINATION_CHAIN",
       fundedBy: "INTENTS",
       payer: payer.accountId,
       payload: json(sign),
@@ -487,6 +527,7 @@ export async function intentsFundedQuote(
       amountIn: result.quote.amountIn,
       amountInFormatted: result.quote.amountInFormatted,
       amountOut,
+      ...(fee ? { appFeeMinor: fee.fee.toString(), appFeeBps: fee.bps } : {}),
       refundTo: payer.accountId,
       deadline,
       quote: json(result),
@@ -520,11 +561,11 @@ export async function submitFundedIntent(sessionId: string, token: string, raw: 
     if (sign.standard === "erc191") {
       signed = { standard: "erc191", payload: sign.payload, signature: secp256k1Signature(input.signature) };
       if (erc191Signer(sign.payload, signed.signature) !== record.payer) throw new Error();
-    } else {
+    } else if (sign.standard === "nep413") {
       const publicKey = input.publicKey ?? "";
       signed = { standard: "nep413", payload: sign.payload, public_key: publicKey, signature: ed25519Signature(input.signature) };
       if (!verifyNep413(sign.payload, publicKey, signed.signature)) throw new Error();
-    }
+    } else throw new Error();
   } catch {
     throw new PortalError("INTENTS_SIGNATURE_INVALID", 403);
   }

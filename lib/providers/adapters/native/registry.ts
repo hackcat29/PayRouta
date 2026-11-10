@@ -15,6 +15,7 @@ import {
   intentsDepositConfigSchema,
   intentsDepositExecutionAdapter,
 } from "./near-intents-deposit";
+import { offrampConfigSchema, offrampExecutionAdapter } from "./near-intents-offramp";
 import { opayConfigSchema, opayExecutionAdapter } from "./opay";
 import { venmoConfigSchema, venmoExecutionAdapter } from "./paypal-venmo";
 import { z } from "zod";
@@ -73,6 +74,11 @@ export const nativeModules: readonly {
     id: "near-intents-deposit",
     schema: intentsDepositConfigSchema,
     create: intentsDepositExecutionAdapter,
+  },
+  {
+    id: "near-intents-offramp",
+    schema: offrampConfigSchema,
+    create: offrampExecutionAdapter,
   },
   { id: "picpay", schema: picpayConfigSchema, create: picpayExecutionAdapter },
   {

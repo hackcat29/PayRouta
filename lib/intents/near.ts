@@ -8,6 +8,7 @@
 // receipts log `dip4` transfer events (with the intent hash) next to the
 // NEP-245 `mt_transfer` that moved the tokens; settlement transactions are
 // signed by intents.near itself.
+import bs58 from "bs58";
 import { PortalError } from "../portal/domain";
 import { providerRequest } from "../providers/adapters/http";
 import type { Http } from "./oneclick";
@@ -21,7 +22,22 @@ const archivalUrl = () => process.env.NEAR_ARCHIVAL_RPC_URL || "https://archival
 // NEAR Intents account ids: named NEAR accounts and implicit (64-hex)
 // accounts sign NEP-413 messages; an EVM address (lowercase) signs ERC-191.
 const nearAccount = /^(?=.{2,64}$)(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$/;
-export type IntentsStandard = "nep413" | "erc191";
+export type IntentsStandard = "nep413" | "erc191" | "raw_ed25519";
+
+// A Solana wallet owns the implicit NEAR Intents account named by its key in
+// hex, and signs intents as raw_ed25519 (the payload text, as wallets sign
+// off-chain messages). The address is that key in base58.
+export function solanaOwner(address: string): { accountId: string; standard: "raw_ed25519"; publicKey: string } | null {
+  const value = address.trim();
+  if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value)) return null;
+  try {
+    const key = bs58.decode(value);
+    if (key.length !== 32) return null;
+    return { accountId: Array.from(key, (b) => b.toString(16).padStart(2, "0")).join(""), standard: "raw_ed25519", publicKey: `ed25519:${value}` };
+  } catch {
+    return null;
+  }
+}
 export function intentsAccount(raw: string): { accountId: string; standard: IntentsStandard } | null {
   const value = raw.trim();
   if (/^0x[0-9a-fA-F]{40}$/.test(value)) return { accountId: value.toLowerCase(), standard: "erc191" };

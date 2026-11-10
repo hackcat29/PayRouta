@@ -7,7 +7,6 @@ import {
   ArrowLeftRight,
   BarChart3,
   BookOpen,
-  Coins,
   CreditCard,
   House,
   KeyRound,
@@ -28,7 +27,7 @@ export const routeTitles = {
   onboarding: "Business setup",
   activation: "Activate payments",
   balances: "Balances",
-  "crypto-balance": "Crypto balance",
+  "crypto-balance": "Balances",
   disputes: "Disputes",
   overview: "Home",
   payments: "Transactions",
@@ -58,8 +57,7 @@ const main: Item[] = [
   { label: "Payment links", path: "payment-links", icon: <Link2 size={s} /> },
   { label: "Subscriptions", path: "subscriptions", icon: <Repeat size={s} /> },
   { label: "Transactions", path: "payments", icon: <ArrowLeftRight size={s} /> },
-  { label: "Balances", path: "balances", icon: <Wallet size={s} /> },
-  { label: "Crypto balance", path: "crypto-balance", icon: <Coins size={s} /> },
+  { label: "Balances", path: "balances", icon: <Wallet size={s} />, also: ["crypto-balance"] },
   { label: "Disputes", path: "disputes", icon: <ShieldAlert size={s} /> },
 ];
 const setup: Item[] = [
@@ -101,6 +99,11 @@ const settingsTabs = [
   { label: "Team", path: "team" as const },
   { label: "Security", path: "security" as const },
 ];
+const balanceTabs = [
+  { label: "Fiat", path: "balances" as const },
+  { label: "Crypto", path: "crypto-balance" as const },
+];
+for (const t of balanceTabs) tabSets[t.path] = balanceTabs;
 for (const t of developerTabs) tabSets[t.path] = developerTabs;
 for (const t of settingsTabs) tabSets[t.path] = settingsTabs;
 
@@ -151,9 +154,10 @@ export function MerchantShell({
   return (
     <div className={`portal ms-app${test ? " is-test" : ""}`} id="ms-app">
       <aside className="ms-side" id="ms-side">
+        <div className="ms-side-in">
         <OrgSwitcher orgName={orgName} orgs={orgs} orgId={orgId} providerLink={providerLink} />
         <nav aria-label="Merchant workspace">
-          <ul>{main.filter((item) => !(test && item.path === "crypto-balance")).map(link)}</ul>
+          <ul>{main.map(link)}</ul>
           <ul>{setup.map(link)}</ul>
           <p className="ms-nav-label">Reports</p>
           <ul>{reports.map(link)}</ul>
@@ -164,6 +168,7 @@ export function MerchantShell({
             {email}
           </span>
           <SignOutButton className="ms-signout" />
+        </div>
         </div>
       </aside>
       <div className="ms-main">
@@ -204,7 +209,7 @@ export function MerchantShell({
             {actions && <div className="ms-page-actions">{actions}</div>}
           </div>
           {tabs && (
-            <nav className="ms-tabs" aria-label={`${bottom.find((b) => b.also?.includes(section) || b.path === section)?.label} sections`}>
+            <nav className="ms-tabs" aria-label={`${[...main, ...bottom].find((b) => b.also?.includes(section) || b.path === section)?.label} sections`}>
               {tabs.map((t) => (
                 <Link key={t.path} href={href(t.path)} aria-current={t.path === section ? "page" : undefined}>
                   {t.label}

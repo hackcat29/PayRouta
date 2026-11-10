@@ -7,7 +7,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { discoverEvmWallets, type DiscoveredWallet } from "@/lib/blockchain/wallet-discovery";
 import { errorText, offline } from "@/lib/error-copy";
-import { connectEvm, connectNear, registerKey, signText, type Signer } from "./intents-wallet";
+import { Wallet as WalletIcon } from "lucide-react";
+import { connectEvm, connectNear, registerKey, signIntent, signText, walletErrorText, type Signer } from "./intents-wallet";
 import { CashOut, type CashOutView, type PayoutQuote } from "./cash-out";
 
 type Overview = {
@@ -43,7 +44,7 @@ type Token = { assetId: string; chain: string; chainName: string; symbol: string
 type Settle = { network: string; identifier: string; symbol: string; chainName: string };
 type Quote = {
   payout: Payout;
-  sign: { standard: "erc191"; payload: string } | { standard: "nep413"; payload: { message: string; nonce: string; recipient: string } };
+  sign: { standard: "erc191" | "raw_ed25519"; payload: string } | { standard: "nep413"; payload: { message: string; nonce: string; recipient: string } };
   deadline: string;
 };
 
@@ -57,6 +58,15 @@ const statusText: Record<string, string> = {
   REFUNDED: "Returned to your balance",
   FAILED: "Failed, returned to your balance",
   EXPIRED: "Not signed in time",
+};
+
+// Wallets through Privy: create one with a social sign-in or email, or
+// connect an existing EVM or Solana wallet; the controls to export or sign
+// out; and the Privy wallet that owns the connected account, if any.
+export type PrivyWallets = {
+  tiles: (connect: (make: () => Promise<Signer>) => Promise<void>, disabled: boolean) => React.ReactNode;
+  manage: React.ReactNode;
+  signer: (account: { accountId: string; standard: string }) => Promise<Signer | null>;
 };
 
 export type CryptoBalanceProps = {
@@ -79,11 +89,9 @@ export function CryptoBalance({
   tokens,
   canConfigure,
   cashOut,
-  walletControls,
-  embeddedSigner,
+  privy,
 }: CryptoBalanceProps & {
-  walletControls?: (connect: (make: () => Promise<Signer>) => Promise<void>, disabled: boolean) => React.ReactNode;
-  embeddedSigner?: (accountId: string) => Promise<Signer | null>;
+  privy?: PrivyWallets;
 }) {
   const router = useRouter();
   const [evmWallets, setEvmWallets] = useState<DiscoveredWallet[]>([]);
@@ -93,6 +101,8 @@ export function CryptoBalance({
   const [notice, setNotice] = useState("");
   const [settle, setSettle] = useState<string[]>(settleOptions.slice(0, 1).map((s) => `${s.network}|${s.identifier}`));
   const [quote, setQuote] = useState<Quote | null>(null);
+  // Without an account yet: settle in stablecoins, or straight to the bank.
+  const [mode, setMode] = useState<"crypto" | "bank">(cashOut?.accounts.some((a) => a.settleCheckouts) ? "bank" : "crypto");
   const [form, setForm] = useState({ originAsset: "", amount: "", chain: "", destinationAsset: "", recipient: "", note: "", refundOf: "" });
   const account = overview.account;
 
@@ -121,22 +131,23 @@ export function CryptoBalance({
     try {
       await work();
     } catch (e) {
-      setError((e as Error).message || "Something went wrong. Try again.");
+      setError(walletErrorText(e));
     } finally {
       setBusy(false);
     }
   }
   // The wallet that controls the connected account.
   async function ownSigner(make?: () => Promise<Signer>) {
-    if (signer && (signer.kind === "near" || signer.source !== "privy") && signer.accountId === account?.accountId) return signer;
-    const evm = async () => {
-      const embedded = account && await embeddedSigner?.(account.accountId);
-      if (embedded) return embedded;
-      if (!evmWallets.length) throw new Error("Sign in to your PayRouta wallet, or connect the external wallet that owns this account.");
-      return connectEvm(evmWallets[0].provider);
-    };
-    const s = await (make ?? (account?.standard === "erc191" ? evm : connectNear))();
-    if (s.accountId !== account?.accountId) throw new Error(`Connect the wallet for ${account?.accountId}. This wallet is ${s.accountId}.`);
+    if (!account) throw new Error("Connect an account first.");
+    // An embedded wallet is resolved anew for each signature.
+    if (signer && signer.accountId === account.accountId && !(signer.kind === "evm" && signer.source === "privy")) return signer;
+    let s = make ? await make() : await privy?.signer(account) ?? null;
+    if (!s) {
+      if (account.standard === "nep413") s = await connectNear();
+      else if (account.standard === "erc191" && evmWallets.length) s = await connectEvm(evmWallets[0].provider);
+      else throw new Error("Connect the wallet that owns this account, then try again.");
+    }
+    if (s.accountId !== account.accountId) throw new Error(`Connect the wallet for ${account.accountId}. This wallet is ${s.accountId}.`);
     setSigner(s);
     return s;
   }
@@ -145,7 +156,8 @@ export function CryptoBalance({
     run(async () => {
       const s = await make();
       setSigner(s);
-      const challenge = await api("intents-challenge", { account: s.accountId });
+      const challenge = await api("intents-challenge", s.kind === "solana" ? { account: s.address, chain: "solana" } : { account: s.accountId });
+      if (challenge.accountId !== s.accountId) throw new Error("Something unexpected came back. Try again.");
       const signed = await signText(s, challenge.message, { nonce: challenge.nonce, recipient: challenge.recipient });
       await api("intents-connect", {
         challengeId: challenge.id,
@@ -156,55 +168,96 @@ export function CryptoBalance({
       router.refresh();
     });
 
-  if (environment !== "production")
-    return (
-      <section>
-        <h2>Crypto balance</h2>
-<p>Live mode only.</p>
-      </section>
-    );
+  if (environment !== "production") return null;
 
-  if (!account)
+  const bankOn = cashOut?.accounts.find((a) => a.settleCheckouts);
+
+  if (!account) {
+    // Settlement stablecoins grouped by token: USDC on Base, Ethereum, ...
+    const groups = [...new Set(settleOptions.map((s) => s.symbol))].map((symbol) => ({
+      symbol,
+      options: settleOptions.filter((s) => s.symbol === symbol),
+    }));
+    const off = busy || !settle.length;
     return (
-      <section>
-        <h2>Get paid into your own NEAR Intents account</h2>
-        {canConfigure ? (
-          <>
-            <fieldset disabled={busy}>
-              <legend>Settle checkouts in</legend>
-              {settleOptions.map((s) => {
-                const key = `${s.network}|${s.identifier}`;
-                return (
-                  <label key={key} className="ms-check">
-                    <input
-                      type="checkbox"
-                      checked={settle.includes(key)}
-                      onChange={(e) => setSettle(e.target.checked ? [...settle, key] : settle.filter((k) => k !== key))}
-                    />{" "}
-                    {s.symbol} on {s.chainName}
-                  </label>
-                );
-              })}
-            </fieldset>
-            {walletControls?.(connect, busy || !settle.length)}
-            <div className="ms-link-actions">
-              <button className="ms-btn primary" disabled={busy || !settle.length} onClick={() => void connect(connectNear)}>
-                {busy ? "Waiting for your wallet…" : "Connect a NEAR wallet"}
-              </button>
-              {evmWallets.map((w) => (
-                <button key={w.id} className="ms-btn" disabled={busy || !settle.length} onClick={() => void connect(() => connectEvm(w.provider))}>
-                  Connect {w.name}
-                </button>
-              ))}
-            </div>
-          </>
-        ) : (
-          <p>Ask an owner or admin to connect an account.</p>
+      <>
+        <section className="ms-intents-setup">
+          <h2>Get paid in crypto through NEAR Intents</h2>
+          {canConfigure ? (
+            <>
+              <fieldset className="ms-settle-mode">
+                <legend>Settle in</legend>
+                <label>
+                  <input type="radio" name="settle-mode" checked={mode === "crypto"} onChange={() => setMode("crypto")} />
+                  Stablecoins
+                </label>
+                <label>
+                  <input type="radio" name="settle-mode" checked={mode === "bank"} onChange={() => setMode("bank")} />
+                  Your bank
+                </label>
+              </fieldset>
+              {mode === "crypto" ? (
+                <>
+                  <fieldset className="ms-settle" disabled={busy}>
+                    <legend className="sr-only">Stablecoins</legend>
+                    {groups.map((g) => (
+                      <div key={g.symbol} className="ms-settle-row">
+                        <span className="ms-settle-token">{g.symbol}</span>
+                        <div className="ms-settle-chips">
+                          {g.options.map((s) => {
+                            const key = `${s.network}|${s.identifier}`;
+                            return (
+                              <label key={key} className="ms-chip">
+                                <input
+                                  type="checkbox"
+                                  checked={settle.includes(key)}
+                                  onChange={(e) => setSettle(e.target.checked ? [...settle, key] : settle.filter((k) => k !== key))}
+                                />
+                                <span className="sr-only">{s.symbol} on </span>
+                                {s.chainName}
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </fieldset>
+                  <h3>Your wallet</h3>
+                  <div className="ms-wallets" aria-busy={busy}>
+                    {privy?.tiles(connect, off)}
+                    <button type="button" className="ms-wallet" disabled={off} onClick={() => void connect(connectNear)}>
+                      <WalletIcon size={20} aria-hidden />
+                      NEAR wallet
+                    </button>
+                    {!privy &&
+                      evmWallets.map((w) => (
+                        <button key={w.id} type="button" className="ms-wallet" disabled={off} onClick={() => void connect(() => connectEvm(w.provider))}>
+                          {/* eslint-disable-next-line @next/next/no-img-element -- the wallet's own data: URI icon */}
+                          {w.icon ? <img src={w.icon} alt="" width={20} height={20} /> : <WalletIcon size={20} aria-hidden />}
+                          {w.name}
+                        </button>
+                      ))}
+                  </div>
+                  {busy && <p role="status" className="ms-dim">Waiting for your wallet…</p>}
+                  {!settle.length && <p className="p-notice error">Choose at least one stablecoin to settle in.</p>}
+                  {privy?.manage}
+                </>
+              ) : (
+                bankOn && <p role="status">Checkouts settle to {bankOn.label}.</p>
+              )}
+            </>
+          ) : (
+            <p>Ask an owner or admin to connect an account.</p>
+          )}
+          {error && <p className="p-notice error" role="alert">{error}</p>}
+          {notice && <p role="status">{notice}</p>}
+        </section>
+        {canConfigure && mode === "bank" && cashOut && (
+          <CashOut view={cashOut} balances={[]} api={api} run={run} busy={busy} signAndSubmit={async () => {}} />
         )}
-        {error && <p className="p-notice error">{error}</p>}
-        {notice && <p role="status">{notice}</p>}
-      </section>
+      </>
     );
+  }
 
   const balances = overview.balances;
   const origin = balances?.find((b) => b.assetId === form.originAsset);
@@ -213,7 +266,6 @@ export function CryptoBalance({
 
   return (
     <>
-      {canConfigure && walletControls?.(connect, busy)}
       <section className="ms-flush">
         <div className="ms-card-head">
           <div>
@@ -222,7 +274,12 @@ export function CryptoBalance({
               <code>{account.accountId}</code> · {account.standard === "erc191" ? "EVM wallet" : "NEAR wallet"} · connected{" "}
               {new Date(account.connectedAt).toLocaleDateString()}
             </p>
-            <p>Checkouts settle in {overview.settlement?.map((s) => `${s.symbol} on ${s.chainName}`).join(", ") || "no stablecoins yet"}.</p>
+            <p>
+              {bankOn
+                ? `Checkouts settle to ${bankOn.label}.`
+                : `Checkouts settle in ${overview.settlement?.map((s) => `${s.symbol} on ${s.chainName}`).join(", ") || "no stablecoins yet"}.`}
+            </p>
+            {canConfigure && account.standard !== "nep413" && privy?.manage}
           </div>
           {canConfigure && (
             <button
@@ -302,12 +359,7 @@ export function CryptoBalance({
                   disabled={busy}
                   onClick={() =>
                     void run(async () => {
-                      const s = await ownSigner();
-                      const i = quote.sign;
-                      const signed =
-                        i.standard === "erc191"
-                          ? await signText(s, i.payload, { nonce: "", recipient: "" })
-                          : await signText(s, i.payload.message, { nonce: i.payload.nonce, recipient: i.payload.recipient });
+                      const signed = await signIntent(await ownSigner(), quote.sign);
                       await api("intents-payout-submit", { id: quote.payout.id, ...signed });
                       setQuote(null);
                       setForm({ originAsset: "", amount: "", chain: "", destinationAsset: "", recipient: "", note: "", refundOf: "" });
@@ -438,12 +490,7 @@ export function CryptoBalance({
           run={run}
           busy={busy}
           signAndSubmit={async (q: PayoutQuote) => {
-            const s = await ownSigner();
-            const i = q.sign;
-            const signed =
-              i.standard === "erc191"
-                ? await signText(s, i.payload, { nonce: "", recipient: "" })
-                : await signText(s, i.payload.message, { nonce: i.payload.nonce, recipient: i.payload.recipient });
+            const signed = await signIntent(await ownSigner(), q.sign);
             await api("intents-payout-submit", { id: q.payout.id, ...signed });
           }}
         />

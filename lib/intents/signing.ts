@@ -6,12 +6,15 @@
 //           `ed25519:` prefix; wallets usually return the signature in base64.
 //   erc191  EVM wallets (personal_sign). Signature is r||s||v in base58 with
 //           a `secp256k1:` prefix, v normalised to 0 or 1.
+//   raw_ed25519  Solana wallets (signMessage over the payload text). Key and
+//           signature are base58 with an `ed25519:` prefix.
 import bs58 from "bs58";
 
 export type Nep413Payload = { message: string; nonce: string; recipient: string; callbackUrl?: string | null };
 export type SignedIntent =
   | { standard: "nep413"; payload: Nep413Payload; public_key: string; signature: string }
-  | { standard: "erc191"; payload: string; signature: string };
+  | { standard: "erc191"; payload: string; signature: string }
+  | { standard: "raw_ed25519"; payload: string; public_key: string; signature: string };
 
 const fromBase64 = (value: string) => Uint8Array.from(atob(value), (c) => c.charCodeAt(0));
 

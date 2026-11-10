@@ -4,7 +4,13 @@ export type DiscoveredWallet = {
   id: string;
   name: string;
   provider: WalletProvider;
+  // EIP-6963 icon, kept only when it is an image data URI.
+  icon?: string;
 };
+const safeIcon = (icon: unknown) =>
+  typeof icon === "string" && icon.length < 100_000 && /^data:image\/(svg\+xml|png|webp|jpeg|gif)[;,]/.test(icon)
+    ? icon
+    : undefined;
 type Host = EventTarget & {
   ethereum?: unknown;
   phantom?: { ethereum?: unknown };
@@ -61,10 +67,12 @@ export function discoverEvmWallets(
       )
         return;
       if (announced.size >= 32 && !announced.has(detail.provider)) return;
+      const icon = safeIcon(detail.info.icon);
       announced.set(detail.provider, {
         id: id(detail.provider),
         name: detail.info.name.trim(),
         provider: detail.provider,
+        ...(icon ? { icon } : {}),
       });
       publish();
     } catch {

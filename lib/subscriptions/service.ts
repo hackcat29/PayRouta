@@ -13,6 +13,7 @@
 // Events (webhooks): subscription.created, subscription.active,
 // subscription.past_due, subscription.canceled, invoice.created,
 // invoice.paid. Their objectId is the subscription or invoice id.
+import { merchantBrand } from "../merchant/branding";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { db } from "../portal/db";
@@ -534,6 +535,7 @@ export async function publicInvoice(slug: string) {
   return {
     slug: invoice.slug,
     merchant: org?.name ?? "Merchant",
+    ...(await merchantBrand(invoice.orgId)),
     plan: invoice.subscription.plan.name,
     number: invoice.number,
     amount: invoice.amount,

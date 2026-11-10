@@ -40,7 +40,7 @@ type DexEvm = {
 };
 
 async function payDexEvm(provider: WalletProvider, owner: string, q: DexEvm, deadline?: string) {
-  if (q.swap.to.toLowerCase() !== lifiDiamond) throw new Error("The swap provider returned something unexpected, so nothing was sent.");
+  if (q.swap.to.toLowerCase() !== lifiDiamond) throw new Error("Something unexpected came back, so nothing was sent.");
   const chain = { chainId: q.chainId, chainName: q.chainName };
   const amount = BigInt(q.sell.amount);
   if ((await erc20Read(provider, q.sell.token, owner, lifiDiamond)) < amount) {
@@ -50,9 +50,9 @@ async function payDexEvm(provider: WalletProvider, owner: string, q: DexEvm, dea
   const swap = await sendEvmCall(provider, chain, q.swap, deadline);
   // The guard: the exact USDC payment is sent only after the swap succeeded
   // and left at least that much USDC in the wallet.
-  if (!(await confirmedOk(provider, swap))) throw new Error("The swap didn't go through, so nothing was paid.");
+  if (!(await confirmedOk(provider, swap))) throw new Error("The payment didn't go through, so nothing was paid.");
   if ((await erc20Read(provider, q.pay.token, owner)) < BigInt(q.pay.amount))
-    throw new Error("The swap returned less USDC than the payment, so nothing was paid. The USDC is in your wallet.");
+    throw new Error("The price moved, so nothing was paid. Your token is now USDC in your wallet.");
   return submitEvmTransfer(provider, { ...chain, token: q.pay.token, amount: q.pay.amount, to: q.pay.to }, deadline);
 }
 

@@ -149,3 +149,6 @@ section > details > summary { cursor: pointer; font-weight: 600; padding: 6px 0;
 .tr-meta { font-size: 13px; color: var(--muted); }
 .tr-step.current .tr-step-mark { border-color: var(--accent); color: var(--accent); }
 .tr-step:not(.current):not(.done) h3 { color: var(--muted); }
+
+/* The verified tick beside its section heading. */
+.tr-tick-title { display: inline-flex; align-items: center; gap: 6px; }

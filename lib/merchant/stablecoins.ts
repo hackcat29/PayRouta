@@ -67,7 +67,7 @@ export async function configureStablecoins(
       ? { rpcKeyRef: "pending" }
       : {}),
   });
-  if (checked.adapter === "near-intents-deposit")
+  if (checked.adapter === "near-intents-deposit" || checked.adapter === "near-intents-offramp")
     throw new PortalError("UNSUPPORTED_PAYMENT_ASSET", 409);
   if (chain(input.network)?.family === "stellar") {
     const temporaryRef = input.rpcKey
@@ -177,7 +177,8 @@ export async function stablecoinOverview(orgId: string, environment: string) {
     if (
       !parsed.success ||
       parsed.data.environment !== environment ||
-      parsed.data.adapter === "near-intents-deposit"
+      parsed.data.adapter === "near-intents-deposit" ||
+      parsed.data.adapter === "near-intents-offramp"
     )
       continue;
     const config = parsed.data,

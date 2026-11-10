@@ -125,7 +125,9 @@ test("a token found by its address pays: approve, swap into USDC, then exactly t
 
 test("a swap that fails pays nothing", async ({ page }) => {
   await checkout(page, false);
-  await expect(page.getByRole("alert").filter({ hasText: "The swap didn't go through, so nothing was paid." })).toBeVisible();
+  const alert = page.getByRole("alert").filter({ hasText: "The payment didn't go through, so nothing was paid." });
+  await expect(alert).toBeVisible();
+  await expect(alert).not.toContainText(/swap/i);
   const txs = await sent(page);
   // The approval and the swap; never the USDC payment.
   expect(txs.map((t) => t.to.toLowerCase())).toEqual([degen, diamond.toLowerCase()]);

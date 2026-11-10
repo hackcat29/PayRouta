@@ -5,6 +5,8 @@
 // processing, success and failure states. The customer only ever sees the
 // merchant and PayRouta; the processor's secure page is just "secure
 // payment".
+import { MerchantContact, MerchantMark } from "@/components/merchant-mark";
+import { VerifiedTick } from "@/components/verified-tick";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { checkoutCountdown } from "@/lib/payments/checkout-display";
@@ -28,6 +30,10 @@ type Action = {
 };
 type Progress = {
   merchant: string;
+  verified?: boolean;
+  logo?: string | null;
+  website?: string | null;
+  supportEmail?: string | null;
   reference: string;
   amount: string;
   // Set when the merchant passes fees to the customer.
@@ -521,10 +527,9 @@ export function FiatCheckout({ id, initial }: { id: string; initial: Progress })
             <span className="fc-back" aria-hidden>
               ←
             </span>
-            <span className="fc-avatar" aria-hidden>
-              {data.merchant.slice(0, 1).toUpperCase()}
-            </span>
+            <MerchantMark className="fc-avatar" name={data.merchant} logo={data.logo} />
             <span>{data.merchant}</span>
+            {data.verified && <VerifiedTick />}
           </a>
           <p className="fc-total">{total}</p>
           <dl className="fc-lines">
@@ -556,6 +561,7 @@ export function FiatCheckout({ id, initial }: { id: string; initial: Progress })
               {error}
             </p>
           )}
+          <MerchantContact className="sc-contact" name={data.merchant} website={data.website} supportEmail={data.supportEmail} />
           <footer className="fc-footer">
             <span>
               Powered by <strong>PayRouta</strong>

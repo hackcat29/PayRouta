@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { kybProfileSchema } from "../lib/partners/kyb";
-import { requirementsFor, tierFor, type RequirementsInput } from "../lib/merchant/requirements";
+import { identityVerified, requirementsFor, tierFor, type RequirementsInput } from "../lib/merchant/requirements";
 
 const base: RequirementsInput = {
   profile: null,
@@ -100,4 +100,27 @@ test("outgrowing a tier asks for the next one without stopping payments", () => 
   assert.equal(declared.tier, "individual", "an individual stays an individual until registered");
   assert.equal(declared.overCap, true);
   assert.equal(declared.ready.fiat, true);
+});
+
+test("verified tick: only for a merchant PayRouta has identified, never for crypto-only setup", () => {
+  const individual = kybProfileSchema.parse({ legalName: "Ada Obi", businessType: "individual", country: "NG" });
+  // Crypto kept as crypto: everything it needs, and still no tick.
+  assert.equal(identityVerified(requirementsFor({ ...base, profile: individual, termsAccepted: true, screening: "clear" })), false);
+  // An ID still in review isn't verified.
+  assert.equal(
+    identityVerified(requirementsFor({ ...base, profile: individual, termsAccepted: true, screening: "clear", documents: { "government-id": "in-review" } })),
+    false,
+  );
+  const accepted = { ...base, profile: individual, termsAccepted: true, documents: { "government-id": "accepted" as const } };
+  assert.equal(identityVerified(requirementsFor({ ...accepted, screening: "clear" })), true);
+  assert.equal(identityVerified(requirementsFor({ ...accepted, screening: "review" })), false, "a possible sanctions match");
+  // A registered business also needs its registration certificate accepted.
+  const company = kybProfileSchema.parse({ legalName: "Harbor Goods Ltd", businessType: "company", country: "NG" });
+  assert.equal(identityVerified(requirementsFor({ ...accepted, profile: company, screening: "clear" })), false);
+  assert.equal(
+    identityVerified(
+      requirementsFor({ ...accepted, profile: company, screening: "clear", documents: { "government-id": "accepted", "registration-certificate": "accepted" } }),
+    ),
+    true,
+  );
 });

@@ -1,9 +1,10 @@
 "use client";
 // Cash out to a bank or mobile money (lib/treasury/offramp/cashout.ts), in
-// the Crypto balance page: Bridge for US and SEPA banks, Yellow Card for
-// local currency. A cash out is a payout of USDC on Base from the NEAR
-// Intents account, signed like any payout (intents.tsx), that the partner
-// converts and pays.
+// Balances → Crypto: Bridge for US and SEPA banks, Yellow Card for local
+// currency. A cash out is a payout of USDC on Base from the NEAR Intents
+// account, signed like any payout (intents.tsx), that the partner converts
+// and pays; or, with "Settle crypto checkouts here", every crypto checkout
+// is delivered straight to the partner and paid to the bank.
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { alpha3 } from "@/lib/treasury/offramp/iso3";
@@ -19,6 +20,8 @@ type Account = {
   tosUrl?: string | null;
   verified: boolean;
   depositAddress?: string;
+  // Crypto checkouts settle straight to this account.
+  settleCheckouts?: boolean;
 };
 type CashOutRow = { id: string; partner: string; amountUsd: string; currency: string; localAmount: string | null; status: string; failure: string | null; createdAt: string };
 export type CashOutView = {
@@ -30,7 +33,7 @@ export type CashOutView = {
 type Balance = { assetId: string; symbol: string; chainName: string; amount: string };
 export type PayoutQuote = {
   payout: { id: string; send: string; receive: string };
-  sign: { standard: "erc191"; payload: string } | { standard: "nep413"; payload: { message: string; nonce: string; recipient: string } };
+  sign: { standard: "erc191" | "raw_ed25519"; payload: string } | { standard: "nep413"; payload: { message: string; nonce: string; recipient: string } };
   deadline: string;
 };
 type Api = (action: string, input?: object) => Promise<Record<string, unknown>>;
@@ -305,6 +308,35 @@ export function CashOut({
             )}
           </div>
         </div>
+        {ready.length > 0 && (
+          <ul className="ms-settle-bank">
+            {ready.map((a) => (
+              <li key={a.id}>
+                <strong>{a.label}</strong>
+                {a.settleCheckouts ? (
+                  <>
+                    <span className="ms-pill good">Crypto checkouts settle here</span>
+                    <button
+                      className="ms-btn"
+                      disabled={busy}
+                      onClick={() => void run(async () => (await api("cashout-settle-checkouts", { partner: null }), router.refresh()))}
+                    >
+                      Stop
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    className="ms-btn primary"
+                    disabled={busy}
+                    onClick={() => void run(async () => (await api("cashout-settle-checkouts", { partner: a.partner }), router.refresh()))}
+                  >
+                    Settle crypto checkouts here
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       {ready.length > 0 && balances.length > 0 && (

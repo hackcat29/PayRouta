@@ -32,6 +32,10 @@ export async function stablecoinCandidates(
   // review: only its crypto requirements (lib/merchant/go-live.ts).
   if (environment === "production" && (await cryptoBlockers(client, orgId)).length) return [];
   const out = [];
+  // While bank settlement is on it takes its token's checkouts, whichever
+  // settlement was set up last.
+  const toBank = new Set<string>(),
+    toIntents = new Map<string, string>();
   for (const integration of integrations) {
     const parsed = depositConfigSchema.safeParse(integration.config);
     if (!parsed.success || parsed.data.environment !== environment) continue;
@@ -63,6 +67,14 @@ export async function stablecoinCandidates(
         account.accountId !== c.account
       )
         continue;
+    } else if (c.adapter === "near-intents-offramp") {
+      // Straight to the bank: eligible while the cash-out account is ready
+      // and still funded at this address.
+      const account = await client.fiatPayoutAccount.findUnique({ where: { id: c.fiatAccountId } });
+      if (!account || account.orgId !== orgId || account.environment !== environment || account.status !== "Ready" || !account.settleCheckouts) continue;
+      const funding = account.partner === "bridge" ? account.liquidationAddress : process.env.YELLOWCARD_TOPUP_ADDRESS;
+      if (funding?.toLowerCase() !== c.address) continue;
+      toBank.add(`${c.network}|${c.identifier}`);
     } else if (
       (await client.depositBinding.count({
         where: { network: c.network, address: { in: c.addresses } },
@@ -87,16 +99,17 @@ export async function stablecoinCandidates(
       )
         continue;
     }
+    if (c.adapter === "near-intents-deposit") toIntents.set(integration.id, `${c.network}|${c.identifier}`);
     out.push({
       profileId: `${depositPrefix}${integration.id}`,
       integrationId: integration.id,
       method,
       name: `${tokenAsset(c.network, c.identifier)!.symbol} on ${c.network}`,
-      intents: c.adapter === "near-intents-deposit",
+      intents: c.adapter === "near-intents-deposit" || c.adapter === "near-intents-offramp",
       asset: expected,
     });
   }
-  return out;
+  return out.filter((o) => !toBank.has(toIntents.get(o.integrationId) ?? ""));
 }
 export async function revalidateDepositEvaluation(
   intent: {

@@ -283,3 +283,16 @@ export async function loadRequirements(
     monthlyUsd: await monthlyFiatUsd(client, orgId, environment, now),
   });
 }
+
+// ---------------------------------------------------------------------------
+// The verified tick customers see at checkout
+
+// PayRouta has verified who the merchant is: a clear sanctions screening and
+// a government ID accepted by operations, plus the registration certificate
+// for a registered business. Crypto kept as crypto needs neither, so a
+// merchant can sell without the tick; the tick only ever says what PayRouta
+// checked, and its absence isn't shown as a warning.
+export function identityVerified(r: Pick<Requirements, "tier" | "entries" | "screening">) {
+  const done = (id: RequirementId) => r.entries.find((e) => e.id === id)?.status === "done";
+  return r.screening === "clear" && done("government-id") && (r.tier === "individual" || done("registration-certificate"));
+}

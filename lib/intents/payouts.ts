@@ -20,7 +20,7 @@ import { providerRequest } from "../providers/adapters/http";
 import { chainNames, destinations, generateIntent, quote, status, submitIntent, tokens, type GeneratedIntent, type Http } from "./oneclick";
 import { intentsBalances, intentsContract } from "./near";
 import { ed25519Signature, secp256k1Signature, type SignedIntent } from "./signing";
-import { erc191Signer, verifyNep413 } from "./verify";
+import { erc191Signer, verifyNep413, verifyRawEd25519 } from "./verify";
 import { currentIntentsAccount, units } from "./account";
 
 type Deps = { http?: Http; now?: Date };
@@ -45,7 +45,7 @@ const payoutInput = z
 export function checkFundingIntent(intent: GeneratedIntent, expect: { signer: string; receiver: string; token: string; amount: string }) {
   let body: { signer_id?: unknown; verifying_contract?: unknown; intents?: unknown };
   try {
-    body = JSON.parse(intent.standard === "erc191" ? intent.payload : intent.payload.message);
+    body = JSON.parse(intent.standard === "nep413" ? intent.payload.message : intent.payload);
   } catch {
     throw new PortalError("INTENTS_INTENT_UNEXPECTED", 502);
   }
@@ -54,7 +54,7 @@ export function checkFundingIntent(intent: GeneratedIntent, expect: { signer: st
     tokens = t?.tokens as Record<string, unknown> | undefined;
   if (
     body.signer_id !== expect.signer ||
-    (intent.standard === "erc191" ? body.verifying_contract !== intentsContract : intent.payload.recipient !== intentsContract) ||
+    (intent.standard === "nep413" ? intent.payload.recipient !== intentsContract : body.verifying_contract !== intentsContract) ||
     transfers.length !== 1 ||
     t.intent !== "transfer" ||
     t.receiver_id !== expect.receiver ||
@@ -155,7 +155,7 @@ export async function quotePayout(orgId: string, raw: unknown, headers: Headers,
   );
   if (result.quote.amountIn !== amountIn.toString()) throw new PortalError("CROSS_CHAIN_QUOTE_MISMATCH", 409);
   const intent = await generateIntent(
-    { depositAddress: result.quote.depositAddress, signerId: account.accountId, standard: account.standard === "erc191" ? "erc191" : "nep413" },
+    { depositAddress: result.quote.depositAddress, signerId: account.accountId, standard: account.standard === "erc191" || account.standard === "raw_ed25519" ? account.standard : "nep413" },
     http,
   );
   checkFundingIntent(intent, { signer: account.accountId, receiver: result.quote.depositAddress, token: origin.assetId, amount: amountIn.toString() });
@@ -222,6 +222,11 @@ export async function submitPayout(orgId: string, raw: unknown, headers: Headers
     if (intent.standard === "erc191") {
       signed = { standard: "erc191", payload: intent.payload, signature: secp256k1Signature(input.signature) };
       if (erc191Signer(intent.payload, signed.signature) !== account.accountId) throw new Error();
+    } else if (intent.standard === "raw_ed25519") {
+      // The account's own key, recorded when it connected.
+      const publicKey = account.publicKey ?? "";
+      signed = { standard: "raw_ed25519", payload: intent.payload, public_key: publicKey, signature: ed25519Signature(input.signature) };
+      if (!verifyRawEd25519(intent.payload, publicKey, signed.signature)) throw new Error();
     } else {
       const publicKey = input.publicKey ?? account.publicKey ?? "";
       signed = { standard: "nep413", payload: intent.payload, public_key: publicKey, signature: ed25519Signature(input.signature) };

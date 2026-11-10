@@ -44,15 +44,16 @@ test("merchant stablecoins: authenticated receive setup, future methods, busines
   ).toBeTruthy();
   await page.goto(`/merchant/payment-methods?orgId=${orgId}`);
   await expect(
-    page.getByRole("heading", { name: "Stablecoin receive addresses", exact: true }),
+    page.getByRole("heading", { name: "Stablecoins", exact: true }),
   ).toBeVisible();
-  // Every way to pay is listed with its state for this account.
+  // Every way to pay is listed with its state for this account. Test mode
+  // offers stablecoins; any token, any chain settles in live mode.
   const overview = page.getByRole("heading", { name: "Ways customers pay", exact: true }).locator("../..");
-  for (const name of ["Cards", "Digital wallets", "Bank transfer", "Mobile money", "USSD", "Pay with credit", "Stablecoins", "Any token, any chain"])
+  for (const name of ["Cards", "Digital wallets", "Bank transfer", "Mobile money", "USSD", "Pay with credit", "Stablecoins"])
     await expect(overview.getByText(name, { exact: true })).toBeVisible();
-  await page.getByText("Volatile coins: ETH, SOL, XLM and others", { exact: true }).click();
+  // Receive addresses are open in test mode, where they are the only crypto route.
   const cryptoSection = page
-    .getByRole("heading", { name: "Crypto wallet payments", exact: true })
+    .getByRole("heading", { name: "Other coins: ETH, SOL, XLM and more", exact: true })
     .locator("..");
   await expect(cryptoSection).toBeVisible();
   await page
@@ -72,13 +73,13 @@ test("merchant stablecoins: authenticated receive setup, future methods, busines
     .getByLabel("Crypto coin and network", { exact: true })
     .selectOption("solana:devnet|native:SOL");
   await expect(
-    page.getByLabel("Fresh crypto receive addresses", { exact: true }),
+    page.getByLabel("Coin addresses, one per line", { exact: true }),
   ).toHaveAttribute("placeholder", "Solana wallet address");
   await page
     .getByLabel("Crypto coin and network", { exact: true })
     .selectOption("stellar:testnet|native:XLM");
   await expect(
-    page.getByLabel("Fresh crypto receive addresses", { exact: true }),
+    page.getByLabel("Coin addresses, one per line", { exact: true }),
   ).toHaveAttribute("placeholder", "G…");
   await page
     .getByLabel("Token and network", { exact: true })
@@ -86,13 +87,13 @@ test("merchant stablecoins: authenticated receive setup, future methods, busines
       "eip155:84532|erc20:0x036cbd53842c5426634e7929541ec2318f3dcf7e",
     );
   await page
-    .getByLabel("Fresh receive addresses (one per line)", { exact: true })
+    .getByLabel("Stablecoin addresses, one per line", { exact: true })
     .fill(`0x${randomBytes(20).toString("hex")}`);
   await page
-    .getByRole("button", { name: "Save receive addresses", exact: true })
+    .getByRole("button", { name: "Save stablecoin addresses", exact: true })
     .click();
   await expect(
-    page.getByLabel("Fresh receive addresses (one per line)", { exact: true }),
+    page.getByLabel("Stablecoin addresses, one per line", { exact: true }),
   ).toHaveValue("");
   await expect(
     page.getByText("Ready", { exact: true }).first(),

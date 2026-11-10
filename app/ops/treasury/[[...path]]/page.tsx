@@ -116,6 +116,15 @@ async function names(orgIds: string[]) {
 }
 
 async function Underwriting() {
+  // Documents sent without an application: a crypto-only merchant asking for
+  // the verified tick (lib/merchant/requirements.ts identityVerified).
+  const uploaded = await db.evidence.findMany({
+    where: { requirementId: { in: onboardingDocumentIds }, reviewStatus: "Uploaded", deletedAt: null },
+    orderBy: { createdAt: "asc" },
+    select: { orgId: true, createdAt: true },
+    take: 200,
+  });
+  const documentOrgs = [...new Map(uploaded.map((d) => [d.orgId, d.createdAt])).entries()];
   const [waiting, queue, counts] = await Promise.all([
     db.merchantAccount.count({ where: { state: { in: ["Submitted", "Underwriting", "Returned"] } } }),
     db.merchantAccount.findMany({
@@ -125,7 +134,7 @@ async function Underwriting() {
     }),
     db.merchantAccount.groupBy({ by: ["state"], _count: { _all: true } }),
   ]);
-  const orgNames = await names(queue.map((q) => q.orgId));
+  const orgNames = await names([...queue.map((q) => q.orgId), ...documentOrgs.map(([orgId]) => orgId)]);
   const count = (s: string) => counts.find((c) => c.state === s)?._count._all ?? 0;
   return (
     <>
@@ -168,6 +177,31 @@ async function Underwriting() {
                     <Pill tone={stateTone(m.state)}>{m.state}</Pill>
                   </td>
                   <td>{day(m.updatedAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+      <section className="ot-panel">
+        <h2>Documents to review</h2>
+        {!documentOrgs.length ? (
+          <p className="ot-muted">Nothing waiting.</p>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Merchant</th>
+                <th>Uploaded</th>
+              </tr>
+            </thead>
+            <tbody>
+              {documentOrgs.map(([orgId, at]) => (
+                <tr key={orgId}>
+                  <td>
+                    <Link href={`/ops/treasury/merchants/${orgId}?environment=production`}>{orgNames.get(orgId) ?? orgId}</Link>
+                  </td>
+                  <td>{day(at)}</td>
                 </tr>
               ))}
             </tbody>

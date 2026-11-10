@@ -8,9 +8,9 @@ import { generateKeyPairSync, sign } from "node:crypto";
 import bs58 from "bs58";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 import { keccak_256 } from "@noble/hashes/sha3.js";
-import { deliveries, intentsAccount } from "../lib/intents/near";
+import { deliveries, intentsAccount, solanaOwner } from "../lib/intents/near";
 import { ed25519Signature, secp256k1Signature } from "../lib/intents/signing";
-import { erc191Signer, nep413Hash, verifyNep413 } from "../lib/intents/verify";
+import { erc191Signer, nep413Hash, verifyNep413, verifyRawEd25519 } from "../lib/intents/verify";
 import { checkFundingIntent } from "../lib/intents/payouts";
 import { quote, oneClickBase, type Http } from "../lib/intents/oneclick";
 import { approximate, payTokens, walletTransfer } from "../lib/intents/checkout";
@@ -19,6 +19,8 @@ import { intentsDepositConfigSchema, intentsDepositExecutionAdapter, type Intent
 import { factAction } from "../lib/payments/contracts";
 import { isDepositAdapter, stablecoinDepositConfig } from "../lib/blockchain/deposit-config";
 import type { DepositBinding } from "../lib/blockchain/deposit-types";
+import { directFeeInAsset } from "../lib/payments/pricing";
+import { offrampConfigSchema, offrampExecutionAdapter } from "../lib/providers/adapters/native/near-intents-offramp";
 
 const ok = (body: unknown) => ({ status: 200, headers: {}, body: JSON.stringify(body) });
 const baseUsdc = { network: "eip155:8453", identifier: "erc20:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913" };
@@ -269,6 +271,170 @@ test("the adapter confirms only after the swap's delivery is final on NEAR, and 
   // A swap for a different amount never confirms this checkout.
   swaps[0].amountOut = "24000000";
   assert.equal((await adapter.status(attempt))!.state, "Requires action");
+});
+
+test("with PayRouta's fee withheld at source, the account receives the invoice less the fee and the payment confirms in full", async () => {
+  let binding: DepositBinding | null = null;
+  const claims: { amount: string }[] = [];
+  const tx = settlementTx([{ hash: "SwapIntent", from: "q".repeat(64), to: "shop.near", amount: "24625000" }]);
+  const http = async (base: string, o: { path: string; body?: string }) => {
+    if (base === oneClickBase)
+      return ok({ status: "SUCCESS", swapDetails: { intentHashes: ["SwapIntent"], nearTxHashes: ["9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin"] } });
+    const rpc = JSON.parse(o.body!);
+    if (rpc.method === "block") return ok({ result: { header: { height: 222292657 } } });
+    if (rpc.method === "tx") return ok({ result: tx });
+    throw new Error(`unexpected ${rpc.method}`);
+  };
+  const swaps: IntentsSwap[] = [
+    { id: "s1", depositAddress: "dep1", depositMemo: null, destinationAsset: baseUsdcAsset, amountOut: "24625000", appFeeMinor: "375000", status: "PENDING_DEPOSIT", details: null, checkedAt: null },
+  ];
+  const adapter = intentsDepositExecutionAdapter(
+    { mode: "NATIVE", adapter: "near-intents-deposit", environment: "production", ...baseUsdc, account: "shop.near", intentsAccountId: "acct_1" },
+    {
+      http,
+      credentials: { get: async () => "" },
+      now: () => new Date("2026-10-30T12:00:00Z"),
+      deposits: {
+        allocate: async (input) => (binding = { ...input, address: input.addresses[0], integrationId: "int_1" }),
+        find: async () => binding,
+        claim: async (_b, evidence) => void claims.push(evidence),
+      },
+      swaps: { forAttempt: async () => swaps, record: async () => {} },
+    },
+  );
+  const attempt = { id: "att_1", key: "key_1", environment: "production" };
+  await adapter.create(attempt, { reference: "ORDER-1", amount: "25", asset: { kind: "blockchain", ...baseUsdc }, selectedMethod: "stablecoin", precision: 6 });
+  const confirmed = await adapter.status(attempt);
+  assert.equal(confirmed!.state, "Confirmed");
+  assert.equal(confirmed!.amount, "25");
+  assert.equal(claims[0].amount, "25");
+  // A swap that claims a fee but delivers the full invoice is not this payment.
+  swaps[0].appFeeMinor = "0";
+  assert.equal((await adapter.status(attempt))!.state, "Requires action");
+});
+
+test("PayRouta's fee in the payment's own token: 1.5%, capped, nothing when free", () => {
+  const schedule = {
+    version: "2026-10-v2",
+    asset: `blockchain:${baseUsdc.identifier}:${baseUsdc.network}`,
+    inputPrecision: 6,
+    currency: "USD",
+    billingPrecision: 2,
+    conversionNumerator: "1",
+    conversionDenominator: "10000",
+    validUntil: "2099-01-01T00:00:00.000Z",
+    valuationReference: "usdc-par",
+  };
+  const snap = (s: object) => ({ version: "2026-10-v2", free: false, schedule: { ...schedule, ...s } });
+  assert.equal(directFeeInAsset(snap({}), "stablecoin", "25", 6), 375000n);
+  // A $5 cap (500 cents) is 5 USDC.
+  assert.equal(directFeeInAsset(snap({ directCapMinor: "500" }), "stablecoin", "1000", 6), 5000000n);
+  assert.equal(directFeeInAsset({ version: "2026-10-v2", free: true, schedule: null }, "stablecoin", "25", 6), 0n);
+});
+
+test("a Solana wallet owns the implicit account named by its key, and signs the payload text itself", () => {
+  const { publicKey, privateKey } = generateKeyPairSync("ed25519");
+  const raw = publicKey.export({ format: "der", type: "spki" }).subarray(-32);
+  const address = bs58.encode(raw);
+  const owner = solanaOwner(address)!;
+  assert.equal(owner.accountId, Buffer.from(raw).toString("hex"));
+  assert.equal(owner.standard, "raw_ed25519");
+  assert.equal(owner.publicKey, `ed25519:${address}`);
+  // Its account id is a valid intents account (an implicit one).
+  assert.equal(intentsAccount(owner.accountId)?.accountId, owner.accountId);
+  const payload = JSON.stringify({ signer_id: owner.accountId, verifying_contract: "intents.near", intents: [] });
+  const signature = ed25519Signature(bs58.encode(sign(null, Buffer.from(payload), privateKey)));
+  assert.ok(verifyRawEd25519(payload, owner.publicKey, signature));
+  assert.ok(!verifyRawEd25519(`${payload} `, owner.publicKey, signature));
+  assert.equal(solanaOwner("0x" + "a".repeat(40)), null);
+  assert.equal(solanaOwner("shop.near"), null);
+});
+
+test("settled straight to the bank: confirmed only by the swap's own finalized USDC transfer to the funding address", async () => {
+  const saved = { key: process.env.ALCHEMY_RPC_KEY_REF, mode: process.env.PAYMENT_RPC_MODE };
+  delete process.env.ALCHEMY_RPC_KEY_REF;
+  process.env.PAYMENT_RPC_MODE = "public";
+  try {
+    const funding = `0x${"b".repeat(40)}`;
+    const usdc = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913";
+    const delivery = `0x${"d".repeat(64)}`;
+    let finalized = 100n,
+      amount = 24625000n;
+    const http = async (base: string, o: { path: string; body?: string }) => {
+      if (base === oneClickBase) return ok({ status: "SUCCESS", swapDetails: { destinationChainTxHashes: [{ hash: delivery }] } });
+      const rpc = JSON.parse(o.body!);
+      const result =
+        rpc.method === "eth_chainId"
+          ? "0x2105"
+          : rpc.method === "eth_getBlockByNumber"
+            ? { number: `0x${finalized.toString(16)}` }
+            : rpc.method === "eth_getTransactionReceipt"
+              ? {
+                  status: "0x1",
+                  transactionHash: delivery,
+                  blockHash: `0x${"e".repeat(64)}`,
+                  blockNumber: "0x64",
+                  logs: [
+                    {
+                      address: usdc,
+                      topics: [
+                        "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+                        `0x${"0".repeat(24)}${"c".repeat(40)}`,
+                        `0x${"0".repeat(24)}${funding.slice(2)}`,
+                      ],
+                      data: `0x${amount.toString(16).padStart(64, "0")}`,
+                      logIndex: "0x3",
+                    },
+                  ],
+                }
+              : null;
+      return ok({ jsonrpc: "2.0", id: rpc.id, result });
+    };
+    const config = { mode: "NATIVE", adapter: "near-intents-offramp", environment: "production", network: "eip155:8453", identifier: `erc20:${usdc}`, partner: "bridge", fiatAccountId: "fpa_1", address: funding };
+    assert.ok(offrampConfigSchema.safeParse(config).success);
+    assert.ok(!offrampConfigSchema.safeParse({ ...config, environment: "sandbox" }).success);
+    let binding: DepositBinding | null = null;
+    const claims: { txHash: string; logIndex: string; amount: string }[] = [];
+    const swaps: IntentsSwap[] = [
+      { id: "s1", depositAddress: "dep1", depositMemo: null, destinationAsset: "nep141:base-usdc", amountOut: "24625000", appFeeMinor: "375000", status: "PENDING_DEPOSIT", details: null, checkedAt: null },
+    ];
+    const asked: (string | undefined)[] = [];
+    const adapter = offrampExecutionAdapter(config, {
+      http,
+      credentials: { get: async () => "" },
+      now: () => new Date("2026-11-10T12:00:00Z"),
+      deposits: {
+        allocate: async (input) => (binding = { ...input, address: input.addresses[0], integrationId: "int_1" }),
+        find: async () => binding,
+        claim: async (_b, evidence) => void claims.push(evidence),
+      },
+      swaps: { forAttempt: async (_id, type) => (asked.push(type), swaps), record: async () => {} },
+    });
+    const attempt = { id: "att_1", key: "key_1", environment: "production" };
+    const created = await adapter.create(attempt, { reference: "ORDER-1", amount: "25", asset: { kind: "blockchain", network: "eip155:8453", identifier: `erc20:${usdc}` }, selectedMethod: "stablecoin", precision: 6 });
+    assert.deepEqual(
+      { kind: (created.action as { kind: string }).kind, settle: (created.action as { settle: string }).settle, address: (created.action as { address: string }).address },
+      { kind: "intents", settle: "bank", address: funding },
+    );
+    assert.ok(factAction.safeParse(created.action).success);
+    // Not final yet: still pending.
+    finalized = 99n;
+    assert.equal((await adapter.status(attempt))!.state, "Pending");
+    assert.equal(asked[0], "BANK");
+    finalized = 100n;
+    const confirmed = await adapter.status(attempt);
+    assert.equal(confirmed!.state, "Confirmed");
+    assert.equal(confirmed!.amount, "25");
+    assert.deepEqual(claims[0], { txHash: delivery, logIndex: "0x3", blockHash: `0x${"e".repeat(64)}`, amount: "25" });
+    // A delivery of the wrong amount is never this payment.
+    amount = 25000000n;
+    await assert.rejects(adapter.status(attempt), /DEPOSIT_AMOUNT_MISMATCH/);
+  } finally {
+    if (saved.key === undefined) delete process.env.ALCHEMY_RPC_KEY_REF;
+    else process.env.ALCHEMY_RPC_KEY_REF = saved.key;
+    if (saved.mode === undefined) delete process.env.PAYMENT_RPC_MODE;
+    else process.env.PAYMENT_RPC_MODE = saved.mode;
+  }
 });
 
 // The checkout's one crypto question: what do you pay with?

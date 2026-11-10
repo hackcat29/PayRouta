@@ -47,6 +47,20 @@ export function verifyNep413(p: Nep413Payload, publicKey: string, signature: str
   }
 }
 
+// raw_ed25519 (Solana wallets): an ed25519 signature over the message's
+// UTF-8 bytes themselves.
+export function verifyRawEd25519(message: string, publicKey: string, signature: string) {
+  if (!publicKey.startsWith("ed25519:") || !signature.startsWith("ed25519:")) return false;
+  try {
+    const key = Buffer.from(bs58.decode(publicKey.slice(8)));
+    const sig = Buffer.from(bs58.decode(signature.slice(8)));
+    if (key.length !== 32 || sig.length !== 64) return false;
+    return verify(null, Buffer.from(message, "utf8"), createPublicKey({ key: Buffer.concat([spki, key]), format: "der", type: "spki" }), sig);
+  } catch {
+    return false;
+  }
+}
+
 // The lowercase EVM address that personal_sign-ed `message`, or null.
 export function erc191Signer(message: string, signature: string) {
   if (!signature.startsWith("secp256k1:")) return null;

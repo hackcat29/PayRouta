@@ -174,6 +174,9 @@ export async function quote(
     from?: OneClickEnd;
     to?: OneClickEnd;
     exactInput?: boolean;
+    // PayRouta's fee, taken by 1Click from the amount in and credited to
+    // PayRouta's intents account.
+    appFee?: { recipient: string; bps: number };
   },
   http: Http = providerRequest,
 ) {
@@ -193,6 +196,7 @@ export async function quote(
     recipientType: input.to === "INTENTS" ? "INTENTS" : "DESTINATION_CHAIN",
     deadline: input.deadline.toISOString(),
     referral: "payrouta",
+    ...(input.appFee ? { appFees: [{ recipient: input.appFee.recipient, fee: input.appFee.bps }] } : {}),
     quoteWaitingTimeMs: 3000,
   };
   const response = await http(oneClickBase, {
@@ -227,6 +231,7 @@ const generated = z
   .object({
     intent: z.discriminatedUnion("standard", [
       z.object({ standard: z.literal("erc191"), payload: z.string().min(2).max(8000) }).strict(),
+      z.object({ standard: z.literal("raw_ed25519"), payload: z.string().min(2).max(8000) }).strict(),
       z
         .object({
           standard: z.literal("nep413"),
@@ -245,7 +250,7 @@ const generated = z
   .passthrough();
 export type GeneratedIntent = z.infer<typeof generated>["intent"];
 
-export async function generateIntent(input: { depositAddress: string; signerId: string; standard: "erc191" | "nep413" }, http: Http = providerRequest) {
+export async function generateIntent(input: { depositAddress: string; signerId: string; standard: "erc191" | "nep413" | "raw_ed25519" }, http: Http = providerRequest) {
   const response = await http(oneClickBase, {
     method: "POST",
     path: "/v0/generate-intent",

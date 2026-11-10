@@ -45,12 +45,9 @@ export function Stablecoins({
     [busy, setBusy] = useState(false);
   const [network] = chosen.split("|");
   return (
-    <>
-      <section className="ms-flush">
-        <div className="ms-card-head">
-          <h2>Stablecoin receive addresses</h2>
-        </div>
-        {accounts.length ? (
+    <section>
+      <h2>Stablecoins</h2>
+        {accounts.length > 0 && (
           <div className="p-table-wrap">
             <table>
               <thead>
@@ -81,15 +78,9 @@ export function Stablecoins({
               </tbody>
             </table>
           </div>
-        ) : (
-          <div className="ms-empty">
-            <strong>No receive addresses yet</strong>
-          </div>
         )}
-      </section>
       {canConfigure && (
-        <section>
-          <h2>Add receive addresses</h2>
+        <>
           <form
             onSubmit={async (e) => {
               e.preventDefault();
@@ -149,7 +140,7 @@ export function Stablecoins({
                 ))}
               </select>
               <label>
-                Fresh receive addresses (one per line)
+                Stablecoin addresses, one per line
                 <textarea
                   name="addresses"
                   required
@@ -164,7 +155,7 @@ export function Stablecoins({
                 />
               </label>
               <details>
-                <summary>Your own Alchemy key</summary>
+                <summary>Alchemy API key (optional)</summary>
                 <label>
                   Alchemy API key
                   <input name="rpcKey" type="password" autoComplete="off" />
@@ -176,13 +167,13 @@ export function Stablecoins({
                 </p>
               )}
               <button disabled={busy}>
-                {busy ? "Saving…" : "Save receive addresses"}
+                {busy ? "Saving…" : "Save stablecoin addresses"}
               </button>
             </fieldset>
           </form>
           <p role="status">{message}</p>
-        </section>
+        </>
       )}
-    </>
+    </section>
   );
 }

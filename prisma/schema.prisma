@@ -1603,6 +1603,10 @@ model CrossChainPayment {
   amountIn          String
   amountInFormatted String
   amountOut         String
+  // PayRouta's fee, withheld at source by 1Click (appFees): amountOut is the
+  // invoice less this, in the destination token's minor units.
+  appFeeMinor       String?
+  appFeeBps         Int?
   refundTo          String
   deadline          DateTime
   quote             Json
@@ -1717,6 +1721,8 @@ model FiatPayoutAccount {
   liquidationAddressId String?
   liquidationAddress   String?
   destinationRef       String?
+  // Crypto checkouts settle straight to this account (near-intents-offramp).
+  settleCheckouts      Boolean  @default(false)
   createdBy            String
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
@@ -1732,7 +1738,11 @@ model FiatPayout {
   environment String
   accountId   String
   partner     String
-  payoutId    String   @unique
+  // Funded by the merchant's signed payout (payoutId), or by a checkout that
+  // settled straight to the bank (crossChainPaymentId, its payment intentId).
+  payoutId    String?  @unique
+  crossChainPaymentId String? @unique
+  intentId    String?
   amountUsd   String
   currency    String
   // Awaiting signature | Funding | Converting | Paid | Failed | Needs attention
@@ -2012,4 +2022,16 @@ model UsageRecord {
 
   @@unique([subscriptionId, idempotencyKey])
   @@index([subscriptionId, meter, occurredAt])
+}
+
+// The merchant's logo at checkout (lib/merchant/branding.ts): PNG, JPEG or
+// WebP up to 256 KB, served at /api/brand/{key}. Each upload gets a fresh
+// random key, so the URL never names the business and caches never go stale.
+model MerchantLogo {
+  orgId     String   @id
+  key       String   @unique
+  mime      String
+  bytes     Bytes
+  updatedBy String
+  updatedAt DateTime @updatedAt
 }

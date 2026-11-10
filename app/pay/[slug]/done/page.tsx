@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 import { publicPaymentLink } from "@/lib/merchant/payment-links";
+import { MerchantContact, MerchantMark } from "@/components/merchant-mark";
+import { VerifiedTick } from "@/components/verified-tick";
 import "../../pay.css";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +19,13 @@ export default async function Done({ params }: { params: Promise<{ slug: string 
             <path d="m5 12.5 4.5 4.5L19 7.5" />
           </svg>
         </div>
+        <p className="pl-merchant">
+          <MerchantMark className="pl-avatar" name={link.merchant} logo={link.logo} />
+          {link.merchant}
+          {link.verified && <VerifiedTick />}
+        </p>
         <h1 className="pl-title">Payment sent to {link.merchant}</h1>
+        <MerchantContact className="pl-contact" name={link.merchant} website={link.website} supportEmail={link.supportEmail} />
         <p className="pl-foot">
           Secured by <strong>PayRouta</strong>
         </p>

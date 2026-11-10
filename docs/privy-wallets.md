@@ -1,14 +1,15 @@
 # Privy merchant wallets
 
-The merchant Crypto balance page offers optional, user-owned embedded EVM
+The merchant Balances → Crypto page offers optional, user-owned embedded EVM
 wallets alongside existing NEAR and browser wallets. Portal authentication
 continues to use Better Auth. Wallet sign-in is a separate email verification
 with Privy; it does not grant access to a PayRouta business.
 
 ## Enable
 
-1. In the Privy dashboard, select the PayRouta app, enable email login and
-   user-owned Ethereum embedded wallets. Do not configure a developer-controlled
+1. In the Privy dashboard, select the PayRouta app, enable the Google, Apple,
+   X (Twitter) and email login methods, user-owned Ethereum embedded wallets,
+   and external wallets on Ethereum and Solana. Do not configure a developer-controlled
    owner, delegated signer, or server signer for this flow. Keep wallet export
    enabled; configure recovery and MFA before funding wallets.
 2. Add the exact deployment origin to Privy's allowed origins. For development,
@@ -22,7 +23,10 @@ with Privy; it does not grant access to a PayRouta business.
 ## Flow and control
 
 In live mode, an owner/admin selects settlement assets, signs in to the wallet,
-explicitly creates a wallet if needed, then chooses **Connect this wallet**.
+then either **Create a wallet** (social or email sign-in, then an embedded
+EVM wallet) or **Connect a wallet** (Privy's list of EVM and Solana wallets).
+A Solana wallet owns the implicit NEAR Intents account named by its key in
+hex and signs intents as `raw_ed25519` (lib/intents/near.ts solanaOwner).
 Wallet creation alone never replaces a business receive account. The existing
 merchant endpoint issues an expiring, single-use business-bound challenge,
 checks membership and step-up authentication, and verifies the EVM signature

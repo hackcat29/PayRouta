@@ -1,4 +1,6 @@
 "use client";
+import { MerchantContact, MerchantMark } from "@/components/merchant-mark";
+import { VerifiedTick } from "@/components/verified-tick";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -46,6 +48,10 @@ type Progress = {
   selectedOption?: string;
   chainLocked?: boolean;
   merchant: string;
+  verified?: boolean;
+  logo?: string | null;
+  website?: string | null;
+  supportEmail?: string | null;
   reference: string;
   amount: string;
   // Set when the merchant passes fees to the customer.
@@ -399,15 +405,20 @@ export function Checkout({ id }: { id: string }) {
       )}
       <div className="sc-layout">
         <aside className="sc-summary">
-          <p className="sc-merchant">
-            <span className="sc-avatar" aria-hidden>
-              {(data?.merchant || "P").slice(0, 1).toUpperCase()}
-            </span>
-            <span>
-              {data?.merchant ||
-                (error ? "Checkout unavailable" : "Loading checkout…")}
-            </span>
-          </p>
+          {data ? (
+            <p className="sc-merchant">
+              <a href={data.returnUrl} onClick={toMerchant} aria-label={`Back to ${data.merchant}`}>
+                <MerchantMark className="sc-avatar" name={data.merchant} logo={data.logo} />
+                <span>{data.merchant}</span>
+              </a>
+              {data.verified && <VerifiedTick />}
+            </p>
+          ) : (
+            <p className="sc-merchant">
+              <MerchantMark className="sc-avatar" name="P" />
+              <span>{error ? "Checkout unavailable" : "Loading checkout…"}</span>
+            </p>
+          )}
           <h1>
             {data
               ? `${displayTokenAmount(data.amount)} ${data.symbol || ""}`
@@ -721,6 +732,7 @@ export function Checkout({ id }: { id: string }) {
               )}
             </section>
           ) : null}
+          {data && <MerchantContact className="sc-contact" name={data.merchant} website={data.website} supportEmail={data.supportEmail} />}
           <footer className="sc-footer">
             <span>
               Powered by <strong>PayRouta</strong>

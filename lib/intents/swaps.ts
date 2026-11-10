@@ -6,9 +6,9 @@ import { json } from "../portal/service";
 import type { IntentsSwaps } from "../providers/adapters/native/near-intents-deposit";
 
 export const databaseIntentsSwaps: IntentsSwaps = {
-  forAttempt: (attemptId) =>
+  forAttempt: (attemptId, recipientType = "INTENTS") =>
     db.crossChainPayment.findMany({
-      where: { attemptId, recipientType: "INTENTS" },
+      where: { attemptId, recipientType },
       orderBy: { createdAt: "desc" },
       take: 10,
     }),

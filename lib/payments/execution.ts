@@ -158,7 +158,7 @@ export function resolveExecutionAdapter(integration: {
         ...(isDepositAdapter(config.adapter)
           ? { deposits: databaseDepositStore(integration.id ?? "") }
           : {}),
-        ...(config.adapter === "near-intents-deposit"
+        ...(config.adapter === "near-intents-deposit" || config.adapter === "near-intents-offramp"
           ? { swaps: databaseIntentsSwaps }
           : {}),
       });
