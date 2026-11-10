@@ -3,7 +3,8 @@ import { HeroStage } from "@/components/marketing/hero";
 import { DevTabs } from "@/components/marketing/dev-tabs";
 import { Figure, RiseWords } from "@/components/marketing/motion";
 import { LogoMarquee } from "@/components/marketing/logo-marquee";
-import { LogoSprite } from "@/components/marketing/logos";
+import { BrandMark, LogoSprite } from "@/components/marketing/logos";
+import { PayWithCa } from "@/components/marketing/pay-with-ca";
 import { TokenBand } from "@/components/marketing/token-band";
 import { StorePlatforms } from "@/components/marketing/commerce";
 import { SettleChooser } from "@/components/marketing/settle";
@@ -24,7 +25,7 @@ import {
   Webhook,
   type LucideIcon,
 } from "lucide-react";
-import { figures, payouts, pillars, publicLabel, settleIn, waysToPay } from "@/content/claims";
+import { contractAddressNetworks, figures, payouts, pillars, publicLabel, settleIn, waysToPay } from "@/content/claims";
 import { createLinkHref, docsUrl, trustedOrigin, paths } from "@/lib/site-config";
 import { instalmentOffer } from "@/lib/treasury/credit";
 
@@ -315,6 +316,30 @@ export default function Home() {
           </div>
         </div>
         <TokenBand />
+      </section>
+
+      <section className="hp-sec hp-paper hp-ca-sec" aria-labelledby="ca-h">
+        <div className="mk-wrap hp-split">
+          <div className="hp-text" data-reveal>
+            <h2 className="hp-h2" id="ca-h">
+              Paste a contract address. Pay with that token.
+            </h2>
+            <ul className="ca-chains" aria-label="Networks">
+              {contractAddressNetworks.map((n) => (
+                <li key={n.name}>
+                  <BrandMark way={n} size={22} />
+                  {n.name}
+                </li>
+              ))}
+            </ul>
+            <a className="hp-link" href={`${docsUrl("cross-chain")}#any-token-by-its-contract-address`}>
+              Any token by contract address <span aria-hidden="true">→</span>
+            </a>
+          </div>
+          <div data-reveal>
+            <PayWithCa />
+          </div>
+        </div>
       </section>
 
       <section className="hp-sec" aria-labelledby="credit-h">

@@ -58,8 +58,8 @@ export const markets: {
   },
   {
     name: "Anywhere",
-    currencies: "ETH, SOL, XLM, AVAX, POL and major tokens",
-    methods: "Crypto from the customer's wallet, paid straight to yours",
+    currencies: "Any token, listed or by contract address",
+    methods: "Crypto from the customer's wallet on any chain, swapped to your stablecoin",
     availability: "available",
   },
   {
@@ -274,4 +274,18 @@ export const settleIn: { id: string; name: string; detail: string; availability:
   { id: "intents", name: "Any token on any chain", detail: "Through your NEAR Intents account", availability: "testing" },
   { id: "bank", name: "Your bank account", detail: "USD by ACH or wire, EUR by SEPA", availability: "testing" },
   { id: "local", name: "Local bank or mobile money", detail: "Naira, cedi, shilling, rand and more", availability: "testing" },
+];
+
+// Where a customer can pay with any token by pasting its contract address
+// (docs: cross-chain.md "Any token by its contract address"): Jupiter on
+// Solana, LI.FI on these EVM networks.
+export const contractAddressNetworks: Pick<WayToPay, "name" | "logo" | "mark">[] = [
+  { name: "Solana", logo: "sol" },
+  { name: "Ethereum", logo: "eth" },
+  { name: "Base", mark: { text: "B", color: "#ffffff", bg: "#0052ff" } },
+  { name: "Arbitrum", mark: { text: "A", color: "#ffffff", bg: "#28a0f0" } },
+  { name: "Optimism", logo: "optimism" },
+  { name: "Polygon", logo: "matic" },
+  { name: "Avalanche", logo: "avax" },
+  { name: "BNB Chain", logo: "bnb" },
 ];

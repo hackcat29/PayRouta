@@ -19,6 +19,8 @@ import { HeroDemo } from "./hero-demo";
 import { StorePlatforms } from "./commerce";
 import { SettleChooser } from "./settle";
 import { TokenBand } from "./token-band";
+import { PayWithCa } from "./pay-with-ca";
+import { LogoSprite } from "./logos";
 import { ProviderAccessForm } from "./provider-access-form";
 
 // How each cap is written locally, e.g. KSh 640 or MX$90.
@@ -238,6 +240,7 @@ function Credit() {
 function Crypto() {
   return (
     <>
+      <LogoSprite />
       <PageHero
         title="Take any token, on any chain. Settle in yours."
         actions={
@@ -252,12 +255,10 @@ function Crypto() {
       <section className="pp-band pp-night pp-flush-top hp-flow" aria-label="Any token in, your stablecoin out">
         <TokenBand />
       </section>
-      <Feature title="Whatever your customer holds" tone="paper">
+      <Feature title="Whatever your customer holds" tone="paper" visual={<PayWithCa />}>
         <p>
-          Customers pay with any token on any chain: 125+ listed through NEAR Intents across 36+ chains, and any other by
-          pasting its contract address, swapped by Jupiter on Solana and LI.FI on EVM networks. The swap must succeed before the payment
-          does, and you receive exactly the amount you asked for. If a swap can&apos;t complete, the customer is refunded on
-          their own chain.
+          125+ tokens through NEAR Intents, and any other by pasting its contract address. The swap into your stablecoin
+          succeeds before the payment does, so you receive exactly what you asked for.
         </p>
         <TextLink href={docsUrl("cross-chain")}>Paying from another chain</TextLink>
       </Feature>
