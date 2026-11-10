@@ -171,3 +171,26 @@ test("subscriptions: plans only offer ways to pay that are on, and tenants stay 
   await assert.rejects(createSubscription(other, { plan: p.id, customer: { email: "x@example.com" } }, "test"), /SUBSCRIPTION_PLAN_NOT_FOUND/);
   await assert.rejects(advanceTestPeriod({ ...scope, environment: "production" }, sub.id), /SANDBOX_ONLY/);
 });
+
+// Over MCP the tenant is the whole key record (id, permissions…); the tools
+// must still create and read plans and subscriptions for its workspace.
+test("subscriptions over MCP: a full key record creates and lists plans and subscriptions", async () => {
+  const { handleMcp } = await import("../../lib/mcp/server");
+  const key = { ...scope, keyId: "key_mcp_test", id: "key_mcp_test", permissions: ["subscriptions:read", "subscriptions:write"] };
+  const ctx = { authorize: async () => key, origin: "http://127.0.0.1:3000" };
+  const call = async (name: string, args: Record<string, unknown>) => {
+    const res = (await handleMcp({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }, ctx)) as {
+      result: { isError?: boolean; structuredContent: Record<string, unknown>; content: { text: string }[] };
+    };
+    assert.ok(!res.result.isError, res.result.content?.[0]?.text);
+    return res.result.structuredContent;
+  };
+  const created = await call("create_plan", { name: "MCP Pro", amount: "20", currency: "GBP", interval: "month", methods: ["card"] });
+  assert.equal(created.name, "MCP Pro");
+  const { plans } = (await call("list_plans", {})) as { plans: { id: string }[] };
+  assert.ok(plans.some((p) => p.id === created.id));
+  const sub = await call("create_subscription", { plan: created.id, customer: { email: "mcp@example.com" } });
+  assert.equal(sub.state, "Incomplete");
+  const listed = (await call("list_subscriptions", {})) as { data: { id: string }[] };
+  assert.ok(listed.data.some((s) => s.id === sub.id));
+});

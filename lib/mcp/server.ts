@@ -35,6 +35,9 @@ import {
 export const protocolVersions = ["2025-06-18", "2025-03-26", "2024-11-05"];
 
 type Tenant = { orgId: string; environment: string; keyId: string };
+// The key record carries more than a workspace (its id, permissions); the
+// subscription service spreads its scope into rows, so pass only the scope.
+const scopeOf = (t: Tenant) => ({ orgId: t.orgId, environment: t.environment });
 // A merchant API key gets the merchant tools; an agent key (pra_…) gets the
 // buyer tools in buyer.ts, to pay links and invoices within its limits.
 export type McpContext = {
@@ -184,7 +187,7 @@ const tools: Tool[] = [
     scope: "subscriptions:write",
     input: planInput,
     async run(args, t) {
-      return createPlan(t, args, t.keyId);
+      return createPlan(scopeOf(t), args, t.keyId);
     },
   },
   {
@@ -195,7 +198,7 @@ const tools: Tool[] = [
     readOnly: true,
     input: z.object({}).strict(),
     async run(_args, t) {
-      return { plans: await listPlans(t) };
+      return { plans: await listPlans(scopeOf(t)) };
     },
   },
   {
@@ -206,7 +209,7 @@ const tools: Tool[] = [
     scope: "subscriptions:write",
     input: subscriptionInput,
     async run(args, t) {
-      return createSubscription(t, args, t.keyId);
+      return createSubscription(scopeOf(t), args, t.keyId);
     },
   },
   {
@@ -228,7 +231,7 @@ const tools: Tool[] = [
       if (args.state) params.set("state", args.state);
       if (args.customerEmail) params.set("reference", args.customerEmail);
       if (args.cursor) params.set("cursor", args.cursor);
-      return listSubscriptions(t, params);
+      return listSubscriptions(scopeOf(t), params);
     },
   },
   {
@@ -239,7 +242,7 @@ const tools: Tool[] = [
     readOnly: true,
     input: z.object({ id: z.string().min(1).max(100) }).strict(),
     async run(args: { id: string }, t) {
-      return getSubscription(t, args.id);
+      return getSubscription(scopeOf(t), args.id);
     },
   },
   {
@@ -251,7 +254,7 @@ const tools: Tool[] = [
     input: z.object({ subscription: z.string().min(1).max(100) }).extend(usageInput.shape).strict(),
     async run(args: { subscription: string } & Record<string, unknown>, t) {
       const { subscription, ...usage } = args;
-      return recordUsage(t, subscription, { idempotencyKey: `mcp-${randomUUID()}`, ...usage });
+      return recordUsage(scopeOf(t), subscription, { idempotencyKey: `mcp-${randomUUID()}`, ...usage });
     },
   },
   {
@@ -262,7 +265,7 @@ const tools: Tool[] = [
     destructive: true,
     input: z.object({ id: z.string().min(1).max(100), atPeriodEnd: z.boolean().default(false) }).strict(),
     async run(args: { id: string; atPeriodEnd: boolean }, t) {
-      return cancelSubscription(t, args.id, { atPeriodEnd: args.atPeriodEnd }, t.keyId);
+      return cancelSubscription(scopeOf(t), args.id, { atPeriodEnd: args.atPeriodEnd }, t.keyId);
     },
   },
 ];
