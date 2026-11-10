@@ -151,6 +151,9 @@ const messages: Record<string, string> = {
 export function FiatCheckout({ id, initial }: { id: string; initial: Progress }) {
   const [data, setData] = useState<Progress>(initial);
   const [methods, setMethods] = useState<Method[] | null>(null);
+  // Methods this merchant offers that can't take this payment right now:
+  // listed after the others, marked "Not available".
+  const [unavailable, setUnavailable] = useState<Method[]>([]);
   const [choice, setChoice] = useState<string>("");
   // Credit plans, loaded when the customer chooses "Pay with credit".
   const [offers, setOffers] = useState<CreditOffer[] | null>(null);
@@ -190,6 +193,12 @@ export function FiatCheckout({ id, initial }: { id: string; initial: Progress })
         { payerCountry: m.payerCountry ?? data.payerCountry, currency: data.asset.identifier },
       );
       setMethods(available);
+      setUnavailable(
+        localizeCheckoutMethods(
+          m.methods.filter((x) => x.status !== "AVAILABLE" && labels[x.method]),
+          { payerCountry: m.payerCountry ?? data.payerCountry, currency: data.asset.identifier },
+        ),
+      );
       setChoice((c) => (available.some((x) => x.method === c) ? c : available[0]?.method || ""));
     },
     [data.payerCountry, data.asset.identifier],
@@ -402,7 +411,7 @@ export function FiatCheckout({ id, initial }: { id: string; initial: Progress })
         <h2 className="fc-heading">Payment method</h2>
         {methods === null ? (
           <div className="fc-skeleton" aria-label="Loading payment methods" />
-        ) : methods.length === 0 ? (
+        ) : methods.length === 0 && !unavailable.length ? (
           <p className="fc-alert">No payment methods are available for this payment right now. Please contact {data.merchant}.</p>
         ) : (
           <div className="fc-methods" role="radiogroup" aria-label="Payment method">
@@ -427,6 +436,32 @@ export function FiatCheckout({ id, initial }: { id: string; initial: Progress })
                 )}
               </label>
             ))}
+            {unavailable.map((m) => (
+              <label key={m.method} className="fc-method fc-off">
+                <input type="radio" name="method" value={m.method} disabled />
+                <span className="fc-icon">
+                  <Icon method={m.method} />
+                </span>
+                <span className="fc-method-text">
+                  <strong>{labels[m.method]}</strong>
+                </span>
+                <span className="fc-na">Not available</span>
+              </label>
+            ))}
+          </div>
+        )}
+        {data.alternatives?.some((a) => a.kind === "crypto") && !data.alternatives.some((a) => a.kind === "crypto" && a.available) && (
+          <div className="fc-switch fc-off" aria-disabled="true">
+            <span className="fc-icon" aria-hidden>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <circle cx="12" cy="12" r="8.5" />
+                <path d="M9.5 8.5h4a2 2 0 0 1 0 4h-4h4.5a2 2 0 0 1 0 4h-4.5zM11 7v2M11 16.5v1.5" />
+              </svg>
+            </span>
+            <span className="fc-method-text">
+              <strong>Stablecoins or crypto</strong>
+            </span>
+            <span className="fc-na">Not available</span>
           </div>
         )}
         {data.alternatives?.some((a) => a.kind === "crypto" && a.available) && (

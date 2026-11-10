@@ -193,7 +193,14 @@ const places: Place[] = [
   },
 ];
 
-export function HeroDemo({ initial = places[0].id }: { initial?: string }) {
+export function HeroDemo({
+  initial = places[0].id,
+  onPlace,
+}: {
+  initial?: string;
+  // Told which country is shown (the homepage globe turns to it).
+  onPlace?: (id: string) => void;
+}) {
   const [id, setId] = useState(initial);
   const place = places.find((p) => p.id === id)!;
   const [selected, setSelected] = useState<Kind>(place.rows[0].kind);
@@ -215,6 +222,7 @@ export function HeroDemo({ initial = places[0].id }: { initial?: string }) {
             className="hd-tab"
             onClick={() => {
               setId(p.id);
+              onPlace?.(p.id);
               setSelected(p.rows[0].kind);
               setNetwork(p.crypto[0]);
               setToken(p.crypto[1]);
@@ -225,14 +233,14 @@ export function HeroDemo({ initial = places[0].id }: { initial?: string }) {
         ))}
       </div>
       <div className="hd-sheet" role="tabpanel" aria-label={`Checkout in ${place.country}`}>
-        <div className="hd-order">
+        <div className="hd-order" key={`order-${place.id}`}>
           <span className="hd-shop">{place.shop}</span>
           <span className="hd-item">{place.item}</span>
           <strong className="hd-price">{price}</strong>
         </div>
-        <ul className="hd-rows">
-          {place.rows.map((r) => (
-            <li key={r.kind}>
+        <ul className="hd-rows" key={`rows-${place.id}`}>
+          {place.rows.map((r, i) => (
+            <li key={r.kind} style={{ "--i": i } as React.CSSProperties}>
               <button
                 type="button"
                 className={`hd-row hd-${r.kind}`}

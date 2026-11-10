@@ -23,6 +23,12 @@ export function ycSignature(secret: string, timestamp: string, path: string, met
   return h.digest("base64");
 }
 
+// Whether Yellow Card can take cash outs here: key and secret set for this mode.
+export const yellowCardConfigured = (environment: string) =>
+  environment === "production"
+    ? !!(process.env.YELLOWCARD_API_KEY && process.env.YELLOWCARD_API_SECRET_REF)
+    : !!(process.env.YELLOWCARD_SANDBOX_API_KEY && process.env.YELLOWCARD_SANDBOX_API_SECRET_REF);
+
 async function credentials(environment: string) {
   const live = environment === "production";
   const key = live ? process.env.YELLOWCARD_API_KEY : process.env.YELLOWCARD_SANDBOX_API_KEY;

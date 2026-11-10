@@ -21,7 +21,12 @@ type Account = {
   depositAddress?: string;
 };
 type CashOutRow = { id: string; partner: string; amountUsd: string; currency: string; localAmount: string | null; status: string; failure: string | null; createdAt: string };
-export type CashOutView = { accounts: Account[]; cashOuts: CashOutRow[]; yellowCardFunding: boolean };
+export type CashOutView = {
+  accounts: Account[];
+  cashOuts: CashOutRow[];
+  yellowCardFunding: boolean;
+  available?: { bridge: boolean; yellowcard: boolean };
+};
 type Balance = { assetId: string; symbol: string; chainName: string; amount: string };
 export type PayoutQuote = {
   payout: { id: string; send: string; receive: string };
@@ -61,7 +66,12 @@ export function CashOut({
   const router = useRouter();
   const bridge = view.accounts.find((a) => a.partner === "bridge");
   const yellow = view.accounts.find((a) => a.partner === "yellowcard");
-  const ready = view.accounts.filter((a) => a.status === "Ready" && (a.partner === "bridge" || view.yellowCardFunding));
+  const ready = view.accounts.filter(
+    (a) =>
+      a.status === "Ready" &&
+      (a.partner === "bridge" || view.yellowCardFunding) &&
+      view.available?.[a.partner as "bridge" | "yellowcard"] !== false,
+  );
   const [currency, setCurrency] = useState<"usd" | "eur">("usd");
   const [bank, setBank] = useState({ bankName: "", accountName: "", routingNumber: "", accountNumber: "", checkingOrSavings: "checking", rail: "ach", iban: "", bic: "" });
   const [local, setLocal] = useState({ country: "", networkId: "", accountNumber: "", accountName: "" });
@@ -80,8 +90,11 @@ export function CashOut({
         <h2>Cash out to your bank</h2>
         <div className="ms-grid-2">
           <div className="ms-cashout-card">
-            <h3>US and EU banks</h3>
-            {!bridge ? (
+            <h3>
+              US and EU banks
+              {view.available?.bridge === false && <span className="ms-na">Not available</span>}
+            </h3>
+            {view.available?.bridge === false && !bridge ? null : !bridge ? (
               <div className="ms-inline-form">
                 <label htmlFor="bridge-currency">Paid in</label>
                 <select id="bridge-currency" value={currency} onChange={(e) => setCurrency(e.target.value as "usd" | "eur")}>
@@ -208,8 +221,11 @@ export function CashOut({
           </div>
 
           <div className="ms-cashout-card">
-            <h3>Local currency</h3>
-            {yellow && !editLocal ? (
+            <h3>
+              Local currency
+              {view.available?.yellowcard === false && <span className="ms-na">Not available</span>}
+            </h3>
+            {view.available?.yellowcard === false && !yellow ? null : yellow && !editLocal ? (
               <>
                 <dl className="ms-props">
                   <dt>Paid to</dt>

@@ -141,6 +141,15 @@ export function Navigation() {
   const [section, setSection] = useState<string | null>(null);
   const header = useRef<HTMLElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const [scrolled, setScrolled] = useState(false);
+
+  // Once the page scrolls, the bar floats over the content.
+  useEffect(() => {
+    const onScroll = () => setScrolled(scrollY > 8);
+    onScroll();
+    addEventListener("scroll", onScroll, { passive: true });
+    return () => removeEventListener("scroll", onScroll);
+  }, []);
 
   // Close menus on navigation.
   const [seen, setSeen] = useState(path);
@@ -192,6 +201,7 @@ export function Navigation() {
       className="mk-header"
       data-open={sheet || undefined}
       data-menu-open={open ? "" : undefined}
+      data-scrolled={scrolled || undefined}
       onPointerLeave={(e) => e.pointerType === "mouse" && hover(null)}
     >
       <div className="mk-wrap mk-header-row">

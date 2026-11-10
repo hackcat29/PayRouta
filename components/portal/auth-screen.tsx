@@ -7,6 +7,7 @@ import { emailOTPClient, twoFactorClient } from "better-auth/client/plugins";
 import { passkeyClient } from "@better-auth/passkey/client";
 import { ssoClient } from "@better-auth/sso/client";
 import { BrandLogo } from "../brand-logo";
+import { Globe } from "../gpu/globe";
 import { Field } from "./ui";
 import { turnstileHeader } from "@/lib/turnstile";
 import { Turnstile, turnstileSiteKey } from "../turnstile";
@@ -284,8 +285,9 @@ export function AuthScreen({
     <div className={`portal p-auth ${signUp ? "is-signup" : "is-signin"}`}>
       <div className="p-auth-brand">
         <Link href="/" className="p-auth-logo">
-          <BrandLogo />
+          <BrandLogo reverse />
         </Link>
+        <Globe focus={null} className="p-auth-globe" />
         {signUp &&
           (merchant ? (
             <div className="p-auth-pitch">
@@ -308,15 +310,12 @@ export function AuthScreen({
             <ol className="p-auth-steps">
               <li>
                 <strong>Describe what you offer</strong>
-                <span>Payment methods or credit plans, markets and currencies.</span>
               </li>
               <li>
                 <strong>Test in the sandbox</strong>
-                <span>Run scenarios against your integration before review.</span>
               </li>
               <li>
                 <strong>Go live with every merchant</strong>
-                <span>Reach every PayRouta checkout where you&apos;re licensed.</span>
               </li>
             </ol>
           ))}

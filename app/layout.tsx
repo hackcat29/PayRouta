@@ -8,6 +8,7 @@ import "./marketing.css";
 import { JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import { SiteChrome } from "@/components/site-chrome";
 import { CookieNotice } from "@/components/cookie-notice";
+import { MotionRoot } from "@/components/motion/motion-root";
 import { brandVersion } from "@/components/brand-logo";
 import { trustedOrigin } from "@/lib/site-config";
 const origin = trustedOrigin();
@@ -60,6 +61,7 @@ export default function RootLayout({
         </a>
         <SiteChrome>{children}</SiteChrome>
         <CookieNotice />
+        <MotionRoot />
       </body>
     </html>
   );

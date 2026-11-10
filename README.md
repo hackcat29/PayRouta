@@ -20,6 +20,9 @@ Under the button, PayRouta is an aggregator (see [docs/AGGREGATOR.md](docs/AGGRE
 | Operations console | `app/ops` |
 | Background worker | `scripts/worker.ts`, `lib/portal/worker.ts` |
 | SDKs (private 0.1.0) | `sdks/node`, `sdks/python` |
+| MCP server (merchant tools, agent buyer tools) | `lib/mcp`, `app/api/mcp` |
+| Command line (`payrouta`, a client of the MCP server) | `sdks/cli`; build with `npm run build --prefix sdks/cli` |
+| 3D and motion (WebGPU globe, Loop mark, TypeGPU token flow) | `components/gpu`, `components/motion` |
 
 ## Run locally
 

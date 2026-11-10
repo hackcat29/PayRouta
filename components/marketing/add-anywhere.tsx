@@ -70,7 +70,7 @@ export function AddAnywhere({
         {tabs.map((t) => (
           <button key={t.id} role="tab" type="button" aria-selected={t.id === id} className="aa-tab" onClick={() => setId(t.id)}>
             {t.label}
-            {statuses[t.id] !== "available" && <span className="aa-status">Coming</span>}
+            {statuses[t.id] === "planned" && <span className="aa-status">Coming</span>}
           </button>
         ))}
       </div>

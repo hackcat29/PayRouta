@@ -1,7 +1,14 @@
 import Link from "next/link";
 
 // A link that may leave the site (docs live on their own domain).
+// Files (the WooCommerce plugin) download instead of navigating.
 export function SmartLink({ href, className, children }: { href: string; className?: string; children: React.ReactNode }) {
+  if (href.startsWith("/downloads/"))
+    return (
+      <a className={className} href={href} download>
+        {children}
+      </a>
+    );
   return href.startsWith("http") ? (
     <a className={className} href={href}>
       {children}
@@ -54,7 +61,11 @@ export function PageHero({
           <h1 className="mk-h1">{title}</h1>
           {actions && <div className="mk-actions">{actions}</div>}
         </div>
-        {visual && <div className="pp-hero-visual">{visual}</div>}
+        {visual && (
+          <div className="pp-hero-visual" data-tilt>
+            {visual}
+          </div>
+        )}
       </div>
     </section>
   );
@@ -75,11 +86,15 @@ export function Feature({
   return (
     <section className={`pp-band${tone ? ` pp-${tone}` : ""}`}>
       <div className={`mk-wrap ${visual ? "pp-split" : "pp-single"}`}>
-        <div className="pp-text">
+        <div className="pp-text" data-reveal>
           <h2 className="mk-h2">{title}</h2>
           {children}
         </div>
-        {visual && <div className="pp-visual">{visual}</div>}
+        {visual && (
+          <div className="pp-visual" data-reveal>
+            {visual}
+          </div>
+        )}
       </div>
     </section>
   );
@@ -88,7 +103,7 @@ export function Feature({
 // Numbered steps, read left to right (top to bottom on phones).
 export function Steps({ steps }: { steps: string[] }) {
   return (
-    <ol className="pp-steps">
+    <ol className="pp-steps" data-reveal="stagger">
       {steps.map((title, i) => (
         <li key={title}>
           <span className="pp-step-n">{i + 1}</span>

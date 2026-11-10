@@ -1,17 +1,26 @@
 import Link from "next/link";
 import { BrandLogo } from "./brand-logo";
-import { createLinkHref, footerColumns, paths } from "@/lib/site-config";
+import { createLinkHref, docsOrigin, footerColumns, paths } from "@/lib/site-config";
+import { LoopMark } from "./gpu/loop-mark";
 import { NewsletterSignup } from "./marketing/newsletter-signup";
 
 export function Footer() {
   return (
     <footer className="mk-footer">
       <div className="mk-wrap">
-        <div className="mk-footer-cta">
-          <h2>Start with one link. Add the button when you&apos;re ready.</h2>
-          <Link className="mk-btn primary" href={createLinkHref}>
-            Create a payment link
-          </Link>
+        <div className="mk-footer-cta" data-reveal>
+          <div className="mk-footer-cta-copy">
+            <h2>Start with one link. Add the button when you&apos;re ready.</h2>
+            <div className="mk-footer-cta-actions">
+              <Link className="mk-btn primary lg" href={createLinkHref}>
+                Create a payment link <span aria-hidden="true">→</span>
+              </Link>
+              <a className="mk-btn ghost-dark lg" href={docsOrigin}>
+                Read the docs
+              </a>
+            </div>
+          </div>
+          <LoopMark className="mk-footer-loop" />
         </div>
         <div className="mk-footer-grid">
           <div className="mk-footer-brand">

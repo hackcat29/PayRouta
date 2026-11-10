@@ -160,13 +160,13 @@ export const pillars: {
     id: "anyChain",
     title: "Any wallet, any chain",
     availability: "available",
-    note: "Pay from a wallet on eight networks, or with any of 125+ assets on 36+ chains, converted on the way.",
+    note: "Pay from a wallet on eight networks, or with any of 125+ assets on 36+ chains, converted on the way through NEAR Intents.",
   },
   {
     id: "platforms",
     title: "Shopify and WooCommerce",
-    availability: "planned",
-    note: "Both are built. The WooCommerce plugin is in private testing; Shopify listing waits on Shopify's payments-partner approval.",
+    availability: "available",
+    note: "The PayRouta Checkout plugin adds PayRouta to WooCommerce checkout. In Shopify, buyers pay from a Pay button on the order page after checkout, and the order is marked paid.",
   },
 ];
 
@@ -176,6 +176,7 @@ export const platforms: { name: string; detail: string; availability: Availabili
   { name: "Any website or app", detail: "One script tag and a button", availability: "available" },
   { name: "Your own server", detail: "Node and Python SDKs, one call per order", availability: "available" },
   { name: "AI agents", detail: "Agents pay your links and invoices over HTTP; your assistant runs payments over MCP", availability: "available" },
+  { name: "Command line", detail: "The payrouta CLI, for terminals, scripts and CI", availability: "available" },
   { name: "WooCommerce", detail: "PayRouta Checkout plugin", availability: "available" },
   { name: "Shopify", detail: "A Pay button on the order page after Shopify checkout", availability: "available" },
 ];
@@ -189,6 +190,12 @@ export const availabilityLabel: Record<Availability, string> = {
   testing: "In testing",
   planned: "Coming",
 };
+
+// What a marketing page says about availability: "Coming" for what isn't
+// built yet, nothing otherwise. Where a merchant or customer acts on an
+// option (settlement in the dashboard, methods at checkout), options that
+// can't be used are marked "Not available" there instead.
+export const publicLabel = (a: Availability) => (a === "planned" ? availabilityLabel.planned : undefined);
 
 // PayRouta's fee per successful payment. Where a partner processes the
 // payment, its standard processing fee is charged as well. Where PayRouta is
@@ -207,3 +214,49 @@ export const pricing = {
   },
   volumeThreshold: "$100,000 a month",
 } as const;
+
+// The front page's figures. Each one restates a line above, so keep them in
+// step: assets and chains from pillars.anyChain, the rate from pricing.
+export const figures: { value: string; prefix?: string; suffix?: string; label: string }[] = [
+  { value: "125", suffix: "+", label: "tokens accepted" },
+  { value: "36", suffix: "+", label: "chains" },
+  { value: pricing.payroutaOnly.rate.replace("%", ""), suffix: "%", label: "on stablecoins, all in" },
+  { value: "0", prefix: "$", label: "setup or monthly fees" },
+];
+
+// Names in the front page's moving strip of ways to pay, by family. Payment
+// methods only: lenders are named only once they're live partners.
+export const waysToPay: { name: string; family: "card" | "wallet" | "bank" | "mobile" | "crypto" }[] = [
+  { name: "Visa", family: "card" },
+  { name: "Mastercard", family: "card" },
+  { name: "Verve", family: "card" },
+  { name: "Apple Pay", family: "wallet" },
+  { name: "Google Pay", family: "wallet" },
+  { name: "Pix", family: "bank" },
+  { name: "UPI", family: "bank" },
+  { name: "SEPA", family: "bank" },
+  { name: "Faster Payments", family: "bank" },
+  { name: "SPEI", family: "bank" },
+  { name: "M-Pesa", family: "mobile" },
+  { name: "MTN MoMo", family: "mobile" },
+  { name: "USSD", family: "mobile" },
+  { name: "QRIS", family: "wallet" },
+  { name: "GoPay", family: "wallet" },
+  { name: "USDC", family: "crypto" },
+  { name: "USDT", family: "crypto" },
+  { name: "EURC", family: "crypto" },
+  { name: "ETH", family: "crypto" },
+  { name: "SOL", family: "crypto" },
+  { name: "XLM", family: "crypto" },
+];
+
+// What a merchant can be settled in, whatever the customer paid with. Card,
+// bank and wallet payments settle through the partner that processed them;
+// crypto settles through the merchant's own wallet or NEAR Intents account.
+// Change an availability only after it has run with real money.
+export const settleIn: { id: string; name: string; detail: string; availability: Availability }[] = [
+  { id: "stablecoin", name: "USDC, USDT or EURC", detail: "To your own wallet", availability: "available" },
+  { id: "intents", name: "Any token on any chain", detail: "Through your NEAR Intents account", availability: "testing" },
+  { id: "bank", name: "Your bank account", detail: "USD by ACH or wire, EUR by SEPA", availability: "testing" },
+  { id: "local", name: "Local bank or mobile money", detail: "Naira, cedi, shilling, rand and more", availability: "testing" },
+];

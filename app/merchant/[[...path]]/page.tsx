@@ -1422,7 +1422,10 @@ export default async function Page({
       <>
         {treasury.account && <TreasuryBanner view={treasury} href={href} />}
         {next !== -1 && (
-          <section className="ms-setup">
+          <section
+            className="ms-setup"
+            style={{ "--p": setup.filter((x) => x.done).length / setup.length } as React.CSSProperties}
+          >
             <div className="ms-card-head">
               <h2>Setup guide</h2>
               <span className="ms-setup-count">

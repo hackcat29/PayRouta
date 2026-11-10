@@ -17,6 +17,7 @@ const docsPages: Record<string, string> = {
   "refunds-disputes": "guides/refunds-disputes",
   teams: "guides/teams",
   mcp: "integrate/mcp",
+  cli: "integrate/cli",
   "payment-methods": "concepts/payment-methods",
   "payment-intents": "concepts/payment-intents",
   settlement: "concepts/settlement",
@@ -110,9 +111,9 @@ export const navMenus: NavMenu[] = [
       },
     ],
     feature: {
-      href: "/sign-up",
-      title: "Take your first test payment today",
-      cta: "Create an account",
+      href: paths.integrations,
+      title: "Sell on Shopify and WooCommerce",
+      cta: "Add PayRouta to your store",
     },
   },
   {
@@ -170,7 +171,10 @@ export const navMenus: NavMenu[] = [
     },
   },
 ];
-export const navLinks = [[paths.pricing, "Pricing"]] as const satisfies readonly (readonly [string, string])[];
+export const navLinks = [
+  [paths.integrations, "Integrations"],
+  [paths.pricing, "Pricing"],
+] as const satisfies readonly (readonly [string, string])[];
 
 // Where "Create a payment link" sends a new merchant after sign-up.
 export const createLinkHref = `${paths.signUp}?next=${encodeURIComponent("/merchant/payment-links")}`;

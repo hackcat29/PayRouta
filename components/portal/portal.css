@@ -1154,25 +1154,6 @@
   .p-requirement {
     align-items: flex-start;
   }
-  .p-auth {
-    grid-template-columns: 1fr;
-  }
-  .p-auth-brand {
-    padding: 24px;
-    gap: 30px;
-  }
-  .p-auth-brand > div,
-  .p-auth-brand > small {
-    display: none;
-  }
-  .p-auth-brand .brand-logo {
-    width: 150px;
-    height: auto;
-  }
-  .p-auth-form {
-    padding: 35px 24px;
-    align-items: flex-start;
-  }
   .p-simple {
     padding: 30px 20px;
   }
@@ -1530,48 +1511,95 @@
 }
 
 /* ---------- Sign in / sign up ---------- */
+/* Split screen: the brand side in indigo with the live globe, the form on
+   calico. On phones the brand side shrinks to a band above the form. */
 .p-auth {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   min-height: 100vh;
   background: var(--canvas);
 }
 .p-auth-brand {
-  background: none;
-  color: var(--ink);
-  padding: 0;
-  display: block;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 40px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.08) 1.4px, transparent 1.6px) 0 0 / 22px 22px, #1e2466;
+  color: #c9cceb;
 }
 .p-auth-logo {
   position: absolute;
-  top: 28px;
-  left: 36px;
-  z-index: 2;
+  top: 32px;
+  left: 40px;
+  z-index: 3;
 }
 .p-auth-logo .brand-logo {
-  width: 128px;
+  width: 140px;
   height: auto;
 }
+.p-auth-globe {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: 50%;
+  width: min(104%, 100vh);
+  aspect-ratio: 1;
+  transform: translate(-50%, -46%);
+  animation: p-globe-in 1.6s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+.p-auth-globe::before {
+  content: "";
+  position: absolute;
+  inset: 4.5%;
+  z-index: -1;
+  border-radius: 50%;
+  background: #272e7c;
+}
+@keyframes p-globe-in {
+  from {
+    transform: translate(-50%, -40%) scale(0.88);
+  }
+}
 .p-auth-form {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: none;
-  padding: 96px 20px 48px;
-  align-items: flex-start;
+  padding: 64px 24px;
 }
 .p-auth-card {
-  max-width: 440px;
+  width: 100%;
+  max-width: 420px;
   background: white;
   border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 36px 40px;
-  box-shadow: 0 1px 2px rgba(14, 31, 37, 0.04), 0 12px 40px rgba(14, 31, 37, 0.07);
+  border-radius: 24px;
+  padding: 40px;
+  box-shadow: 0 1px 2px rgba(30, 36, 102, 0.04), 0 40px 80px -48px rgba(30, 36, 102, 0.45);
+  animation: p-card-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+@keyframes p-card-in {
+  from {
+    transform: translateY(18px);
+  }
 }
 .portal .p-auth-card h1 {
-  font-size: 24px;
-  letter-spacing: -0.02em;
+  font-family: var(--font-display), Inter, Arial, sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
 }
 .p-auth-card .p-button {
-  min-height: 40px;
+  min-height: 44px;
+  border-radius: 999px;
+}
+.p-auth-card input {
+  border-radius: 12px;
 }
 .p-auth-alt .p-button.secondary {
   font-weight: 500;
@@ -1580,110 +1608,70 @@
   margin-top: 24px;
   border-style: dashed;
 }
-.p-auth.is-signup {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  max-width: 1080px;
-  margin: 0 auto;
-  width: 100%;
-  background: none;
-}
-.p-auth.is-signup::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  background: var(--canvas);
-}
-.is-signup .p-auth-logo {
-  left: 24px;
-}
-.is-signup .p-auth-brand {
-  padding: 140px 24px 48px;
-}
-.is-signup .p-auth-form {
-  justify-content: flex-end;
-  padding-right: 24px;
-}
-.p-auth-points {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 26px;
-  max-width: 400px;
-}
-.p-auth-points li {
-  display: grid;
-  grid-template-columns: 24px minmax(0, 1fr);
-  gap: 12px;
-}
-.p-auth-points li > span {
-  display: inline-grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  margin-top: 1px;
-  border-radius: 50%;
-  background: var(--accent-bg);
-  color: var(--accent);
-}
-.p-auth-points strong {
-  font-size: 15px;
-  font-weight: 600;
-}
-.portal .p-auth-points p {
-  margin: 3px 0 0;
-  color: var(--muted);
-  line-height: 1.5;
-}
-@media (max-width: 860px) {
-  .p-auth.is-signup {
-    grid-template-columns: 1fr;
-  }
-  .is-signup .p-auth-brand {
-    display: none;
-  }
-  .is-signup .p-auth-form {
-    justify-content: center;
-    padding-right: 16px;
-  }
-  .p-auth-logo {
-    top: 22px;
-    left: 20px;
-  }
-  .p-auth-form {
-    padding: 76px 12px 32px;
-  }
-  .p-auth-card {
-    padding: 26px 20px;
-    border-radius: 12px;
-  }
-  .p-auth-brand > div,
-  .p-auth-brand > small {
-    display: block;
-  }
-}
 
-/* Sign-up side panel */
-.p-auth-pitch { display: grid; gap: 18px; max-width: 380px; margin-top: 56px; }
-.p-auth-line { margin: 0; font-size: 26px; line-height: 1.2; font-weight: 600; letter-spacing: -0.02em; color: #1e2466; }
-.p-auth-small { margin: 0; font-size: 14px; color: #62668a; }
-.p-auth-link { display: grid; gap: 6px; padding: 20px; border-radius: 16px; background: #fff; border: 1px solid #e6e1d8; box-shadow: 0 24px 48px -28px rgba(30, 36, 102, 0.35); }
+/* Sign-up side panel: a payment link floating over the globe (merchants),
+   or the three steps to going live (providers). */
+.p-auth-pitch {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  gap: 18px;
+  max-width: 340px;
+  animation: p-card-in 1s cubic-bezier(0.16, 1, 0.3, 1) 0.2s backwards;
+}
+.p-auth-link { display: grid; gap: 6px; padding: 22px; border-radius: 20px; background: #fff; border: 1px solid #e6e1d8; box-shadow: 0 40px 80px -32px rgba(5, 8, 40, 0.7); }
 .p-auth-link-shop { font-size: 12.5px; color: #62668a; }
 .p-auth-link strong { color: #1e2466; }
-.p-auth-link-price { font-size: 30px; font-weight: 600; letter-spacing: -0.03em; color: #1e2466; }
+.p-auth-link-price { font-family: var(--font-display), Inter, sans-serif; font-size: 32px; font-weight: 700; letter-spacing: -0.04em; color: #1e2466; }
 .p-auth-link-ways { display: flex; flex-wrap: wrap; gap: 5px; }
 .p-auth-link-ways i { font-style: normal; font-size: 12px; padding: 2px 9px; border: 1px solid #e6e1d8; border-radius: 999px; color: #1e2466; }
 .p-auth-link-ways i.credit { background: #fff2d9; border-color: #f5b700; font-weight: 600; }
-.p-auth-link-pay { margin-top: 8px; padding: 11px; border-radius: 999px; background: #1e2466; color: #fff; text-align: center; font-weight: 600; font-size: 14px; }
-.p-auth-steps { margin: 56px 0 0; padding: 0; list-style: none; counter-reset: step; display: grid; gap: 22px; max-width: 380px; }
-.p-auth-steps li { counter-increment: step; display: grid; grid-template-columns: 30px 1fr; column-gap: 12px; }
-.p-auth-steps li::before { content: counter(step); grid-row: span 2; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: #1e2466; color: #fff; font-size: 13px; font-weight: 700; }
-.p-auth-steps strong { color: #1e2466; }
-.p-auth-steps span { color: #62668a; font-size: 14px; }
-@media (max-width: 900px) { .p-auth-pitch, .p-auth-steps { display: none; } }
-.p-auth .p-auth-pitch .p-auth-line { color: #1e2466 !important; font-size: 26px; font-weight: 600; }
-.p-auth .p-auth-pitch .p-auth-small { color: #3d5561 !important; }
+.p-auth-link-pay { margin-top: 8px; padding: 12px; border-radius: 999px; background: #f26b1d; color: #1e2466; text-align: center; font-weight: 600; font-size: 14px; }
+.p-auth-steps { position: relative; z-index: 2; margin: 0; padding: 0; list-style: none; counter-reset: step; display: grid; gap: 14px; max-width: 360px; }
+.p-auth-steps li { counter-increment: step; display: flex; align-items: center; gap: 14px; padding: 14px 16px; border: 1px solid #3a4294; border-radius: 16px; background: rgba(30, 36, 102, 0.8); backdrop-filter: blur(8px); }
+.p-auth-steps li::before { content: counter(step); display: grid; place-items: center; flex: none; width: 30px; height: 30px; border-radius: 50%; background: #f26b1d; color: #1e2466; font-size: 13px; font-weight: 700; }
+.p-auth-steps strong { color: #fff; }
+
+/* Single-card screens (invitations, verification) keep a calm canvas. */
+@media (max-width: 860px) {
+  .p-auth {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .p-auth-brand {
+    position: relative;
+    height: 132px;
+    padding: 0;
+  }
+  .p-auth-logo {
+    top: 24px;
+    left: 20px;
+  }
+  .p-auth-globe {
+    left: 72%;
+    top: 0;
+    width: 340px;
+    transform: translate(-50%, -18%);
+    animation: none;
+  }
+  .p-auth-pitch,
+  .p-auth-steps {
+    display: none;
+  }
+  .p-auth-form {
+    align-items: flex-start;
+    padding: 0 12px 32px;
+  }
+  .p-auth-card {
+    margin-top: -28px;
+    position: relative;
+    z-index: 2;
+    padding: 28px 22px;
+    border-radius: 20px;
+  }
+  .portal .p-auth-card h1 {
+    font-size: 28px;
+  }
+}
 
 .p-local-note a {
   text-decoration: underline;

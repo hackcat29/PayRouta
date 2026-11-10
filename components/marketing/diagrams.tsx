@@ -2,7 +2,7 @@
 // can stay short. Built from HTML and CSS (not scaled SVG text) so labels
 // stay readable and the layouts reflow to a single column on phones.
 // Figures come from content/claims.ts or the credit arithmetic checkout uses.
-import { availabilityLabel, coverage, methodFamilies, pricing, type Availability } from "@/content/claims";
+import { coverage, methodFamilies, pricing, type Availability } from "@/content/claims";
 import { instalmentOffer } from "@/lib/treasury/credit";
 
 const naira = (minor: bigint | string) =>
@@ -154,7 +154,9 @@ export function CryptoRoute() {
   );
 }
 
-const cellText: Record<Availability, string> = availabilityLabel;
+// Marketing shows two states: offered, or coming (content/claims publicLabel).
+const shown = (a: Availability) => (a === "planned" ? "planned" : "available");
+const cellText = { available: "Available", planned: "Coming" } as const;
 
 // 4. Where it works: regions by ways to pay.
 export function CoverageGrid() {
@@ -184,8 +186,8 @@ export function CoverageGrid() {
                   return (
                     <td key={id}>
                       {a ? (
-                        <span className={`dg-dot dg-dot-${a}`}>
-                          <span className="mk-sr">{cellText[a]}</span>
+                        <span className={`dg-dot dg-dot-${shown(a)}`}>
+                          <span className="mk-sr">{cellText[shown(a)]}</span>
                         </span>
                       ) : (
                         <span className="dg-dot dg-dot-none">
@@ -202,10 +204,7 @@ export function CoverageGrid() {
       </div>
       <figcaption id="dg-cov-cap" className="dg-cap dg-legend">
         <span>
-          <i className="dg-dot dg-dot-available" /> Live
-        </span>
-        <span>
-          <i className="dg-dot dg-dot-testing" /> In testing, opens region by region
+          <i className="dg-dot dg-dot-available" /> Available
         </span>
         <span>
           <i className="dg-dot dg-dot-planned" /> Coming

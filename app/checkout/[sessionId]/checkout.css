@@ -829,3 +829,93 @@ button.sc-method { cursor: pointer; font-weight: 600; justify-content: center; m
 .fc-qr { width: 220px; height: 220px; border: 1px solid var(--mist); border-radius: 8px; background: white; image-rendering: pixelated; }
 .fc-secondary { min-height: 40px; padding: 8px 14px; border: 1px solid var(--mist); border-radius: 8px; background: var(--white); color: var(--navy); font-weight: 600; cursor: pointer; }
 .fc-secondary:hover { background: #fafbfb; }
+
+/* Motion. The order and the ways to pay settle in on load, the chosen
+   method answers the tap, and the Pay button responds to the press.
+   Transform only, so every amount reads at full contrast from the start. */
+.sc-summary > *,
+.fc-summary > *,
+.fc-methods,
+.fc-pay {
+  animation: ck-rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+.sc-summary > :nth-child(2),
+.fc-summary > :nth-child(2) { animation-delay: 0.05s; }
+.sc-summary > :nth-child(n + 3),
+.fc-summary > :nth-child(n + 3) { animation-delay: 0.1s; }
+.fc-methods { animation-delay: 0.08s; }
+.fc-pay { animation-delay: 0.14s; }
+@keyframes ck-rise {
+  from {
+    transform: translateY(12px);
+  }
+}
+.fc-method {
+  transition: background 0.2s, box-shadow 0.25s;
+}
+.fc-method .fc-icon {
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s;
+}
+.fc-method:hover .fc-icon,
+.fc-method.selected .fc-icon {
+  transform: scale(1.06);
+  border-color: var(--ck-accent);
+}
+.fc-pay {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s, filter 0.2s;
+}
+.fc-pay:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px -16px rgba(30, 36, 102, 0.7);
+}
+.fc-pay:not(:disabled):active {
+  transform: scale(0.985);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sc-summary > *,
+  .fc-summary > *,
+  .fc-methods,
+  .fc-pay {
+    animation: none;
+  }
+  .fc-pay,
+  .fc-method .fc-icon {
+    transition: none;
+  }
+}
+
+/* Ways to pay this merchant offers that can't take this payment now. */
+.fc-method.fc-off,
+.fc-switch.fc-off {
+  cursor: not-allowed;
+  background: #faf9f6;
+  color: var(--slate);
+}
+.fc-method.fc-off .fc-icon,
+.fc-switch.fc-off .fc-icon {
+  opacity: 0.55;
+}
+.fc-method.fc-off:hover .fc-icon {
+  transform: none;
+  border-color: var(--ck-line);
+}
+.fc-na {
+  justify-self: end;
+  margin-left: auto;
+  padding: 2px 9px;
+  border: 1px solid var(--ck-line);
+  border-radius: 999px;
+  background: #fff;
+  color: #4d5170;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.sc-switch.sc-off {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: not-allowed;
+  color: var(--slate);
+}

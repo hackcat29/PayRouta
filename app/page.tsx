@@ -1,5 +1,10 @@
 import Link from "next/link";
-import { HeroDemo } from "@/components/marketing/hero-demo";
+import { HeroStage } from "@/components/marketing/hero";
+import { DevTabs } from "@/components/marketing/dev-tabs";
+import { Figure, Marquee, RiseWords } from "@/components/marketing/motion";
+import { TokenBand } from "@/components/marketing/token-band";
+import { StorePlatforms } from "@/components/marketing/commerce";
+import { SettleChooser } from "@/components/marketing/settle";
 import { LinkPicture } from "@/components/marketing/add-anywhere";
 import { CoverageGrid, CreditTimeline, PaymentFlow } from "@/components/marketing/diagrams";
 import {
@@ -17,7 +22,7 @@ import {
   Webhook,
   type LucideIcon,
 } from "lucide-react";
-import { availabilityLabel, payouts, pillars } from "@/content/claims";
+import { figures, payouts, pillars, publicLabel, settleIn, waysToPay } from "@/content/claims";
 import { createLinkHref, docsUrl, trustedOrigin, paths } from "@/lib/site-config";
 import { instalmentOffer } from "@/lib/treasury/credit";
 
@@ -61,14 +66,13 @@ const operations: Capability[] = [
     title: "Balances and payouts",
     text: "See what's available and what's on its way, then pay out to your bank on your schedule. Crypto lands in your own wallet.",
     href: docsUrl("settlement"),
-    label: bankPayouts === "available" ? undefined : availabilityLabel[bankPayouts],
+    label: publicLabel(bankPayouts),
   },
   {
     icon: ArrowLeftRight,
     title: "Cash out crypto",
     text: "Turn your crypto balance into money in a bank account or mobile money wallet.",
     href: docsUrl("cash-out"),
-    label: availabilityLabel.testing,
   },
   {
     icon: Undo2,
@@ -121,11 +125,13 @@ const developers: Capability[] = [
 
 function Capabilities({ items, label }: { items: Capability[]; label: string }) {
   return (
-    <ul className="hp-caps" aria-label={label}>
+    <ul className="hp-caps" aria-label={label} data-reveal="stagger">
       {items.map(({ icon: Icon, title, text, href, label: status }) => (
         <li key={title}>
           <Link className="hp-cap" href={href}>
-            <Icon size={20} aria-hidden="true" />
+            <span className="hp-cap-icon" aria-hidden="true">
+              <Icon size={20} strokeWidth={1.75} />
+            </span>
             <span className="hp-cap-title">
               {title}
               {status && <span className="hp-cap-status">{status}</span>}
@@ -154,27 +160,47 @@ export default function Home() {
       <section className="hp-hero">
         <div className="mk-wrap hp-hero-grid">
           <div className="hp-hero-copy">
-            <h1 className="hp-h1">One checkout for every way the world pays.</h1>
+            <h1 className="hp-h1">
+              <RiseWords text="One checkout for every way the world pays." />
+            </h1>
             <div className="hp-cta">
-              <Link className="mk-btn primary" href={createLinkHref}>
-                Create a payment link
+              <Link className="mk-btn primary lg" href={createLinkHref}>
+                Create a payment link <span aria-hidden="true">→</span>
               </Link>
-              <Link className="mk-btn ghost-dark" href={paths.checkout}>
-                Add checkout to your site
+              <Link className="mk-btn ghost-dark lg" href={paths.integrations}>
+                Add to Shopify or WooCommerce
               </Link>
             </div>
           </div>
-          <HeroDemo />
+          <HeroStage />
+        </div>
+        <Marquee items={waysToPay} label="Ways customers pay" />
+      </section>
+
+      <section className="hp-figures" aria-label="PayRouta in numbers">
+        <div className="mk-wrap hp-figures-row" data-reveal="stagger">
+          {figures.map((f) => (
+            <Figure key={f.label} {...f} />
+          ))}
+        </div>
+      </section>
+
+      <section className="hp-sec hp-paper hp-commerce" aria-labelledby="commerce-h">
+        <div className="mk-wrap">
+          <h2 className="hp-h2" id="commerce-h" data-reveal>
+            Sell on Shopify and WooCommerce.
+          </h2>
+          <StorePlatforms />
         </div>
       </section>
 
       <section className="hp-sec" aria-labelledby="products-h">
         <div className="mk-wrap">
-          <h2 className="hp-h2" id="products-h">
+          <h2 className="hp-h2" id="products-h" data-reveal>
             Sell in a chat, on a site or in a store.
           </h2>
-          <div className="hp-bento">
-            <Link className="hp-tile hp-tile-links" href={paths.paymentLinks}>
+          <div className="hp-bento" data-reveal="stagger">
+            <Link data-tilt className="hp-tile hp-tile-links" href={paths.paymentLinks}>
               <span className="hp-tile-text">
                 <span className="hp-tile-title">Payment links</span>
                 <span>No website? Create a link and share it on WhatsApp, Instagram or by SMS.</span>
@@ -182,7 +208,7 @@ export default function Home() {
               </span>
               <LinkPicture origin={origin} />
             </Link>
-            <Link className="hp-tile hp-tile-button" href={paths.checkout}>
+            <Link data-tilt className="hp-tile hp-tile-button" href={paths.checkout}>
               <span className="hp-tile-text">
                 <span className="hp-tile-title">Checkout button</span>
                 <span>One button on your site or app, or install PayRouta in Shopify and WooCommerce.</span>
@@ -193,7 +219,7 @@ export default function Home() {
                 <span className="hp-mini-btn">Checkout</span>
               </span>
             </Link>
-            <Link className="hp-tile hp-tile-credit" href={paths.credit}>
+            <Link data-tilt className="hp-tile hp-tile-credit" href={paths.credit}>
               <span className="hp-tile-text">
                 <span className="hp-tile-title">Pay with credit</span>
                 <span>
@@ -211,7 +237,7 @@ export default function Home() {
                 ))}
               </span>
             </Link>
-            <Link className="hp-tile hp-tile-crypto" href={paths.crypto}>
+            <Link data-tilt className="hp-tile hp-tile-crypto" href={paths.crypto}>
               <span className="hp-tile-text">
                 <span className="hp-tile-title">Crypto payments</span>
                 <span>Customers pay from any wallet on any chain. You receive the stablecoin you chose.</span>
@@ -223,7 +249,7 @@ export default function Home() {
                 <b>USDC</b>
               </span>
             </Link>
-            <Link className="hp-tile hp-tile-subs" href={paths.subscriptions}>
+            <Link data-tilt className="hp-tile hp-tile-subs" href={paths.subscriptions}>
               <span className="hp-tile-text">
                 <span className="hp-tile-title">Subscriptions</span>
                 <span>Bill every month for a price, for usage, or both. Customers pay each invoice from any wallet.</span>
@@ -241,7 +267,7 @@ export default function Home() {
                 </i>
               </span>
             </Link>
-            <Link className="hp-tile hp-tile-agents" href={paths.agents}>
+            <Link data-tilt className="hp-tile hp-tile-agents" href={paths.agents}>
               <span className="hp-tile-text">
                 <span className="hp-tile-title">AI agents</span>
                 <span>Agents pay your links and invoices over HTTP, within the limits you set. Your assistant runs payments over MCP.</span>
@@ -256,9 +282,41 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="hp-sec hp-paper" aria-labelledby="credit-h">
+      <section className="hp-sec hp-paper" aria-labelledby="settle-h">
+        <div className="mk-wrap">
+          <h2 className="hp-h2" id="settle-h" data-reveal>
+            Customers pay with anything. You&apos;re settled in what you choose.
+          </h2>
+          <div data-reveal>
+            <SettleChooser
+              options={settleIn.map((o) => ({
+                id: o.id,
+                name: o.name,
+                detail: o.detail,
+                label: publicLabel(o.availability),
+              }))}
+            />
+          </div>
+        </div>
+      </section>
+
+      <section className="hp-sec hp-night hp-flow" aria-labelledby="flow-h">
+        <div className="mk-wrap">
+          <div className="hp-flow-head" data-reveal>
+            <h2 className="hp-h2" id="flow-h">
+              Any token, any chain. Settled through NEAR Intents.
+            </h2>
+            <Link className="hp-link" href={paths.crypto}>
+              Crypto payments <span aria-hidden="true">→</span>
+            </Link>
+          </div>
+        </div>
+        <TokenBand />
+      </section>
+
+      <section className="hp-sec" aria-labelledby="credit-h">
         <div className="mk-wrap hp-split">
-          <div className="hp-text">
+          <div className="hp-text" data-reveal>
             <h2 className="hp-h2" id="credit-h">
               Customers who can&apos;t pay all at once can still buy.
             </h2>
@@ -271,48 +329,74 @@ export default function Home() {
               How credit works <span aria-hidden="true">→</span>
             </Link>
           </div>
-          <CreditTimeline />
+          <div data-reveal>
+            <CreditTimeline />
+          </div>
         </div>
       </section>
 
-      <section className="hp-sec" aria-labelledby="how-h">
+      <section className="hp-sec hp-paper" aria-labelledby="how-h">
         <div className="mk-wrap">
-          <h2 className="hp-h2" id="how-h">
+          <h2 className="hp-h2" id="how-h" data-reveal>
             How a payment moves
           </h2>
-          <PaymentFlow />
+          <div data-reveal>
+            <PaymentFlow />
+          </div>
         </div>
       </section>
 
-      <section className="hp-sec hp-paper" aria-labelledby="cov-h">
+      <section className="hp-sec" aria-labelledby="cov-h">
         <div className="mk-wrap">
-          <h2 className="hp-h2" id="cov-h">
+          <h2 className="hp-h2" id="cov-h" data-reveal>
             Where customers can pay
           </h2>
-          <CoverageGrid />
+          <div data-reveal>
+            <CoverageGrid />
+          </div>
+        </div>
+      </section>
+
+      <section className="hp-sec hp-night hp-dev" aria-labelledby="dev-h">
+        <div className="mk-wrap hp-dev-grid">
+          <div className="hp-dev-copy" data-reveal>
+            <h2 className="hp-h2" id="dev-h">
+              For developers and their agents
+            </h2>
+            <div className="hp-dev-links">
+              <a className="hp-link" href={docsUrl("quickstart")}>
+                Quickstart <span aria-hidden="true">→</span>
+              </a>
+              <a className="hp-link" href={docsUrl("api-reference")}>
+                API reference <span aria-hidden="true">→</span>
+              </a>
+            </div>
+          </div>
+          <div data-reveal>
+            <DevTabs origin={origin} />
+          </div>
+        </div>
+        <div className="mk-wrap">
+          <Capabilities items={developers} label="For developers" />
         </div>
       </section>
 
       <section className="hp-sec" aria-labelledby="ops-h">
         <div className="mk-wrap">
-          <h2 className="hp-h2" id="ops-h">
+          <h2 className="hp-h2" id="ops-h" data-reveal>
             Everything after the payment.
           </h2>
           <Capabilities items={operations} label="Running your payments" />
-          <h3 className="hp-h3" id="dev-h">
-            For developers and their agents
-          </h3>
-          <Capabilities items={developers} label="For developers" />
         </div>
       </section>
 
       <section className="hp-sec hp-doors" aria-label="For lenders and payment providers">
-        <div className="mk-wrap hp-doors-grid">
-          <Link className="hp-door" href={`${paths.partners}#request`}>
+        <div className="mk-wrap hp-doors-grid" data-reveal="stagger">
+          <Link data-tilt className="hp-door" href={`${paths.partners}#request`}>
             <span className="hp-door-title">Lenders</span>
             <More>Become a credit partner</More>
           </Link>
-          <Link className="hp-door" href={`${paths.partners}#request`}>
+          <Link data-tilt className="hp-door" href={`${paths.partners}#request`}>
             <span className="hp-door-title">Payment providers</span>
             <More>Request provider access</More>
           </Link>

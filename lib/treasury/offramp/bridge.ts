@@ -14,6 +14,10 @@ import type { Http } from "../../intents/oneclick";
 
 const base = (environment: string) => (environment === "production" ? "https://api.bridge.xyz" : "https://api.sandbox.bridge.xyz");
 
+// Whether Bridge can take cash outs here: its key is set for this mode.
+export const bridgeConfigured = (environment: string) =>
+  !!(environment === "production" ? process.env.BRIDGE_API_KEY_REF : process.env.BRIDGE_SANDBOX_API_KEY_REF);
+
 async function key(environment: string) {
   const ref = environment === "production" ? process.env.BRIDGE_API_KEY_REF : process.env.BRIDGE_SANDBOX_API_KEY_REF;
   if (!ref) throw new PortalError("CASHOUT_PARTNER_NOT_CONFIGURED", 503);

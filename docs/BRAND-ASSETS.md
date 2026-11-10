@@ -68,7 +68,8 @@ White text on kola is only 3.05:1, so kola buttons always carry adire text.
 | Email | `lib/email/templates/base.ts` |
 | Social cards | `app/og/[slug]/route.tsx`, `scripts/social-image.mjs` (`public/social.png`) |
 | Docs site | `mintlify/docs.json`, `mintlify/logo/`, `mintlify/favicon.svg` |
-| Public facts (availability, prices) | `content/claims.ts` |
+| Public facts (availability, prices, homepage figures) | `content/claims.ts` |
+| Motion and 3D | `components/motion/`, `components/gpu/` (see below) |
 
 ## Voice
 
@@ -76,3 +77,46 @@ Short, plain, specific. Show the product (checkout previews, diagrams) instead
 of describing it. No status pills on headings, two-tone headlines, tick lists
 or superlatives. Unbuilt things are labelled "Coming"; credit is never shown as
 live before a licensed lender is.
+
+## Motion and 3D
+
+Flat colour everywhere; depth comes from motion and real 3D, never gradients
+(the adire dot pattern is the one repeating fill).
+
+**Motion is attributes, not components.** `components/motion/motion-root.tsx`
+is mounted once in `app/layout.tsx`, so server components opt in with plain
+attributes:
+
+| Attribute | Effect |
+| --- | --- |
+| `data-reveal` | rises and fades in when scrolled into view |
+| `data-reveal="stagger"` | its children do, one after another |
+| `data-tilt` | leans toward the pointer (devices that hover) |
+| `data-count="125"` | counts up to the number already in its text ("125+") |
+
+Content is visible without JavaScript; above-the-fold entrances (`RiseWords`
+in `components/marketing/motion.tsx`, the hero CTA, page heroes) move without
+fading so text keeps full contrast for axe from the first frame. Reduced
+motion turns everything off, including the 3D frame loops.
+
+**3D lives in `components/gpu/`**, loaded lazily (`next/dynamic`, `ssr: false`)
+only when a scene comes within a screen of the viewport, and paused off-screen:
+
+| Scene | Stack | Used on |
+| --- | --- | --- |
+| `globe.tsx` (+ `globe-scene.tsx`) | React Three Fiber + three.js `WebGPURenderer`, TSL node materials | Homepage hero (turns to the country picked in the checkout), sign-in/up |
+| `loop-mark.tsx` (+ `loop-scene.tsx`) | same | Footer CTA on every marketing page |
+| `token-flow.tsx` | TypeGPU root and typed buffers, WGSL compute + render | Homepage "Any token in" band |
+
+`probe.ts` checks once that WebGPU can actually present to a canvas; if not,
+three.js runs its WebGL2 backend and the token flow draws on a 2D canvas.
+Scenes are decorative (`aria-hidden`); whatever they show is also in the
+page's text. The globe's land comes from `components/gpu/globe-land.ts`
+(a ~2 KB bitset), rebuilt with `node scripts/globe-land.mjs`.
+
+To test scenes in Playwright, launch with `channel: "chromium"`: the default
+headless shell's SwiftShader adapter can't present WebGPU canvases (the probe
+then falls back, so tests still pass, but you won't see the WebGPU path).
+
+`/llms.txt` (`app/llms.txt/route.ts`) gives assistants the site in Markdown,
+built from `content/claims.ts` and `lib/site-config.ts`.

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { type PageSlug } from "@/content/marketing";
-import { availabilityLabel, markets, payouts, pillars, platforms, pricing } from "@/content/claims";
+import { markets, payouts, pillars, platforms, pricing, publicLabel, settleIn } from "@/content/claims";
 import { defaultPartnerCaps } from "@/lib/payments/pricing";
 import { createLinkHref, docsUrl, paths, trustedOrigin } from "@/lib/site-config";
 import { Btn, Feature, PageHero, Steps, TextLink } from "./ui";
@@ -16,6 +16,9 @@ import {
 } from "./diagrams";
 import { AddAnywhere, LinkPicture } from "./add-anywhere";
 import { HeroDemo } from "./hero-demo";
+import { StorePlatforms } from "./commerce";
+import { SettleChooser } from "./settle";
+import { TokenBand } from "./token-band";
 import { ProviderAccessForm } from "./provider-access-form";
 
 // How each cap is written locally, e.g. KSh 640 or MX$90.
@@ -236,34 +239,49 @@ function Crypto() {
   return (
     <>
       <PageHero
-        title="Take crypto from any wallet, on any chain."
+        title="Take any token, on any chain. Settle in yours."
         actions={
           <>
             <Btn href={paths.signUp}>Get started</Btn>
-            <Btn href={docsUrl("crypto-payments")} variant="secondary">
-              Crypto guide
+            <Btn href={docsUrl("near-intents")} variant="secondary">
+              NEAR Intents guide
             </Btn>
           </>
         }
       />
-      <section className="pp-band pp-night pp-flush-top">
-        <div className="mk-wrap">
-          <CryptoRoute />
-        </div>
+      <section className="pp-band pp-night pp-flush-top hp-flow" aria-label="Any token in, your stablecoin out">
+        <TokenBand />
       </section>
-      <Feature title="Straight to your own wallet">
-        <p>
-          USDC, USDT and EURC, and major coins, on Ethereum, Base, Arbitrum, Polygon, Avalanche, Solana, Arc and Stellar.
-          Payments arrive in the wallet you name. PayRouta never holds them.
-        </p>
-      </Feature>
       <Feature title="Whatever your customer holds" tone="paper">
         <p>
-          Customers can pay with any of 125+ assets on 36+ chains. PayRouta converts it on the way and you receive
-          exactly the amount you asked for. If a payment can&apos;t complete, the customer is refunded.
+          Customers pay with any of 125+ assets on 36+ chains through NEAR Intents, or with any token by pasting its
+          contract address: Jupiter swaps it on Solana, LI.FI on EVM networks. The swap must succeed before the payment
+          does, and you receive exactly the amount you asked for. If a swap can&apos;t complete, the customer is refunded on
+          their own chain.
         </p>
         <TextLink href={docsUrl("cross-chain")}>Paying from another chain</TextLink>
       </Feature>
+      <Feature title="Settled in what you choose">
+        <p>
+          Connect a NEAR Intents account you own, from a NEAR or EVM wallet. Checkouts settle into it in the stablecoin you
+          pick, and from the same balance you pay out or refund on any chain by signing in your wallet. PayRouta never
+          holds the funds or the keys.
+        </p>
+        <TextLink href={docsUrl("near-intents")}>Your NEAR Intents account</TextLink>
+        <SettleChooser
+          options={settleIn.map((o) => ({
+            id: o.id,
+            name: o.name,
+            detail: o.detail,
+            label: publicLabel(o.availability),
+          }))}
+        />
+      </Feature>
+      <section className="pp-band pp-night" aria-label="How a crypto payment moves">
+        <div className="mk-wrap" data-reveal>
+          <CryptoRoute />
+        </div>
+      </section>
       <Feature title={`${pricing.payroutaOnly.rate}, all in`}>
         <p>No partner fee and no network markup from us. Our fee is billed monthly; failed payments and test mode are free.</p>
         <TextLink href={paths.pricing}>See pricing</TextLink>
@@ -402,7 +420,7 @@ function PlatformList() {
           <dt>{p.name}</dt>
           <dd>
             {p.detail}
-            {p.availability !== "available" && <span className="pp-soon"> · {availabilityLabel[p.availability]}</span>}
+            {publicLabel(p.availability) && <span className="pp-soon"> · {publicLabel(p.availability)}</span>}
           </dd>
         </div>
       ))}
@@ -426,23 +444,27 @@ function Integrations() {
   return (
     <>
       <PageHero
-        title="Take payments wherever you sell."
+        title="Sell on Shopify, WooCommerce or anywhere."
         actions={
           <>
-            <Btn href={paths.signUp}>Get started</Btn>
-            <Btn href={docsUrl("quickstart")} variant="secondary">
-              Quickstart
+            <Btn href="/downloads/payrouta-checkout.zip">Download the WooCommerce plugin</Btn>
+            <Btn href={`${paths.signUp}?next=${encodeURIComponent("/merchant/developers/integrations")}`} variant="secondary">
+              Connect Shopify
             </Btn>
           </>
         }
-        visual={<ButtonPreview />}
       />
+      <section className="pp-band pp-flush-top" aria-label="Shopify and WooCommerce">
+        <div className="mk-wrap">
+          <StorePlatforms withChannels={false} />
+        </div>
+      </section>
       <Feature
-        title="Pick where you sell"
+        title="Or add it anywhere else"
         tone="paper"
         visual={
           <AddAnywhere
-            initial="shopify"
+            initial="html"
             origin={origin()}
             statuses={{
               link: status("No website"),
@@ -455,18 +477,19 @@ function Integrations() {
           />
         }
       >
-        <p>Start with a link today and add the button or a store plugin when you&apos;re ready. Every route ends in the same dashboard.</p>
         <PlatformList />
       </Feature>
-      <Feature title="On your own server">
+      <Feature title="From your server, terminal or assistant">
         <p>
-          Create a checkout with one call from the Node or Python SDK, send the customer to it, and mark the order paid
-          when the signed webhook arrives. Requests are idempotent, so a retry never charges twice.
+          One call from the Node or Python SDK, one command from the CLI, or one tool call from your AI assistant over
+          MCP. Requests are idempotent, so a retry never charges twice, and signed webhooks tell your server when an order
+          is paid.
         </p>
         <div className="mk-actions">
           <TextLink href={docsUrl("sdks")}>SDKs</TextLink>
+          <TextLink href={docsUrl("cli")}>Command line</TextLink>
+          <TextLink href={docsUrl("mcp")}>MCP server</TextLink>
           <TextLink href={docsUrl("webhooks")}>Webhooks</TextLink>
-          <TextLink href={docsUrl("api-reference")}>API reference</TextLink>
         </div>
       </Feature>
     </>
@@ -518,7 +541,7 @@ function PaymentMethods() {
                   <dt>Currencies</dt>
                   <dd>{m.currencies}</dd>
                 </dl>
-                <span className={`pm-state pm-${m.availability}`}>{availabilityLabel[m.availability]}</span>
+                {publicLabel(m.availability) && <span className="pm-state pm-planned">{publicLabel(m.availability)}</span>}
               </article>
             ))}
           </div>
@@ -534,7 +557,7 @@ function PaymentMethods() {
               <article key={m.currencies} className="pm-region">
                 <h3>{m.currencies}</h3>
                 <p>{m.methods}</p>
-                <span className={`pm-state pm-${m.availability}`}>{availabilityLabel[m.availability]}</span>
+                {publicLabel(m.availability) && <span className="pm-state pm-planned">{publicLabel(m.availability)}</span>}
               </article>
             ))}
             <article className="pm-region pm-credit">
@@ -555,7 +578,7 @@ function PaymentMethods() {
               <article key={p.destination} className="pm-region">
                 <h3>{p.destination}</h3>
                 <p>{p.detail}</p>
-                <span className={`pm-state pm-${p.availability}`}>{availabilityLabel[p.availability]}</span>
+                {publicLabel(p.availability) && <span className="pm-state pm-planned">{publicLabel(p.availability)}</span>}
               </article>
             ))}
           </div>

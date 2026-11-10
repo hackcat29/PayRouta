@@ -476,6 +476,15 @@ export function Checkout({ id }: { id: string }) {
                 Pay with card, digital wallet, bank transfer, mobile money or credit instead →
               </button>
             )}
+          {data?.alternatives?.some((x) => x.kind === "fiat") &&
+            !data.alternatives.some((x) => x.kind === "fiat" && x.available) &&
+            !active &&
+            !confirmed &&
+            !expired && (
+              <div className="sc-switch sc-off" aria-disabled="true">
+                Card, digital wallet, bank transfer, mobile money or credit <span className="fc-na">Not available</span>
+              </div>
+            )}
           {error && (
             <p role="alert" className="sc-error">
               {error}

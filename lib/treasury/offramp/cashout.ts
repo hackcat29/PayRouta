@@ -26,8 +26,8 @@ import { rateLimit } from "../../portal/access";
 import { providerRequest } from "../../providers/adapters/http";
 import { destinations, type Http } from "../../intents/oneclick";
 import { payouts, quotePayout } from "../../intents/payouts";
-import { bankInput, bridge, drainPaid, drainStopped, drains, externalAccount, externalAccountBody, kycLink, liquidationAddress } from "./bridge";
-import { destinationInput, networks, send, sendFailed, sendPaid, yellowCard, type Destination } from "./yellowcard";
+import { bankInput, bridge, bridgeConfigured, drainPaid, drainStopped, drains, externalAccount, externalAccountBody, kycLink, liquidationAddress } from "./bridge";
+import { destinationInput, networks, send, sendFailed, sendPaid, yellowCard, yellowCardConfigured, type Destination } from "./yellowcard";
 import { alpha3 } from "./iso3";
 import { loadRequirements } from "../../merchant/requirements";
 
@@ -411,6 +411,11 @@ export async function cashOutView(orgId: string, environment: string, deps: Deps
     accounts: refreshed.map(presentAccount),
     cashOuts: moved.map(presentCashOut),
     yellowCardFunding: !!fundingAddress({ partner: "yellowcard", liquidationAddress: null }),
+    // Which partners can take a cash out here; the dashboard marks the others "Not available".
+    available: {
+      bridge: bridgeConfigured(environment),
+      yellowcard: yellowCardConfigured(environment) && !!fundingAddress({ partner: "yellowcard", liquidationAddress: null }),
+    },
   };
 }
 
