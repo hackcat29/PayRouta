@@ -31,5 +31,6 @@ lib/generated/
 
 # Local SDK build products
 sdks/node/dist/
+sdks/cli/dist/
 __pycache__/
 *.egg-info/

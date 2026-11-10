@@ -1,0 +1,21 @@
+{
+  "name": "@payrouta/cli",
+  "version": "0.1.0",
+  "description": "Take payments from the terminal: checkouts, payment links, subscriptions, refunds, and agent payments.",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "payrouta": "dist/bin.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && chmod +x dist/bin.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -21,6 +21,8 @@
 * [API reference](api-reference.md)
 * [SDKs](sdks.md)
 * [Webhooks](webhooks.md)
+* [MCP server](mcp.md)
+* [Command line](cli.md)
 * [Errors and recovery](errors.md)
 * [Provider integration](provider-integration.md)
 

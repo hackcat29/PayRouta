@@ -66,6 +66,7 @@
             "pages": [
               "integrate/webhooks",
               "integrate/mcp",
+              "integrate/cli",
               "integrate/sdks",
               "integrate/errors"
             ]
