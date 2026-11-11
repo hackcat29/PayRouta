@@ -92,11 +92,18 @@ jobs:
           # PayRouta's NEAR Intents account, paid its fee at source on crypto
           # checkouts (lib/intents/checkout.ts feeAccount).
           PAYROUTA_INTENTS_FEE_ACCOUNT: ${{ vars.PAYROUTA_INTENTS_FEE_ACCOUNT }}
+          # CoinGecko API key for crypto prices and token logos. Stored in the
+          # server's secret store on the first deploy after it changes; the
+          # server's .env keeps only its reference.
+          COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+          COINGECKO_API_PLAN: ${{ vars.COINGECKO_API_PLAN }}
         with:
           host: ${{ secrets.CONTABO_HOST }}
           username: ${{ secrets.CONTABO_USER }}
           key: ${{ secrets.CONTABO_SSH_KEY }}
-          envs: SHA,OPENSANCTIONS_API_KEY,TURNSTILE_SECRET_KEY,NEXT_PUBLIC_TURNSTILE_SITE_KEY,NEXT_PUBLIC_PRIVY_APP_ID,NEXT_PUBLIC_PRIVY_CLIENT_ID,PAYROUTA_INTENTS_FEE_ACCOUNT
+          envs: SHA,OPENSANCTIONS_API_KEY,TURNSTILE_SECRET_KEY,NEXT_PUBLIC_TURNSTILE_SITE_KEY,NEXT_PUBLIC_PRIVY_APP_ID,NEXT_PUBLIC_PRIVY_CLIENT_ID,PAYROUTA_INTENTS_FEE_ACCOUNT,COINGECKO_API_KEY,COINGECKO_API_PLAN
+          # The build alone can take most of the default 10 minutes.
+          command_timeout: 25m
           script_stop: true
           script: |
             echo "==> Deploy started for SHA: $SHA"
@@ -158,6 +165,21 @@ jobs:
             npx prisma generate
             echo "==> Running database migrations..."
             npx prisma migrate deploy
+            # CoinGecko key: into the secret store when it's new or changed
+            # (recognised by its SHA-256), its reference into .env. A failure
+            # here leaves prices on the keyless API rather than stop the deploy.
+            if [ -n "${COINGECKO_API_KEY:-}" ]; then
+              CG_SHA="$(printf %s "$COINGECKO_API_KEY" | sha256sum | cut -c1-64)"
+              if grep -q "^COINGECKO_API_KEY_SHA256=$CG_SHA\$" "$ROOT/.env" && grep -q '^COINGECKO_API_KEY_REF=.' "$ROOT/.env"; then
+                echo "==> CoinGecko key unchanged"
+              elif CG_REF="$(printf %s "$COINGECKO_API_KEY" | npm run -s secrets:put 2>/dev/null | tail -n 1)" && printf %s "$CG_REF" | grep -Eq '^[a-f0-9-]{36}$'; then
+                sync_env COINGECKO_API_KEY_REF "$CG_REF"
+                sync_env COINGECKO_API_KEY_SHA256 "$CG_SHA"
+              else
+                echo "==> CoinGecko key could not be stored; prices stay on the keyless API"
+              fi
+            fi
+            sync_env COINGECKO_API_PLAN "${COINGECKO_API_PLAN:-}"
             echo "==> Building standalone application..."
             npm run build
             cp -r public .next/standalone/
