@@ -7,6 +7,7 @@ import {
   useConnectWallet,
   useCreateWallet,
   useExportWallet,
+  useLogin,
   usePrivy,
   useWallets,
   type BaseConnectedEthereumWallet,
@@ -68,7 +69,7 @@ const solanaAccount = (address: string) => {
 };
 
 function MerchantWallet({ portalUserId, canCreate, ...props }: CryptoBalanceProps & { portalUserId: string; canCreate: boolean }) {
-  const { ready, authenticated, login, logout, user } = usePrivy();
+  const { ready, authenticated, logout, user } = usePrivy();
   // Privy's sign-in is separate from the portal session: a saved wallet
   // session is cleared before it is shown to a different PayRouta user on
   // this browser. Until that check passes the page works without Privy, on
@@ -100,7 +101,25 @@ function MerchantWallet({ portalUserId, canCreate, ...props }: CryptoBalanceProp
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   // "create": signing in to create a wallet; "connect": choosing a wallet.
-  const [pending, setPending] = useState<null | "create" | "connect">(null);
+  // Google and X sign-in can leave the page and come back: the intent to
+  // create a wallet is kept for that trip (ten minutes, this tab only).
+  const intentKey = `payrouta.privy.create:${props.orgId}`;
+  const [pending, setPending] = useState<null | "create" | "connect">(() => {
+    try {
+      const at = Number(sessionStorage.getItem(intentKey));
+      return at && Date.now() - at < 600000 && !props.overview.account ? "create" : null;
+    } catch {
+      return null;
+    }
+  });
+  useEffect(() => {
+    try {
+      if (pending === "create") sessionStorage.setItem(intentKey, sessionStorage.getItem(intentKey) || String(Date.now()));
+      else sessionStorage.removeItem(intentKey);
+    } catch {
+      /* Storage unavailable: a sign-in that leaves the page starts over. */
+    }
+  }, [pending, intentKey]);
   // Read by Privy's connect callback, which may hold an older render.
   const pendingRef = useRef(pending);
   useEffect(() => {
@@ -137,23 +156,60 @@ function MerchantWallet({ portalUserId, canCreate, ...props }: CryptoBalanceProp
     },
     onError: () => setPending(null),
   });
-  // After social sign-in: create the wallet if there isn't one, then use it.
+  // Read by the creation flow, which outlives the render that started it.
+  const walletsRef = useRef(wallets);
   useEffect(() => {
-    if (pending !== "create" || !authenticated || !walletsReady || busy) return;
-    const connect = connectRef.current;
-    if (!connect) return;
-    // Continue once this render has settled.
-    const next = setTimeout(() => {
-      if (!embedded) {
-        void run(() => createWallet());
-        return;
-      }
+    walletsRef.current = wallets;
+  }, [wallets]);
+  // "Create a wallet": once Privy's sign-in completes, create the embedded
+  // wallet if the account has none, wait for it to load (at most 30
+  // seconds), then connect it. Every way this can stop shows a message.
+  const creating = useRef(false);
+  async function createAndConnect() {
+    if (creating.current) return;
+    creating.current = true;
+    try {
+      await run(async () => {
+        const connect = connectRef.current;
+        if (!connect) throw new Error("Reload the page and try again.");
+        if (!getEmbeddedConnectedWallet(walletsRef.current)) {
+          try {
+            await createWallet();
+          } catch (error) {
+            // Already has one (created in an earlier visit): use it.
+            if (!/already/i.test(String((error as Error)?.message ?? error))) throw error;
+          }
+        }
+        let wallet = getEmbeddedConnectedWallet(walletsRef.current);
+        for (let waited = 0; !wallet && waited < 30000; waited += 500) {
+          await new Promise((r) => setTimeout(r, 500));
+          wallet = getEmbeddedConnectedWallet(walletsRef.current);
+        }
+        if (!wallet) throw new Error("Your wallet hasn't loaded. Reload the page, then choose Create a wallet again.");
+        const embeddedWallet = wallet;
+        await connect(async () => ({ ...(await connectEvm(await embeddedWallet.getEthereumProvider())), source: "privy" as const }));
+      });
+    } finally {
+      creating.current = false;
       setPending(null);
-      void connect(async () => ({ ...(await connectEvm(await embedded.getEthereumProvider())), source: "privy" as const }));
-    });
-    return () => clearTimeout(next);
+    }
+  }
+  // Back from Google or X already signed in, should Privy not report the
+  // sign-in again: carry on creating.
+  useEffect(() => {
+    if (pending === "create" && authenticated && sessionChecked && !busy) void createAndConnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pending, authenticated, walletsReady, embedded, busy]);
+  }, [pending, authenticated, sessionChecked]);
+  const { login } = useLogin({
+    onComplete: () => {
+      if (pendingRef.current === "create") void createAndConnect();
+    },
+    onError: (error) => {
+      if (pendingRef.current !== "create") return;
+      setPending(null);
+      if (error !== "exited_auth_flow") setMessage("Sign-in didn't finish. Try again.");
+    },
+  });
 
   // The wallet that owns the connected account, if Privy has it.
   async function signer(target: { accountId: string; standard: string }): Promise<Signer | null> {
@@ -184,7 +240,9 @@ function MerchantWallet({ portalUserId, canCreate, ...props }: CryptoBalanceProp
             disabled={!ready || busy || disabled}
             onClick={() => {
               setPending("create");
-              if (!authenticated) login();
+              pendingRef.current = "create";
+              if (authenticated) void createAndConnect();
+              else login();
             }}
           >
             <Sparkles size={20} aria-hidden />
@@ -216,7 +274,7 @@ function MerchantWallet({ portalUserId, canCreate, ...props }: CryptoBalanceProp
           type="button"
           className="ms-btn"
           disabled={!ready || busy}
-          onClick={() => (account.standard === "erc191" && embedded === undefined && !authenticated ? login() : connectWallet())}
+          onClick={() => (account.standard === "erc191" && !embedded && !authenticated ? login() : connectWallet())}
         >
           Connect the wallet that owns this account
         </button>
