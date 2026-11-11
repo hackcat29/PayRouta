@@ -68,7 +68,7 @@ White text on kola is only 3.05:1, so kola buttons always carry adire text.
 | Email | `lib/email/templates/base.ts` |
 | Social cards | `app/og/[slug]/route.tsx`, `scripts/social-image.mjs` (`public/social.png`) |
 | Docs site | `mintlify/docs.json`, `mintlify/logo/`, `mintlify/favicon.svg` |
-| Public facts (availability, prices, homepage figures) | `content/claims.ts` |
+| Public facts (availability, prices) | `content/claims.ts` |
 | Motion and 3D | `components/motion/`, `components/gpu/` (see below) |
 
 ## Voice

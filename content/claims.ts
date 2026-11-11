@@ -215,15 +215,6 @@ export const pricing = {
   volumeThreshold: "$100,000 a month",
 } as const;
 
-// The front page's figures. Each restates a line above: ways to pay from
-// methodFamilies, chains counted live from NEAR Intents' token list
-// (lib/intents/coverage.ts; this value is the fallback).
-export const figures: { value: string; prefix?: string; suffix?: string; label: string; live?: "chains" }[] = [
-  { value: "1", label: "checkout for every customer" },
-  { value: String(methodFamilies.length), label: "ways to pay" },
-  { value: "39", label: "chains", live: "chains" },
-];
-
 // The front page's strip of ways to pay, by family, with the brand mark from
 // components/marketing/brand-logos.ts (none: drawn as a wordmark). Payment
 // methods only: lenders are named only once they're live partners.

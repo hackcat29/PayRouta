@@ -2,7 +2,7 @@ import Link from "next/link";
 import { HeroBackdrop } from "@/components/marketing/hero";
 import { HeroDemo } from "@/components/marketing/hero-demo";
 import { DevTabs } from "@/components/marketing/dev-tabs";
-import { Figure, RiseWords } from "@/components/marketing/motion";
+import { RiseWords } from "@/components/marketing/motion";
 import { LogoMarquee } from "@/components/marketing/logo-marquee";
 import { BrandMark, LogoSprite } from "@/components/marketing/logos";
 import { PayWithCa } from "@/components/marketing/pay-with-ca";
@@ -26,12 +26,9 @@ import {
   Webhook,
   type LucideIcon,
 } from "lucide-react";
-import { contractAddressNetworks, figures, payouts, pillars, publicLabel, settleIn, waysToPay } from "@/content/claims";
+import { contractAddressNetworks, payouts, pillars, publicLabel, settleIn, waysToPay } from "@/content/claims";
 import { createLinkHref, docsUrl, trustedOrigin, paths } from "@/lib/site-config";
-import { nearIntentsCoverage } from "@/lib/intents/coverage";
 
-// Re-rendered every six hours, for the live chain count.
-export const revalidate = 21600;
 import { instalmentOffer } from "@/lib/treasury/credit";
 
 // The phone in the payment-link tile, in 4 payments two weeks apart, first
@@ -160,8 +157,7 @@ function More({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default async function Home() {
-  const live = await nearIntentsCoverage();
+export default function Home() {
   const creditLive = pillars.find((p) => p.id === "credit")!.availability === "available";
   const origin = trustedOrigin() ?? "https://payrouta.com";
   return (
@@ -185,14 +181,6 @@ export default async function Home() {
           </div>
         </div>
         <LogoMarquee items={waysToPay} label="Ways customers pay" />
-      </section>
-
-      <section className="hp-figures" aria-label="PayRouta in numbers">
-        <div className="mk-wrap hp-figures-row" data-reveal="stagger">
-          {figures.map(({ live: count, ...f }) => (
-            <Figure key={f.label} {...f} {...(count ? { value: String(live[count]) } : {})} />
-          ))}
-        </div>
       </section>
 
       <section className="hp-sec hp-showcase" aria-labelledby="showcase-h">
