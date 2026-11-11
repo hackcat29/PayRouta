@@ -969,7 +969,7 @@ body:has(.pp-hero) .mk-header {
 }
 .hp-figures-row {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 .fig {
   display: grid;
@@ -2393,16 +2393,6 @@ body:has(.pp-hero) .mk-header {
   .hp-tile-subs,
   .hp-tile-agents {
     grid-column: span 1;
-  }
-  .hp-figures-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .fig:nth-child(3) {
-    border-left: 0;
-    padding-left: 0;
-  }
-  .fig:nth-child(n + 3) {
-    border-top: 1px solid var(--mk-line);
   }
   .hp-caps {
     grid-template-columns: repeat(2, minmax(0, 1fr));

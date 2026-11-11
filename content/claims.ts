@@ -217,12 +217,10 @@ export const pricing = {
 
 // The front page's figures. Each restates a line above: ways to pay from
 // methodFamilies, chains counted live from NEAR Intents' token list
-// (lib/intents/coverage.ts; this value is the fallback). "Any" token: listed
-// ones through NEAR Intents, any other by its contract address.
+// (lib/intents/coverage.ts; this value is the fallback).
 export const figures: { value: string; prefix?: string; suffix?: string; label: string; live?: "chains" }[] = [
   { value: "1", label: "checkout for every customer" },
   { value: String(methodFamilies.length), label: "ways to pay" },
-  { value: "Any", label: "token, listed or by contract address" },
   { value: "39", label: "chains", live: "chains" },
 ];
 
