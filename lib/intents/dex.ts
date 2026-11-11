@@ -41,6 +41,7 @@ import {
 import { chainNames, tokens, type Http } from "./oneclick";
 import { evmChainIds } from "./checkout";
 import { solanaRpc } from "./swap-wallet";
+import { tokenLogo } from "./logo-paths";
 
 const jupiter = "https://lite-api.jup.ag";
 const lifi = "https://li.quest";
@@ -93,6 +94,7 @@ const jupiterToken = z
     usdPrice: z.number().positive().optional(),
     liquidity: z.number().nonnegative().optional(),
     tokenProgram: z.string().optional(),
+    icon: z.string().max(2000).optional().nullable(),
   })
   .passthrough();
 const lifiToken = z
@@ -102,10 +104,11 @@ const lifiToken = z
     name: z.string().max(200),
     decimals: z.number().int().min(0).max(36),
     priceUSD: z.string(),
+    logoURI: z.string().max(2000).optional().nullable(),
   })
   .passthrough();
 
-export type DexToken = { chain: string; chainName: string; address: string; symbol: string; name: string; decimals: number; price: number; liquidity?: number };
+export type DexToken = { chain: string; chainName: string; address: string; symbol: string; name: string; decimals: number; price: number; liquidity?: number; logo?: string };
 
 async function solanaToken(http: Http, mint: string) {
   const list = await json(http, jupiter, `/tokens/v2/search?query=${mint}`, z.array(jupiterToken).max(50));
@@ -124,7 +127,7 @@ export async function lookupToken(sessionId: string, token: string, address: str
     return {
       tokens:
         t && t.usdPrice
-          ? [{ chain: "sol", chainName: "Solana", address: t.id, symbol: t.symbol, name: t.name, decimals: t.decimals, price: t.usdPrice, liquidity: t.liquidity }]
+          ? [{ chain: "sol", chainName: "Solana", address: t.id, symbol: t.symbol, name: t.name, decimals: t.decimals, price: t.usdPrice, liquidity: t.liquidity, logo: tokenLogo("sol", t.id) }]
           : [],
     };
   }
@@ -135,13 +138,27 @@ export async function lookupToken(sessionId: string, token: string, address: str
         const t = await json(http, lifi, `/v1/token?chain=${evmChainIds[chain]}&token=${a}`, lifiToken);
         const price = Number(t.priceUSD);
         if (!(price > 0) || t.symbol === "USDC") return null;
-        return { chain, chainName: chainNames[chain] ?? chain, address: t.address, symbol: t.symbol, name: t.name, decimals: t.decimals, price };
+        return { chain, chainName: chainNames[chain] ?? chain, address: t.address, symbol: t.symbol, name: t.name, decimals: t.decimals, price, logo: tokenLogo(chain, t.address) };
       } catch {
         return null;
       }
     }),
   );
   return { tokens: found.filter((t): t is NonNullable<typeof t> => !!t) };
+}
+
+// A token's icon as Jupiter (Solana) or LI.FI (EVM) lists it, for its logo
+// in checkout (token-logos.ts), or null when it has none.
+export async function dexTokenIcon(chain: string, address: string, http: Http = providerRequest) {
+  if (chain === "sol") return isSolanaAddress(address) ? ((await solanaToken(http, address))?.icon ?? null) : null;
+  if (!(dexEvmChains as readonly string[]).includes(chain) || !isEvmAddress(address)) return null;
+  try {
+    return (await json(http, lifi, `/v1/token?chain=${evmChainIds[chain]}&token=${address}`, lifiToken)).logoURI ?? null;
+  } catch (e) {
+    // LI.FI answers 404 for a token it doesn't know.
+    if (e instanceof PortalError && e.message === "DEX_NO_ROUTE") return null;
+    throw e;
+  }
 }
 
 // Where this checkout's USDC on a chain goes, and exactly how much: the

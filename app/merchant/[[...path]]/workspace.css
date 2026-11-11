@@ -1854,37 +1854,7 @@ td.ms-link-actions > * + * { margin-left: 6px; }
   margin: 0;
 }
 
-/* Settle in: stablecoins or the bank (intents.tsx), and the bank accounts
-   checkouts can settle to (cash-out.tsx). */
-.ms-body .ms-intents-setup fieldset.ms-settle-mode {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  border-top: 0;
-  margin: 20px 0 6px;
-  padding: 0;
-}
-.ms-body .ms-intents-setup fieldset.ms-settle-mode legend {
-  margin-bottom: 8px;
-}
-.ms-body .ms-intents-setup .ms-settle-mode label {
-  display: inline-flex;
-  align-items: center;
-  grid-column: auto;
-  gap: 8px;
-  padding: 9px 16px;
-  border: 1px solid var(--line-2);
-  border-radius: 10px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.ms-body .ms-intents-setup .ms-settle-mode label:has(input:checked) {
-  border-color: var(--accent);
-  background: var(--accent-bg);
-}
-.ms-body .ms-intents-setup .ms-settle-mode input {
-  margin: 0;
-}
+/* Bank accounts checkouts can settle to (cash-out.tsx). */
 .ms-settle-bank {
   list-style: none;
   margin: 18px 0 0;
@@ -1932,3 +1902,156 @@ td.ms-link-actions > * + * { margin-left: 6px; }
 .ms-address { display: block; padding: 10px 12px; border-radius: 10px; background: var(--canvas); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; overflow-wrap: anywhere; }
 .ms-link-actions.ms-left { justify-content: flex-start; }
 .portal .ms-body .ms-warn { margin: 0; padding: 10px 12px; border-radius: 8px; background: var(--warn-bg); color: var(--warn); font-size: 13px; }
+
+/* Where your crypto payments land (destinations.tsx). */
+.ms-dest {
+  display: grid;
+  gap: 18px;
+}
+.portal .ms-body .ms-dest h2 {
+  margin: 0;
+}
+.ms-flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ms-flow li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 600;
+}
+.ms-flow li.ms-flow-arrow {
+  padding: 0;
+  background: none;
+  color: var(--muted);
+}
+.ms-flow li.ms-flow-near {
+  background: var(--fill-ink);
+  color: #fff;
+}
+.ms-flow li.ms-flow-end {
+  background: var(--accent);
+  color: #fff;
+  animation: ms-flow-in 0.35s var(--ms-ease);
+}
+@keyframes ms-flow-in {
+  from {
+    transform: translateX(-6px);
+  }
+}
+.ms-dest-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.ms-body .ms-dest-cards label.ms-dest-card {
+  position: relative;
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 4px;
+  line-height: 1.35;
+  padding: 18px;
+  border: 1px solid var(--line-2);
+  border-radius: 14px;
+  background: var(--card);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.2s var(--ms-ease);
+}
+.ms-body .ms-dest-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+.ms-body .ms-dest-card:has(input:checked) {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 16px 32px -24px rgba(46, 55, 164, 0.6);
+  background: var(--accent-bg);
+}
+.ms-body .ms-dest-card:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+/* The radio covers the whole card: the card is what you click. */
+.ms-body .ms-dest-card .ms-dest-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.ms-dest-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 6px;
+  border-radius: 12px;
+  background: var(--chip);
+  color: var(--accent-ink);
+}
+.ms-dest-card:has(input:checked) .ms-dest-icon {
+  background: var(--accent);
+  color: #fff;
+}
+.ms-dest-card strong {
+  color: var(--ink);
+  font-size: 15px;
+}
+.ms-dest-card small {
+  color: var(--muted);
+  font-size: 13px;
+}
+.ms-dest-live {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--good-bg);
+  color: var(--good);
+  font-size: 12px;
+  font-weight: 600;
+}
+.ms-messages {
+  display: grid;
+  gap: 8px;
+}
+.portal .ms-body .ms-messages .p-notice {
+  margin: 0;
+}
+.portal .ms-body .ms-flush > .ms-flush-title {
+  margin: 4px 26px 8px;
+}
+@media (max-width: 860px) {
+  .ms-dest-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ms-body .ms-dest-card,
+  .ms-flow li.ms-flow-end {
+    transition: none;
+    animation: none;
+  }
+}
+
+/* Your addresses (saved-addresses.tsx). */
+.ms-address-list { list-style: none; margin: 0 0 8px; padding: 0; }
+.ms-address-list li { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px 16px; padding: 12px 0; border-top: 1px solid var(--line); }
+.ms-address-list li > span:first-child { display: grid; gap: 2px; min-width: 0; }
+.ms-address-list small { color: var(--muted); }
+.ms-row-actions { display: inline-flex; gap: 8px; }
+.portal .ms-body .ms-empty-line.ms-flat { padding: 0; color: var(--muted); }

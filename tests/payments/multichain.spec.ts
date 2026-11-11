@@ -100,7 +100,7 @@ test("customer selects a merchant quote and the network locks when instructions 
   });
   await page.goto("/checkout/multichain-ui#" + "a".repeat(43));
   await page.getByRole("button", { name: /^Token:/ }).click();
-  await page.getByLabel("Network", { exact: true }).selectOption("solana:devnet");
+  await page.getByRole("group", { name: "Network" }).getByRole("button", { name: "Solana Devnet", exact: true }).click();
   await page.getByRole("button", { name: /^EURC\s*Solana Devnet/ }).click();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(

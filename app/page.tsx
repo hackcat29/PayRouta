@@ -28,6 +28,10 @@ import {
 } from "lucide-react";
 import { contractAddressNetworks, figures, payouts, pillars, publicLabel, settleIn, waysToPay } from "@/content/claims";
 import { createLinkHref, docsUrl, trustedOrigin, paths } from "@/lib/site-config";
+import { nearIntentsCoverage } from "@/lib/intents/coverage";
+
+// Re-rendered every six hours, for the live chain count.
+export const revalidate = 21600;
 import { instalmentOffer } from "@/lib/treasury/credit";
 
 // The phone in the payment-link tile, in 4 payments two weeks apart, first
@@ -156,7 +160,8 @@ function More({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function Home() {
+export default async function Home() {
+  const live = await nearIntentsCoverage();
   const creditLive = pillars.find((p) => p.id === "credit")!.availability === "available";
   const origin = trustedOrigin() ?? "https://payrouta.com";
   return (
@@ -184,8 +189,8 @@ export default function Home() {
 
       <section className="hp-figures" aria-label="PayRouta in numbers">
         <div className="mk-wrap hp-figures-row" data-reveal="stagger">
-          {figures.map((f) => (
-            <Figure key={f.label} {...f} />
+          {figures.map(({ live: count, ...f }) => (
+            <Figure key={f.label} {...f} {...(count ? { value: String(live[count]) } : {})} />
           ))}
         </div>
       </section>

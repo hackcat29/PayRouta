@@ -1,6 +1,6 @@
 # Your NEAR Intents account
 
-Connect a [NEAR Intents](https://docs.near-intents.org) account you own, and every crypto checkout and USD payment link can be paid from any of 125+ tokens on 36+ chains. You receive the exact invoice amount, in the stablecoin you choose, in that one account. From the same balance you pay suppliers or staff and refund customers on any chain, by signing in your own wallet.
+Connect a [NEAR Intents](https://docs.near-intents.org) account you own, and every crypto checkout and USD payment link can be paid from any token NEAR Intents lists (over 200, on more than 35 chains). You receive the exact invoice amount, in the stablecoin you choose, in that one account. From the same balance you pay suppliers or staff and refund customers on any chain, by signing in your own wallet.
 
 PayRouta never holds the funds or the account's keys. NEAR Intents holds balances in the `intents.near` contract on behalf of the account that owns them.
 
@@ -32,13 +32,11 @@ A named NEAR account must tell NEAR Intents once which key signs its intents. **
 
 If the swap can't complete, NEAR Intents refunds the customer on their own chain, and they can pay another way on the same checkout.
 
-## Settle to an address on any chain
+## Send to your own addresses
 
-No wallet to connect: under **Settle in**, choose **An address on any chain**, pick the stablecoin and network (USDT on Tron, USDC on Solana, USDT on TON, USDC on Base and every other chain NEAR Intents delivers to), and paste your address twice.
+Crypto checkouts settle into your PayRouta wallet (your NEAR Intents account). From there you send to any address: under **Balances → Crypto → Your addresses**, save the addresses you use, such as your exchange's USDT address on Tron or a Trust Wallet address on Solana, with a name, the token and network, and the address twice. Saving one asks you to confirm it's you. **Send** fills in the send form; you sign each send in your own wallet and pay no network fee.
 
-Checkouts stay priced in USDC; each one delivers the same amount of your chosen stablecoin, less PayRouta's fee, straight to that address. PayRouta confirms a payment only by its own swap's delivery: read back from the chain on EVM networks and Solana, and on other chains taken from NEAR Intents' report of the delivery transaction, which is kept as evidence. Settling to an address turns off settling to your bank, and the other way round. Refunds to customers are sent from that address, outside PayRouta.
-
-Send only to an address you control on the network you chose: a payment to a wrong address can't be recovered.
+NEAR Intents can't add a memo or tag to a delivery. On networks where exchanges use them (Stellar, XRP, TON and others), don't save an exchange deposit address that needs one: the payment would be lost.
 
 ## Settle in your bank
 

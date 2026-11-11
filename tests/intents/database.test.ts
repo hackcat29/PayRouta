@@ -16,6 +16,7 @@ import { getAssociatedTokenAddressSync } from "../../lib/blockchain/solana-token
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 import { keccak_256 } from "@noble/hashes/sha3.js";
 import { resetTokenCache, type Http } from "../../lib/intents/oneclick";
+import { logo, tokenLogo, warmLogos } from "../../lib/intents/token-logos";
 import { databaseIntentsSwaps } from "../../lib/intents/swaps";
 import { databaseDepositStore } from "../../lib/blockchain/deposit-store";
 import { intentsDepositExecutionAdapter } from "../../lib/providers/adapters/native/near-intents-deposit";
@@ -474,4 +475,105 @@ test("dex: an EVM token swaps into the payer's USDC, then pays exactly the check
   // Only LI.FI's own contract is ever approved or called.
   await assert.rejects(dexEvmQuote(direct.id, direct.token, { payer, chain: "base", address: degen }, { http: fakeLifi({ to: `0x${"9".repeat(40)}` }).http }), /DEX_ROUTE_UNEXPECTED/);
   await assert.rejects(dexEvmQuote(direct.id, direct.token, { payer, chain: "op", address: degen }, { http }), /DEX_NO_USDC_ROUTE/);
+});
+
+test("logos: fetched once from CoinGecko's image hosts, real images only, a missing one remembered", async () => {
+  resetTokenCache();
+  const tag = randomBytes(4).toString("hex");
+  const chain = `zz${tag}`;
+  const [good, none, fake] = [`good-${tag}`, `none-${tag}`, `fake-${tag}`];
+  const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), randomBytes(40)]);
+  const asked: string[] = [];
+  const http: Http = async (base, o) => {
+    asked.push(`${base}${o.path}`);
+    const reply = (status: number, body: unknown, buffer?: Buffer) => ({ status, headers: {}, body: typeof body === "string" ? body : JSON.stringify(body), buffer });
+    if (o.path === "/v0/tokens")
+      return reply(200, [
+        { assetId: `nep141:${tag}-a`, decimals: 6, blockchain: chain, symbol: "AAA", contractAddress: "0xa", coingeckoId: good },
+        { assetId: `nep141:${tag}-b`, decimals: 6, blockchain: chain, symbol: "BBB", contractAddress: "0xb", coingeckoId: none },
+        // The chain's own coin, whose "image" isn't one.
+        { assetId: `nep141:${tag}-n`, decimals: 18, blockchain: chain, symbol: "ZZ", coingeckoId: fake },
+        { assetId: `nep141:${tag}-c`, decimals: 6, blockchain: chain, symbol: "CCC", coingeckoId: "custom:not-listed" },
+      ]);
+    if (o.path.startsWith(`/api/v3/coins/${good}?`)) return reply(200, { image: { small: `https://coin-images.coingecko.com/coins/images/1/small/${good}.png` } });
+    if (o.path.startsWith(`/api/v3/coins/${none}?`)) return reply(404, {});
+    if (o.path.startsWith(`/api/v3/coins/${fake}?`)) return reply(200, { image: { small: `https://assets.coingecko.com/coins/images/2/small/${fake}.png` } });
+    if (base === "https://coin-images.coingecko.com") return reply(200, "", png);
+    if (base === "https://assets.coingecko.com") return reply(200, "", Buffer.from("<html>not an image</html>"));
+    throw new Error(`unexpected ${base}${o.path}`);
+  };
+  try {
+    const first = await warmLogos(20, http, 0);
+    assert.equal(first.found, 1);
+    assert.equal(first.remaining, 0);
+    const stored = await logo(`coin:${good}`);
+    assert.equal(stored?.mime, "image/png");
+    assert.deepEqual(Buffer.from(stored!.bytes), png);
+    // No image, or one that isn't an image: the checkout draws the mark.
+    for (const k of [`coin:${none}`, `coin:${fake}`, `chain:${chain}`]) assert.equal(await logo(k), null, k);
+    assert.equal((await db.tokenLogo.findUnique({ where: { key: `coin:${none}` } }))?.missing, true);
+    // Each is asked for once, then remembered; ids CoinGecko doesn't have aren't asked for.
+    assert.ok(!asked.some((u) => u.includes("custom")));
+    const before = asked.length;
+    assert.equal((await warmLogos(20, http, 0)).checked, 0);
+    assert.equal(asked.length, before);
+    // Rate limited: stops, and tries again next time.
+    await db.tokenLogo.deleteMany({ where: { key: `coin:${none}` } });
+    const limited: Http = async (base, o) => (base.includes("coingecko") ? { status: 429, headers: {}, body: "{}" } : http(base, o));
+    assert.deepEqual(await warmLogos(20, limited, 0), { checked: 0, found: 0, remaining: 1 });
+  } finally {
+    await db.tokenLogo.deleteMany({ where: { key: { in: [`coin:${good}`, `coin:${none}`, `coin:${fake}`, `chain:${chain}`] } } });
+    resetTokenCache();
+  }
+});
+
+test("logos: a pasted token's logo is fetched the first time it's shown, through redirects, then kept", async () => {
+  const address = `0x${randomBytes(20).toString("hex")}`;
+  const key = tokenLogo("base", address)!.replace("/api/logos/", "").replace("/", ":");
+  const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), randomBytes(60)]);
+  const asked: string[] = [];
+  const http: Http = async (base, o): Promise<{ status: number; headers: Record<string, string>; body: string; buffer?: Buffer }> => {
+    asked.push(`${base}${o.path}`);
+    if (base === "https://li.quest")
+      return { status: 200, headers: {}, body: JSON.stringify({ address, symbol: "DEGEN", name: "Degen", decimals: 18, priceUSD: "0.01", logoURI: "https://arweave.net/abc" }) };
+    // Arweave sends the browser to a per-file subdomain.
+    if (base === "https://arweave.net") {
+      assert.equal(o.redirects, "return");
+      return { status: 302, headers: { location: "//file.arweave.net/abc" }, body: "" };
+    }
+    if (base === "https://file.arweave.net") return { status: 200, headers: {}, body: "", buffer: jpeg };
+    throw new Error(`unexpected ${base}${o.path}`);
+  };
+  try {
+    const found = await logo(key, http);
+    assert.equal(found?.mime, "image/jpeg");
+    assert.deepEqual(asked, [`https://li.quest/v1/token?chain=8453&token=${address}`, "https://arweave.net/abc", "https://file.arweave.net/abc"]);
+    // Kept: never fetched again.
+    assert.deepEqual(Buffer.from((await logo(key, http))!.bytes), jpeg);
+    assert.equal(asked.length, 3);
+    assert.ok((await db.tokenLogo.findUnique({ where: { key } }))?.bytes);
+  } finally {
+    await db.tokenLogo.deleteMany({ where: { key } });
+  }
+
+  // Only https, at most three redirects, and a missing logo is remembered.
+  for (const [i, logoURI] of ["http://example.com/a.png", "https://loop.example/a.png", "data:image/png;base64,AAAA"].entries()) {
+    const a = `0x${randomBytes(20).toString("hex")}`;
+    const k = tokenLogo("base", a)!.replace("/api/logos/", "").replace("/", ":");
+    let calls = 0;
+    const h: Http = async (base) => {
+      calls++;
+      if (base === "https://li.quest") return { status: 200, headers: {} as Record<string, string>, body: JSON.stringify({ address: a, symbol: "X", name: "X", decimals: 18, priceUSD: "1", logoURI }) };
+      if (base === "https://loop.example") return { status: 302, headers: { location: "https://loop.example/a.png" }, body: "" };
+      throw new Error(`unexpected ${base}`);
+    };
+    try {
+      assert.equal(await logo(k, h), null, logoURI);
+      assert.equal(calls, i === 1 ? 5 : 1, logoURI);
+      assert.equal(await logo(k, h), null);
+      assert.equal(calls, i === 1 ? 5 : 1, "remembered as missing");
+    } finally {
+      await db.tokenLogo.deleteMany({ where: { key: k } });
+    }
+  }
 });

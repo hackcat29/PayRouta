@@ -11,6 +11,8 @@ export interface ProviderHttpResponse {
   headers: Record<string, string>;
   body: string;
   bytes: number;
+  // The body as received, for binary responses (images).
+  buffer?: Buffer;
 }
 export interface ProviderHttpOptions {
   method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
@@ -20,6 +22,10 @@ export interface ProviderHttpOptions {
   timeoutMs?: number;
   maxResponseBytes?: number;
   signal?: AbortSignal;
+  // "return": hand a redirect back (status and Location) for the caller to
+  // follow through providerRequest again, so the next host is checked too.
+  // Otherwise a redirect is an error.
+  redirects?: "return";
 }
 
 export class ProviderHttpError extends Error {
@@ -73,7 +79,9 @@ export async function providerRequest(
         const status = response.statusCode || 0;
         if (status >= 300 && status < 400) {
           response.destroy();
-          reject(new PortalError("Redirects are not permitted"));
+          if (options.redirects === "return")
+            resolve({ status, headers: { location: String(response.headers.location ?? "") }, body: "", bytes: 0 });
+          else reject(new PortalError("Redirects are not permitted"));
           return;
         }
         const chunks: Buffer[] = [];
@@ -88,12 +96,13 @@ export async function providerRequest(
           chunks.push(chunk);
         });
         response.on("end", () => {
-          const raw = Buffer.concat(chunks).toString("utf8");
+          const buffer = Buffer.concat(chunks);
           resolve({
             status,
             headers: response.headers as Record<string, string>,
-            body: raw,
+            body: buffer.toString("utf8"),
             bytes,
+            buffer,
           });
         });
         response.on("error", () =>

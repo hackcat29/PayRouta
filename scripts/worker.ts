@@ -9,11 +9,25 @@ import { sweepCashOuts } from "../lib/treasury/offramp/cashout";
 import { workOnce, retentionSweep } from "../lib/portal/worker";
 import { refreshObservations } from "../lib/portal/provider-probes";
 import { MarketingService } from "../lib/email/marketing-service";
+import { warmLogos } from "../lib/intents/token-logos";
+import { crossChainEnabled } from "../lib/intents/checkout";
 const once = process.argv.includes("--once");
 async function main() {
   let maintenance = 0;
   let probes = 0;
+  // Token and chain logos for the crypto checkout, fetched a few at a time
+  // beside the other work (about two a minute, leaving CoinGecko's keyless
+  // allowance to checkout prices), then checked daily.
+  let logos = 0;
+  let warming = false;
   do {
+    if (!once && !warming && Date.now() > logos && crossChainEnabled()) {
+      warming = true;
+      void warmLogos()
+        .then((r) => (logos = Date.now() + (r.remaining ? 120000 : 86400000)))
+        .catch(() => (logos = Date.now() + 600000))
+        .finally(() => (warming = false));
+    }
     if (Date.now() > maintenance) {
       await retentionSweep();
       await sweepPayments();

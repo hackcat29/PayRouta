@@ -2058,3 +2058,34 @@ model SettlementAddress {
 
   @@unique([orgId, environment])
 }
+
+// Addresses a merchant sends to from their NEAR Intents wallet (payouts):
+// their exchange or other wallets, any token on any chain 1Click lists.
+model SavedAddress {
+  id          String   @id @default(cuid())
+  orgId       String
+  environment String
+  label       String
+  // The 1Click token sent: asset id, chain and symbol.
+  assetId     String
+  blockchain  String
+  symbol      String
+  address     String
+  createdBy   String
+  createdAt   DateTime @default(now())
+
+  @@index([orgId, environment, createdAt])
+}
+
+// Token and chain logos for the crypto checkout (lib/intents/token-logos.ts),
+// fetched once from CoinGecko and served from PayRouta, so customers'
+// browsers never load third-party images. `missing` remembers a logo
+// CoinGecko doesn't have, so it isn't asked for again for a while.
+model TokenLogo {
+  // "coin:<coingecko id>" or "chain:<NEAR Intents chain code>"
+  key       String   @id
+  mime      String?
+  bytes     Bytes?
+  missing   Boolean  @default(false)
+  fetchedAt DateTime @default(now())
+}

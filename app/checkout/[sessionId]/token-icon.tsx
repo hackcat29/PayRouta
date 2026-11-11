@@ -1,6 +1,10 @@
-// A token's mark in the crypto checkout: its brand colour and initials,
-// drawn here rather than loaded, so checkout never fetches third-party
-// images. Unknown tokens get a stable colour from their symbol.
+"use client";
+// A token's mark in the crypto checkout: its logo, served from PayRouta
+// (lib/intents/token-logos.ts), on a small badge of the chain it's on. Until
+// a logo exists, or if it fails to load, its brand colour and initials are
+// drawn here instead. Unknown tokens get a stable colour from their symbol.
+import { useState } from "react";
+
 const brands: Record<string, [string, string]> = {
   USDC: ["#2775ca", "#fff"],
   USDCX: ["#2775ca", "#fff"],
@@ -52,7 +56,7 @@ function colours(symbol: string): [string, string] {
   return [`hsl(${h} 45% 42%)`, "#fff"];
 }
 
-export function TokenIcon({ symbol, size = 28 }: { symbol: string; size?: number }) {
+function Mark({ symbol, size }: { symbol: string; size: number }) {
   const [bg, fg] = colours(symbol);
   const letters = glyphs[symbol.toUpperCase()] ?? symbol.replace(/^[^A-Za-z0-9]+/, "").replace(/^w(?=[A-Z])/, "").slice(0, 2);
   return (
@@ -64,4 +68,28 @@ export function TokenIcon({ symbol, size = 28 }: { symbol: string; size?: number
       style={{ background: bg, color: fg, width: size, height: size, fontSize: Math.round(size * (letters.length > 1 ? 0.36 : 0.5)) }}
     />
   );
+}
+
+function Logo({ src, symbol, size }: { src?: string; symbol: string; size: number }) {
+  const [failed, setFailed] = useState(false);
+  if (!src || failed) return <Mark symbol={symbol} size={size} />;
+  return <img className="tk-img" src={src} alt="" aria-hidden="true" width={size} height={size} loading="lazy" decoding="async" onError={() => setFailed(true)} />;
+}
+
+export function TokenIcon({ symbol, size = 28, src, chain }: { symbol: string; size?: number; src?: string; chain?: { name: string; logo?: string } }) {
+  if (!chain) return <Logo src={src} symbol={symbol} size={size} />;
+  const badge = Math.max(12, Math.round(size * 0.46));
+  return (
+    <span className="tk-stack" style={{ width: size, height: size }} aria-hidden="true">
+      <Logo src={src} symbol={symbol} size={size} />
+      <span className="tk-badge" style={{ width: badge, height: badge }}>
+        <Logo src={chain.logo} symbol={chain.name} size={badge - 2} />
+      </span>
+    </span>
+  );
+}
+
+// A chain's logo, or its initials when there's none.
+export function ChainIcon({ name, logo, size = 18 }: { name: string; logo?: string; size?: number }) {
+  return <Logo src={logo} symbol={name} size={size} />;
 }

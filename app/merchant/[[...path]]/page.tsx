@@ -1,4 +1,5 @@
 import { settlementAddressView } from "@/lib/intents/settlement-address";
+import { savedAddresses } from "@/lib/intents/saved-addresses";
 import { merchantConfiguration } from "@/lib/merchant/configuration";
 import { transactionExplorer } from "@/lib/blockchain/chains";
 import { Providers } from "./providers";
@@ -551,6 +552,7 @@ export default async function Page({
         canConfigure={configure}
         cashOut={await cashOutView(orgId, env).catch(() => undefined)}
         address={await settlementAddressView(orgId, env)}
+        savedAddresses={overview.account ? await savedAddresses(orgId, env) : []}
       />
     );
   } else if (section === "disputes") {

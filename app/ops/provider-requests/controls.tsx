@@ -1,4 +1,5 @@
 "use client";
+import { confirmAction } from "@/components/portal/confirm-dialog";
 import { errorText } from "@/lib/error-copy";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -10,7 +11,12 @@ export function ReviewRequest({ requestId, company }: { requestId: string; compa
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   async function review(form: HTMLFormElement, decision: "approve" | "decline") {
-    if (decision === "approve" ? !form.reportValidity() : !confirm(`Decline ${company}'s request?`)) return;
+    if (
+      decision === "approve"
+        ? !form.reportValidity()
+        : !(await confirmAction({ title: `Decline ${company}'s request?`, confirm: "Decline", danger: true }))
+    )
+      return;
     const f = new FormData(form);
     setBusy(true);
     setMessage("");

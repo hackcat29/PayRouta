@@ -4,6 +4,7 @@
 // Figures come from content/claims.ts or the credit arithmetic checkout uses.
 import { coverage, methodFamilies, pricing, type Availability } from "@/content/claims";
 import { instalmentOffer } from "@/lib/treasury/credit";
+import { nearIntentsCoverage } from "@/lib/intents/coverage";
 
 const naira = (minor: bigint | string) =>
   `₦${new Intl.NumberFormat("en-NG", { maximumFractionDigits: 0 }).format(Number(BigInt(minor) / 100n))}`;
@@ -118,7 +119,8 @@ export function CreditTimeline() {
 
 // 3. Crypto from any chain: whatever the customer holds is swapped on the way
 // and the merchant receives exactly the coin it asked for.
-export function CryptoRoute() {
+export async function CryptoRoute() {
+  const live = await nearIntentsCoverage();
   const chains = ["Bitcoin", "Ethereum", "Solana", "Tron", "BNB Chain", "TON", "Base", "Arbitrum", "Polygon", "Avalanche", "Stellar", "NEAR"];
   return (
     <figure className="dg dg-crypto" aria-label="Paying a USDC invoice on Base with USDT on Tron">
@@ -131,7 +133,7 @@ export function CryptoRoute() {
                 {c}
               </i>
             ))}
-            <i className="dg-more">+24 more</i>
+            {live.chains > chains.length && <i className="dg-more">+{live.chains - chains.length} more</i>}
           </span>
           <span className="dg-example">e.g. 151.69 USDT on Tron</span>
         </div>
@@ -140,7 +142,7 @@ export function CryptoRoute() {
           <span className="dg-node-title">PayRouta</span>
           <span className="dg-hub-stats">
             <b>Any</b> token
-            <b>36+</b> chains
+            <b>{live.chains}</b> chains
           </span>
         </div>
         <Arrow label="exact amount" />
@@ -355,3 +357,8 @@ export function ContinentalCreditMap() {
   );
 }
 
+
+// The number of tokens NEAR Intents lists today, for running copy.
+export async function TokenCount() {
+  return <>{(await nearIntentsCoverage()).tokens}</>;
+}

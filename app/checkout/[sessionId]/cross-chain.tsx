@@ -291,7 +291,7 @@ export function CrossChain({
       <button type="button" className="pc-token" aria-haspopup="dialog" aria-label={chosen ? `Token: ${chosen.symbol} on ${chosen.chainName}` : "Choose a token"} onClick={() => setPicking(true)}>
         {chosen ? (
           <>
-            <TokenIcon symbol={chosen.symbol} />
+            <TokenIcon symbol={chosen.symbol} src={chosen.logo} chain={{ name: chosen.chainName, logo: chosen.chainLogo }} />
             <span className="pc-token-name">
               <b>{chosen.symbol}</b>
               <small>{chosen.chainName}</small>

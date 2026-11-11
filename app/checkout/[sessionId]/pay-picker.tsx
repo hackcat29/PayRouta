@@ -33,11 +33,12 @@ export type PayToken = {
   wallet?: WalletTarget;
   chain?: string;
   via?: PayToken;
+  logo?: string;
 };
 type Options = {
   locked: boolean;
   settle: { symbol: string; amount: string } | null;
-  chains: { id: string; name: string; tokens: PayToken[] }[];
+  chains: { id: string; name: string; logo?: string; tokens: PayToken[] }[];
 };
 type Api = (action?: object) => Promise<Record<string, unknown>>;
 export type PayChoice = {
@@ -94,7 +95,7 @@ export function PayPicker({
   const [found, setFound] = useState<Row[]>([]);
 
   const listed = useMemo<Row[]>(
-    () => options?.chains.flatMap((c) => c.tokens.map((t) => ({ ...t, chainId: c.id, chainName: c.name }))) ?? [],
+    () => options?.chains.flatMap((c) => c.tokens.map((t) => ({ ...t, chainId: c.id, chainName: c.name, chainLogo: c.logo }))) ?? [],
     [options],
   );
   const rows = useMemo(() => [...listed, ...found], [listed, found]);
@@ -104,7 +105,7 @@ export function PayPicker({
   const lookup = useCallback(
     async (address: string) => {
       const r = (await api({ action: "token-lookup", address })) as {
-        tokens: { chain: string; chainName: string; address: string; symbol: string; name: string; price: number }[];
+        tokens: { chain: string; chainName: string; address: string; symbol: string; name: string; price: number; logo?: string }[];
       };
       const usdcOn = (chain: string) =>
         listed.find((t) => t.chainId === chain && t.symbol === "USDC" && t.route === "direct") ??
@@ -127,6 +128,8 @@ export function PayPicker({
             via,
             chainId: t.chain,
             chainName: t.chainName,
+            chainLogo: via.chainLogo,
+            logo: t.logo,
           },
         ];
       });
@@ -245,7 +248,7 @@ export function PayPicker({
         >
           {token ? (
             <>
-              <TokenIcon symbol={token.symbol} />
+              <TokenIcon symbol={token.symbol} src={token.logo} chain={{ name: token.chainName, logo: token.chainLogo }} />
               <span className="pc-token-name">
                 <b>{token.symbol}</b>
                 <small>{token.chainName}</small>

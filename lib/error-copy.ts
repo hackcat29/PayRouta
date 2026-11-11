@@ -17,6 +17,7 @@ const copy: Record<string, string> = {
   WORKSPACE_LIMIT_REACHED: "You've reached the number of businesses you can create. Contact support to add more.",
   // Settling to an address (lib/intents/settlement-address.ts)
   SETTLEMENT_ADDRESS_MISMATCH: "The two addresses don't match. Paste the same address in both.",
+  SAVED_ADDRESSES_FULL: "You've saved 50 addresses. Remove one to add another.",
   SETTLEMENT_ADDRESS_INVALID: "That doesn't look like an address on that network. Check you've chosen the right network.",
   // Confirming it's you (lib/portal/step-up.ts)
   STEP_UP_REQUIRED: "Confirm it's you to continue.",

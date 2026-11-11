@@ -3,7 +3,9 @@
 // payouts.ts). Connect an account you own, choose the stablecoins checkouts
 // settle in, see what it holds, and pay out or refund from it to any chain by
 // signing in your own wallet. PayRouta never holds the funds or the keys.
-import { AddressSettlement, type AddressView } from "./address-settlement";
+import { confirmAction } from "@/components/portal/confirm-dialog";
+import { Destinations, type Destination } from "./destinations";
+import { SavedAddresses, type SavedAddressView } from "./saved-addresses";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { discoverEvmWallets, type DiscoveredWallet } from "@/lib/blockchain/wallet-discovery";
@@ -70,6 +72,10 @@ export type PrivyWallets = {
   signer: (account: { accountId: string; standard: string }) => Promise<Signer | null>;
 };
 
+// Settlement straight to an address, from before it moved into the wallet's
+// saved addresses (lib/intents/settlement-address.ts).
+type AddressView = { assetId: string; symbol: string; chainName: string; address: string; active: boolean };
+
 export type CryptoBalanceProps = {
   orgId: string;
   environment: string;
@@ -79,8 +85,11 @@ export type CryptoBalanceProps = {
   tokens: Token[];
   canConfigure: boolean;
   cashOut?: CashOutView;
-  // Settling straight to an address on any chain.
+  // Settling straight to an address (no longer offered; shown so a
+  // merchant still on it can move back to their wallet).
   address?: AddressView | null;
+  // Addresses the merchant sends to from their wallet.
+  savedAddresses?: SavedAddressView[];
 };
 
 export function CryptoBalance({
@@ -93,6 +102,7 @@ export function CryptoBalance({
   canConfigure,
   cashOut,
   address,
+  savedAddresses = [],
   privy,
 }: CryptoBalanceProps & {
   privy?: PrivyWallets;
@@ -105,10 +115,9 @@ export function CryptoBalance({
   const [notice, setNotice] = useState("");
   const [settle, setSettle] = useState<string[]>(settleOptions.slice(0, 1).map((s) => `${s.network}|${s.identifier}`));
   const [quote, setQuote] = useState<Quote | null>(null);
-  // Without an account yet: settle in stablecoins, or straight to the bank.
-  const [mode, setMode] = useState<"crypto" | "address" | "bank">(
-    address?.active ? "address" : cashOut?.accounts.some((a) => a.settleCheckouts) ? "bank" : "crypto",
-  );
+  // Where crypto checkouts land: the merchant's own NEAR Intents wallet
+  // ("balance"), or their bank.
+  const [dest, setDest] = useState<Destination>(cashOut?.accounts.some((a) => a.settleCheckouts) ? "bank" : "balance");
   const [form, setForm] = useState({ originAsset: "", amount: "", chain: "", destinationAsset: "", recipient: "", note: "", refundOf: "" });
   const account = overview.account;
 
@@ -170,44 +179,150 @@ export function CryptoBalance({
         ...signed,
         assets: settle.map((k) => ({ network: k.split("|")[0], identifier: k.split("|")[1] })),
       });
-      setNotice("Connected. Operations review the account before live checkouts settle into it.");
+      setNotice("Connected. Crypto checkouts now settle into this account.");
       router.refresh();
     });
 
   if (environment !== "production") return null;
 
   const bankOn = cashOut?.accounts.find((a) => a.settleCheckouts);
+  // Where crypto checkouts land right now.
+  const receiving: Destination | null = address?.active ? null : bankOn ? "bank" : account ? "balance" : null;
+  // Settlement stablecoins grouped by token: USDC on Base, Ethereum, ...
+  const groups = [...new Set(settleOptions.map((s) => s.symbol))].map((symbol) => ({
+    symbol,
+    options: settleOptions.filter((s) => s.symbol === symbol),
+  }));
+  const off = busy || !settle.length;
+  const balances = overview.balances;
+  const origin = balances?.find((b) => b.assetId === form.originAsset);
+  const refunding = overview.payments?.find((p) => p.intentId === form.refundOf);
+  const set = (patch: Partial<typeof form>) => setForm({ ...form, ...patch });
+  const messages = (error || notice) && (
+    <div className="ms-messages">
+      {error && <p className="p-notice error" role="alert">{error}</p>}
+      {notice && <p role="status" className="p-notice">{notice}</p>}
+    </div>
+  );
 
-  if (!account) {
-    // Settlement stablecoins grouped by token: USDC on Base, Ethereum, ...
-    const groups = [...new Set(settleOptions.map((s) => s.symbol))].map((symbol) => ({
-      symbol,
-      options: settleOptions.filter((s) => s.symbol === symbol),
-    }));
-    const off = busy || !settle.length;
-    return (
-      <>
-        <section className="ms-intents-setup">
-          <h2>Get paid in crypto through NEAR Intents</h2>
-          {canConfigure ? (
-            <>
-              <fieldset className="ms-settle-mode">
-                <legend>Settle in</legend>
-                <label>
-                  <input type="radio" name="settle-mode" checked={mode === "crypto"} onChange={() => setMode("crypto")} />
-                  Stablecoins
-                </label>
-                <label>
-                  <input type="radio" name="settle-mode" checked={mode === "address"} onChange={() => setMode("address")} />
-                  An address on any chain
-                </label>
-                <label>
-                  <input type="radio" name="settle-mode" checked={mode === "bank"} onChange={() => setMode("bank")} />
-                  Your bank
-                </label>
-              </fieldset>
-              {mode === "crypto" ? (
-                <>
+  return (
+    <>
+      <Destinations value={dest} receiving={receiving} onChange={setDest} />
+      {address?.active && (
+        <section className="ms-callout">
+          <p>
+            Checkouts settle straight to {address.symbol} on {address.chainName} at <code>{address.address}</code>.
+          </p>
+          {canConfigure && (
+            <button
+              type="button"
+              className="ms-btn primary"
+              disabled={busy}
+              onClick={() =>
+                void run(async () => {
+                  await api("settlement-address-stop");
+                  router.refresh();
+                })
+              }
+            >
+              Settle into your PayRouta wallet
+            </button>
+          )}
+        </section>
+      )}
+      {messages}
+
+      {dest === "balance" &&
+        (account ? (
+      <section className="ms-flush">
+        <div className="ms-card-head">
+          <div>
+            <h2>Your PayRouta wallet</h2>
+            <p>
+              <code>{account.accountId}</code> · {account.standard === "erc191" ? "EVM wallet" : "NEAR wallet"} · connected{" "}
+              {new Date(account.connectedAt).toLocaleDateString()}
+            </p>
+            <p>
+              {address?.active
+                ? `Checkouts settle in ${address.symbol} on ${address.chainName} to ${address.address}.`
+                : bankOn
+                ? `Checkouts settle to ${bankOn.label}.`
+                : `Checkouts settle in ${overview.settlement?.map((s) => `${s.symbol} on ${s.chainName}`).join(", ") || "no stablecoins yet"}.`}
+            </p>
+            {canConfigure && account.standard !== "nep413" && privy?.manage}
+          </div>
+          {canConfigure && (
+            <button
+              className="ms-btn"
+              disabled={busy}
+              onClick={() =>
+                void run(async () => {
+                  const ok = await confirmAction({
+                    title: "Disconnect this account?",
+                    body: "New checkouts stop settling into it. The funds stay in your account.",
+                    confirm: "Disconnect",
+                    danger: true,
+                  });
+                  if (!ok) return;
+                  await api("intents-disconnect");
+                  router.refresh();
+                })
+              }
+            >
+              Disconnect
+            </button>
+          )}
+        </div>
+        {!account.keyRegistered && (
+          <div className="p-notice">
+            <button
+              className="ms-btn"
+              disabled={busy || !canConfigure}
+              onClick={() =>
+                void run(async () => {
+                  await registerKey(await ownSigner(connectNear), account.publicKey!);
+                  setNotice("Key registered. You can pay out now.");
+                  router.refresh();
+                })
+              }
+            >
+              Register wallet key to pay out
+            </button>
+          </div>
+        )}
+        <h3 className="ms-flush-title">Balance</h3>
+        {balances === null ? (
+          <p className="ms-empty-line">The balance can&apos;t be read right now. Try again shortly.</p>
+        ) : !balances?.length ? (
+          <p className="ms-empty-line">Nothing yet.</p>
+        ) : (
+          <div className="p-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Token</th>
+                  <th>Held as</th>
+                  <th>Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {balances.map((b) => (
+                  <tr key={b.assetId}>
+                    <td>{b.symbol}</td>
+                    <td>{b.chainName}</td>
+                    <td>{b.amount}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+        ) : (
+          <section className="ms-intents-setup">
+            <h2>Your PayRouta wallet</h2>
+            {canConfigure ? (
+              <>
                   <fieldset className="ms-settle" disabled={busy}>
                     <legend className="sr-only">Stablecoins</legend>
                     {groups.map((g) => (
@@ -251,115 +366,29 @@ export function CryptoBalance({
                   {busy && <p role="status" className="ms-dim">Waiting for your wallet…</p>}
                   {!settle.length && <p className="p-notice error">Choose at least one stablecoin to settle in.</p>}
                   {privy?.manage}
-                </>
-              ) : mode === "address" ? (
-                <AddressSettlement orgId={orgId} current={address ?? null} canConfigure={canConfigure} />
-              ) : (
-                bankOn && <p role="status">Checkouts settle to {bankOn.label}.</p>
-              )}
-            </>
-          ) : (
-            <p>Ask an owner or admin to connect an account.</p>
-          )}
-          {error && <p className="p-notice error" role="alert">{error}</p>}
-          {notice && <p role="status">{notice}</p>}
-        </section>
-        {canConfigure && mode === "bank" && cashOut && (
-          <CashOut view={cashOut} balances={[]} api={api} run={run} busy={busy} signAndSubmit={async () => {}} />
-        )}
-      </>
-    );
-  }
-
-  const balances = overview.balances;
-  const origin = balances?.find((b) => b.assetId === form.originAsset);
-  const refunding = overview.payments?.find((p) => p.intentId === form.refundOf);
-  const set = (patch: Partial<typeof form>) => setForm({ ...form, ...patch });
-
-  return (
-    <>
-      <section className="ms-flush">
-        <div className="ms-card-head">
-          <div>
-            <h2>NEAR Intents account</h2>
-            <p>
-              <code>{account.accountId}</code> · {account.standard === "erc191" ? "EVM wallet" : "NEAR wallet"} · connected{" "}
-              {new Date(account.connectedAt).toLocaleDateString()}
-            </p>
-            <p>
-              {address?.active
-                ? `Checkouts settle in ${address.symbol} on ${address.chainName} to ${address.address}.`
-                : bankOn
-                ? `Checkouts settle to ${bankOn.label}.`
-                : `Checkouts settle in ${overview.settlement?.map((s) => `${s.symbol} on ${s.chainName}`).join(", ") || "no stablecoins yet"}.`}
-            </p>
-            {canConfigure && account.standard !== "nep413" && privy?.manage}
-          </div>
-          {canConfigure && (
-            <button
-              className="ms-btn"
-              disabled={busy}
-              onClick={() =>
-                void run(async () => {
-                  if (!confirm("Disconnect this account? New checkouts stop settling into it; the funds stay in your account.")) return;
-                  await api("intents-disconnect");
-                  router.refresh();
-                })
-              }
-            >
-              Disconnect
-            </button>
-          )}
-        </div>
-        {!account.keyRegistered && (
-          <div className="p-notice">
-            <button
-              className="ms-btn"
-              disabled={busy || !canConfigure}
-              onClick={() =>
-                void run(async () => {
-                  await registerKey(await ownSigner(connectNear), account.publicKey!);
-                  setNotice("Key registered. You can pay out now.");
-                  router.refresh();
-                })
-              }
-            >
-              Register wallet key to pay out
-            </button>
-          </div>
-        )}
-        <h3>Balance</h3>
-        {balances === null ? (
-          <p className="ms-empty-line">The balance can&apos;t be read right now. Try again shortly.</p>
-        ) : !balances?.length ? (
-          <p className="ms-empty-line">Nothing yet.</p>
-        ) : (
-          <div className="p-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Token</th>
-                  <th>Held as</th>
-                  <th>Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {balances.map((b) => (
-                  <tr key={b.assetId}>
-                    <td>{b.symbol}</td>
-                    <td>{b.chainName}</td>
-                    <td>{b.amount}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-
+              </>
+            ) : (
+              <p>Ask an owner or admin to connect an account.</p>
+            )}
+          </section>
+        ))}
+      {dest === "balance" && account && (
+        <>
+          <SavedAddresses
+            orgId={orgId}
+            addresses={savedAddresses}
+            tokens={tokens}
+            canConfigure={canConfigure}
+            canSend={!!balances?.length}
+            onSend={(a) => {
+              setQuote(null);
+              setForm({ originAsset: balances?.[0]?.assetId ?? "", amount: "", chain: a.chain, destinationAsset: a.assetId, recipient: a.address, note: `To ${a.label}`, refundOf: "" });
+              requestAnimationFrame(() => document.getElementById("ms-send")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+            }}
+          />
       {canConfigure && !!balances?.length && (
-        <section>
-          <h2>{refunding ? `Refund ${refunding.reference}` : "Pay out"}</h2>
+        <section id="ms-send">
+          <h2>{refunding ? `Refund ${refunding.reference}` : "Send"}</h2>
           {quote ? (
             <div className="ms-link-created" role="status">
               <p>
@@ -496,41 +525,30 @@ export function CryptoBalance({
           )}
         </section>
       )}
-      {address?.active ? (
-        <section>
-          <h2>Settle to an address</h2>
-          <AddressSettlement orgId={orgId} current={address} canConfigure={canConfigure} />
-        </section>
-      ) : (
-        canConfigure && (
-          <details className="ms-details">
-            <summary>Settle to an address on any chain instead</summary>
-            <div className="ms-details-body">
-              <AddressSettlement orgId={orgId} current={address ?? null} canConfigure={canConfigure} />
-            </div>
-          </details>
-        )
-      )}
-      {canConfigure && account && cashOut && (
-        <CashOut
-          view={cashOut}
-          balances={balances ?? []}
-          api={api}
-          run={run}
-          busy={busy}
-          signAndSubmit={async (q: PayoutQuote) => {
-            const signed = await signIntent(await ownSigner(), q.sign);
-            await api("intents-payout-submit", { id: q.payout.id, ...signed });
-          }}
-        />
-      )}
-      {(error || notice) && (
-        <section>
-          {error && <p className="p-notice error">{error}</p>}
-          {notice && <p role="status">{notice}</p>}
-        </section>
+        </>
       )}
 
+      {dest === "bank" &&
+        (canConfigure && cashOut ? (
+          <CashOut
+            view={cashOut}
+            balances={account ? (balances ?? []) : []}
+            api={api}
+            run={run}
+            busy={busy}
+            signAndSubmit={async (q: PayoutQuote) => {
+              const signed = await signIntent(await ownSigner(), q.sign);
+              await api("intents-payout-submit", { id: q.payout.id, ...signed });
+            }}
+          />
+        ) : (
+          <section>
+            <p>Ask an owner or admin to set up your bank.</p>
+          </section>
+        ))}
+
+      {account && (
+        <>
       <section className="ms-flush">
         <div className="ms-card-head">
           <div>
@@ -644,6 +662,8 @@ export function CryptoBalance({
           </div>
         )}
       </section>
+        </>
+      )}
     </>
   );
 }

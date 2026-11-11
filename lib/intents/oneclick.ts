@@ -1,6 +1,6 @@
 // NEAR Intents 1Click API (https://1click.chaindefuser.com, OpenAPI v0):
 // cross-chain payments from any wallet. NEAR Intents is a universal
-// liquidity layer for 125+ assets across 36+ blockchain networks. For a crypto checkout, PayRouta asks
+// liquidity layer for 200+ assets across 35+ blockchain networks. For a crypto checkout, PayRouta asks
 // 1Click for an EXACT_OUTPUT quote that delivers the invoice amount of the
 // merchant's chosen stablecoin to the merchant's receive address. The
 // customer sends the quoted amount of whatever token they hold, on whatever
@@ -17,7 +17,7 @@ import { secretManager } from "../portal/adapters";
 import { providerRequest, type ProviderHttpOptions, type ProviderHttpResponse } from "../providers/adapters/http";
 
 export const oneClickBase = "https://1click.chaindefuser.com";
-type Response = Pick<ProviderHttpResponse, "status" | "headers" | "body">;
+type Response = Pick<ProviderHttpResponse, "status" | "headers" | "body" | "buffer">;
 export type Http = (base: string, options: ProviderHttpOptions) => Promise<Response>;
 
 // PayRouta mainnet stablecoins that 1Click can deliver: (network, identifier)
@@ -53,7 +53,7 @@ export const chainNames: Record<string, string> = {
   xrp: "XRP Ledger", doge: "Dogecoin", ltc: "Litecoin", bch: "Bitcoin Cash", zec: "Zcash", cardano: "Cardano",
   gnosis: "Gnosis", bera: "Berachain", scroll: "Scroll", monad: "Monad", xlayer: "X Layer", starknet: "Starknet",
   dash: "Dash", movement: "Movement", hypercore: "Hyperliquid", hlevm: "HyperEVM", plasma: "Plasma", fogo: "Fogo",
-  aleo: "Aleo", abs: "Abstract",
+  aleo: "Aleo", abs: "Abstract", adi: "ADI Chain", hood: "Robinhood Chain", miden: "Miden",
 };
 
 const token = z
@@ -64,6 +64,8 @@ const token = z
     symbol: z.string().min(1).max(40),
     price: z.union([z.number(), z.string()]).optional(),
     contractAddress: z.string().max(300).optional().nullable(),
+    // For its logo (token-logos.ts); "custom:…" when CoinGecko has none.
+    coingeckoId: z.string().max(120).optional().nullable(),
   })
   .passthrough();
 export type OneClickToken = z.infer<typeof token>;

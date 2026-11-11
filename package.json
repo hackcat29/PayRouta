@@ -16,6 +16,7 @@
     "db:seed": "tsx scripts/seed.ts",
     "portal:worker": "tsx scripts/worker.ts",
     "portal:worker:once": "tsx scripts/worker.ts --once",
+    "logos:warm": "tsx scripts/warm-logos.ts",
     "portal:code": "tsx scripts/dev-code.ts",
     "portal:db": "node scripts/local-db.mjs",
     "test:portal": "playwright test --config playwright.portal.config.ts",

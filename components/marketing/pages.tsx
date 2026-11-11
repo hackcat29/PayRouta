@@ -9,6 +9,7 @@ import {
   CoverageGrid,
   CreditTimeline,
   CryptoRoute,
+  TokenCount,
   FeeBars,
   JoinSteps,
   PartnerMap,
@@ -257,7 +258,7 @@ function Crypto() {
       </section>
       <Feature title="Whatever your customer holds" tone="paper" visual={<PayWithCa />}>
         <p>
-          125+ tokens through NEAR Intents, and any other by pasting its contract address. The swap into your stablecoin
+          <TokenCount /> tokens through NEAR Intents, and any other by pasting its contract address. The swap into your stablecoin
           succeeds before the payment does, so you receive exactly what you asked for.
         </p>
         <TextLink href={docsUrl("cross-chain")}>Paying from another chain</TextLink>

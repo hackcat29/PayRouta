@@ -1,4 +1,5 @@
 "use client";
+import { confirmAction } from "@/components/portal/confirm-dialog";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { countries } from "@/lib/portal/domain";
@@ -308,17 +309,14 @@ export function Providers({
                 !reapplyStates.includes(application.state) && (
                   <button
                     disabled={busy}
-                    onClick={() => {
-                      if (
-                        window.confirm(
-                          `Stop sharing with ${p.name} and disconnect it from PayRouta? Your ${p.name} account itself stays open and remains yours.`,
-                        )
-                      )
-                        void command(
-                          { action: "revoke", partnerId: p.id },
-                          "Disconnected.",
-                        );
-                    }}
+                    onClick={() =>
+                      void confirmAction({
+                        title: `Disconnect ${p.name}?`,
+                        body: `PayRouta stops sharing with ${p.name}. Your ${p.name} account stays open and remains yours.`,
+                        confirm: "Disconnect",
+                        danger: true,
+                      }).then((ok) => ok && command({ action: "revoke", partnerId: p.id }, "Disconnected."))
+                    }
                   >
                     Disconnect
                   </button>

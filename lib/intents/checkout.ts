@@ -30,6 +30,7 @@ import { chainNames, destinationFor, generateIntent, quote, status, submitIntent
 import { intentsAccount, solanaOwner } from "./near";
 import { evmChainIds } from "./evm-chains";
 import { checkFundingIntent } from "./payouts";
+import { chainLogo, coinLogo } from "./logo-paths";
 import { ed25519Signature, secp256k1Signature, type SignedIntent } from "./signing";
 import { erc191Signer, verifyNep413 } from "./verify";
 import { providerRequest } from "../providers/adapters/http";
@@ -190,7 +191,12 @@ export type PayToken = {
   price?: number;
   contract?: string;
   wallet?: WalletTarget;
+  // Its logo (/api/logos/...), when CoinGecko knows it.
+  logo?: string;
 };
+
+// CoinGecko ids for the stablecoins merchants receive directly.
+const directCoins: Record<string, string> = { USDC: "usd-coin", USDT: "tether", EURC: "euro-coin", DAI: "dai", PYUSD: "paypal-usd" };
 
 // The checkout's crypto picker: every token the customer could pay with,
 // grouped by the network they pay from. The customer only says what they
@@ -239,7 +245,7 @@ type Routed = { id: string | null; network: string; identifier: string; symbol?:
 // directly (an address pool) is sent as is and listed once; with swaps on,
 // every NEAR Intents token swaps into one settlement stablecoin, preferably
 // one that settles into the merchant's intents account.
-type Listed = { assetId: string; blockchain: string; symbol: string; price?: number | string; contractAddress?: string | null };
+type Listed = { assetId: string; blockchain: string; symbol: string; price?: number | string; contractAddress?: string | null; coingeckoId?: string | null };
 // `preferred`: the merchant's choice of the receive stablecoin swaps settle
 // into, when this checkout offers it.
 export function payTokens(options: Routed[], swaps: boolean, listed: Listed[], preferred?: { network: string; identifier: string } | null) {
@@ -249,11 +255,15 @@ export function payTokens(options: Routed[], swaps: boolean, listed: Listed[], p
       options.find((o) => deliverable(o) && o.network === preferred?.network && o.identifier.toLowerCase() === preferred?.identifier.toLowerCase()) ??
       options.find(deliverable))
     : undefined;
-  const chains = new Map<string, { id: string; name: string; tokens: PayToken[] }>();
+  const chains = new Map<string, { id: string; name: string; logo?: string; tokens: PayToken[] }>();
+  // A token the merchant receives directly is listed instead of swapping the
+  // same token; two different tokens a chain lists under one symbol (bridged
+  // and native USDC, say) are both shown, told apart by contract.
   const add = (id: string, name: string, t: PayToken) => {
-    if (!chains.has(id)) chains.set(id, { id, name, tokens: [] });
+    if (!chains.has(id)) chains.set(id, { id, name, logo: chainLogo(id), tokens: [] });
     const c = chains.get(id)!;
-    if (!c.tokens.some((x) => x.symbol === t.symbol)) c.tokens.push(t);
+    if (c.tokens.some((x) => x.key === t.key || (x.symbol === t.symbol && x.route === "direct" && t.route === "swap"))) return;
+    c.tokens.push(t);
   };
   for (const o of options.filter((o) => !o.intents && o.symbol)) {
     const code = chainCodes[o.network] ?? o.network;
@@ -268,6 +278,7 @@ export function payTokens(options: Routed[], swaps: boolean, listed: Listed[], p
       identifier: o.identifier,
       contract: o.identifier.slice(o.identifier.indexOf(":") + 1),
       wallet: directWallet(o.network),
+      logo: coinLogo(directCoins[o.symbol!.toUpperCase()]),
     });
   }
   const usd = target && usdStable.has(target.symbol ?? "") ? Number(target.amount) : 0;
@@ -283,6 +294,7 @@ export function payTokens(options: Routed[], swaps: boolean, listed: Listed[], p
         ...(Number(t.price) > 0 ? { price: Number(t.price), approx: approximate(usd, Number(t.price)) } : {}),
         ...(t.contractAddress ? { contract: t.contractAddress } : {}),
         wallet: swapWallet(t.blockchain),
+        logo: coinLogo(t.coingeckoId),
       });
   return {
     settle: target ? { symbol: target.symbol!, amount: target.amount } : null,

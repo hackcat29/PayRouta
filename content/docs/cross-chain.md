@@ -1,6 +1,6 @@
 # Pay from any chain
 
-All crypto and stablecoin payments in PayRouta are powered by [NEAR Intents](https://docs.near-intents.org), a universal liquidity layer that supports over 125 assets across 36+ blockchain networks, including Bitcoin, Ethereum, Solana, Tron, BNB Chain, TON, Base, Arbitrum, Polygon, Avalanche and Stellar. Customers pay with whatever token and chain they hold, and you receive the exact coin, network and amount you configured in your own wallet.
+All crypto and stablecoin payments in PayRouta are powered by [NEAR Intents](https://docs.near-intents.org), a universal liquidity layer that supports over 200 assets across more than 35 blockchain networks, including Bitcoin, Ethereum, Solana, Tron, BNB Chain, TON, Base, Arbitrum, Polygon, Avalanche and Stellar. Customers pay with whatever token and chain they hold, and you receive the exact coin, network and amount you configured in your own wallet.
 
 When you want to off-ramp crypto into a local bank account, on-ramp fiat collections (`USD`, `EUR`, `NGN`, `KES`, `GHS`, `ZAR`) into `USDC` or `USDT`, or route payouts to regional banks, those settlement and liquidity operations are handled by PayRouta's licensed settlement partners. See [Settlement](settlement.md).
 
@@ -22,7 +22,7 @@ If the swap can't complete, the intents network refunds the customer on their ow
 
 ## What you receive
 
-| Your checkout asks for | Payable from any of NEAR Intents' 125+ assets |
+| Your checkout asks for | Payable from any of NEAR Intents' 200+ assets |
 | --- | --- |
 | USDC on Base, Ethereum, Arbitrum, Polygon, Avalanche, Solana or Stellar | Yes |
 | USDT on Ethereum, Avalanche or Solana | Yes |
@@ -45,7 +45,7 @@ Either way, you receive USDC exactly as for any USDC payment, and you never hold
 
 ## Choose what you receive
 
-Under **Balances → Crypto → Settle in**, choose the stablecoins checkouts settle in, in your own NEAR Intents account, or **Your bank** to be paid in your bank's currency. From the NEAR Intents account you can pay out in any token, on any chain (see [Your NEAR Intents Account](near-intents.md)).
+Under **Balances → Crypto**, choose where crypto checkouts land: **Your PayRouta wallet** (your own NEAR Intents account, in the stablecoins you pick) or **Bank or mobile money** to be paid in your bank's currency. From the NEAR Intents account you can pay out in any token, on any chain (see [Your NEAR Intents Account](near-intents.md)).
 
 ## Configuration & routing
 

@@ -60,9 +60,38 @@ test("a sensitive action asks to confirm it's you in place; security and dark mo
   await db.merchantConfig.create({ data: { orgId: live.id, returnOrigin: origin, environment: "production" } });
   await db.membership.create({ data: { orgId: live.id, userId: owner.id, role: "Owner", merchantRole: "Owner" } });
   await page.goto(`/merchant/crypto-balance?orgId=${live.id}&environment=production`);
-  await page.getByLabel("An address on any chain").check();
-  await expect(page.getByLabel("Your address on that network")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Where your crypto payments land" })).toBeVisible();
+  await page.getByRole("radio", { name: /Bank or mobile money/ }).check();
+  await expect(page.getByRole("heading", { name: "Cash out to your bank" })).toBeVisible();
   await page.waitForTimeout(3000);
-  await expect(page.getByLabel("An address on any chain")).toBeChecked();
-  await expect(page.getByLabel("Your address on that network")).toBeVisible();
+  await expect(page.getByRole("radio", { name: /Bank or mobile money/ })).toBeChecked();
+  await expect(page.getByRole("radio", { name: /Your own wallet/ })).toHaveCount(0);
+  // The browser's own confirm() is gone: the app's dialog asks instead.
+  page.on("dialog", () => {
+    throw new Error("A native browser dialog opened");
+  });
+
+  // Saved addresses in the wallet: add (confirming it's you), then remove
+  // with the app's own dialog.
+  await db.intentsAccount.create({
+    data: { orgId: live.id, environment: "production", accountId: "0xf3228565c673104e9d1eca8b72b33f38b106494e", standard: "erc191", proof: {}, createdBy: owner.id },
+  });
+  await page.goto(`/merchant/crypto-balance?orgId=${live.id}&environment=production`);
+  await page.getByRole("button", { name: "Add an address" }).click();
+  await page.getByLabel("Name", { exact: true }).fill("Binance USDT");
+  const tron = page.getByLabel("Token and network").locator("option", { hasText: /USDT on Tron/ });
+  await page.getByLabel("Token and network").selectOption((await tron.first().getAttribute("value"))!);
+  await page.getByLabel("Address", { exact: true }).fill("TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf");
+  await page.getByLabel("The same address again").fill("TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf");
+  await page.getByRole("button", { name: "Save address" }).click();
+  const confirm = page.getByRole("dialog", { name: "Confirm it's you" });
+  if (await confirm.isVisible().catch(() => false)) {
+    await confirm.getByLabel("Code from your authenticator app").fill(await otp());
+    await confirm.getByRole("button", { name: "Confirm", exact: true }).click();
+  }
+  await expect(page.getByText("Binance USDT")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Send" })).toBeDisabled();
+  await page.getByRole("button", { name: "Remove" }).click();
+  await page.getByRole("dialog", { name: "Remove Binance USDT?" }).getByRole("button", { name: "Remove" }).click();
+  await expect(page.getByText("No saved addresses yet.")).toBeVisible();
 });

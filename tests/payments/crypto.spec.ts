@@ -532,7 +532,7 @@ test("crypto checkout selects ETH Base or exact PEPE Ethereum and sends the chos
   await expect(page.getByText(/Rate by CoinGecko/)).toBeVisible();
   await expect(page.getByRole("timer")).toBeVisible();
   await page.getByRole("button", { name: /^Token:/ }).click();
-  await page.getByLabel("Network", { exact: true }).selectOption("eth");
+  await page.getByRole("group", { name: "Network" }).getByRole("button", { name: "Ethereum", exact: true }).click();
   await page.getByRole("button", { name: /^PEPE\s*Ethereum/ }).click();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(

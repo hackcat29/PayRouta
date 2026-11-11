@@ -2,6 +2,7 @@
 // Subscriptions: plans (a price per period, usage meters, or both) and the
 // customers on them. Each period the customer gets an invoice to pay from
 // any wallet (lib/subscriptions).
+import { confirmAction } from "@/components/portal/confirm-dialog";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -540,10 +541,15 @@ export function SubscriptionDetail({
               type="button"
               className="ms-btn danger"
               disabled={busy}
-              onClick={() => {
-                if (confirm("Cancel this subscription now? Usage so far is invoiced; unpaid invoices are voided."))
-                  void send({ action: "subscription-cancel", id: sub.id, input: { atPeriodEnd: false } });
-              }}
+              onClick={() =>
+                void confirmAction({
+                  title: "Cancel this subscription now?",
+                  body: "Usage so far is invoiced; unpaid invoices are voided.",
+                  confirm: "Cancel subscription",
+                  cancel: "Keep it",
+                  danger: true,
+                }).then((ok) => ok && send({ action: "subscription-cancel", id: sub.id, input: { atPeriodEnd: false } }))
+              }
             >
               Cancel now
             </button>

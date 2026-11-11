@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmAction } from "@/components/portal/confirm-dialog";
 import React, { useState, useEffect } from "react";
 import {
   PaperPlaneTilt,
@@ -217,7 +218,7 @@ export function MarketingDashboard() {
       setFeedback({ type: "error", text: "Subject and content are required" });
       return;
     }
-    if (!confirm(`Are you ready to send this broadcast to "${campAudience}" audience?`)) {
+    if (!(await confirmAction({ title: "Send this broadcast?", body: `It goes to the "${campAudience}" audience now.`, confirm: "Send broadcast" }))) {
       return;
     }
 

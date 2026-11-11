@@ -1,4 +1,5 @@
-import { setSettlementAddress, settlementAssets, stopSettlementAddress } from "@/lib/intents/settlement-address";
+import { stopSettlementAddress } from "@/lib/intents/settlement-address";
+import { addSavedAddress, removeSavedAddress } from "@/lib/intents/saved-addresses";
 import { createPaymentLink, setPaymentLinkActive } from "@/lib/merchant/payment-links";
 import { subscriptionCommand } from "@/lib/subscriptions/service";
 import { createMerchantCryptoCheckout } from "@/lib/merchant/crypto-checkout";
@@ -117,13 +118,12 @@ export async function POST(request: Request) {
       if (raw.action === "cashout-settle-checkouts") return setBankSettlement(orgId, raw.input, request.headers);
       throw new PortalError("UNKNOWN_ACTION", 400);
     }
-    // Settling crypto checkouts to an address on any chain.
-    if (raw?.action === "settlement-address-options") {
-      await merchantMember(z.string().min(1).parse(raw.orgId), "read", request.headers);
-      return { assets: await settlementAssets() };
-    }
-    if (raw?.action === "settlement-address-set")
-      return setSettlementAddress(z.string().min(1).parse(raw.orgId), raw.input, request.headers);
+    // Addresses merchants send to from their NEAR Intents wallet.
+    if (raw?.action === "saved-address-add") return addSavedAddress(z.string().min(1).parse(raw.orgId), raw.input, request.headers);
+    if (raw?.action === "saved-address-remove") return removeSavedAddress(z.string().min(1).parse(raw.orgId), raw.input, request.headers);
+    // Settling straight to an address is retired: crypto settles into the
+    // merchant's NEAR Intents wallet, which sends to their saved addresses.
+    // A merchant still on it can stop.
     if (raw?.action === "settlement-address-stop") return stopSettlementAddress(z.string().min(1).parse(raw.orgId), request.headers);
     // Which receive stablecoin payments in other tokens settle into.
     if (raw?.action === "swap-settlement")

@@ -4,6 +4,9 @@ import { pages, type PageSlug } from "@/content/marketing";
 import { pageComponents } from "@/components/marketing/pages";
 import { trustedOrigin, marketingPaths } from "@/lib/site-config";
 
+// Re-rendered every six hours, for NEAR Intents' live token and chain counts.
+export const revalidate = 21600;
+
 export function generateStaticParams() {
   return Object.values(marketingPaths).map((path) => ({
     path: path.slice(1).split("/"),

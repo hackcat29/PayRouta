@@ -160,7 +160,7 @@ export const pillars: {
     id: "anyChain",
     title: "Any wallet, any chain",
     availability: "available",
-    note: "Pay with any token on any chain: 125+ listed through NEAR Intents across 36+ chains, and any other by its contract address, swapped to the merchant's stablecoin before the payment completes.",
+    note: "Pay with any token on any chain: every token NEAR Intents lists, and any other by its contract address, swapped to the merchant's stablecoin before the payment completes.",
   },
   {
     id: "platforms",
@@ -216,13 +216,14 @@ export const pricing = {
 } as const;
 
 // The front page's figures. Each restates a line above: ways to pay from
-// methodFamilies, chains from pillars.anyChain. "Any" token: listed ones
-// through NEAR Intents, any other by its contract address.
-export const figures: { value: string; prefix?: string; suffix?: string; label: string }[] = [
+// methodFamilies, chains counted live from NEAR Intents' token list
+// (lib/intents/coverage.ts; this value is the fallback). "Any" token: listed
+// ones through NEAR Intents, any other by its contract address.
+export const figures: { value: string; prefix?: string; suffix?: string; label: string; live?: "chains" }[] = [
   { value: "1", label: "checkout for every customer" },
   { value: String(methodFamilies.length), label: "ways to pay" },
   { value: "Any", label: "token, listed or by contract address" },
-  { value: "36", suffix: "+", label: "chains" },
+  { value: "39", label: "chains", live: "chains" },
 ];
 
 // The front page's strip of ways to pay, by family, with the brand mark from

@@ -1,7 +1,15 @@
-/* The "Confirm it's you" dialog (step-up.tsx). Uses the dashboard's colour
-   tokens, so it follows light and dark mode. */
+/* The app's dialogs: "Confirm it's you" (step-up.tsx) and "Are you sure?"
+   (confirm-dialog.tsx). Centred over everything, in the dashboard's colour
+   tokens so light and dark mode both work. Every rule is scoped to the
+   dialog, so page styles (such as .ms-body button) never leak in. */
 .su-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
   width: min(420px, calc(100vw - 32px));
+  height: fit-content;
+  max-height: calc(100vh - 32px);
+  overflow: auto;
   padding: 28px 28px 24px;
   border: 1px solid var(--line, #e2e7e8);
   border-radius: 18px;
@@ -10,85 +18,113 @@
   box-shadow: 0 30px 80px -20px rgba(14, 18, 52, 0.45);
   font: 14px/1.5 Inter, system-ui, sans-serif;
 }
+.su-dialog[open] {
+  animation: su-in 0.18s ease-out;
+}
+@keyframes su-in {
+  from {
+    transform: translateY(8px) scale(0.98);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .su-dialog[open] {
+    animation: none;
+  }
+}
 .su-dialog::backdrop {
-  background: rgba(14, 18, 52, 0.45);
-  backdrop-filter: blur(2px);
+  background: rgba(14, 18, 52, 0.5);
+  backdrop-filter: blur(3px);
 }
 .su-dialog h2 {
-  margin: 0 32px 12px 0;
+  margin: 0 36px 10px 0;
+  color: inherit;
   font-size: 20px;
   font-weight: 650;
   letter-spacing: -0.01em;
 }
 .su-dialog p {
-  margin: 0 0 16px;
+  margin: 0 0 18px;
   color: var(--muted, #62668a);
 }
-.su-form {
+.su-dialog .su-form {
   display: grid;
   gap: 8px;
   margin-top: 12px;
 }
-.su-form label {
+.su-dialog .su-form label {
   font-size: 13px;
   font-weight: 600;
 }
-.su-form input {
-  min-height: 44px;
+.su-dialog .su-form input {
+  width: 100%;
+  min-height: 46px;
   padding: 8px 12px;
   border: 1px solid var(--line-2, #cfd5e6);
   border-radius: 10px;
   background: var(--card, #fff);
   color: inherit;
   font: inherit;
-  font-size: 18px;
-  letter-spacing: 0.2em;
+  font-size: 20px;
+  letter-spacing: 0.25em;
+  text-align: center;
 }
-.su-form input:focus {
+.su-dialog .su-form input:focus {
   outline: 2px solid var(--accent, #2e37a4);
   outline-offset: 1px;
 }
-.su-actions {
+.su-dialog .su-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
-.su-primary,
-.su-secondary {
+.su-dialog .su-end {
+  justify-content: flex-end;
+}
+.su-dialog .su-primary,
+.su-dialog .su-secondary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-height: 42px;
   padding: 8px 16px;
   border-radius: 10px;
+  box-shadow: none;
   font: inherit;
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
 }
-.su-primary {
-  border: 0;
+.su-dialog .su-primary {
+  border: 1px solid transparent;
   background: var(--accent, #2e37a4);
   color: #fff;
 }
-.su-secondary {
+.su-dialog .su-danger {
+  background: #c4321f;
+}
+.su-dialog .su-secondary {
   border: 1px solid var(--line-2, #cfd5e6);
   background: transparent;
   color: inherit;
 }
-.su-primary:disabled,
-.su-secondary:disabled {
+.su-dialog .su-primary:disabled,
+.su-dialog .su-secondary:disabled {
   opacity: 0.6;
   cursor: progress;
 }
-.su-wide {
+.su-dialog .su-wide,
+.su-dialog .su-form .su-primary,
+.su-dialog .su-form .su-secondary {
   width: 100%;
 }
-.su-link {
-  justify-self: start;
-  padding: 0;
+.su-link,
+.su-dialog .su-link {
+  justify-self: center;
+  min-height: 0;
+  padding: 4px 0;
   border: 0;
   background: none;
+  box-shadow: none;
   color: var(--accent-ink, var(--accent, #2e37a4));
   font: inherit;
   font-weight: 600;
@@ -96,27 +132,37 @@
   text-underline-offset: 2px;
   cursor: pointer;
 }
-.su-error {
-  margin: 14px 0 0 !important;
+.su-dialog .su-error {
+  margin: 14px 0 0;
   padding: 10px 12px;
   border-radius: 10px;
   background: var(--danger-bg, #fdecec);
-  color: var(--danger, #9b1c1c) !important;
+  color: var(--danger, #9b1c1c);
 }
-.su-close {
+.su-dialog .su-close {
   position: absolute;
-  top: 14px;
-  right: 14px;
+  top: 16px;
+  right: 16px;
+  display: grid;
+  place-items: center;
   width: 32px;
   height: 32px;
+  min-height: 0;
+  padding: 0;
   border: 0;
   border-radius: 8px;
   background: none;
+  box-shadow: none;
   color: var(--muted, #62668a);
   font-size: 22px;
   line-height: 1;
   cursor: pointer;
 }
-.su-close:hover {
-  background: var(--canvas, #f5f3ee);
+.su-dialog .su-close:hover {
+  background: var(--chip, #eef1f2);
+}
+/* The host confirm-dialog.tsx mounts outside the page: tokens, no layout. */
+.portal.cd-host {
+  min-height: 0;
+  background: none;
 }

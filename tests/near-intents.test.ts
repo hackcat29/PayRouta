@@ -12,8 +12,10 @@ import { deliveries, intentsAccount, solanaOwner } from "../lib/intents/near";
 import { ed25519Signature, secp256k1Signature } from "../lib/intents/signing";
 import { erc191Signer, nep413Hash, verifyNep413, verifyRawEd25519 } from "../lib/intents/verify";
 import { checkFundingIntent } from "../lib/intents/payouts";
-import { quote, oneClickBase, type Http } from "../lib/intents/oneclick";
+import { quote, oneClickBase, resetTokenCache, type Http } from "../lib/intents/oneclick";
 import { approximate, payTokens, walletTransfer } from "../lib/intents/checkout";
+import { chainLogo, coinLogo, logoKey, tokenLogo } from "../lib/intents/logo-paths";
+import { lastCounted, nearIntentsCoverage } from "../lib/intents/coverage";
 import { evmTransfer } from "../lib/blockchain/wallet-payment";
 import { intentsDepositConfigSchema, intentsDepositExecutionAdapter, type IntentsSwap } from "../lib/providers/adapters/native/near-intents-deposit";
 import { factAction } from "../lib/payments/contracts";
@@ -643,4 +645,61 @@ test("pay options: swaps settle into the merchant's chosen receive stablecoin wh
   assert.equal(routeOf(payTokens([options[0]], true, listed, usdtSol), "tron", "USDT")!.optionId, "o1");
   // A merchant settling into a NEAR Intents account always settles there.
   assert.equal(routeOf(payTokens([option("o3", baseUsdc, "USDC", true), options[1]], true, listed, usdtSol), "tron", "USDT")!.optionId, "o3");
+});
+
+test("pay options: logos for every token and chain, and both tokens a chain lists under one symbol", () => {
+  const twins = [
+    { assetId: "nep141:arb-usdc", blockchain: "arb", symbol: "USDC", contractAddress: "0xaf88d065e77c8cc2239327c5edb3a432268e5831", coingeckoId: "usd-coin" },
+    { assetId: "nep141:arb-usdce", blockchain: "arb", symbol: "USDC", contractAddress: "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8", coingeckoId: "usd-coin-ethereum-bridged" },
+    { assetId: "nep141:arb-x", blockchain: "arb", symbol: "XYZ", coingeckoId: "custom:not-on-coingecko" },
+    ...listed,
+  ];
+  const r = payTokens([option("o1", baseUsdc, "USDC", false)], true, twins);
+  const arb = r.chains.find((c) => c.id === "arb")!;
+  assert.equal(arb.logo, "/api/logos/chain/arb");
+  assert.deepEqual(
+    arb.tokens.filter((t) => t.symbol === "USDC").map((t) => [t.contract, t.logo]),
+    [
+      ["0xaf88d065e77c8cc2239327c5edb3a432268e5831", "/api/logos/coin/usd-coin"],
+      ["0xff970a61a04b1ca14834a43f5de4533ebddb5cc8", "/api/logos/coin/usd-coin-ethereum-bridged"],
+    ],
+  );
+  // CoinGecko has none: the checkout draws the token's mark.
+  assert.equal(arb.tokens.find((t) => t.symbol === "XYZ")!.logo, undefined);
+  // The merchant's own USDC on Base is listed once, with USDC's logo.
+  const base = r.chains.find((c) => c.id === "base")!;
+  assert.deepEqual(
+    base.tokens.filter((t) => t.symbol === "USDC").map((t) => [t.route, t.logo]),
+    [["direct", "/api/logos/coin/usd-coin"]],
+  );
+});
+
+test("logos: only well-formed keys reach the logo route", () => {
+  assert.equal(coinLogo("usd-coin"), "/api/logos/coin/usd-coin");
+  assert.equal(coinLogo("custom:abc"), undefined);
+  assert.equal(coinLogo("../secret"), undefined);
+  assert.equal(coinLogo(null), undefined);
+  assert.equal(chainLogo("base"), "/api/logos/chain/base");
+  assert.equal(chainLogo("BASE/../x"), undefined);
+  // A token found by its address: EVM keyed in lower case, Solana mints as they are.
+  assert.equal(tokenLogo("eth", "0x6982508145454Ce325dDbE47a25d4ec3d2311933"), "/api/logos/token/eth-0x6982508145454ce325ddbe47a25d4ec3d2311933");
+  assert.equal(tokenLogo("sol", "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"), "/api/logos/token/sol-DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263");
+  assert.equal(tokenLogo("eth", "0x123"), undefined);
+  assert.equal(tokenLogo("../x", "0x6982508145454ce325ddbe47a25d4ec3d2311933"), undefined);
+  for (const k of ["coin:usd-coin", "chain:hood", "token:eth-0x6982508145454ce325ddbe47a25d4ec3d2311933", "token:sol-DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"])
+    assert.ok(logoKey.test(k), k);
+  for (const k of ["coin:", "chain:a", "coin:USD", "file:x", "coin:a/b", "token:eth-0x6982508145454CE325ddbe47a25d4ec3d2311933", "token:eth-../x", "token:sol-0OIl"])
+    assert.ok(!logoKey.test(k), k);
+});
+
+test("coverage: the site's token and chain counts come from NEAR Intents' live list", async () => {
+  const list = Array.from({ length: 240 }, (_, i) => ({ assetId: `nep141:t${i}`, decimals: 6, blockchain: `c${i % 41}`, symbol: `T${i}` }));
+  resetTokenCache();
+  assert.deepEqual(await nearIntentsCoverage(async () => ({ status: 200, headers: {}, body: JSON.stringify(list) })), { tokens: 240, chains: 41 });
+  resetTokenCache();
+  assert.deepEqual(await nearIntentsCoverage(async () => ({ status: 503, headers: {}, body: "" })), lastCounted);
+  // A list that's suspiciously short isn't trusted either.
+  resetTokenCache();
+  assert.deepEqual(await nearIntentsCoverage(async () => ({ status: 200, headers: {}, body: JSON.stringify(list.slice(0, 3)) })), lastCounted);
+  resetTokenCache();
 });
