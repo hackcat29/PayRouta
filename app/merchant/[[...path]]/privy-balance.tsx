@@ -17,25 +17,29 @@ import { CryptoBalance, type CryptoBalanceProps } from "./intents";
 import { Sparkles, WalletCards } from "lucide-react";
 import { connectEvm, solanaSigner, walletErrorText, type Signer } from "./intents-wallet";
 import { embeddedEvmSigner } from "@/lib/blockchain/embedded-signer";
+import type { PrivyLogin } from "@/lib/merchant/privy-config";
 
 export default function PrivyBalance({
   appId,
   clientId,
   portalUserId,
+  logins,
   ...props
 }: CryptoBalanceProps & {
   appId: string;
   clientId?: string;
   portalUserId: string;
+  // The sign-in methods the Privy app has on (lib/merchant/privy-config.ts).
+  logins: PrivyLogin[];
 }) {
   return (
     <PrivyProvider
       appId={appId}
       clientId={clientId}
       config={{
-        // Social sign-in creates a new wallet; each method must also be on
-        // in the Privy dashboard (docs/privy-wallets.md).
-        loginMethods: ["google", "apple", "twitter", "email"],
+        // Social or email sign-in creates a new wallet: only the methods
+        // the Privy dashboard has on (docs/privy-wallets.md).
+        ...(logins.length ? { loginMethods: logins } : {}),
         appearance: {
           theme: "light",
           accentColor: "#2e37a4",
@@ -49,7 +53,7 @@ export default function PrivyBalance({
         },
       }}
     >
-      <MerchantWallet {...props} portalUserId={portalUserId} />
+      <MerchantWallet {...props} portalUserId={portalUserId} canCreate={logins.length > 0} />
     </PrivyProvider>
   );
 }
@@ -63,7 +67,7 @@ const solanaAccount = (address: string) => {
   }
 };
 
-function MerchantWallet({ portalUserId, ...props }: CryptoBalanceProps & { portalUserId: string }) {
+function MerchantWallet({ portalUserId, canCreate, ...props }: CryptoBalanceProps & { portalUserId: string; canCreate: boolean }) {
   const { ready, authenticated, login, logout, user } = usePrivy();
   // Privy's sign-in is separate from the portal session: a saved wallet
   // session is cleared before it is shown to a different PayRouta user on
@@ -173,18 +177,20 @@ function MerchantWallet({ portalUserId, ...props }: CryptoBalanceProps & { porta
     connectRef.current = connect;
     return (
       <>
-        <button
-          type="button"
-          className="ms-wallet"
-          disabled={!ready || busy || disabled}
-          onClick={() => {
-            setPending("create");
-            if (!authenticated) login();
-          }}
-        >
-          <Sparkles size={20} aria-hidden />
-          {pending === "create" && busy ? "Creating wallet…" : "Create a wallet"}
-        </button>
+        {canCreate && (
+          <button
+            type="button"
+            className="ms-wallet"
+            disabled={!ready || busy || disabled}
+            onClick={() => {
+              setPending("create");
+              if (!authenticated) login();
+            }}
+          >
+            <Sparkles size={20} aria-hidden />
+            {pending === "create" && busy ? "Creating wallet…" : "Create a wallet"}
+          </button>
+        )}
         <button
           type="button"
           className="ms-wallet"

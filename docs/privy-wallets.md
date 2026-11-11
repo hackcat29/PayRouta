@@ -12,6 +12,16 @@ with Privy; it does not grant access to a PayRouta business.
    and external wallets on Ethereum and Solana. Do not configure a developer-controlled
    owner, delegated signer, or server signer for this flow. Keep wallet export
    enabled; configure recovery and MFA before funding wallets.
+   The wallet dialog offers only the methods the dashboard has on (read
+   from Privy's public app config, `lib/merchant/privy-config.ts`), so a
+   method switched off simply isn't shown. Check what's live with
+   `curl -s https://auth.privy.io/api/v1/apps/<app id> -H "privy-app-id: <app id>"`
+   (`google_oauth`, `apple_oauth`, `twitter_oauth`, `email_auth`).
+   **Own OAuth credentials:** if a provider uses your own client (Google,
+   Apple, X), its console must list Privy's callback,
+   `https://auth.privy.io/api/v1/oauth/callback`, as an authorized redirect
+   URI, or sign-in fails with `redirect_uri_mismatch`. Leave the credentials
+   blank to use Privy's own.
 2. Add the exact deployment origin to Privy's allowed origins. For development,
    allow `http://127.0.0.1:3000` (or the actual port used locally).
 3. Set `NEXT_PUBLIC_PRIVY_APP_ID` in the deployment build environment. The supplied

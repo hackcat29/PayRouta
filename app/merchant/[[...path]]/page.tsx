@@ -11,6 +11,7 @@ import { cashOutView } from "@/lib/treasury/offramp/cashout";
 import { Stablecoins } from "./stablecoins";
 import { stablecoinOverview } from "@/lib/merchant/stablecoins";
 import { CryptoBalance } from "./crypto-balance";
+import { privyLoginMethods } from "@/lib/merchant/privy-config";
 import { AgentKeys } from "./agents";
 import { agentKeys, agentSpending } from "@/lib/agents/keys";
 import { intentsOverview } from "@/lib/intents/account";
@@ -536,6 +537,7 @@ export default async function Page({
     content = (
       <CryptoBalance
         portalUserId={user.user.id}
+        privyLogins={process.env.NEXT_PUBLIC_PRIVY_APP_ID?.trim() ? await privyLoginMethods(process.env.NEXT_PUBLIC_PRIVY_APP_ID.trim()) : []}
         orgId={orgId}
         environment={env}
         overview={overview}

@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { Component, type ReactNode } from "react";
+import type { PrivyLogin } from "@/lib/merchant/privy-config";
 import {
   CryptoBalance as ExternalBalance,
   type CryptoBalanceProps,
@@ -38,8 +39,9 @@ class WalletFallback extends Component<
 
 export function CryptoBalance({
   portalUserId,
+  privyLogins,
   ...props
-}: CryptoBalanceProps & { portalUserId: string }) {
+}: CryptoBalanceProps & { portalUserId: string; privyLogins: PrivyLogin[] }) {
   const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID?.trim();
   if (!appId || props.environment !== "production")
     return <ExternalBalance {...props} />;
@@ -51,6 +53,7 @@ export function CryptoBalance({
       <PrivyBalance
         {...props}
         portalUserId={portalUserId}
+        logins={privyLogins}
         appId={appId}
         clientId={process.env.NEXT_PUBLIC_PRIVY_CLIENT_ID?.trim() || undefined}
       />
