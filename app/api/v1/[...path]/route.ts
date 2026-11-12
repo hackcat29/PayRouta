@@ -237,6 +237,17 @@ async function handle(
     // server log under that requestId so support can trace it.
     if (code === "SERVICE_UNAVAILABLE" || status >= 500)
       console.error(`[merchant-api ${requestId}] ${operation} ${status} ${code}`, error);
+    // An invalid request: which fields, or what couldn't be parsed. Paths
+    // and messages only, never the values sent.
+    else if (code === "INVALID_REQUEST")
+      console.warn(
+        `[merchant-api ${requestId}] ${operation} ${status} ${code}`,
+        error instanceof ZodError
+          ? JSON.stringify(error.issues.map((i) => ({ path: i.path.join("."), code: i.code, message: i.message })))
+          : error instanceof Error
+            ? `${error.name}: ${error.message.slice(0, 200)}`
+            : String(error),
+      );
     response = { error: { code, requestId } };
   }
   if (actor) {
