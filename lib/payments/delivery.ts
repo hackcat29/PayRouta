@@ -16,6 +16,9 @@ export async function deliver(eventId: string, now = new Date()) {
   const timestamp = String(Math.floor(now.getTime() / 1000));
   const body = JSON.stringify(e.payload);
   let success = false;
+  // Why a delivery failed, for the log and the delivery history: never the
+  // endpoint's response body.
+  let reason = "";
   try {
     if (config.environment !== e.environment || !config.webhookUrl || !config.webhookSecretRef)
       throw new Error("unconfigured");
@@ -41,8 +44,12 @@ export async function deliver(eventId: string, now = new Date()) {
         signal: AbortSignal.timeout(3000),
       });
       success = response.ok;
+      if (!success) reason = `HTTP ${response.status}`;
     } else {
-      const { url, address } = await validateEndpoint(config.webhookUrl);
+      const { url, address } = await validateEndpoint(config.webhookUrl).catch((error: Error) => {
+        reason = `endpoint rejected: ${error.message}`;
+        throw error;
+      });
       success = await new Promise<boolean>((resolve, reject) => {
         const r = https.request(
           url,
@@ -57,17 +64,26 @@ export async function deliver(eventId: string, now = new Date()) {
           (res) => {
             const ok =
               (res.statusCode ?? 0) >= 200 && (res.statusCode ?? 0) < 300;
+            if (!ok) reason = `HTTP ${res.statusCode ?? 0}`;
             res.destroy();
             resolve(ok);
           },
         );
-        r.on("timeout", () => r.destroy());
+        r.on("timeout", () => {
+          reason = "timed out";
+          r.destroy();
+        });
         r.on("error", reject);
         r.end(body);
       });
     }
-  } catch {
+  } catch (error) {
     success = false;
+    if (!reason)
+      reason =
+        error instanceof Error && error.message === "unconfigured"
+          ? "no webhook endpoint set"
+          : `network: ${(error as { code?: string }).code ?? (error instanceof Error ? error.message.slice(0, 80) : "error")}`;
   }
   await atomic(async (tx) => {
     const latest = await tx.merchantDelivery.findUniqueOrThrow({
@@ -88,6 +104,7 @@ export async function deliver(eventId: string, now = new Date()) {
           {
             at: now.toISOString(),
             result: success ? "Delivered" : "Delivery failed",
+            ...(reason ? { reason } : {}),
             keyId: config.webhookKeyId,
           },
         ]),
@@ -99,6 +116,7 @@ export async function deliver(eventId: string, now = new Date()) {
       event: "merchant.delivery",
       eventId,
       result: success ? "Delivered" : "Failed",
+      ...(reason ? { reason, host: config.webhookUrl ? new URL(config.webhookUrl).hostname : null } : {}),
     }),
   );
   if (!success) throw new Error("MERCHANT_DELIVERY_FAILED");
