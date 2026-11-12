@@ -122,3 +122,37 @@ test("universal: crypto is offered only for USD orders, never at an estimated ra
   const fiatOnly = await createUniversalCheckout(orgId, "sandbox", `universal-${randomUUID()}`, order({ currency: "USD", crypto: undefined }), prices);
   assert.deepEqual(fiatOnly.intents.map((i) => i.kind), ["fiat"]);
 });
+
+test("universal: a stablecoin checkout keeps its price for 30 minutes, long enough to pay any token through NEAR Intents", async () => {
+  const orgId = await merchant();
+  const checkout = await createUniversalCheckout(orgId, "sandbox", `universal-${randomUUID()}`, order({ methods: [] }), prices);
+  const minutes = (Date.parse(checkout.expiresAt) - Date.now()) / 60000;
+  assert.ok(minutes > 29 && minutes <= 30, `expires in ${minutes} minutes`);
+});
+
+test("universal: an order whose checkout expired unpaid gets a new checkout; one with a payment started does not", async () => {
+  const orgId = await merchant();
+  const key = `universal-${randomUUID()}`;
+  const body = order({ methods: [] });
+  const first = await createUniversalCheckout(orgId, "sandbox", key, body, prices);
+  // Half an hour on, the checkout has expired with nothing paid.
+  const later = new Date(Date.parse(first.expiresAt) + 1000);
+  const renewed = await createUniversalCheckout(orgId, "sandbox", key, body, prices, later);
+  assert.notEqual(renewed.id, first.id, "a new checkout");
+  assert.notDeepEqual(renewed.intents, first.intents);
+  assert.ok(await db.paymentIntent.findFirst({ where: { orgId, key: `crypto-u-${key}-r1-crypto` } }), "under the key's next generation");
+
+  // A payment was started on the renewed checkout before it expired: once it
+  // expires, no new checkout is opened.
+  const id = sessionId(renewed.checkoutPath);
+  const t = token(renewed.checkoutPath);
+  await methods(id, t);
+  const route = await selectMethod(id, t, "stablecoin");
+  await confirm(id, t, route.routeId);
+  const after = new Date(Date.parse(renewed.expiresAt) + 1000);
+  // The same checkout answers (or, past its session, an expiry): never a new one.
+  const again = await createUniversalCheckout(orgId, "sandbox", key, body, prices, after).catch((e: Error) => e);
+  if (again instanceof Error) assert.match(again.message, /SESSION_EXPIRED|INTENT_NOT_OPEN/);
+  else assert.deepEqual(again.intents, renewed.intents);
+  assert.ok(!(await db.paymentIntent.findFirst({ where: { orgId, key: `crypto-u-${key}-r2-crypto` } })), "no third checkout");
+});

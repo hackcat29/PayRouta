@@ -12,6 +12,15 @@ import { PortalError } from "../portal/domain";
 import { feeScheduleSchema, pricingVersion } from "./pricing";
 import { assetKey } from "./contracts";
 export const cryptoQuoteLifetimeMs = 120000;
+// A checkout priced only in US-dollar stablecoins keeps its price for 30
+// minutes: their USD price barely moves, and paying any other token through
+// NEAR Intents needs at least 5 minutes left on the checkout
+// (lib/intents/checkout.ts minimumWindowMs). Any other coin: 2 minutes.
+export const stablecoinQuoteLifetimeMs = 30 * 60000;
+const usdStablecoins = new Set(["usd-coin", "tether", "dai", "paypal-usd", "usdt0", "first-digital-usd"]);
+export function quoteLifetimeMs(assets: readonly Pick<CryptoAsset, "coinGeckoId">[]) {
+  return assets.length && assets.every((a) => usdStablecoins.has(a.coinGeckoId)) ? stablecoinQuoteLifetimeMs : cryptoQuoteLifetimeMs;
+}
 export type CryptoPrice = {
   usd: string;
   updatedAt: string;

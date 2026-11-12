@@ -26,8 +26,44 @@ export async function createUniversalCheckout(
   key: string,
   raw: unknown,
   prices = coinGeckoPrices,
+  now = new Date(),
 ) {
   if (!/^[\w-]{8,80}$/.test(key)) throw new PortalError("INVALID_IDEMPOTENCY_KEY", 400);
+  return createCheckoutFor(orgId, environment, await currentKey(orgId, environment, key, now), raw, prices);
+}
+
+// An order keeps one key (a WooCommerce or Shopify order's). If its checkout
+// expired before any payment started, the next call opens a new checkout
+// under the key's next generation (`<key>-r1`, `-r2`, ...), so the order can
+// still be paid. A checkout where a payment was started is never renewed: the
+// customer's transfer may still be on its way.
+const generations = 20;
+const generationKey = (key: string, n: number) => (n ? `${key}-r${n}` : key);
+async function currentKey(orgId: string, environment: string, key: string, now: Date) {
+  for (let n = 0; n < generations; n++) {
+    const k = generationKey(key, n);
+    const intents = await db.paymentIntent.findMany({
+      where: { orgId, environment, key: { in: [`u-${k}-fiat`, `crypto-u-${k}-crypto`] } },
+      select: { id: true, state: true, expiresAt: true },
+    });
+    if (!intents.length) return k;
+    const expired = intents.every((i) => i.state === "Open" && i.expiresAt <= now);
+    const attempted = await db.paymentAttempt.count({
+      where: { intentId: { in: intents.map((i) => i.id) }, state: { not: "Rejected" } },
+    });
+    if (!expired || attempted) return k;
+  }
+  throw new PortalError("SESSION_EXPIRED", 409);
+}
+
+async function createCheckoutFor(
+  orgId: string,
+  environment: string,
+  key: string,
+  raw: unknown,
+  prices: typeof coinGeckoPrices,
+) {
+  if (!/^[\w-]{8,90}$/.test(key)) throw new PortalError("INVALID_IDEMPOTENCY_KEY", 400);
   const input = universalCheckoutInput.parse(raw);
   const precision = currencyExponent(input.currency);
   if (precision === null || precision === undefined) throw new PortalError("UNSUPPORTED_CURRENCY", 409);
@@ -106,8 +142,9 @@ export async function createUniversalCheckout(
 // The checkout link of a universal checkout, re-read from the secret vault
 // (sessions are idempotent per key), for integrations that send a returning
 // customer back to an unfinished checkout.
-export async function universalCheckoutPath(orgId: string, environment: string, key: string) {
+export async function universalCheckoutPath(orgId: string, environment: string, original: string, now = new Date()) {
   const scope = { orgId, environment };
+  const key = await currentKey(orgId, environment, original, now);
   const fiat = await db.paymentIntent.findFirst({ where: { ...scope, key: `u-${key}-fiat` } });
   if (fiat) return (await session(scope, fiat.id, `u-${key}-fiat`)).checkoutPath;
   const crypto = await db.paymentIntent.findFirst({ where: { ...scope, key: `crypto-u-${key}-crypto` } });

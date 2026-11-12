@@ -7,7 +7,7 @@ import { PortalError } from "../portal/domain";
 import {
   coinGeckoPrices,
   cryptoPaymentTerms,
-  cryptoQuoteLifetimeMs,
+  quoteLifetimeMs,
 } from "./crypto-prices";
 import { createIntent } from "./service";
 import { session } from "../merchant/service";
@@ -64,7 +64,7 @@ export async function createCryptoCheckout(
       }
       const now = new Date(),
         market = await prices(assets, now);
-      const expiresAt = new Date(Date.now() + cryptoQuoteLifetimeMs);
+      const expiresAt = new Date(Date.now() + quoteLifetimeMs(assets));
       const options = assets.map((a) =>
         cryptoPaymentTerms(
           a,
