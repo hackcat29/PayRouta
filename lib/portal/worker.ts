@@ -1,6 +1,7 @@
 import { invoicePaid, overdue, renew } from "../subscriptions/service";
 import { screenStablecoinMerchant } from "../merchant/screening";
 import { paymentJob } from "../payments/jobs";
+import { webhookRetryLimit } from "../payments/delivery";
 import { partnerJob } from "../partners/service";
 import { treasuryJob } from "../treasury/jobs";
 import { db } from "./db";
@@ -15,6 +16,14 @@ import {
   deriveCapabilitySummary,
   simulatorTarget,
 } from "../providers/certification/service";
+
+// How long a failed job keeps retrying. A merchant's webhook endpoint may be
+// down for a while (a deploy, a restart), so deliveries back off to an hour
+// and keep trying for about four hours; other jobs give up after about two
+// minutes of backoff, capped at five.
+const retryLimit = (kind: string) => (kind === "payment-delivery" ? webhookRetryLimit : 7);
+const retryCapMs = (kind: string) => (kind === "payment-delivery" ? 3600000 : 300000);
+
 export interface RegistryAdapter {
   publish(input: {
     key: string;
@@ -295,12 +304,12 @@ export async function workOnce(jobKey?: string) {
             (candidate.kind.startsWith("payment-") ||
               candidate.kind.startsWith("partner-") ||
               candidate.kind.startsWith("treasury-")) &&
-            candidate.attempts < 7
+            candidate.attempts < retryLimit(candidate.kind)
               ? "Pending"
               : "Failed",
           availableAt: new Date(
             Date.now() +
-              Math.min(300000, 1000 * 2 ** candidate.attempts) +
+              Math.min(retryCapMs(candidate.kind), 1000 * 2 ** candidate.attempts) +
               Math.floor(Math.random() * 1000),
           ),
           lockedAt: null,

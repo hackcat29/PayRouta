@@ -4,6 +4,9 @@ import { secretManager, localMode } from "../portal/adapters";
 import { validateEndpoint } from "../portal/ssrf";
 import { atomic, json } from "../portal/service";
 import { signature } from "./contracts";
+// Attempts before a delivery is given up on (the worker backs off to an hour
+// between them, so about four hours in all).
+export const webhookRetryLimit = 14;
 export async function deliver(eventId: string, now = new Date()) {
   const e = await db.merchantEvent.findUniqueOrThrow({
     where: { id: eventId },
@@ -95,7 +98,7 @@ export async function deliver(eventId: string, now = new Date()) {
       data: {
         state: success
           ? "Delivered"
-          : latest.attempts >= 7
+          : latest.attempts >= webhookRetryLimit
             ? "Exhausted"
             : "Failed",
         attempts: { increment: 1 },
