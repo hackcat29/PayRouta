@@ -233,6 +233,10 @@ async function handle(
           : status === 400
             ? "INVALID_REQUEST"
             : "SERVICE_UNAVAILABLE";
+    // The merchant sees only the code and requestId; the cause goes to the
+    // server log under that requestId so support can trace it.
+    if (code === "SERVICE_UNAVAILABLE" || status >= 500)
+      console.error(`[merchant-api ${requestId}] ${operation} ${status} ${code}`, error);
     response = { error: { code, requestId } };
   }
   if (actor) {
