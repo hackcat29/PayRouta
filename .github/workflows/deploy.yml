@@ -102,9 +102,9 @@ jobs:
           username: ${{ secrets.CONTABO_USER }}
           key: ${{ secrets.CONTABO_SSH_KEY }}
           envs: SHA,OPENSANCTIONS_API_KEY,TURNSTILE_SECRET_KEY,NEXT_PUBLIC_TURNSTILE_SITE_KEY,NEXT_PUBLIC_PRIVY_APP_ID,NEXT_PUBLIC_PRIVY_CLIENT_ID,PAYROUTA_INTENTS_FEE_ACCOUNT,COINGECKO_API_KEY,COINGECKO_API_PLAN
-          # The server is shared and often fully loaded: install and build
-          # together have taken 24 minutes there.
-          command_timeout: 45m
+          # The server is shared and often fully loaded: a full npm ci has
+          # taken 23 minutes there, and the build as long again.
+          command_timeout: 60m
           script_stop: true
           script: |
             echo "==> Deploy started for SHA: $SHA"
@@ -161,7 +161,14 @@ jobs:
             ln -sfn "$ROOT/.env" "$REL/.env"
             cd "$REL"
             echo "==> Installing dependencies..."
-            npm ci --prefer-offline --no-audit --no-fund
+            # Same lockfile as the live release: hard-link its node_modules
+            # (seconds) instead of installing again (up to 23 minutes here).
+            if [ -n "$PREV" ] && [ -d "$PREV/node_modules" ] && cmp -s "$PREV/package-lock.json" package-lock.json; then
+              echo "==> Lockfile unchanged: reusing node_modules from $PREV"
+              cp -al "$PREV/node_modules" node_modules
+            else
+              npm ci --prefer-offline --no-audit --no-fund
+            fi
             echo "==> Generating Prisma client..."
             npx prisma generate
             echo "==> Running database migrations..."
