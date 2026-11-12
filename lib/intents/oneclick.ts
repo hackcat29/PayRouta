@@ -133,7 +133,9 @@ function parse<T>(schema: z.ZodType<T>, response: Response, code: string) {
     if (/minimum/i.test(message)) throw new PortalError("CROSS_CHAIN_AMOUNT_TOO_SMALL", 409);
     throw new PortalError(code, 409);
   }
-  if (response.status !== 200) throw new PortalError("CROSS_CHAIN_UNAVAILABLE", 503);
+  // 1Click answers POSTs (quote, generate-intent, submit-intent) with 201
+  // Created and GETs with 200: any 2xx is a success.
+  if (response.status < 200 || response.status > 299) throw new PortalError("CROSS_CHAIN_UNAVAILABLE", 503);
   let body: unknown;
   try {
     body = JSON.parse(response.body);
@@ -164,27 +166,29 @@ export const resetTokenCache = () => {
 //                                     merchant's settlement account)
 export type OneClickEnd = "CHAIN" | "INTENTS";
 
-export async function quote(
-  input: {
-    originAsset: string;
-    destinationAsset: string;
-    // Base units: the exact output, or with exactInput the exact input.
-    amountOut: string;
-    recipient: string;
-    refundTo: string;
-    deadline: Date;
-    from?: OneClickEnd;
-    to?: OneClickEnd;
-    exactInput?: boolean;
-    // PayRouta's fee, taken by 1Click from the amount in and credited to
-    // PayRouta's intents account.
-    appFee?: { recipient: string; bps: number };
-  },
-  http: Http = providerRequest,
-) {
+type QuoteInput = {
+  originAsset: string;
+  destinationAsset: string;
+  // Base units: the exact output, or with exactInput the exact input.
+  amountOut: string;
+  recipient: string;
+  refundTo: string;
+  deadline: Date;
+  from?: OneClickEnd;
+  to?: OneClickEnd;
+  // Where a failed swap is refunded; the same as `from` unless set.
+  refund?: OneClickEnd;
+  exactInput?: boolean;
+  // PayRouta's fee, taken by 1Click from the amount in and credited to
+  // PayRouta's intents account.
+  appFee?: { recipient: string; bps: number };
+};
+
+function quoteBody(input: QuoteInput, dry: boolean) {
   const from = input.from === "INTENTS" ? "INTENTS" : "ORIGIN_CHAIN";
-  const body = {
-    dry: false,
+  const refund = input.refund ? (input.refund === "INTENTS" ? "INTENTS" : "ORIGIN_CHAIN") : from;
+  return {
+    dry,
     swapType: input.exactInput ? "EXACT_INPUT" : "EXACT_OUTPUT",
     // 1% headroom on the input side; the output is exact.
     slippageTolerance: 100,
@@ -193,7 +197,7 @@ export async function quote(
     destinationAsset: input.destinationAsset,
     amount: input.amountOut,
     refundTo: input.refundTo,
-    refundType: from,
+    refundType: refund,
     recipient: input.recipient,
     recipientType: input.to === "INTENTS" ? "INTENTS" : "DESTINATION_CHAIN",
     deadline: input.deadline.toISOString(),
@@ -201,15 +205,47 @@ export async function quote(
     ...(input.appFee ? { appFees: [{ recipient: input.appFee.recipient, fee: input.appFee.bps }] } : {}),
     quoteWaitingTimeMs: 3000,
   };
+}
+
+export async function quote(input: QuoteInput, http: Http = providerRequest) {
   const response = await http(oneClickBase, {
     method: "POST",
     path: "/v0/quote",
     headers: await headers(),
-    body: JSON.stringify(body),
+    body: JSON.stringify(quoteBody(input, false)),
     timeoutMs: 12000,
     maxResponseBytes: 262144,
   });
   return parse(quoteResponse, response, "CROSS_CHAIN_QUOTE_REFUSED");
+}
+
+// A quote with the same terms that reserves nothing: 1Click prices the swap
+// but creates no deposit address, so nothing can be paid to it. For the
+// demo checkout (lib/payments/demo-checkout.ts).
+const dryQuoteResponse = z
+  .object({
+    quote: z
+      .object({
+        amountIn: z.string().regex(/^\d+$/),
+        amountInFormatted: z.string().max(80),
+        amountInUsd: z.string().max(80).optional(),
+        amountOut: z.string().regex(/^\d+$/),
+        amountOutFormatted: z.string().max(80).optional(),
+        timeEstimate: z.number().nonnegative().optional(),
+      })
+      .passthrough(),
+  })
+  .passthrough();
+export async function dryQuote(input: QuoteInput, http: Http = providerRequest) {
+  const response = await http(oneClickBase, {
+    method: "POST",
+    path: "/v0/quote",
+    headers: await headers(),
+    body: JSON.stringify(quoteBody(input, true)),
+    timeoutMs: 12000,
+    maxResponseBytes: 262144,
+  });
+  return parse(dryQuoteResponse, response, "CROSS_CHAIN_QUOTE_REFUSED");
 }
 
 export async function status(depositAddress: string, depositMemo: string | null, http: Http = providerRequest) {

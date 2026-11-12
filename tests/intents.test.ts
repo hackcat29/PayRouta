@@ -77,3 +77,19 @@ test("the token list is cached for ten minutes", async () => {
   assert.equal(calls, 2);
   resetTokenCache();
 });
+
+test("1Click answers quotes with 201 Created, and that is a success", async () => {
+  const created: Http = async () => ({
+    status: 201,
+    headers: {},
+    body: JSON.stringify({ quote: { depositAddress: "0x" + "b".repeat(40), amountIn: "12471305782322854", amountInFormatted: "0.012471305782322854", amountOut: "24625000", timeEstimate: 25 } }),
+    bytes: 0,
+  });
+  const r = await quote(
+    { originAsset: "nep141:arb.omft.near", destinationAsset: destinations[0].assetId, amountOut: "24625000", recipient: "0x" + "a".repeat(40), refundTo: "0x" + "c".repeat(40), deadline: new Date("2026-11-12T12:30:00Z") },
+    created,
+  );
+  assert.equal(r.quote.amountOut, "24625000");
+  const failed: Http = async () => ({ status: 502, headers: {}, body: "{}", bytes: 0 });
+  await assert.rejects(quote({ originAsset: "nep141:arb.omft.near", destinationAsset: destinations[0].assetId, amountOut: "1", recipient: "0x" + "a".repeat(40), refundTo: "0x" + "c".repeat(40), deadline: new Date() }, failed), /CROSS_CHAIN_UNAVAILABLE/);
+});
