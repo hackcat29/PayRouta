@@ -171,7 +171,10 @@ jobs:
             # here leaves prices on the keyless API rather than stop the deploy.
             if [ -n "${COINGECKO_API_KEY:-}" ]; then
               CG_SHA="$(printf %s "$COINGECKO_API_KEY" | sha256sum | cut -c1-64)"
-              if grep -q "^COINGECKO_API_KEY_SHA256=$CG_SHA\$" "$ROOT/.env" && grep -q '^COINGECKO_API_KEY_REF=.' "$ROOT/.env"; then
+              CG_LINES="$(printf '%s\n' "$COINGECKO_API_KEY" | grep -c '[^[:space:]]' || true)"
+              if [ "$CG_LINES" != 1 ] || ! printf '%s\n' "$COINGECKO_API_KEY" | LC_ALL=C grep -Eq '^[[:space:]]*[!-~]{1,200}[[:space:]]*$'; then
+                echo "==> COINGECKO_API_KEY isn't one key on one line; not stored. Set the GitHub secret to just the key"
+              elif grep -q "^COINGECKO_API_KEY_SHA256=$CG_SHA\$" "$ROOT/.env" && grep -q '^COINGECKO_API_KEY_REF=.' "$ROOT/.env"; then
                 echo "==> CoinGecko key unchanged"
               elif CG_REF="$(printf %s "$COINGECKO_API_KEY" | npm run -s secrets:put 2>/dev/null | tail -n 1)" && printf %s "$CG_REF" | grep -Eq '^[a-f0-9-]{36}$'; then
                 sync_env COINGECKO_API_KEY_REF "$CG_REF"

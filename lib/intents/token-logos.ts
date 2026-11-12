@@ -16,7 +16,7 @@
 // can't be found is remembered as missing for a week; the checkout shows
 // the token's generated mark meanwhile.
 import { db } from "../portal/db";
-import { secretManager } from "../portal/adapters";
+import { coinGeckoKey } from "../payments/crypto-prices";
 import { rateLimit } from "../portal/access";
 import { logoType } from "../merchant/branding";
 import { providerRequest } from "../providers/adapters/http";
@@ -76,7 +76,7 @@ const chainCoins: Record<string, string> = {
 
 async function coinGecko(path: string, http: Http) {
   const pro = process.env.COINGECKO_API_PLAN === "pro";
-  const key = process.env.COINGECKO_API_KEY_REF ? await secretManager.get(process.env.COINGECKO_API_KEY_REF).catch(() => undefined) : undefined;
+  const key = await coinGeckoKey();
   return http(pro ? "https://pro-api.coingecko.com" : "https://api.coingecko.com", {
     method: "GET",
     path,

@@ -73,15 +73,38 @@ export function parseCoinGeckoPrice(
     source: "CoinGecko",
   };
 }
+// The CoinGecko key from the secret store, if there is a usable one. A key
+// that can't be read, or that holds characters a header can't carry (a
+// pasted line break, a second line), is left out with a warning, so prices
+// fall back to the keyless API instead of every crypto checkout failing.
+let warnedKey = "";
+export async function coinGeckoKey(
+  get: (ref: string) => Promise<string> = (ref) => secretManager.get(ref),
+): Promise<string | undefined> {
+  const ref = process.env.COINGECKO_API_KEY_REF;
+  if (!ref) return undefined;
+  let problem: string;
+  try {
+    const key = (await get(ref)).trim();
+    if (/^[\x21-\x7e]{1,200}$/.test(key)) return key;
+    problem = "holds characters an HTTP header can't carry; store it again as one line";
+  } catch (e) {
+    problem = `can't be read (${e instanceof Error ? e.message : String(e)})`;
+  }
+  if (warnedKey !== ref) {
+    warnedKey = ref;
+    console.error(`[coingecko] COINGECKO_API_KEY_REF ${problem}. Using the keyless API.`);
+  }
+  return undefined;
+}
+
 export async function coinGeckoPrices(
   assets: readonly CryptoAsset[],
   now = new Date(),
   http = providerRequest,
 ) {
   const pro = process.env.COINGECKO_API_PLAN === "pro";
-  const key = process.env.COINGECKO_API_KEY_REF
-    ? await secretManager.get(process.env.COINGECKO_API_KEY_REF)
-    : undefined;
+  const key = await coinGeckoKey();
   if (pro && !key) throw new PortalError("COINGECKO_KEY_REQUIRED", 503);
   const base = pro
     ? "https://pro-api.coingecko.com"
