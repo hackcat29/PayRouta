@@ -102,8 +102,9 @@ jobs:
           username: ${{ secrets.CONTABO_USER }}
           key: ${{ secrets.CONTABO_SSH_KEY }}
           envs: SHA,OPENSANCTIONS_API_KEY,TURNSTILE_SECRET_KEY,NEXT_PUBLIC_TURNSTILE_SITE_KEY,NEXT_PUBLIC_PRIVY_APP_ID,NEXT_PUBLIC_PRIVY_CLIENT_ID,PAYROUTA_INTENTS_FEE_ACCOUNT,COINGECKO_API_KEY,COINGECKO_API_PLAN
-          # The build alone can take most of the default 10 minutes.
-          command_timeout: 25m
+          # The server is shared and often fully loaded: install and build
+          # together have taken 24 minutes there.
+          command_timeout: 45m
           script_stop: true
           script: |
             echo "==> Deploy started for SHA: $SHA"
@@ -160,7 +161,7 @@ jobs:
             ln -sfn "$ROOT/.env" "$REL/.env"
             cd "$REL"
             echo "==> Installing dependencies..."
-            npm ci
+            npm ci --prefer-offline --no-audit --no-fund
             echo "==> Generating Prisma client..."
             npx prisma generate
             echo "==> Running database migrations..."
@@ -213,6 +214,8 @@ jobs:
             fi
             echo "==> Health check passed! Saving PM2 state..."
             pm2 save
-            ls -1dt "$ROOT"/releases/* | tail -n +6 | xargs -r rm -rf
+            # Old releases (each with its own node_modules) are removed in the
+            # background at low priority, so a slow disk can't fail the deploy.
+            ( ls -1dt "$ROOT"/releases/* | tail -n +6 | nohup nice -n 19 xargs -r rm -rf >/dev/null 2>&1 & )
             echo "==> Deployment finished successfully!"
 
