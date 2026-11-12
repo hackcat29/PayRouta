@@ -1,11 +1,11 @@
-import { Checkout } from "../[sessionId]/view";
+import { CheckoutRouter } from "../[sessionId]/router";
 
 export const metadata = {
-  title: "Live Checkout Demo | PayRouta",
+  title: "Checkout demo | PayRouta",
   description:
-    "Test PayRouta's unified checkout experience with automatic provider routing and instant confirmation.",
+    "PayRouta's checkout on a demo order: pay with any token on any chain through NEAR Intents, or by card, wallet, bank or credit. Nothing is charged.",
 };
 
 export default function CheckoutDemoPage() {
-  return <Checkout id="demo" />;
+  return <CheckoutRouter id="demo" />;
 }

@@ -27,6 +27,52 @@ import {
 import { swapSolanaTransaction } from "@/lib/intents/swap-wallet";
 import { dexEvmQuote, dexSolanaTransaction, lookupToken } from "@/lib/intents/dex";
 import { NextRequest, NextResponse } from "next/server";
+import { demoAction, demoCookie, demoId, demoProgress, readDemoState, writeDemoState } from "@/lib/payments/demo-checkout";
+
+// The demo checkout (/checkout/demo): its own actions, each visitor's state
+// in a cookie, rate limited per visitor rather than per checkout.
+const demoBody = z
+  .object({
+    action: z.string().min(1).max(40),
+    to: z.enum(["fiat", "crypto"]).optional(),
+    address: z.string().min(32).max(64).optional(),
+    method: z.string().max(40).optional(),
+    creditOffer: z.string().max(120).optional(),
+    originAsset: z.string().min(1).max(300).optional(),
+  })
+  .passthrough();
+const visitor = (r: NextRequest) => r.headers.get("x-real-ip") || r.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+function withDemoState(response: Response, state: string) {
+  const result = new NextResponse(response.body, { status: response.status, headers: response.headers });
+  result.cookies.set(demoCookie, state, {
+    httpOnly: true,
+    sameSite: "strict",
+    secure: process.env.NODE_ENV === "production",
+    path: `/api/checkout/${demoId}`,
+    maxAge: 3600,
+  });
+  return result;
+}
+async function demoGet(r: NextRequest) {
+  const state = readDemoState(r.cookies.get(demoCookie)?.value);
+  const response = await respond(async () => {
+    await rateLimit(`checkout-demo:${visitor(r)}`, 240);
+    return demoProgress(state);
+  });
+  return withDemoState(response, writeDemoState(state));
+}
+async function demoPost(r: NextRequest) {
+  let next: string | undefined;
+  const response = await respond(async () => {
+    csrf(r);
+    await rateLimit(`checkout-demo:${visitor(r)}`, 240);
+    const b = demoBody.parse(JSON.parse(await rawBody(r)));
+    const result = await demoAction(readDemoState(r.cookies.get(demoCookie)?.value), b);
+    next = writeDemoState(result.state);
+    return result.body;
+  });
+  return next ? withDemoState(response, next) : response;
+}
 const schema = z.discriminatedUnion("action", [
   z
     .object({
@@ -114,6 +160,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
+  if (id === demoId) return demoGet(r);
   const response = await respond(async () => {
     await rateLimit(`checkout:${id}`, 120);
     return progress(id, r.cookies.get(`checkout_${id}`)?.value || "");
@@ -142,6 +189,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
+  if (id === demoId) return demoPost(r);
   let credential: string | undefined;
   const response = await respond(async () => {
     csrf(r);

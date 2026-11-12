@@ -49,6 +49,8 @@ type Progress = {
   alternatives?: { kind: "fiat" | "crypto"; available: boolean }[];
   action?: Action | null;
   sandbox: boolean;
+  // The demo checkout (lib/payments/demo-checkout.ts): nothing is charged.
+  demo?: boolean;
   expiresAt: string;
   returnUrl: string;
 };
@@ -317,6 +319,15 @@ export function FiatCheckout({ id, initial }: { id: string; initial: Progress })
         <a className="fc-pay" href={data.returnUrl} onClick={toMerchant}>
           Return to {data.merchant}
         </a>
+        {data.demo && (
+          <button
+            type="button"
+            className="fc-secondary"
+            onClick={() => void api({ action: "demo-reset" }).finally(() => location.reload())}
+          >
+            Run the demo again
+          </button>
+        )}
       </div>
     );
   else if (inFlight && completed)
@@ -374,18 +385,18 @@ export function FiatCheckout({ id, initial }: { id: string; initial: Progress })
   else if (inFlight && action?.kind === "sandbox" && data.selectedMethod === "bnpl")
     panel = (
       <div className="fc-result">
-        <h2>Test credit approval</h2>
+        <h2>{data.demo ? "Credit approval" : "Test credit approval"}</h2>
         <button className="fc-pay" disabled={busy} onClick={() => void completeTest()}>
-          {busy ? "Approving…" : "Approve test credit"}
+          {busy ? "Approving…" : data.demo ? "Simulate the lender's approval" : "Approve test credit"}
         </button>
       </div>
     );
   else if (inFlight && action?.kind === "sandbox")
     panel = (
       <div className="fc-result">
-        <h2>Test payment</h2>
+        <h2>{data.demo ? "Secure payment" : "Test payment"}</h2>
         <button className="fc-pay" disabled={busy} onClick={() => void completeTest()}>
-          {busy ? "Completing…" : `Complete test payment of ${total}`}
+          {busy ? "Completing…" : data.demo ? `Simulate paying ${total}` : `Complete test payment of ${total}`}
         </button>
       </div>
     );
@@ -520,7 +531,11 @@ export function FiatCheckout({ id, initial }: { id: string; initial: Progress })
 
   return (
     <div className="fiat-checkout">
-      {data.sandbox && <div className="fc-test">Test mode · no real money moves</div>}
+      {data.demo ? (
+        <div className="fc-test">Demo · nothing is charged</div>
+      ) : (
+        data.sandbox && <div className="fc-test">Test mode · no real money moves</div>
+      )}
       <div className="fc-layout">
         <aside className="fc-summary">
           <a className="fc-merchant" href={data.returnUrl} onClick={toMerchant} aria-label={`Back to ${data.merchant}`}>

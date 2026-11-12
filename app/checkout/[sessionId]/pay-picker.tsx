@@ -50,6 +50,8 @@ export type PayChoice = {
   // A swap paid from a connected wallet: the wallet, and its transfer.
   wallet?: string;
   sent?: string;
+  // A token found by its address: about how much of it the wallet swaps.
+  approx?: string;
 };
 
 // The coin each network charges its fee in, by NEAR Intents chain code.
@@ -66,6 +68,7 @@ const usdPrice = (n: number) => (n >= 1 ? n.toLocaleString("en-US", { maximumFra
 
 export function PayPicker({
   api,
+  demo = false,
   busy,
   usd,
   fee,
@@ -73,6 +76,9 @@ export function PayPicker({
   onWalletPay,
 }: {
   api: Api;
+  // The demo checkout: every token continues to its (simulated) payment,
+  // with no wallet to connect and no refund address.
+  demo?: boolean;
   busy: boolean;
   // The checkout's value in US dollars, when it has one.
   usd: string | null;
@@ -222,6 +228,19 @@ export function PayPicker({
       onSubmit={(e) => {
         e.preventDefault();
         if (!token) return;
+        if (demo) {
+          if (token.route === "dex" && token.via?.assetId)
+            onStart(token.via, {
+              route: "dex",
+              symbol: token.symbol,
+              chainName: token.chainName,
+              assetId: token.via.assetId,
+              refundTo: "demo",
+              ...(token.approx ? { approx: token.approx } : {}),
+            });
+          else onStart(token, choice(token, "demo"));
+          return;
+        }
         if (token.route === "direct") onStart(token, choice(token));
         else if (refundTo.trim().length >= 20) onStart(token, choice(token, refundTo.trim()));
       }}
@@ -309,15 +328,15 @@ export function PayPicker({
           </dl>
         </details>
       )}
-      {token?.route === "direct" && (
+      {token && (demo || token.route === "direct") && (
         <button className="sc-primary" disabled={busy}>
-          Continue
+          {busy ? "Preparing…" : "Continue"}
         </button>
       )}
-      {token?.route === "dex" && !walletReady && (
+      {!demo && token?.route === "dex" && !walletReady && (
         <p className="sc-pending">Open this checkout in a wallet that holds {token.symbol} to pay with it.</p>
       )}
-      {(token?.route === "swap" || token?.route === "dex") && walletReady && !manual && (
+      {!demo && (token?.route === "swap" || token?.route === "dex") && walletReady && !manual && (
         <>
           {connected ? (
             <>
@@ -372,7 +391,7 @@ export function PayPicker({
           )}
         </>
       )}
-      {token?.route === "swap" && (!walletReady || manual) && (
+      {!demo && token?.route === "swap" && (!walletReady || manual) && (
         <>
           <label htmlFor="pay-refund">Refund address on {token.chainName}</label>
           <input id="pay-refund" value={refundTo} disabled={busy} autoComplete="off" spellCheck={false} onChange={(e) => setRefundTo(e.target.value)} />

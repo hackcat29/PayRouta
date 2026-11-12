@@ -10,11 +10,8 @@ import { rememberPopup } from "./popup";
 type Initial = Parameters<typeof FiatCheckout>[0]["initial"];
 
 export function CheckoutRouter({ id }: { id: string }) {
-  const [state, setState] = useState<{ kind: "loading" } | { kind: "fiat"; data: Initial } | { kind: "chain" }>(() =>
-    id === "demo" ? { kind: "chain" } : { kind: "loading" },
-  );
+  const [state, setState] = useState<{ kind: "loading" } | { kind: "fiat"; data: Initial } | { kind: "chain" }>({ kind: "loading" });
   useEffect(() => {
-    if (id === "demo") return;
     rememberPopup(id);
     let alive = true;
     (async () => {

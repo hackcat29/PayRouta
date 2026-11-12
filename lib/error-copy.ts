@@ -67,6 +67,7 @@ const copy: Record<string, string> = {
   CHECKOUT_EXPIRED: "This checkout has expired. Go back to the store and start again.",
   CHECKOUT_EXPIRED_OR_UNAUTHORIZED: "This checkout has expired. Go back to the store and start again.",
   PAYMENT_ALREADY_IN_PROGRESS: "A payment is already in progress for this order.",
+  DEMO_NOT_PAYABLE: "This is a demo checkout, so nothing can be paid here. Choose Continue to see the next step.",
   PAYMENT_NOT_FOUND: "We couldn't find that payment.",
   QUOTE_EXPIRED: "The price expired. Choose your payment method again.",
   QUOTE_EXPIRED_RESELECT_METHOD: "The price expired. Choose your payment method again.",

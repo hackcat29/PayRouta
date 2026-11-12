@@ -26,6 +26,10 @@ type Payment = {
   timeEstimate?: number;
   explorerUrl?: string;
   transfer?: WalletTransfer;
+  // The demo checkout's dry quote: real amounts, no deposit address.
+  demo?: boolean;
+  receive?: { amount: string; symbol: string };
+  fee?: { amount: string; symbol: string };
 };
 type Api = (action?: object) => Promise<Record<string, unknown>>;
 
@@ -118,6 +122,19 @@ export function CrossChain({
     }
   }
 
+  // The demo checkout: the customer's transfer, as if it was sent.
+  async function simulate() {
+    setBusy(true);
+    setError("");
+    try {
+      setPayment((await api({ action: "demo-pay" })) as unknown as Payment);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function payFromWallet() {
     if (!wallet || !payment?.transfer) return;
     setBusy(true);
@@ -161,7 +178,7 @@ export function CrossChain({
       api({ action: "cross-chain-status" })
         .then((r) => r.payment && setPayment(r.payment as Payment))
         .catch(() => {});
-    }, 5000);
+    }, payment.demo ? 1500 : 5000);
     return () => clearInterval(t);
   }, [api, payment]);
 
@@ -202,6 +219,50 @@ export function CrossChain({
         </p>
         <button type="button" onClick={() => setPayment(null)}>
           Pay another way
+        </button>
+      </div>
+    ) : instructions && payment.demo ? (
+      <div className="sc-swap">
+        <p>
+          Send exactly{" "}
+          <strong>
+            {payment.send} {payment.symbol}
+          </strong>{" "}
+          on <strong>{payment.chainName}</strong>.
+        </p>
+        <dl className="pc-lines">
+          {payment.receive && (
+            <div>
+              <dt>Merchant receives</dt>
+              <dd>
+                {payment.receive.amount} {payment.receive.symbol}
+              </dd>
+            </div>
+          )}
+          {payment.fee && (
+            <div>
+              <dt>PayRouta fee</dt>
+              <dd>
+                {payment.fee.amount} {payment.fee.symbol}
+              </dd>
+            </div>
+          )}
+          {eta(payment.timeEstimate) && (
+            <div>
+              <dt>Settles</dt>
+              <dd>{eta(payment.timeEstimate)}</dd>
+            </div>
+          )}
+          <div>
+            <dt>Quote</dt>
+            <dd>NEAR Intents</dd>
+          </div>
+        </dl>
+        <div className="sc-demo-deposit">
+          <p>A live checkout shows a one-time deposit address and QR code here.</p>
+        </div>
+        <button type="button" className="sc-primary" disabled={busy} onClick={() => void simulate()}>
+          {busy ? "Sending…" : "Simulate the payment"}
         </button>
       </div>
     ) : instructions ? (

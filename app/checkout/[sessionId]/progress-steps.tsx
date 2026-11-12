@@ -35,15 +35,18 @@ export function Receipt({
   merchant,
   onReturn,
   returnHref,
+  autoReturn = true,
 }: {
   rows: [string, string][];
   transactionUrl?: string | null;
   merchant: string;
   onReturn: () => void;
   returnHref: string;
+  // Back to the merchant after a few seconds (not in the demo checkout).
+  autoReturn?: boolean;
 }) {
   const [left, setLeft] = useState(8);
-  const [stay, setStay] = useState(false);
+  const [stay, setStay] = useState(!autoReturn);
   // The checkout re-renders as it polls; the countdown mustn't restart.
   const back = useRef(onReturn);
   useEffect(() => {

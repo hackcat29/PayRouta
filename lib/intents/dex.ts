@@ -118,8 +118,12 @@ async function solanaToken(http: Http, mint: string) {
 // "Load a token" by its address: on Solana from Jupiter, on EVM chains from
 // LI.FI. A coin can exist on several EVM chains under one address.
 export async function lookupToken(sessionId: string, token: string, address: string, deps: Deps = {}): Promise<{ tokens: DexToken[] }> {
-  const http = deps.http ?? providerRequest;
   await authorizeSession(sessionId, token, deps.now ?? new Date(), true);
+  return findToken(address, deps);
+}
+// The lookup itself, for any checkout including the demo (demo-checkout.ts).
+export async function findToken(address: string, deps: Deps = {}): Promise<{ tokens: DexToken[] }> {
+  const http = deps.http ?? providerRequest;
   const a = address.trim();
   if (isSolanaAddress(a)) {
     if (a === usdcMint) return { tokens: [] };

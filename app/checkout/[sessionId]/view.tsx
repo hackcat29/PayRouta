@@ -63,6 +63,8 @@ type Progress = {
   symbol?: string;
   network?: string;
   sandbox: boolean;
+  // The demo checkout (lib/payments/demo-checkout.ts): nothing is payable.
+  demo?: boolean;
   expiresAt: string;
   returnUrl: string;
   settlement: string[];
@@ -75,22 +77,8 @@ type Method = {
   status: string;
   explanation?: string;
 };
-const demoData: Progress = {
-  merchant: "Example store",
-  reference: "Checkout preview",
-  amount: "1.000000",
-  symbol: "USDC",
-  network: "eip155:84532",
-  sandbox: true,
-  state: "Preview",
-  expiresAt: "",
-  returnUrl: "/merchant",
-  settlement: [],
-};
 export function Checkout({ id }: { id: string }) {
-  const [data, setData] = useState<Progress | undefined>(() =>
-      id === "demo" ? demoData : undefined,
-    ),
+  const [data, setData] = useState<Progress | undefined>(undefined),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [copied, setCopied] = useState(""),
@@ -136,7 +124,6 @@ export function Checkout({ id }: { id: string }) {
     let alive = true,
       inflight = false,
       ticks = 0;
-    if (id === "demo") return;
     async function start() {
       const version = mutationVersion.current;
       try {
@@ -193,7 +180,7 @@ export function Checkout({ id }: { id: string }) {
   // What the customer said they pay with, kept for this checkout so a reload
   // returns to the same instructions.
   const [choice, setChoiceState] = useState<PayChoice | null>(() => {
-    if (typeof window === "undefined" || id === "demo") return null;
+    if (typeof window === "undefined") return null;
     try {
       return JSON.parse(sessionStorage.getItem(`pay-choice:${id}`) ?? "null");
     } catch {
@@ -303,6 +290,15 @@ export function Checkout({ id }: { id: string }) {
       setBusy(false);
     }
   }
+  // The demo starts over from the token choice.
+  async function restartDemo() {
+    try {
+      await api({ action: "demo-reset" });
+    } finally {
+      remember(null);
+      location.reload();
+    }
+  }
   async function copy(value: string, label: string) {
     try {
       await navigator.clipboard.writeText(value);
@@ -400,7 +396,9 @@ export function Checkout({ id }: { id: string }) {
   );
   return (
     <div className="stablecoin-checkout">
-      {data?.sandbox && (
+      {data?.demo ? (
+        <div className="sc-test">Demo · nothing is charged</div>
+      ) : data?.sandbox && (
         <div className="sc-test">Test mode · no real money moves</div>
       )}
       <div className="sc-layout">
@@ -524,8 +522,15 @@ export function Checkout({ id }: { id: string }) {
               transactionUrl={data.transaction?.url}
               returnHref={data.returnUrl}
               onReturn={goToMerchant}
+              autoReturn={!data.demo}
             />
-          ) : data?.attemptState === "Pending" ? (
+          ) : null}
+          {confirmed && data.demo && (
+            <button type="button" className="sc-again" onClick={() => void restartDemo()}>
+              Run the demo again
+            </button>
+          )}
+          {confirmed ? null : data?.attemptState === "Pending" ? (
             <section role="status">
               <h2>Payment detected</h2>
               <Steps
@@ -567,6 +572,11 @@ export function Checkout({ id }: { id: string }) {
                   ? `Pay with ${swap.symbol} on ${swap.chainName}`
                   : `Pay ${displayTokenAmount(a.amount)} ${a.symbol}`}
               </h2>
+              {swap?.route === "dex" && swap.approx && (
+                <p className="sc-dex-step">
+                  ≈ {swap.approx} {swap.symbol}, swapped to USDC in your wallet
+                </p>
+              )}
               <CrossChain
                 api={api}
                 primary
@@ -708,22 +718,18 @@ export function Checkout({ id }: { id: string }) {
             <section role="status">
               <h2>Preparing payment instructions</h2>
             </section>
-          ) : id === "demo" ? (
-            <section>
-              <h2>What do you want to pay with?</h2>
-              <p className="sc-preview">Preview only. Not payable.</p>
-            </section>
           ) : data ? (
             <section>
               <PayPicker
                 api={api}
+                demo={!!data.demo}
                 busy={busy}
                 usd={usd}
                 fee={data.customerFee ? { amount: data.customerFee, symbol: data.symbol ?? "" } : null}
                 onStart={(token, next) => void start(token, next)}
                 onWalletPay={payWithWallet}
               />
-              {!expired && (
+              {!expired && !data.demo && (
                 <details className="sc-other">
                   <summary>Other ways to pay</summary>
                   {walletLinkBlock}
