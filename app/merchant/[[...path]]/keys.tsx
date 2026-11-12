@@ -62,34 +62,36 @@ export function Keys({
               input: {
                 environment,
                 permissions:
-                  form.get("access") === "refunds"
-                    ? [
-                        "payments:read",
-                        "payments:write",
-                        "settlements:read",
-                        "configuration:read",
-                        "webhooks:read",
-                        "subscriptions:read",
-                        "subscriptions:write",
-                        "refunds:write",
-                      ]
-                    : form.get("access") === "write"
-                    ? [
-                        "payments:read",
-                        "payments:write",
-                        "settlements:read",
-                        "configuration:read",
-                        "webhooks:read",
-                        "subscriptions:read",
-                        "subscriptions:write",
-                      ]
-                    : [
-                        "payments:read",
-                        "settlements:read",
-                        "configuration:read",
-                        "webhooks:read",
-                        "subscriptions:read",
-                      ],
+                  form.get("access") === "payments"
+                    ? ["payments:read", "payments:write"]
+                    : form.get("access") === "refunds"
+                      ? [
+                          "payments:read",
+                          "payments:write",
+                          "settlements:read",
+                          "configuration:read",
+                          "webhooks:read",
+                          "subscriptions:read",
+                          "subscriptions:write",
+                          "refunds:write",
+                        ]
+                      : form.get("access") === "write"
+                      ? [
+                          "payments:read",
+                          "payments:write",
+                          "settlements:read",
+                          "configuration:read",
+                          "webhooks:read",
+                          "subscriptions:read",
+                          "subscriptions:write",
+                        ]
+                      : [
+                          "payments:read",
+                          "settlements:read",
+                          "configuration:read",
+                          "webhooks:read",
+                          "subscriptions:read",
+                        ],
               },
             });
           }}
@@ -98,6 +100,7 @@ export function Keys({
             Access
             <select name="access">
               <option value="read">Read only</option>
+              <option value="payments">Payments only (read and write)</option>
               <option value="write">Create payments and subscriptions</option>
               <option value="refunds">Payments, subscriptions and refunds</option>
             </select>
@@ -151,7 +154,9 @@ export function Keys({
                       {key.permissions.includes("refunds:write")
                         ? "Payments and refunds"
                         : key.permissions.includes("payments:write")
-                          ? "Create payments"
+                          ? key.permissions.includes("subscriptions:write")
+                            ? "Create payments and subscriptions"
+                            : "Create payments"
                           : "Read only"}
                     </td>
                     <td className="ms-dim">{key.created}</td>
