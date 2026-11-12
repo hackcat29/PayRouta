@@ -67,7 +67,32 @@ jobs:
     environment: production
     steps:
       - uses: actions/checkout@v4
-      # Only tracked files are shipped: no node_modules, .git or local data.
+      # The app is built here, not on the server: the server is shared and
+      # often fully loaded, and building there took 13-22 minutes. Node 22
+      # and Ubuntu 24.04 x64 match the server.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Build the standalone app
+        env:
+          NODE_ENV: production
+          PORTAL_MODE: production
+          # Read at build time: public origins and the public client keys.
+          # Server-only settings are read from the server's .env at runtime.
+          SITE_URL: https://payrouta.com
+          BETTER_AUTH_URL: https://payrouta.com
+          BETTER_AUTH_SECRET: build-only-never-used-at-runtime-0123456789
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ secrets.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+          NEXT_PUBLIC_PRIVY_APP_ID: ${{ vars.NEXT_PUBLIC_PRIVY_APP_ID }}
+          NEXT_PUBLIC_PRIVY_CLIENT_ID: ${{ vars.NEXT_PUBLIC_PRIVY_CLIENT_ID }}
+        run: |
+          npm run build
+          cp -r public .next/standalone/
+          cp -r .next/static .next/standalone/.next/
+          tar -czf build.tgz -C .next standalone
+      # Only tracked files are shipped as source: no node_modules, .git or local data.
       - run: git archive --format=tar.gz -o release.tgz HEAD
       - name: Upload release
         uses: appleboy/scp-action@v0.1.7
@@ -75,9 +100,9 @@ jobs:
           host: ${{ secrets.CONTABO_HOST }}
           username: ${{ secrets.CONTABO_USER }}
           key: ${{ secrets.CONTABO_SSH_KEY }}
-          source: release.tgz
+          source: release.tgz,build.tgz
           target: /opt/payrouta/incoming
-      - name: Build, migrate, preflight and switch
+      - name: Migrate, preflight and switch
         uses: appleboy/ssh-action@v1.0.3
         env:
           SHA: ${{ github.sha }}
@@ -102,9 +127,9 @@ jobs:
           username: ${{ secrets.CONTABO_USER }}
           key: ${{ secrets.CONTABO_SSH_KEY }}
           envs: SHA,OPENSANCTIONS_API_KEY,TURNSTILE_SECRET_KEY,NEXT_PUBLIC_TURNSTILE_SITE_KEY,NEXT_PUBLIC_PRIVY_APP_ID,NEXT_PUBLIC_PRIVY_CLIENT_ID,PAYROUTA_INTENTS_FEE_ACCOUNT,COINGECKO_API_KEY,COINGECKO_API_PLAN
-          # The server is shared and often fully loaded: a full npm ci has
-          # taken 23 minutes there, and the build as long again.
-          command_timeout: 60m
+          # The server is shared and often fully loaded: a full npm ci (when
+          # the lockfile changes) has taken 23 minutes there.
+          command_timeout: 45m
           script_stop: true
           script: |
             echo "==> Deploy started for SHA: $SHA"
@@ -191,10 +216,10 @@ jobs:
               fi
             fi
             sync_env COINGECKO_API_PLAN "${COINGECKO_API_PLAN:-}"
-            echo "==> Building standalone application..."
-            npm run build
-            cp -r public .next/standalone/
-            cp -r .next/static .next/standalone/.next/
+            echo "==> Unpacking the app built in CI..."
+            mkdir -p .next
+            tar -xzf "$ROOT/incoming/build.tgz" -C .next
+            test -f .next/standalone/server.js
             echo "==> Running production preflight..."
             npm run preflight:production -- --warn || true
             echo "==> Stopping legacy PM2 service if present..."
