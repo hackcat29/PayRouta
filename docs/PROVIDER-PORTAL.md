@@ -24,15 +24,7 @@ npm run portal:worker
 
 Open <http://127.0.0.1:3000/provider/sign-in>. The marketing site remains at `/`.
 
-`portal:db` uses an isolated Homebrew PostgreSQL 17 cluster in `.local/postgres`, bound only to 127.0.0.1:55432. It does not modify an existing system cluster. Its trust authentication is for fictional local data only. To stop it: `/opt/homebrew/opt/postgresql@17/bin/pg_ctl -D .local/postgres stop`.
-
-Alternative on a machine with Docker:
-
-```sh
-docker compose -f compose.portal.yaml up -d
-```
-
-Set `DATABASE_URL=postgresql://payrouta:local-fictional-only@127.0.0.1:55432/payrouta`, then run generation, migrations and seeding. Do not run both database options on the same port. Docker's password is an intentionally public local fixture value.
+`portal:db` starts an isolated PostgreSQL on 127.0.0.1:55432 (user and database `payrouta`, trust authentication for fictional local data only). It reuses one that is already running there; otherwise it creates a cluster in `.local/postgres` with PostgreSQL 17's own tools (Homebrew on macOS, the Debian and Ubuntu packages, or `pg_ctl` on PATH); otherwise it starts a `postgres:17` Docker container named `payrouta-postgres` with the same settings as CI. It never modifies an existing system cluster. To stop it: `pg_ctl -D .local/postgres stop`, or `docker stop payrouta-postgres`.
 
 `portal:env` writes a random auth secret to ignored `.env` and creates a 0600 AES key outside the repository, in `~/.local/share/payrouta`. It preserves an existing `.env`; add missing values from `.env.example` yourself in that case. Back up the key securely if you need to preserve development secret values across cleanup/restarts. Loss of the key means those local secrets must be re-entered. Never use the local vault for production.
 

@@ -1,8 +1,7 @@
 import { z } from "zod";
 import { merchantMember } from "@/lib/merchant/access";
 import { environment } from "@/lib/merchant/contracts";
-import { csvCell } from "@/lib/merchant/csv";
-import { db } from "@/lib/portal/db";
+import { paymentsCsv } from "@/lib/merchant/payments-export";
 import { rateLimit } from "@/lib/portal/access";
 import { PortalError } from "@/lib/portal/domain";
 export async function GET(request: Request) {
@@ -28,50 +27,7 @@ export async function GET(request: Request) {
     if (to <= from || to.getTime() - from.getTime() > 31 * 86400000)
       throw new PortalError("EXPORT_WINDOW_TOO_LARGE");
     await rateLimit(`merchant-export:${session.user.id}`, 5);
-    const rows = await db.paymentIntent.findMany({
-      where: {
-        orgId: query.orgId,
-        environment: query.environment,
-        createdAt: { gte: from, lt: to },
-      },
-      select: {
-        id: true,
-        reference: true,
-        amount: true,
-        asset: true,
-        precision: true,
-        state: true,
-        createdAt: true,
-      },
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      take: 1001,
-    });
-    if (rows.length > 1000)
-      throw new PortalError("EXPORT_TOO_LARGE_NARROW_DATE_RANGE", 413);
-    const csv = [
-      [
-        "id",
-        "reference",
-        "amount",
-        "asset",
-        "network",
-        "precision",
-        "state",
-        "created_at",
-      ],
-      ...rows.map((r) => [
-        r.id,
-        r.reference,
-        r.amount,
-        (r.asset as { identifier: string }).identifier,
-        (r.asset as { network: string }).network,
-        String(r.precision),
-        r.state,
-        r.createdAt.toISOString(),
-      ]),
-    ]
-      .map((r) => r.map(csvCell).join(","))
-      .join("\r\n");
+    const csv = await paymentsCsv({ orgId: query.orgId, environment: query.environment }, from, to);
     return new Response(csv, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
