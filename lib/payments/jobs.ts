@@ -135,6 +135,14 @@ export async function sweepPayments(now = new Date()) {
     )
       continue;
     if (now.getTime() - a.createdAt.getTime() > 86400000) continue; // Exhaustion is visible; never infer failure.
+    // One reconcile per attempt in the queue: while one waits or retries,
+    // another each minute would only queue up ahead of other work.
+    if (
+      await db.job.count({
+        where: { kind: "payment-reconcile", state: { in: ["Pending", "Running"] }, payload: { path: ["attemptId"], equals: a.id } },
+      })
+    )
+      continue;
     await db.job.upsert({
       where: { key: `scheduled-reconcile:${a.id}:${bucket}` },
       create: {

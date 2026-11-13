@@ -824,6 +824,34 @@ export async function recordSettlement(
     return s;
   });
 }
+const intentsAdapters = ["near-intents-deposit", "near-intents-offramp", "near-intents-address"];
+
+// PayRouta's fee withheld at source on a NEAR Intents checkout, in the
+// intent's precision: the difference between the invoice and what the
+// account received. "0" for any other deposit adapter.
+async function withheldAtSource(
+  a: { id: string; intent: { precision: number } },
+  integration: { config: unknown },
+) {
+  const adapter = (integration.config as { adapter?: string }).adapter ?? "";
+  if (!intentsAdapters.includes(adapter)) return "0";
+  const atSource =
+    (
+      await db.crossChainPayment.findFirst({
+        where: { attemptId: a.id, recipientType: { in: ["INTENTS", "BANK", "ADDRESS"] }, status: "SUCCESS", appFeeMinor: { not: null } },
+        select: { appFeeMinor: true },
+      })
+    )?.appFeeMinor ?? "0";
+  // Delivered to an address in another stablecoin, the fee is in that
+  // token's units; the settlement is in the price's.
+  const delivered = adapter === "near-intents-address" ? addressConfigSchema.parse(integration.config).destination.decimals : a.intent.precision;
+  return (
+    delivered >= a.intent.precision
+      ? BigInt(atSource) / 10n ** BigInt(delivered - a.intent.precision)
+      : BigInt(atSource) * 10n ** BigInt(a.intent.precision - delivered)
+  ).toString();
+}
+
 export async function settle(attemptId: string, now = new Date()) {
   const a = await db.paymentAttempt.findUniqueOrThrow({
     where: { id: attemptId },
@@ -867,25 +895,7 @@ export async function settle(attemptId: string, now = new Date()) {
     if (verified?.state !== "Confirmed")
       throw new PortalError("DEPOSIT_NOT_FINALIZED", 409);
     const gross = minor(a.intent.amount, a.intent.precision).toString();
-    // PayRouta's fee withheld at source on a NEAR Intents checkout arrives
-    // as the difference between the invoice and what the account received.
-    const adapter = (integration.config as { adapter?: string }).adapter ?? "";
-    const atSource = ["near-intents-deposit", "near-intents-offramp", "near-intents-address"].includes(adapter)
-      ? ((
-          await db.crossChainPayment.findFirst({
-            where: { attemptId: a.id, recipientType: { in: ["INTENTS", "BANK", "ADDRESS"] }, status: "SUCCESS", appFeeMinor: { not: null } },
-            select: { appFeeMinor: true },
-          })
-        )?.appFeeMinor ?? "0")
-      : "0";
-    // Delivered to an address in another stablecoin, the fee is in that
-    // token's units; the settlement is in the price's.
-    const delivered = adapter === "near-intents-address" ? addressConfigSchema.parse(integration.config).destination.decimals : a.intent.precision;
-    const withheld = (
-      delivered >= a.intent.precision
-        ? BigInt(atSource) / 10n ** BigInt(delivered - a.intent.precision)
-        : BigInt(atSource) * 10n ** BigInt(a.intent.precision - delivered)
-    ).toString();
+    const withheld = await withheldAtSource(a, integration);
     return recordSettlement(
       {
         integrationId: a.integrationId,
@@ -952,13 +962,25 @@ export async function settle(attemptId: string, now = new Date()) {
   return result;
 }
 export async function reconcile(attemptId: string, now = new Date()) {
-  await poll(attemptId, now);
+  const before = await db.paymentAttempt.findUniqueOrThrow({
+    where: { id: attemptId },
+    include: { intent: true },
+  });
+  const readyIntegration = await db.integration.findUniqueOrThrow({
+    where: { id: before.integrationId },
+  });
+  const deposit = isDepositAdapter(
+    (readyIntegration.config as { adapter?: string }).adapter,
+  );
+  // A confirmed deposit is final; settlement re-reads its evidence, so
+  // there's nothing to poll the chain for again.
+  if (!(deposit && before.state === "Confirmed")) await poll(attemptId, now);
   const ready = await db.paymentAttempt.findUniqueOrThrow({
     where: { id: attemptId },
   });
-  const readyIntegration = await db.integration.findUniqueOrThrow({
-    where: { id: ready.integrationId },
-  });
+  // What the settlement should carry as its fee: on a NEAR Intents
+  // checkout, PayRouta's fee withheld at source; otherwise the route's.
+  const atSource = deposit ? await withheldAtSource(before, readyIntegration) : null;
   if (
     ready.state === "Confirmed" &&
     isDepositAdapter(
@@ -981,28 +1003,30 @@ export async function reconcile(attemptId: string, now = new Date()) {
     const route = await tx.paymentRoute.findUniqueOrThrow({
       where: { id: a.routeId },
     });
+    const expectedFee =
+      atSource && atSource !== "0"
+        ? atSource
+        : (route.snapshot as { providerFeeMinor: string }).providerFeeMinor;
     const entries = await tx.journalEntry.findMany({
       where: { source: `payment:${a.intentId}` },
     });
     const unresolved = await tx.paymentException.findMany({
       where: { intentId: a.intentId, state: "Unresolved" },
     });
-    // Finalized deposit settlement supersedes only the temporary age warning.
+    // Finalized deposit settlement supersedes the temporary age warning, and
+    // a fee mismatch raised before the fee withheld at source was expected.
     // Retain other exceptions and append the resolution to the audit timeline.
     const completedDeposit =
       a.state === "Confirmed" &&
-      isDepositAdapter(
-        (readyIntegration.config as { adapter?: string }).adapter,
-      ) &&
+      deposit &&
       entries.length === 1 &&
       s.length === 1 &&
       s[0].settlement.state === "Completed" &&
       BigInt(s[0].amount) === minor(a.intent.amount, a.intent.precision) &&
-      s[0].fee ===
-        (route.snapshot as { providerFeeMinor: string }).providerFeeMinor &&
+      s[0].fee === expectedFee &&
       (await tx.depositClaim.count({ where: { attemptId: a.id } })) === 1;
     const resolved = completedDeposit
-      ? unresolved.filter((e) => e.code === "AGED_PENDING")
+      ? unresolved.filter((e) => e.code === "AGED_PENDING" || e.code === "FEE_MISMATCH")
       : [];
     for (const warning of resolved)
       await tx.paymentException.update({
@@ -1031,12 +1055,7 @@ export async function reconcile(attemptId: string, now = new Date()) {
       now.getTime() - a.createdAt.getTime() > 300000
     )
       problems.push("AGED_PENDING");
-    for (const x of s)
-      if (
-        x.fee !==
-        (route.snapshot as { providerFeeMinor: string }).providerFeeMinor
-      )
-        problems.push("FEE_MISMATCH");
+    for (const x of s) if (x.fee !== expectedFee) problems.push("FEE_MISMATCH");
     if (
       s.length &&
       s.reduce((n, x) => n + BigInt(x.amount), 0n) <
