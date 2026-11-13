@@ -6,6 +6,7 @@ NEAR Intents does the conversion under the button. The customer pays from what t
 
 - Live site: [payrouta.com](https://payrouta.com) · Docs: [docs.payrouta.com](https://docs.payrouta.com) · Checkout demo: [payrouta.com/checkout/demo](https://payrouta.com/checkout/demo)
 - **Demo video:** [PayRouta WooCommerce Mainnet Demo](https://youtu.be/esorKpU_jxg) (3 min): a real WooCommerce order paid with ETH on Base, settled in USDC through NEAR Intents. Narration, steps and on-chain proof: [Live demo](#live-demo-a-real-woocommerce-order-paid-with-eth-on-base-mainnet)
+- **Launch post on X:** [x.com/payrouta/status/2121060309397877117](https://x.com/payrouta/status/2121060309397877117)
 - NEAR HACKATHON tracks: **08 Real-World Money** (primary), **07 Agent Economy**, **04 Autonomous Business**
 
 | The customer pays with | The merchant is paid in |
