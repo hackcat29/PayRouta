@@ -183,7 +183,7 @@ fn refuses_a_key_that_is_not_an_agent() {
 }
 
 #[test]
-#[should_panic(expected = "Only this vault's agent keys can pay")]
+#[should_panic(expected = "Only this vault's agents can pay")]
 fn refuses_calls_from_other_accounts() {
     let mut v = vault();
     context("attacker.testnet", agent_key(), 2_000);
@@ -254,7 +254,7 @@ fn cents_round_up() {
 fn local_vaults_take_no_attestations() {
     let mut v = vault();
     let attestation: DstackAttestation = shade_attestation::attestation::create_mock_dstack_attestation();
-    let _ = v.register_agent(attestation, agent_key(), "x".to_string());
+    let _ = v.register_agent(attestation, Some(agent_key()), Some("x".to_string()));
 }
 
 #[test]
@@ -289,7 +289,7 @@ fn tee_vaults_reject_an_attestation_that_is_not_a_genuine_tdx_quote() {
     );
     v.approve_measurements(create_mock_full_measurements_hex());
     v.approve_ppid(Ppid::default());
-    let _ = v.register_agent(shade_attestation::attestation::create_mock_dstack_attestation(), agent_key(), "Agent".to_string());
+    let _ = v.register_agent(shade_attestation::attestation::create_mock_dstack_attestation(), Some(agent_key()), Some("Agent".to_string()));
 }
 
 #[test]
@@ -312,4 +312,26 @@ fn tee_vaults_take_no_owner_approvals() {
         },
     );
     let _ = v.approve_agent(agent_key(), "Agent".to_string());
+}
+
+#[test]
+fn a_shade_agent_pays_from_its_own_implicit_account() {
+    let mut v = vault();
+    // The agent's implicit account is its ed25519 key in hex.
+    let implicit = hex::encode([9u8; 32]);
+    context(&implicit, PublicKey::from_parts(CurveType::ED25519, vec![9u8; 32]).unwrap(), 2_000);
+    assert!(v.get_agent(implicit.parse().unwrap()).is_some());
+    let o = near_order("pay_shade", 1_000_000);
+    let _ = v.pay(o.clone(), sign(&payrouta(), &o), None);
+    assert!(v.is_paid("pay_shade".to_string()));
+}
+
+#[test]
+#[should_panic(expected = "Not an agent of this vault")]
+fn an_unregistered_implicit_account_cannot_pay() {
+    let mut v = vault();
+    let implicit = hex::encode([4u8; 32]);
+    context(&implicit, PublicKey::from_parts(CurveType::ED25519, vec![4u8; 32]).unwrap(), 2_000);
+    let o = near_order("pay_x", 1_000_000);
+    let _ = v.pay(o.clone(), sign(&payrouta(), &o), None);
 }

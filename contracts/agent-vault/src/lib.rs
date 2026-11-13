@@ -46,7 +46,8 @@ const FT_GAS: Gas = Gas::from_tgas(10);
 // NEP-145 registration for a NEP-141 token (USDC on NEAR takes 0.00125 NEAR);
 // refunded when the receiver is already registered.
 const STORAGE_DEPOSIT: NearToken = NearToken::from_yoctonear(1_250_000_000_000_000_000_000);
-const AGENT_STORAGE: NearToken = NearToken::from_millinear(10);
+// What a Shade Agent attaches to register_agent (shade-agent-js).
+const AGENT_STORAGE: NearToken = NearToken::from_millinear(5);
 const EVM_MAX_GAS_LIMIT: u64 = 150_000;
 
 #[near(serializers = [json, borsh])]
@@ -250,10 +251,18 @@ impl Vault {
     /// quote's report data must be the key (32 bytes, then zeros), so only a
     /// key generated inside an approved TEE image gets added. Anyone may
     /// submit it; the attestation is the proof.
+    ///
+    /// A Shade Agent (shade-agent-js `ShadeClient.register()`) calls this from
+    /// its own implicit account with only the attestation: the key is that
+    /// account's, and the agent then pays by calling `pay` from it.
     #[payable]
-    pub fn register_agent(&mut self, attestation: DstackAttestation, public_key: PublicKey, name: String) -> Promise {
+    pub fn register_agent(&mut self, attestation: DstackAttestation, public_key: Option<PublicKey>, name: Option<String>) -> Promise {
         require!(self.requires_tee, "This vault is in local mode: the owner approves agents");
-        require!(env::attached_deposit() >= AGENT_STORAGE, "Attach 0.01 NEAR for the agent's storage");
+        require!(env::attached_deposit() >= AGENT_STORAGE, "Attach 0.005 NEAR for the agent's storage");
+        let public_key = public_key
+            .or_else(|| implicit_key(&env::predecessor_account_id()))
+            .unwrap_or_else(|| env::panic_str("Pass public_key, or call from the agent's implicit account"));
+        let name = name.unwrap_or_else(|| "Shade Agent".to_string());
         let key = ed25519_bytes(&public_key);
         let mut report = [0u8; 64];
         report[..32].copy_from_slice(&key);
@@ -288,9 +297,15 @@ impl Vault {
     /// the vault transfers the token; on an EVM chain it returns the signed
     /// transaction (EvmPayment) for the agent to broadcast.
     pub fn pay(&mut self, order: String, signature: String, evm: Option<EvmGas>) -> Promise {
-        // Agents call through their function-call key on this account.
-        require!(env::predecessor_account_id() == env::current_account_id(), "Only this vault's agent keys can pay");
-        let signer = String::from(&env::signer_account_pk());
+        // Agents call through their function-call key on this account, or, as
+        // a Shade Agent, from their own implicit account.
+        let signer = if env::predecessor_account_id() == env::current_account_id() {
+            String::from(&env::signer_account_pk())
+        } else {
+            implicit_key(&env::predecessor_account_id())
+                .map(|k| String::from(&k))
+                .unwrap_or_else(|| env::panic_str("Only this vault's agents can pay"))
+        };
         let agent = self.agents.get(&signer).unwrap_or_else(|| env::panic_str("Not an agent of this vault")).clone();
         require!(agent.valid_until_ms.0 >= env::block_timestamp_ms(), "The agent's attestation has expired");
         require!(self.approved_measurements.contains(&agent.measurements), "The agent's TEE image is no longer approved");
@@ -481,6 +496,10 @@ impl Vault {
     pub fn get_agents(&self) -> Vec<(String, Agent)> {
         self.agents.iter().map(|(k, a)| (k.clone(), a.clone())).collect()
     }
+    /// An agent by its implicit account (as shade-agent-js asks), or None.
+    pub fn get_agent(&self, account_id: AccountId) -> Option<Agent> {
+        implicit_key(&account_id).and_then(|k| self.agents.get(&String::from(&k)).cloned())
+    }
     pub fn get_merchants(&self) -> Vec<String> {
         self.merchants.iter().cloned().collect()
     }
@@ -537,6 +556,15 @@ impl Vault {
         }
         Event::emit("payment_failed", serde_json::json!({ "order": order }));
     }
+}
+
+/// The ed25519 key of an implicit account (64 lowercase hex characters).
+fn implicit_key(account: &AccountId) -> Option<PublicKey> {
+    let id = account.as_str();
+    if id.len() != 64 || !id.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)) {
+        return None;
+    }
+    PublicKey::from_parts(CurveType::ED25519, hex::decode(id).ok()?).ok()
 }
 
 fn ed25519_bytes(key: &PublicKey) -> [u8; 32] {
