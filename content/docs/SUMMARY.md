@@ -16,6 +16,8 @@
 * [Teams and security](teams.md)
 * [Pay with credit](credit.md)
 * [Pay from any chain](cross-chain.md)
+* [x402 on NEAR](x402.md)
+* [Agent vault](agent-vault.md)
 
 ## Integration
 * [API reference](api-reference.md)

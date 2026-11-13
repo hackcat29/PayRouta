@@ -4,6 +4,8 @@
 //   GET  links/{slug}        402 Payment Required: what the link costs and
 //                            how an agent can pay it
 //   GET  invoices/{slug}     the same for a subscription invoice
+//   GET  x402/links/{slug}   the link over x402: USDC on NEAR, no gas
+//                            (lib/x402/checkout.ts)
 //   POST checkouts           open a checkout from a link (or a checkout URL
 //                            the merchant gave the agent)
 //   POST checkouts/{id}/pay  what to send, or the intent to sign
@@ -26,6 +28,8 @@ import { crossChainQuote, crossChainStatus, intentsFundedQuote, payOptions, subm
 import type { QuotedCryptoTerms } from "../payments/crypto-checkout";
 import { reserveSpend, type AgentKey } from "./keys";
 import { publicInvoice, startInvoiceCheckout } from "../subscriptions/service";
+import { x402Available } from "../x402/checkout";
+import { baseUnits, orderPublicKey, signOrder, vaultAsset } from "./vault";
 
 const api = "/api/agent/v1";
 
@@ -46,6 +50,9 @@ export async function linkTerms(slug: string, origin: string) {
           { method: "wallet", description: "Send a token on-chain to the address checkout gives you" },
           ...(link.environment === "production"
             ? [{ method: "intents", network: "near:mainnet", description: "Sign one transfer intent from a NEAR Intents balance; no gas" }]
+            : []),
+          ...(link.environment === "production" && (await x402Available())
+            ? [{ method: "x402", network: "near:mainnet", url: `${origin}${api}/x402/links/${link.slug}`, description: "Pay in USDC on NEAR with any x402 client; no gas" }]
             : []),
         ]
       : [],
@@ -73,6 +80,9 @@ export async function invoiceTerms(slug: string, origin: string) {
             { method: "wallet", description: "Send a token on-chain to the address checkout gives you" },
             ...(invoice.environment === "production"
               ? [{ method: "intents", network: "near:mainnet", description: "Sign one transfer intent from a NEAR Intents balance; no gas" }]
+              : []),
+            ...(invoice.environment === "production" && (await x402Available())
+              ? [{ method: "x402", network: "near:mainnet", url: `${origin}${api}/x402/invoices/${invoice.slug}`, description: "Pay in USDC on NEAR with any x402 client; no gas" }]
               : []),
           ]
         : [],
@@ -225,6 +235,7 @@ export async function pay(
   if (swapAsset) {
     if (!input.refundTo) throw new PortalError("CROSS_CHAIN_REFUND_ADDRESS_INVALID", 400);
     const q = await crossChainQuote(id, token, { originAsset: swapAsset, refundTo: input.refundTo }, { now });
+    const vault = q.depositMemo ? undefined : await vaultOrder(intent, { originAsset: swapAsset }, q.depositAddress, q.send, new Date(q.deadline));
     return {
       kind: "transfer",
       network: q.chainName,
@@ -234,9 +245,12 @@ export async function pay(
       ...(q.depositMemo ? { memo: q.depositMemo } : {}),
       refundTo: q.refundTo,
       deadline: q.deadline,
+      ...(vault ? { vault } : {}),
     };
   }
   if (action.kind !== "deposit") throw new PortalError("PAYMENT_OPTION_NOT_OFFERED", 409);
+  const vault =
+    action.address && action.amount ? await vaultOrder(intent, { network: action.network, token: action.identifier }, action.address, action.amount, intent.expiresAt) : undefined;
   return {
     kind: "transfer",
     network: action.network,
@@ -245,7 +259,37 @@ export async function pay(
     amount: action.amount,
     address: action.address,
     deadline: intent.expiresAt.toISOString(),
+    ...(vault ? { vault } : {}),
   };
+}
+
+// The same transfer as an order PayRouta signs for an agent vault
+// (lib/agents/vault.ts): who is paid, where, in what and how much. The
+// vault pays only orders signed with this key, so an agent can't change any
+// of it. Absent when order signing isn't configured or the token isn't one a
+// vault pays with.
+async function vaultOrder(
+  intent: { id: string; orgId: string },
+  asset: { network?: string; token?: string; originAsset?: string },
+  payTo: string,
+  amount: string,
+  expiresAt: Date,
+) {
+  const paid = vaultAsset(asset);
+  if (!paid) return undefined;
+  const org = await db.organization.findUnique({ where: { id: intent.orgId }, select: { name: true } });
+  const signed = await signOrder({
+    id: intent.id,
+    merchant: intent.orgId,
+    merchant_name: org?.name ?? "",
+    network: paid.network,
+    token: paid.token,
+    pay_to: payTo,
+    amount: baseUnits(amount, paid.decimals),
+    expires_at_ms: String(expiresAt.getTime()),
+  }).catch(() => null);
+  if (!signed) return undefined;
+  return { ...signed, signer: await orderPublicKey(), method: "pay" };
 }
 
 export async function submit(id: string, token: string, raw: unknown) {

@@ -8,6 +8,8 @@ import { rateLimit } from "@/lib/portal/access";
 import { PortalError } from "@/lib/portal/domain";
 import { agentKeyFrom, agentSpending } from "@/lib/agents/keys";
 import { describe, invoiceTerms, linkTerms, openCheckout, pay, status, submit } from "@/lib/agents/checkout";
+import { x402Pay } from "@/lib/x402/checkout";
+import { orderPublicKey } from "@/lib/agents/vault";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,6 +23,18 @@ const tokenOf = (r: NextRequest) => {
 
 export async function GET(r: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   const [resource, id, ...rest] = (await params).path;
+  // x402 (lib/x402/checkout.ts): a link or invoice paid in USDC on NEAR by
+  // any x402 client.
+  if (resource === "x402" && (id === "links" || id === "invoices") && rest.length === 1) {
+    try {
+      await rateLimit(`agent-x402:${ipOf(r)}`, 30);
+      const country = r.headers.get("cf-ipcountry") || r.headers.get("x-vercel-ip-country");
+      return await x402Pay(id, rest[0], r, { ip: ipOf(r), country }, await agentKeyFrom(r));
+    } catch (e) {
+      const { body, status: code } = failure(e);
+      return Response.json(body, { status: code, headers: { "Cache-Control": "no-store" } });
+    }
+  }
   // 402 Payment Required: what a payment link costs and how to pay it.
   if ((resource === "links" || resource === "invoices") && id && !rest.length) {
     try {
@@ -34,6 +48,13 @@ export async function GET(r: NextRequest, { params }: { params: Promise<{ path: 
     }
   }
   return respond(async () => {
+    // The key PayRouta signs agent-vault orders with: a vault's owner sets
+    // it as the vault's order_signer (docs/agent-vault.md).
+    if (resource === "order-key" && !id) {
+      const key = await orderPublicKey();
+      if (!key) throw new PortalError("AGENT_ORDERS_NOT_CONFIGURED", 503);
+      return { orderSigner: key, domain: "PayRouta agent order v1" };
+    }
     // The calling agent key's budget, spending this period and payments.
     if (resource === "spending" && !id) {
       const key = await agentKeyFrom(r);

@@ -1,0 +1,51 @@
+# Agent vault
+
+An agent key's limits stop PayRouta from preparing a payment the agent isn't allowed to make. The **agent vault** puts the limits where the money is. It's a NEAR smart contract the agent pays from, and it enforces its owner's rules itself, even if the agent is compromised or prompt-injected.
+
+## How it protects the money
+
+- **The agent holds no key that can move funds.** Its only key is a NEAR function-call access key on the vault, which can call `pay` and nothing else. NEAR refuses any other call: transferring tokens directly, calling another contract, or changing the vault's settings.
+- **The agent can only pay what PayRouta signed.** For each checkout, PayRouta signs a payment order: the merchant, the address to pay, the token, the amount and an expiry. The vault pays only orders with PayRouta's signature, each order once. An agent that rewrites the address or the amount breaks the signature.
+- **The owner's policy is on-chain.** The vault enforces:
+  - the merchants the agent may pay;
+  - the stablecoins it may pay with;
+  - the most per payment;
+  - a budget per day (or any period);
+  - a cap on EVM gas fees.
+- **Agents can be required to run in a TEE.** In TEE mode, an agent registers with an Intel TDX attestation (a NEAR Shade Agent). The vault adds its key only if the quote is genuine, its report data is that key, and the image's measurements are ones the owner approved. Registrations expire and must be renewed.
+
+## Paying on NEAR and on EVM chains
+
+- **On NEAR**, the vault transfers the token itself, for example USDC to a checkout's NEAR Intents deposit address.
+- **On EVM chains**, the vault builds the ERC-20 transfer and asks NEAR Chain Signatures (`v1.signer`) to sign it for the vault's own derived EVM address. The MPC network signs only what the contract built. The agent then broadcasts the signed transaction.
+
+## Using it with PayRouta
+
+1. Deploy the vault contract from the PayRouta repository (`contracts/agent-vault`), with your account as owner.
+2. Set its order signer to PayRouta's key:
+
+   ```http
+   GET /api/agent/v1/order-key
+   ```
+
+   ```json
+   { "orderSigner": "ed25519:…", "domain": "PayRouta agent order v1" }
+   ```
+
+3. As the owner, allow the stablecoins and the merchants, and set the policy.
+4. Add the agent's key: `approve_agent`, or in TEE mode the agent calls `register_agent` with its attestation.
+5. When the agent pays a checkout through the agent API, the response to `POST /api/agent/v1/checkouts/{id}/pay` includes the signed order:
+
+   ```json
+   {
+     "kind": "transfer",
+     "network": "eip155:8453",
+     "amount": "20.000000",
+     "address": "0x…",
+     "vault": { "order": "{\"id\":\"pay_…\",…}", "signature": "…", "signer": "ed25519:…", "method": "pay" }
+   }
+   ```
+
+   The agent calls the vault's `pay` with `order` and `signature`. For an EVM payment it also passes the nonce and gas settings, then broadcasts the signed transaction the vault returns.
+
+The vault's views show its policy, spending this period, agents, merchants and tokens.

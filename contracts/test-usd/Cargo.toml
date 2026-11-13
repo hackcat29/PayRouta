@@ -1,0 +1,22 @@
+[package]
+name = "payrouta-test-usd"
+version = "0.1.0"
+edition = "2024"
+description = "A NEP-141 test dollar for NEAR testnet: PayRouta's test-mode agent payments and x402 demos use it in place of USDC"
+license = "Apache-2.0"
+repository = "https://github.com/hackcat29/PayRouta"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+near-sdk = "=5.26.1"
+near-contract-standards = "=5.26.1"
+
+[profile.release]
+codegen-units = 1
+opt-level = "z"
+lto = true
+debug = false
+panic = "abort"
+overflow-checks = true

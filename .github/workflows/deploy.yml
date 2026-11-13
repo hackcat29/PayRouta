@@ -124,11 +124,21 @@ jobs:
           # NEAR Intents 1Click partner key (a JWT), stored the same way.
           ONECLICK_API_KEY: ${{ secrets.ONECLICK_API_KEY }}
           COINGECKO_API_PLAN: ${{ vars.COINGECKO_API_PLAN }}
+          # x402 on NEAR (lib/x402): the relayer accounts that pay the gas, and
+          # their full-access keys (stored like the API keys above). A network
+          # without both isn't offered.
+          X402_NEAR_MAINNET_RELAYER: ${{ vars.X402_NEAR_MAINNET_RELAYER }}
+          X402_NEAR_TESTNET_RELAYER: ${{ vars.X402_NEAR_TESTNET_RELAYER }}
+          X402_NEAR_MAINNET_RELAYER_KEY: ${{ secrets.X402_NEAR_MAINNET_RELAYER_KEY }}
+          X402_NEAR_TESTNET_RELAYER_KEY: ${{ secrets.X402_NEAR_TESTNET_RELAYER_KEY }}
+          # The ed25519 seed (hex) PayRouta signs agent-vault orders with
+          # (lib/agents/vault.ts).
+          PAYROUTA_AGENT_ORDER_KEY: ${{ secrets.PAYROUTA_AGENT_ORDER_KEY }}
         with:
           host: ${{ secrets.CONTABO_HOST }}
           username: ${{ secrets.CONTABO_USER }}
           key: ${{ secrets.CONTABO_SSH_KEY }}
-          envs: SHA,OPENSANCTIONS_API_KEY,TURNSTILE_SECRET_KEY,NEXT_PUBLIC_TURNSTILE_SITE_KEY,NEXT_PUBLIC_PRIVY_APP_ID,NEXT_PUBLIC_PRIVY_CLIENT_ID,PAYROUTA_INTENTS_FEE_ACCOUNT,COINGECKO_API_KEY,COINGECKO_API_PLAN,ONECLICK_API_KEY
+          envs: SHA,OPENSANCTIONS_API_KEY,TURNSTILE_SECRET_KEY,NEXT_PUBLIC_TURNSTILE_SITE_KEY,NEXT_PUBLIC_PRIVY_APP_ID,NEXT_PUBLIC_PRIVY_CLIENT_ID,PAYROUTA_INTENTS_FEE_ACCOUNT,COINGECKO_API_KEY,COINGECKO_API_PLAN,ONECLICK_API_KEY,X402_NEAR_MAINNET_RELAYER,X402_NEAR_TESTNET_RELAYER,X402_NEAR_MAINNET_RELAYER_KEY,X402_NEAR_TESTNET_RELAYER_KEY,PAYROUTA_AGENT_ORDER_KEY
           # The server is shared and often fully loaded: a full npm ci (when
           # the lockfile changes) has taken 23 minutes there.
           command_timeout: 45m
@@ -225,6 +235,11 @@ jobs:
             store_key COINGECKO_API_KEY CoinGecko
             store_key ONECLICK_API_KEY 1Click
             sync_env COINGECKO_API_PLAN "${COINGECKO_API_PLAN:-}"
+            store_key X402_NEAR_MAINNET_RELAYER_KEY "x402 mainnet relayer"
+            store_key X402_NEAR_TESTNET_RELAYER_KEY "x402 testnet relayer"
+            store_key PAYROUTA_AGENT_ORDER_KEY "Agent order signing"
+            [ -z "${X402_NEAR_MAINNET_RELAYER:-}" ] || sync_env X402_NEAR_MAINNET_RELAYER "$X402_NEAR_MAINNET_RELAYER"
+            [ -z "${X402_NEAR_TESTNET_RELAYER:-}" ] || sync_env X402_NEAR_TESTNET_RELAYER "$X402_NEAR_TESTNET_RELAYER"
             echo "==> Unpacking the app built in CI..."
             mkdir -p .next
             tar -xzf "$ROOT/incoming/build.tgz" -C .next

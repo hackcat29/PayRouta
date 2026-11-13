@@ -105,6 +105,14 @@ The limits bound what PayRouta prepares and submits for the key. The agent's wal
 
 The agent can check the same with `GET /api/agent/v1/spending` (its key as the bearer token) or the `get_spending` MCP tool.
 
+## Paying over x402
+
+Any x402 client with a NEAR account can pay a live payment link or invoice in USDC on NEAR, with no gas, at `/api/agent/v1/x402/links/{slug}`. See [x402 on NEAR](x402.md).
+
+## Limits on-chain: the agent vault
+
+For limits the agent itself can't get around, it pays from an [agent vault](agent-vault.md): a NEAR contract that holds the funds, pays only orders PayRouta signed, and enforces the owner's merchants, caps and budget on-chain. The response to `pay` includes the signed order (`vault`).
+
 ## Paying over MCP
 
 Agents that speak the Model Context Protocol can pay without calling the HTTP API: connect to `https://payrouta.com/api/mcp` with the agent key as the bearer token. See [MCP server](mcp.md#for-a-buyers-agent).

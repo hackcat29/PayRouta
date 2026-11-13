@@ -47,6 +47,8 @@
               "guides/near-intents",
               "guides/cash-out",
               "guides/agents",
+              "guides/x402",
+              "guides/agent-vault",
               "guides/local-methods"
             ]
           },

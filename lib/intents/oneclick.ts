@@ -343,3 +343,16 @@ export async function submitIntent(signedData: unknown, http: Http = providerReq
   });
   return parse(z.object({ intentHash: z.string().min(1).max(100) }).passthrough(), response, "INTENTS_SIGNATURE_REJECTED");
 }
+
+// Tells 1Click a deposit was sent (POST /v0/deposit/submit), so it doesn't
+// wait to notice it. Optional: 1Click finds deposits on its own.
+export async function submitDeposit(input: { txHash: string; depositAddress: string; nearSenderAccount?: string }, http: Http = providerRequest) {
+  const response = await oneClickRequest(http, {
+    method: "POST",
+    path: "/v0/deposit/submit",
+    body: JSON.stringify(input),
+    timeoutMs: 8000,
+    maxResponseBytes: 65536,
+  });
+  return response.status >= 200 && response.status < 300;
+}

@@ -2089,3 +2089,27 @@ model TokenLogo {
   missing   Boolean  @default(false)
   fetchedAt DateTime @default(now())
 }
+
+// An x402 payment PayRouta's NEAR relayer settled (lib/x402): through the
+// facilitator API for a merchant's own x402 server ("facilitator"), or for a
+// PayRouta checkout paid over x402 ("checkout", with intentId).
+model X402Settlement {
+  id          String   @id @default(cuid())
+  orgId       String
+  environment String
+  source      String
+  network     String
+  asset       String
+  amount      String
+  payTo       String
+  payer       String?
+  resource    String?
+  intentId    String?
+  success     Boolean
+  transaction String?
+  errorReason String?
+  createdAt   DateTime @default(now())
+
+  @@index([orgId, environment, createdAt])
+  @@index([intentId])
+}

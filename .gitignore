@@ -34,3 +34,6 @@ sdks/node/dist/
 sdks/cli/dist/
 __pycache__/
 *.egg-info/
+
+# Rust build output of the NEAR contracts.
+contracts/*/target/
