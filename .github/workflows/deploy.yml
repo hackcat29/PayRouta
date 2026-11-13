@@ -204,7 +204,13 @@ jobs:
               echo "==> Lockfile unchanged: reusing node_modules from $PREV"
               cp -al "$PREV/node_modules" node_modules
             else
-              npm ci --prefer-offline --no-audit --no-fund
+              echo "==> Disk: $(df -h "$ROOT" | tail -1)"
+              # npm's own reason, if it fails (stderr isn't always relayed).
+              if ! npm ci --prefer-offline --no-audit --no-fund > "$ROOT/npm-ci.log" 2>&1; then
+                echo "==> npm ci failed:"
+                tail -n 40 "$ROOT/npm-ci.log"
+                exit 1
+              fi
             fi
             echo "==> Generating Prisma client..."
             npx prisma generate

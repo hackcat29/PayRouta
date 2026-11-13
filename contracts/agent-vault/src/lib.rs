@@ -478,6 +478,24 @@ impl Vault {
         self.require_owner();
         self.approved_ppids.remove(&ppid);
     }
+    // The Shade Agent CLI's names (deployment.yaml approve_ppids).
+    pub fn approve_ppids(&mut self, ppids: Vec<Ppid>) {
+        self.require_owner();
+        for ppid in ppids {
+            self.approved_ppids.insert(ppid);
+        }
+    }
+    pub fn remove_ppids(&mut self, ppids: Vec<Ppid>) {
+        self.require_owner();
+        for ppid in ppids {
+            self.approved_ppids.remove(&ppid);
+        }
+    }
+    /// Hands the vault to another owner, e.g. the Shade Agent CLI's account.
+    pub fn update_owner_id(&mut self, owner_id: AccountId) {
+        self.require_owner();
+        self.owner_id = owner_id;
+    }
 
     // ---- Views --------------------------------------------------------------
 

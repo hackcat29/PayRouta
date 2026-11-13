@@ -20,6 +20,16 @@ The key is added in one of two ways:
   Only a key generated inside an approved image gets added. Registration expires after `attestation_expiration_ms`, and the agent must re-attest.
 - **Local mode.** The owner calls `approve_agent(public_key)`. The approval lasts until `remove_agent`.
 
+The vault works with NEAR's Shade Agent tooling as it is:
+
+- `shade-agent-js` `ShadeClient.register()` calls `register_agent({attestation})` from the agent's implicit account, and the key is that account's;
+- `get_agent({account_id})` answers its registration check;
+- a registered agent then pays by calling `pay` from that account;
+- the Shade Agent CLI approves an image's measurements and Phala's PPIDs with `approve_measurements` and `approve_ppids`;
+- `update_owner_id` hands the vault to the CLI's account.
+
+The agent app is [`agents/shade-vault-agent`](../agents/shade-vault-agent), with Phala deployment steps.
+
 ## What `pay` checks
 
 `pay(order, signature, evm?)` accepts only a **payment order PayRouta signed** for one checkout. The order carries the payment id, merchant id and name, network, token, `pay_to`, amount in base units, and expiry. It is signed with ed25519 over `"PayRouta agent order v1\n" + order JSON` (`lib/agents/vault.ts`; `PAYROUTA_AGENT_ORDER_KEY_REF`). A prompt-injected agent therefore can't change who is paid or how much.
@@ -86,7 +96,10 @@ Views: `get_config`, `get_policy`, `get_spending`, `get_agents`, `get_merchants`
   - the agent's key calling the token;
   - the agent's key calling an owner method.
 
-Not yet done:
+TEE mode, on testnet:
 
-- TEE mode is built and unit-tested (a forged quote is rejected; owner approval is refused in TEE mode), but no agent has registered from a real TDX quote. That needs a dstack/Phala deployment of the agent.
-- The contract uses `shade-attestation`, which doesn't build on macOS. It builds and tests in `sourcescan/cargo-near:0.19.0-rust-1.86.0` (see `contracts/README.md`): 25 unit tests.
+- `payrouta-tee-vault.testnet` is deployed with `requires_tee: true`, owned by `payrouta-buyer.testnet`.
+- The Shade vault agent, run outside a TEE, sent its placeholder attestation through `ShadeClient.register()`. The vault refused it on-chain: `Attestation rejected: dcap verification failed`.
+- A registration from a real TDX quote needs the agent deployed on Phala Cloud (`agents/shade-vault-agent/README.md`).
+
+The contract uses `shade-attestation`, which doesn't build on macOS. It builds and tests in `sourcescan/cargo-near:0.19.0-rust-1.86.0` (see `contracts/README.md`): 28 unit tests.

@@ -40,7 +40,7 @@ The wasm is about 830 KB, so the account needs about 9 NEAR for storage.
 
 On mainnet, use `v1.signer` and `near:mainnet`.
 
-With `requires_tee: true`, approve the agent image's measurements and the hardware PPIDs (`approve_measurements`, `approve_ppid`), and let the agent call `register_agent` with its attestation.
+With `requires_tee: true`, approve the agent image's measurements and the hardware PPIDs (`approve_measurements`, `approve_ppids`), and let the agent call `register_agent` with its attestation. The Shade Agent CLI does both: see [`agents/shade-vault-agent`](../agents/shade-vault-agent).
 
 Then, as the owner:
 

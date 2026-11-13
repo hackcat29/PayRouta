@@ -83,7 +83,12 @@ PayRouta existed before the hackathon. Only the work since the [19 October 2026 
 | 01 Unstoppable DeFi | Trading, NEAR Intents, Chain Signatures | Every payment is a cross-chain swap through NEAR Intents into an account the merchant owns, refunded on the customer's own chain if it fails. Tokens with DEX liquidity are swapped into USDC first (Jupiter, LI.FI). The agent vault is a non-custodial vault that pays on any EVM chain through Chain Signatures. The demo checkout fetches real quotes with `dry: true`, so it can be tried without funds. |
 | 13 Open Innovation | Chain abstraction | Checkout without chains: the customer pays from any of 35+ chains without choosing a network or bridging, and the merchant is paid in one currency. |
 
-The testnet agent vault runs in local mode (the owner approves agent keys). TEE mode is built and unit-tested, including the rejection of a forged quote, but no agent has registered from real TDX hardware yet.
+Two vaults run on NEAR testnet:
+
+- `payrouta-vault.testnet`, in local mode: the owner approves agent keys.
+- `payrouta-tee-vault.testnet`, in TEE mode. It works with NEAR's Shade Agent tooling unchanged.
+
+A Shade Agent ([`agents/shade-vault-agent`](agents/shade-vault-agent)) registered from outside a TEE was refused on-chain: `Attestation rejected: dcap verification failed`. Registering from real TDX hardware needs the agent deployed on Phala Cloud, with steps in that folder's README.
 
 ## Sell on Shopify and WooCommerce
 
@@ -402,7 +407,7 @@ npm run test:payments && npm run test:merchant && npm run test:partners && npm r
 npm run demo:agent-guardrails   # a prompt-injected agent against its key's limits
 ```
 
-The agent vault's 25 contract tests run in the cargo-near image, because `shade-attestation` doesn't build on macOS ([`contracts/README.md`](contracts/README.md)). `npm run demo:x402-near` and `npm run demo:agent-vault` run on NEAR testnet and need testnet accounts; their logs and transactions are above.
+The agent vault's 28 contract tests run in the cargo-near image, because `shade-attestation` doesn't build on macOS ([`contracts/README.md`](contracts/README.md)). `npm run demo:x402-near` and `npm run demo:agent-vault` run on NEAR testnet and need testnet accounts; their logs and transactions are above.
 
 ### Where each claim is tested
 
@@ -422,9 +427,9 @@ The agent vault's 25 contract tests run in the cargo-near image, because `shade-
 | An agent pays from its NEAR Intents balance by signing one transfer | `lib/intents` | `tests/intents/database.test.ts`: "near intents: an agent pays from its intents balance…" |
 | MCP tools and CLI | `lib/mcp`, `sdks/cli` | `tests/agents/database.test.ts`, `tests/cli.test.ts` |
 | x402 on NEAR: verify and settle through PayRouta's relayer; a replayed payment is refused | `lib/x402`, `app/api/v1/x402` | `npm run demo:x402-near` (NEAR testnet), `tests/x402-near.test.ts` |
-| The vault pays only PayRouta-signed orders, to allowed merchants, within the cap and budget | `contracts/agent-vault` | `contracts/agent-vault/src/tests.rs` (25 tests), `npm run demo:agent-vault` (NEAR testnet) |
+| The vault pays only PayRouta-signed orders, to allowed merchants, within the cap and budget | `contracts/agent-vault` | `contracts/agent-vault/src/tests.rs` (28 tests), `npm run demo:agent-vault` (NEAR testnet) |
 | Chain Signatures signs only the transfer the vault built, from the vault's derived address | `contracts/agent-vault/src/evm.rs`, `lib/agents/vault.ts` | `npm run demo:agent-vault`: `recoverTransactionAddress` on the signed transaction |
-| A forged TEE quote doesn't add an agent key | `contracts/agent-vault` | `tee_vaults_reject_an_attestation_that_is_not_a_genuine_tdx_quote` |
+| A forged TEE quote doesn't add an agent key | `contracts/agent-vault` | `tee_vaults_reject_an_attestation_that_is_not_a_genuine_tdx_quote`; on testnet, `payrouta-tee-vault.testnet` refused a Shade Agent's non-TEE attestation |
 | PayRouta's orders sign the exact bytes the vault checks | `lib/agents/vault.ts` | `tests/agent-vault-orders.test.ts` |
 | Agent Market: a price over the cap or in another token is refused before signing | `lib/agents/agent-market.ts` | `tests/agent-market.test.ts` |
 | A real WooCommerce order paid with ETH on Base on mainnet, settled in USDC | `integrations/woocommerce/payrouta-checkout`, `lib/intents` | [Live demo](#live-demo-a-real-woocommerce-order-paid-with-eth-on-base-mainnet): Base tx `0xb183ed3a…e3320`, NEAR Intents deposit `0x041bc451…381287`, WooCommerce order #16 |
@@ -455,6 +460,7 @@ Local mode is for development: mail is captured to `.local/portal/mail` (viewer 
 | Agent API, MCP server, CLI | `app/api/agent/v1`, `lib/mcp`, `app/api/mcp`, `sdks/cli` |
 | x402 on NEAR (facilitator, relayer, payment links over x402) | `lib/x402`, `app/api/v1/x402` |
 | Agent vault and test token contracts | `contracts/` |
+| Shade Agent (TEE) that pays from a vault | `agents/shade-vault-agent` |
 | Checkout pages, button and universal checkout | `app/checkout`, `public/js/v1/payrouta.js`, `sdks/checkout`, `lib/payments/universal.ts` |
 | Payments: intents, routing, execution, reconciliation, merchant API | `lib/payments`, `app/api/v1` |
 | Bank and mobile money cash-out (Bridge, Yellow Card) | `lib/treasury/offramp` |

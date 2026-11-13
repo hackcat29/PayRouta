@@ -13,5 +13,7 @@ export default defineConfig([
     "sdks/node/dist/**",
     "sdks/checkout/dist/**",
     "sdks/cli/dist/**",
+    // Its own package, checked in its folder (npm run check).
+    "agents/**",
   ]),
 ]);

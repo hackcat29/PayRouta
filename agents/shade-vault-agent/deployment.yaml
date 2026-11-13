@@ -1,0 +1,44 @@
+# Shade Agent CLI configuration (npm i -g @neardefi/shade-agent-cli).
+# The vault is a PayRouta agent vault already deployed in TEE mode; the CLI
+# approves this image's measurements and Phala's PPIDs on it, builds the
+# image and deploys it to Phala Cloud.
+environment: TEE
+network: testnet
+docker_compose_path: ./docker-compose.yaml
+
+agent_contract:
+  contract_id: payrouta-tee-vault.testnet
+  deploy_custom:
+    enabled: false
+
+approve_measurements:
+  enabled: true
+  method_name: approve_measurements
+  args: |
+    {
+      "measurements": <MEASUREMENTS>
+    }
+
+approve_ppids:
+  enabled: true
+  method_name: approve_ppids
+  args: |
+    {
+      "ppids": <PPIDS>
+    }
+
+build_docker_image:
+  enabled: true
+  tag: YOUR_DOCKERHUB_USER/payrouta-vault-agent
+  cache: true
+  dockerfile_path: ./Dockerfile
+  reproducible_build: false
+
+deploy_to_phala:
+  enabled: true
+  app_name: payrouta-vault-agent
+  env_file_path: ./.env
+  dstack_version: 0.5.8
+  instance_type: tdx.small
+  public_logs: true
+  public_sysinfo: true

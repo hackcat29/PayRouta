@@ -335,3 +335,13 @@ fn an_unregistered_implicit_account_cannot_pay() {
     let o = near_order("pay_x", 1_000_000);
     let _ = v.pay(o.clone(), sign(&payrouta(), &o), None);
 }
+
+#[test]
+fn the_owner_hands_over_the_vault() {
+    let mut v = vault();
+    v.update_owner_id("shade-master.testnet".parse().unwrap());
+    context("shade-master.testnet", agent_key(), 1_000);
+    v.approve_ppids(vec![Ppid::default()]);
+    v.allow_merchant("org_other".to_string());
+    assert!(v.get_merchants().contains(&"org_other".to_string()));
+}
