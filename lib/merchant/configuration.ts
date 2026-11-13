@@ -68,10 +68,14 @@ export async function merchantConfiguration(
           : !eligible
             ? "RECEIVE_POOL_OR_SCOPE_UNAVAILABLE"
             : null);
+      // A receive-address pool needs a fee schedule for the asset. Settlement
+      // into a NEAR Intents account doesn't: each crypto quote values its own
+      // fee (lib/payments/crypto-prices.ts) and 1Click withholds it at source.
       if (
         !reason &&
         environment === "production" &&
-        onchainMethod(token.network, token.identifier) === "stablecoin"
+        onchainMethod(token.network, token.identifier) === "stablecoin" &&
+        !intents.has(`${token.network}|${token.identifier}`)
       ) {
         try {
           snapshotFees(

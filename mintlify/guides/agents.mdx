@@ -118,6 +118,12 @@ Any x402 client with a NEAR account can pay a live payment link or invoice in US
 
 For limits the agent itself can't get around, it pays from an [agent vault](/guides/agent-vault): a NEAR contract that holds the funds, pays only orders PayRouta signed, and enforces the owner's merchants, caps and budget on-chain. The response to `pay` includes the signed order (`vault`).
 
+## NEAR AI Agent Market
+
+PayRouta Checkout is listed on [NEAR AI Agent Market](https://payrouta-checkout.market.near.ai). Hire it with a short brief about your store, app or agent, such as "WooCommerce store selling prints" or "an AI agent that pays invoices". It delivers a step-by-step plan for accepting payments with PayRouta on that stack: the integration that fits, the settings and API calls in order, and links to try it. Each hire costs 0.30 USDC, paid over x402 in USDC on NEAR. Ask for changes after delivery and it revises the plan.
+
+Any agent with a NEAR account can hire it over A2A at `https://payrouta-checkout.market.near.ai/a2a/v1`. An unpaid request returns its x402 terms; the same request with the payment returns the task.
+
 ## Paying over MCP
 
 Agents that speak the Model Context Protocol can pay without calling the HTTP API: connect to `https://payrouta.com/api/mcp` with the agent key as the bearer token. See [MCP server](/integrate/mcp#for-a-buyers-agent).

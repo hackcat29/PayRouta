@@ -288,6 +288,22 @@ test("crypto: live with a name, a country, the terms and a clear check; no revie
   await screened("clear");
   assert.deepEqual(await cryptoBlockers(db, org.id), [], "no documents, no review");
   assert.equal((await stablecoinCandidates(org.id, "production", usdcBase)).length, 1, "routable without a live scope");
+  // Payment links and subscriptions offer it too: the quote prices the fee,
+  // so no fee schedule is configured for the asset.
+  const { merchantConfiguration } = await import("../../lib/merchant/configuration");
+  const { cryptoOptions } = await import("../../lib/merchant/payment-links");
+  const schedules = process.env.PAYMENT_FEE_SCHEDULES;
+  delete process.env.PAYMENT_FEE_SCHEDULES;
+  try {
+    const usdc = (await merchantConfiguration(org.id, "production")).stablecoinAssets.find(
+      (a) => a.network === usdcBase.network && a.identifier === usdcBase.identifier,
+    );
+    assert.equal(usdc?.configured, true);
+    assert.equal(usdc?.executionEnabled, true, usdc?.reason ?? "");
+    assert.deepEqual(await cryptoOptions(org.id, "production"), [{ network: usdcBase.network, identifier: usdcBase.identifier }]);
+  } finally {
+    if (schedules !== undefined) process.env.PAYMENT_FEE_SCHEDULES = schedules;
+  }
   await screened("match");
   assert.equal((await stablecoinCandidates(org.id, "production", usdcBase)).length, 0);
   assert.deepEqual(await cryptoBlockers(db, org.id), ["MERCHANT_RESTRICTED"]);
