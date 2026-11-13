@@ -34,6 +34,7 @@
     "demo:x402-near": "tsx scripts/demo-x402-near.ts",
     "demo:agent-vault": "tsx scripts/demo-agent-vault.ts",
     "agent-market": "tsx scripts/agent-market.ts",
+    "x402:pay": "tsx scripts/x402-pay.ts",
     "test:email": "tsx --test tests/email/database.test.ts",
     "test:treasury": "tsx --test --test-concurrency=1 tests/treasury/database.test.ts tests/treasury/launch.test.ts tests/treasury/credit.test.ts tests/treasury/universal.test.ts tests/treasury/shopify.test.ts tests/treasury/shopify-lite.test.ts tests/treasury/cashout.test.ts tests/treasury/payment-links.test.ts tests/treasury/subscriptions.test.ts",
     "treasury:sandbox": "tsx scripts/treasury-sandbox.ts",

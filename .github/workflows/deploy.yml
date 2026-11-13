@@ -245,8 +245,10 @@ jobs:
             store_key X402_NEAR_MAINNET_RELAYER_KEY "x402 mainnet relayer"
             store_key X402_NEAR_TESTNET_RELAYER_KEY "x402 testnet relayer"
             store_key PAYROUTA_AGENT_ORDER_KEY "Agent order signing"
-            [ -z "${X402_NEAR_MAINNET_RELAYER:-}" ] || sync_env X402_NEAR_MAINNET_RELAYER "$X402_NEAR_MAINNET_RELAYER"
-            [ -z "${X402_NEAR_TESTNET_RELAYER:-}" ] || sync_env X402_NEAR_TESTNET_RELAYER "$X402_NEAR_TESTNET_RELAYER"
+            # Plain calls: script_stop's check at the top of a function sees the
+            # caller's last status, so `test || sync_env` would stop the deploy.
+            sync_env X402_NEAR_MAINNET_RELAYER "${X402_NEAR_MAINNET_RELAYER:-}"
+            sync_env X402_NEAR_TESTNET_RELAYER "${X402_NEAR_TESTNET_RELAYER:-}"
             echo "==> Unpacking the app built in CI..."
             mkdir -p .next
             tar -xzf "$ROOT/incoming/build.tgz" -C .next
