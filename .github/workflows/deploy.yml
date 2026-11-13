@@ -134,11 +134,12 @@ jobs:
           # The ed25519 seed (hex) PayRouta signs agent-vault orders with
           # (lib/agents/vault.ts).
           PAYROUTA_AGENT_ORDER_KEY: ${{ secrets.PAYROUTA_AGENT_ORDER_KEY }}
+          AGENT_MARKET_TOKEN: ${{ secrets.AGENT_MARKET_TOKEN }}
         with:
           host: ${{ secrets.CONTABO_HOST }}
           username: ${{ secrets.CONTABO_USER }}
           key: ${{ secrets.CONTABO_SSH_KEY }}
-          envs: SHA,OPENSANCTIONS_API_KEY,TURNSTILE_SECRET_KEY,NEXT_PUBLIC_TURNSTILE_SITE_KEY,NEXT_PUBLIC_PRIVY_APP_ID,NEXT_PUBLIC_PRIVY_CLIENT_ID,PAYROUTA_INTENTS_FEE_ACCOUNT,COINGECKO_API_KEY,COINGECKO_API_PLAN,ONECLICK_API_KEY,X402_NEAR_MAINNET_RELAYER,X402_NEAR_TESTNET_RELAYER,X402_NEAR_MAINNET_RELAYER_KEY,X402_NEAR_TESTNET_RELAYER_KEY,PAYROUTA_AGENT_ORDER_KEY
+          envs: SHA,OPENSANCTIONS_API_KEY,TURNSTILE_SECRET_KEY,NEXT_PUBLIC_TURNSTILE_SITE_KEY,NEXT_PUBLIC_PRIVY_APP_ID,NEXT_PUBLIC_PRIVY_CLIENT_ID,PAYROUTA_INTENTS_FEE_ACCOUNT,COINGECKO_API_KEY,COINGECKO_API_PLAN,ONECLICK_API_KEY,X402_NEAR_MAINNET_RELAYER,X402_NEAR_TESTNET_RELAYER,X402_NEAR_MAINNET_RELAYER_KEY,X402_NEAR_TESTNET_RELAYER_KEY,PAYROUTA_AGENT_ORDER_KEY,AGENT_MARKET_TOKEN
           # The server is shared and often fully loaded: a full npm ci (when
           # the lockfile changes) has taken 23 minutes there.
           command_timeout: 45m
@@ -245,6 +246,7 @@ jobs:
             store_key X402_NEAR_MAINNET_RELAYER_KEY "x402 mainnet relayer"
             store_key X402_NEAR_TESTNET_RELAYER_KEY "x402 testnet relayer"
             store_key PAYROUTA_AGENT_ORDER_KEY "Agent order signing"
+            store_key AGENT_MARKET_TOKEN "Agent Market"
             # Plain calls: script_stop's check at the top of a function sees the
             # caller's last status, so `test || sync_env` would stop the deploy.
             sync_env X402_NEAR_MAINNET_RELAYER "${X402_NEAR_MAINNET_RELAYER:-}"
