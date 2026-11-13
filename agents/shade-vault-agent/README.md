@@ -44,7 +44,9 @@ You need:
    - In `.env`, set `SPONSOR_ACCOUNT_ID` and `SPONSOR_PRIVATE_KEY` to a funded testnet account that isn't the vault's owner. The sponsor pays the agent account's gas, about 0.5 NEAR.
    - To push elsewhere, change the image in `deployment.yaml` and `docker-compose.yaml`. Phala pulls it without credentials, so it must be public.
 
-3. Deploy:
+3. Deploy. Shade Agent CLI 2.4.0 has measurements only for dstack 0.5.7 and 0.5.8, and Phala Cloud now runs 0.5.12 and 0.6.x. If `shade deploy` is refused for the OS image, see [Newer dstack versions](#newer-dstack-versions).
+
+
 
    ```bash
    shade plan
@@ -82,6 +84,19 @@ You need:
    ```
 
 Phala bills while the app runs; delete it from the [dashboard](https://cloud.phala.network/dashboard) when you're done.
+
+## Newer dstack versions
+
+The measurements for a new dstack version are what the CVM reports:
+
+1. Deploy with `approve_measurements` disabled. The CLI's config only accepts 0.5.7 or 0.5.8, so call its `deployToPhala` (from `utils/phala-deploy.js`) with `dstackVersion: "0.5.12"`.
+2. Read `GET https://cloud-api.phala.network/api/v1/cvms/<id>/attestation`. From `tcb_info`, take `mrtd`, `rtmr0`, `rtmr1`, `rtmr2` and the `key-provider` event's `digest`. The compose hash is the `compose-hash` event's payload; it's the same as `shade plan` computes.
+3. As the owner, call `approve_measurements` with `{ "measurements": { "rtmrs": {…}, "key_provider_event_digest": "…", "app_compose_hash_payload": "…" } }`.
+4. `POST /register` on the agent.
+
+Phala's PPID list (`/api/v1/attestations/ppids`) includes an empty entry and 64-byte IDs that the vault's 16-byte PPID type rejects. Approve the 32-character ones with `approve_ppids`.
+
+The PayRouta deployment: app `a8a1987392804bb7f7d39c879f5399ab63931b6c` on dstack 0.5.12, registered as `e1a6a682e68f67d003e0562c7bd6d50ac04a9975e437dd3f39c94db53fa26a6d` (tx `4fghkXcs8AA58E7eWxHEcUWhKGj9o2o6MkGvN664JtMR`).
 
 ## Without a TEE
 

@@ -100,6 +100,8 @@ TEE mode, on testnet:
 
 - `payrouta-tee-vault.testnet` is deployed with `requires_tee: true`, owned by `payrouta-buyer.testnet`.
 - The Shade vault agent, run outside a TEE, sent its placeholder attestation through `ShadeClient.register()`. The vault refused it on-chain: `Attestation rejected: dcap verification failed`.
-- A registration from a real TDX quote needs the agent deployed on Phala Cloud (`agents/shade-vault-agent/README.md`).
+- On Phala Cloud (dstack 0.5.12, tdx.small, node prod5), the same agent registered from a real TDX quote: tx `4fghkXcs8AA58E7eWxHEcUWhKGj9o2o6MkGvN664JtMR`. Its account is `e1a6a682e68f67d003e0562c7bd6d50ac04a9975e437dd3f39c94db53fa26a6d`, mode `tee`, PPID `3e306e133b7fdaa7bb79f67634cb520c`.
+- The approved measurements come from that CVM's attestation (`GET /api/v1/cvms/{id}/attestation`): MRTD and RTMR0–2 from `tcb_info`, the `key-provider` event's digest, and the compose hash. Shade Agent CLI 2.4.0 only has measurements for dstack 0.5.7 and 0.5.8, which Phala no longer runs.
+- Phala's PPID list includes an empty entry and three 64-byte IDs, which `shade-attestation`'s 16-byte PPID can't hold, so only the 23 16-byte PPIDs are approved.
 
 The contract uses `shade-attestation`, which doesn't build on macOS. It builds and tests in `sourcescan/cargo-near:0.19.0-rust-1.86.0` (see `contracts/README.md`): 28 unit tests.

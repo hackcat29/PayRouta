@@ -38,7 +38,7 @@ deploy_to_phala:
   enabled: true
   app_name: payrouta-vault-agent
   env_file_path: ./.env
-  dstack_version: 0.5.8
+  dstack_version: 0.5.8 # Phala now runs 0.5.12+: see README, "Newer dstack versions"
   instance_type: tdx.small
   public_logs: true
   public_sysinfo: true

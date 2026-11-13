@@ -88,7 +88,7 @@ Two vaults run on NEAR testnet:
 - `payrouta-vault.testnet`, in local mode: the owner approves agent keys.
 - `payrouta-tee-vault.testnet`, in TEE mode. It works with NEAR's Shade Agent tooling unchanged.
 
-A Shade Agent ([`agents/shade-vault-agent`](agents/shade-vault-agent)) registered from outside a TEE was refused on-chain: `Attestation rejected: dcap verification failed`. Registering from real TDX hardware needs the agent deployed on Phala Cloud, with steps in that folder's README.
+The Shade Agent ([`agents/shade-vault-agent`](agents/shade-vault-agent)) runs on Phala Cloud in an Intel TDX enclave (dstack 0.5.12). It registered with the vault from a real TDX quote: [`4fghkXcs…`](https://testnet.nearblocks.io/txns/4fghkXcs8AA58E7eWxHEcUWhKGj9o2o6MkGvN664JtMR). `get_agents` lists its account `e1a6a682…a26a6d` in mode `tee`, with the hardware's PPID and the image's measurements. The same agent run outside a TEE is refused on-chain: `Attestation rejected: dcap verification failed`.
 
 ## Sell on Shopify and WooCommerce
 
@@ -429,7 +429,7 @@ The agent vault's 28 contract tests run in the cargo-near image, because `shade-
 | x402 on NEAR: verify and settle through PayRouta's relayer; a replayed payment is refused | `lib/x402`, `app/api/v1/x402` | `npm run demo:x402-near` (NEAR testnet), `tests/x402-near.test.ts` |
 | The vault pays only PayRouta-signed orders, to allowed merchants, within the cap and budget | `contracts/agent-vault` | `contracts/agent-vault/src/tests.rs` (28 tests), `npm run demo:agent-vault` (NEAR testnet) |
 | Chain Signatures signs only the transfer the vault built, from the vault's derived address | `contracts/agent-vault/src/evm.rs`, `lib/agents/vault.ts` | `npm run demo:agent-vault`: `recoverTransactionAddress` on the signed transaction |
-| A forged TEE quote doesn't add an agent key | `contracts/agent-vault` | `tee_vaults_reject_an_attestation_that_is_not_a_genuine_tdx_quote`; on testnet, `payrouta-tee-vault.testnet` refused a Shade Agent's non-TEE attestation |
+| A forged TEE quote doesn't add an agent key | `contracts/agent-vault` | `tee_vaults_reject_an_attestation_that_is_not_a_genuine_tdx_quote`; on testnet, `payrouta-tee-vault.testnet` refused a Shade Agent's non-TEE attestation and accepted the same agent's real TDX attestation from Phala Cloud (`4fghkXcs…`) |
 | PayRouta's orders sign the exact bytes the vault checks | `lib/agents/vault.ts` | `tests/agent-vault-orders.test.ts` |
 | Agent Market: a price over the cap or in another token is refused before signing | `lib/agents/agent-market.ts` | `tests/agent-market.test.ts` |
 | A real WooCommerce order paid with ETH on Base on mainnet, settled in USDC | `integrations/woocommerce/payrouta-checkout`, `lib/intents` | [Live demo](#live-demo-a-real-woocommerce-order-paid-with-eth-on-base-mainnet): Base tx `0xb183ed3a…e3320`, NEAR Intents deposit `0x041bc451…381287`, WooCommerce order #16 |
