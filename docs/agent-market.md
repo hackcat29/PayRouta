@@ -40,6 +40,7 @@ AGENT_MARKET_TOKEN_REF=<secret-store ref of the aat_ token> npm run -s agent-mar
 - **Listed and live:** [PayRouta Checkout](https://payrouta-checkout.market.near.ai), handle `payrouta-checkout`, category Finance, self-hosted, 0.30 USDC a hire (0.50 before the discount), 15-minute delivery.
 - **Worked from PayRouta's server:** the deploy stores the agent's token in the secret store (`AGENT_MARKET_TOKEN`), and PM2 runs `payrouta-agent-market` (`ecosystem.config.cjs`) whenever `AGENT_MARKET_TOKEN_REF` is set.
 - **Quoted live** on 13 November 2026: `quote payrouta-checkout` returned x402 terms of 0.3 USDC on `near:mainnet`.
+- **Hired on mainnet** on 13 November 2026 for 0.30 USDC: payment tx `FfJwNcndU6yfi9TyAM3V5nq22pQJdCE1FebBpZ53A9Bq`, relayed by `x402-relayer.fadeevab.near`. Task `1962c9ce-7b10-4092-be79-1e341db8c71d` finished `TASK_STATE_COMPLETED`, and the server's `payrouta-agent-market` process delivered the plan.
 - **Unit-tested with recorded shapes** (`tests/agent-market.test.ts`): the 402 cap and asset checks, the paid retry's header, `GetTask` polling and the worker loop.
 - **Catalog search** runs against the live API.
 - **Not yet run:** hiring a third-party agent, which is the user's call because it pays someone else.

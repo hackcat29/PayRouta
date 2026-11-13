@@ -34,6 +34,7 @@ Customers hold thousands of tokens across dozens of chains, and merchants want t
 | Run `npm run portal:env && npm run portal:db && npm run db:migrate`, then `npm run demo:agent-guardrails` | A prompt-injected AI agent tries to pay outside its agent key's limits and is refused each time ([log below](#agent-guardrails-demo)) |
 | Open the [x402 payment on NEAR testnet](https://testnet.nearblocks.io/txns/33LBe2XHeewUTnrS6cAAoRVC1yyySWSMKYWGZ3LT359e) | An AI agent paid a merchant's x402 API 0.10 pUSD with one signed NEP-366 delegate action; PayRouta's relayer paid the gas ([log](#x402-on-near)) |
 | Open [PayRouta Checkout on NEAR AI Agent Market](https://payrouta-checkout.market.near.ai), or run `npm run -s agent-market -- quote payrouta-checkout "WooCommerce store selling prints"` | PayRouta's listed agent answers with x402 terms: 0.30 USDC on NEAR mainnet. Hired with `AGENT_MARKET_PAYER=you.near npm run -s agent-market -- hire payrouta-checkout "<your stack>" --max 1`, it delivers an integration plan from PayRouta's server |
+| Open the [x402 payment of a live payment link on NEAR mainnet](https://nearblocks.io/txns/2kb8WX7gzoPwh64gMxjRa5sGpt2GSfoNYBaTszANJU8S) and its [delivery to the merchant](https://nearblocks.io/txns/CXUWYHKhQs8SE1BWaaMn2SVGvcii9TJnZwiT5Kv1QLh5) | An AI agent paid a $1.00 PayRouta payment link with one signed NEP-366 delegate action; PayRouta's relayer paid the gas, and NEAR Intents delivered 0.985451 USDC into the merchant's own account ([all mainnet proofs](#agent-payments-on-near-mainnet)) |
 | `curl https://a8a1987392804bb7f7d39c879f5399ab63931b6c-3000.dstack-pha1-prod5.phala.network/` | The Shade Agent in an Intel TDX enclave on Phala Cloud: `"registered": true` with `payrouta-tee-vault.testnet`, from a real TDX attestation ([registration](https://testnet.nearblocks.io/txns/4fghkXcs8AA58E7eWxHEcUWhKGj9o2o6MkGvN664JtMR)) |
 | Open the agent vault's [signing request on NEAR](https://testnet.nearblocks.io/txns/5VfedPG5daC5Bm6JiLS8rq1p7DKWLnPkdFur76zquqbS), the [USDC transfer it produced on Base Sepolia](https://sepolia.basescan.org/tx/0x68e7f9a8c0dfa1d73030a745628bf75a9d2f5279502af201c56513a8f2d44fda), and its [refusals](#agent-vault-on-chain-limits) | A NEAR contract built a USDC transfer for a PayRouta checkout and `v1.signer` signed it for the vault's derived EVM address (Chain Signatures). Seven attempts outside the owner's policy were refused on-chain |
 
@@ -334,7 +335,19 @@ Agent account    payrouta-agent.testnet: 99.70 pUSD
 PayRouta's record for Harbor Data: 1 settlement(s), 1 successful (GET /api/v1/x402/settlements)
 ```
 
-On mainnet, PayRouta's relayer is `de121cb478cee748f3d8db2319814fa0117756dd661349047880843ead616cdc`. Any live payment link or invoice can be paid from a NEAR account holding USDC, with no NEAR for gas:
+### Agent payments on NEAR mainnet
+
+On 13 November 2026 an AI agent's NEAR account (`e9c36e13…2f79`), funded with 0.42 NEAR and nothing else, did three things on mainnet:
+
+| Step | What happened | Proof |
+| --- | --- | --- |
+| 1. NEAR to USDC through NEAR Intents | 0.385 NEAR swapped into 1.343415 USDC on NEAR through a 1Click quote | Deposit [`ERAVMZgc…`](https://nearblocks.io/txns/ERAVMZgcgEzuCZ5vxvgatesjBsJthFRyXwZSw86CtY2j), delivery [`FShSDqy5…`](https://nearblocks.io/txns/FShSDqy53CNmbNsuRo5QY7S5nCfbw7Vxaxs5kQdcsshU), swap status `SUCCESS` |
+| 2. Hired PayRouta Checkout on NEAR AI Agent Market | `npm run agent-market -- hire payrouta-checkout "…" --max 0.5`: the agent paid 0.30 USDC over x402 (one NEP-366 delegate action, relayed by Agent Market's facilitator), and PayRouta's server delivered the integration plan | Payment [`FfJwNcnd…`](https://nearblocks.io/txns/FfJwNcndU6yfi9TyAM3V5nq22pQJdCE1FebBpZ53A9Bq), task `1962c9ce-7b10-4092-be79-1e341db8c71d`: `TASK_STATE_COMPLETED` |
+| 3. Paid a live PayRouta payment link over x402 | `npm run x402:pay -- https://payrouta.com/api/agent/v1/x402/links/BgKcFgkGUG --max 1.02`: a $1.00 link of a live merchant. The agent signed one transfer of 1.010669 USDC; PayRouta's relayer (`de121cb4…6cdc`) submitted it and paid the gas; NEAR Intents swapped it into the merchant's own NEAR Intents account | Payment [`2kb8WX7g…`](https://nearblocks.io/txns/2kb8WX7gzoPwh64gMxjRa5sGpt2GSfoNYBaTszANJU8S), delivery of 0.985451 USDC [`CXUWYHKh…`](https://nearblocks.io/txns/CXUWYHKhQs8SE1BWaaMn2SVGvcii9TJnZwiT5Kv1QLh5) |
+
+PayRouta confirmed payment 3 from that delivery on NEAR and settled it: gross 1.000458 USDC, PayRouta's 1.5% fee 0.015007 withheld at source by 1Click, net 0.985451 to the merchant, reconciled as an exact match.
+
+Any live payment link or invoice can be paid the same way, from a NEAR account holding USDC, with no NEAR for gas:
 
 ```sh
 X402_PAYER=you.near npm run -s x402:pay -- https://payrouta.com/api/agent/v1/x402/links/<slug> --max 5
@@ -436,11 +449,13 @@ The agent vault's 28 contract tests run in the cargo-near image, because `shade-
 | An agent pays from its NEAR Intents balance by signing one transfer | `lib/intents` | `tests/intents/database.test.ts`: "near intents: an agent pays from its intents balance…" |
 | MCP tools and CLI | `lib/mcp`, `sdks/cli` | `tests/agents/database.test.ts`, `tests/cli.test.ts` |
 | x402 on NEAR: verify and settle through PayRouta's relayer; a replayed payment is refused | `lib/x402`, `app/api/v1/x402` | `npm run demo:x402-near` (NEAR testnet), `tests/x402-near.test.ts` |
+| An agent pays a live payment link over x402 on mainnet, and the merchant is paid through NEAR Intents | `lib/x402/checkout.ts`, `lib/intents` | [Mainnet proofs](#agent-payments-on-near-mainnet): payment `2kb8WX7g…`, delivery `CXUWYHKh…`, settled and reconciled as an exact match |
 | The vault pays only PayRouta-signed orders, to allowed merchants, within the cap and budget | `contracts/agent-vault` | `contracts/agent-vault/src/tests.rs` (28 tests), `npm run demo:agent-vault` (NEAR testnet) |
 | Chain Signatures signs only the transfer the vault built, from the vault's derived address | `contracts/agent-vault/src/evm.rs`, `lib/agents/vault.ts` | `npm run demo:agent-vault`: `recoverTransactionAddress` on the signed transaction |
 | A forged TEE quote doesn't add an agent key | `contracts/agent-vault` | `tee_vaults_reject_an_attestation_that_is_not_a_genuine_tdx_quote`; on testnet, `payrouta-tee-vault.testnet` refused a Shade Agent's non-TEE attestation and accepted the same agent's real TDX attestation from Phala Cloud (`4fghkXcs…`) |
 | PayRouta's orders sign the exact bytes the vault checks | `lib/agents/vault.ts` | `tests/agent-vault-orders.test.ts` |
 | Agent Market: a price over the cap or in another token is refused before signing | `lib/agents/agent-market.ts` | `tests/agent-market.test.ts` |
+| PayRouta Checkout is hired on Agent Market and delivers from PayRouta's server | `lib/agents/agent-market.ts`, `ecosystem.config.cjs` | [Mainnet proofs](#agent-payments-on-near-mainnet): payment `FfJwNcnd…`, task `1962c9ce…` completed |
 | A real WooCommerce order paid with ETH on Base on mainnet, settled in USDC | `integrations/woocommerce/payrouta-checkout`, `lib/intents` | [Live demo](#live-demo-a-real-woocommerce-order-paid-with-eth-on-base-mainnet): Base tx `0xb183ed3a…e3320`, NEAR Intents deposit `0x041bc451…381287`, WooCommerce order #16 |
 
 NEAR Intents settlement runs on mainnet (1Click has no testnet). The suites use 1Click and NEAR RPC responses in the shapes the real APIs return, and a real mainnet payment, with every transaction ID, is documented in the [Live demo](#live-demo-a-real-woocommerce-order-paid-with-eth-on-base-mainnet).
