@@ -29,7 +29,7 @@ approve_ppids:
 
 build_docker_image:
   enabled: true
-  tag: YOUR_DOCKERHUB_USER/payrouta-vault-agent
+  tag: ghcr.io/hackcat29/payrouta-vault-agent
   cache: true
   dockerfile_path: ./Dockerfile
   reproducible_build: false

@@ -1,5 +1,5 @@
 services:
-  payrouta-vault-agent:
+  shade-agent-app:
     environment:
       AGENT_CONTRACT_ID: ${AGENT_CONTRACT_ID}
       NEAR_NETWORK: ${NEAR_NETWORK}
@@ -8,8 +8,7 @@ services:
       PAYROUTA_URL: ${PAYROUTA_URL}
       EVM_RPC_URL: ${EVM_RPC_URL}
     platform: linux/amd64
-    # shade deploy builds the image and pins this to its digest.
-    image: YOUR_DOCKERHUB_USER/payrouta-vault-agent:latest
+    image: ghcr.io/hackcat29/payrouta-vault-agent@sha256:46a4aafdd77b1023e6fea83407c7161b6d86cf9240ed0b36feab88a9766eac9c
     container_name: payrouta-vault-agent
     ports:
       - 3000:3000

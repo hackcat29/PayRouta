@@ -22,26 +22,18 @@ The vault enforces its owner's merchants, per-payment cap and budget whatever th
 
 You need:
 
-- Docker, logged in to Docker Hub;
-- a [Phala Cloud](https://cloud.phala.network/register) account with credits and an [API key](https://cloud.phala.network/dashboard/tokens);
+- Docker, logged in to a public registry (the config uses `ghcr.io/hackcat29/payrouta-vault-agent`, a public GitHub package);
+- a [Phala Cloud](https://cloud.phala.network/register) account with credits and an [API key](https://cloud.phala.network/dashboard/tokens) (it starts with `phak_`);
 - Node 22.
 
-1. Install the Shade Agent CLI and set up credentials. This creates a NEAR testnet master account that signs the vault's owner calls, and stores your Phala key:
+1. Install the Shade Agent CLI and set up credentials. The master account signs the vault's owner calls, so use the vault's owner (or hand the vault to the CLI's account with `update_owner_id`):
 
    ```bash
    npm i -g @neardefi/shade-agent-cli
-   shade auth set all testnet create-new
+   shade auth set all testnet
    ```
 
-2. Hand the vault to that account, so the CLI can approve this image's measurements. Run as the vault's current owner:
-
-   ```bash
-   near contract call-function as-transaction payrouta-tee-vault.testnet update_owner_id \
-     json-args '{"owner_id":"<CLI master account>"}' prepaid-gas '30.0 Tgas' attached-deposit '0 NEAR' \
-     sign-as payrouta-buyer.testnet network-config testnet sign-with-legacy-keychain send
-   ```
-
-3. Configure:
+2. Configure:
 
    ```bash
    cd agents/shade-vault-agent
@@ -49,10 +41,10 @@ You need:
    cp .env.example .env
    ```
 
-   - In `.env`, set `SPONSOR_ACCOUNT_ID` and `SPONSOR_PRIVATE_KEY` to the CLI's master account and key. The sponsor pays the agent account's gas, about 0.5 NEAR.
-   - In `deployment.yaml` and `docker-compose.yaml`, replace `YOUR_DOCKERHUB_USER`.
+   - In `.env`, set `SPONSOR_ACCOUNT_ID` and `SPONSOR_PRIVATE_KEY` to a funded testnet account that isn't the vault's owner. The sponsor pays the agent account's gas, about 0.5 NEAR.
+   - To push elsewhere, change the image in `deployment.yaml` and `docker-compose.yaml`. Phala pulls it without credentials, so it must be public.
 
-4. Deploy:
+3. Deploy:
 
    ```bash
    shade plan
@@ -67,7 +59,7 @@ You need:
 
    On start, the agent funds its account and calls `register_agent` with its attestation.
 
-5. Check it registered:
+4. Check it registered:
 
    ```bash
    curl https://<app-url>/
@@ -75,7 +67,7 @@ You need:
 
    The answer shows `"registered": true`. On-chain, the vault's `get_agents` lists the agent with mode `tee` and its measurements.
 
-6. As the owner (the CLI master account), set what the agent may do:
+5. As the owner, set what the agent may do:
 
    ```bash
    V=payrouta-tee-vault.testnet; O=<CLI master account>
@@ -83,7 +75,7 @@ You need:
    near contract call-function as-transaction $V allow_merchant json-args '{"merchant":"<your PayRouta business id>"}' prepaid-gas '30.0 Tgas' attached-deposit '0 NEAR' sign-as $O network-config testnet sign-with-keychain send
    ```
 
-7. Fund the vault's EVM address (`evmAddress` from `GET /`) with Base Sepolia ETH and USDC. Then pay a test-mode payment link that takes USDC on Base Sepolia:
+6. Fund the vault's EVM address (`evmAddress` from `GET /`) with Base Sepolia ETH and USDC. Then pay a test-mode payment link that takes USDC on Base Sepolia:
 
    ```bash
    curl -X POST https://<app-url>/pay -H 'content-type: application/json' -d '{"link":"<slug>"}'

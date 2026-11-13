@@ -16,4 +16,5 @@ WORKDIR /app
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY package.json ./
+LABEL org.opencontainers.image.source=https://github.com/hackcat29/PayRouta
 CMD ["node", "dist/index.js"]
