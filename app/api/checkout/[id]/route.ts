@@ -53,13 +53,26 @@ function withDemoState(response: Response, state: string) {
   });
   return result;
 }
+// The demo's state is written back only when a request changed it: a status
+// poll that started before "Continue" answered would otherwise overwrite the
+// quote it set, and "Simulate the payment" would find no transfer awaited.
+// Whether the browser's cookie already holds this demo (not a fresh one
+// started because there was none, or it expired).
+function sameDemo(raw: string | undefined, state: { startedAt: number }) {
+  try {
+    return !!raw && (JSON.parse(Buffer.from(raw, "base64url").toString("utf8")) as { startedAt?: unknown }).startedAt === state.startedAt;
+  } catch {
+    return false;
+  }
+}
 async function demoGet(r: NextRequest) {
-  const state = readDemoState(r.cookies.get(demoCookie)?.value);
+  const raw = r.cookies.get(demoCookie)?.value;
+  const state = readDemoState(raw);
   const response = await respond(async () => {
     await rateLimit(`checkout-demo:${visitor(r)}`, 240);
     return demoProgress(state);
   });
-  return withDemoState(response, writeDemoState(state));
+  return sameDemo(raw, state) ? response : withDemoState(response, writeDemoState(state));
 }
 async function demoPost(r: NextRequest) {
   let next: string | undefined;
@@ -67,8 +80,11 @@ async function demoPost(r: NextRequest) {
     csrf(r);
     await rateLimit(`checkout-demo:${visitor(r)}`, 240);
     const b = demoBody.parse(JSON.parse(await rawBody(r)));
-    const result = await demoAction(readDemoState(r.cookies.get(demoCookie)?.value), b);
+    const raw = r.cookies.get(demoCookie)?.value;
+    const before = readDemoState(raw);
+    const result = await demoAction(before, b);
     next = writeDemoState(result.state);
+    if (sameDemo(raw, before) && next === writeDemoState(before)) next = undefined;
     return result.body;
   });
   return next ? withDemoState(response, next) : response;
