@@ -111,10 +111,47 @@ const statusResponse = z
   .passthrough();
 export type OneClickStatus = z.infer<typeof statusResponse>;
 
-async function headers() {
+// The 1Click partner key (a JWT, sent as X-API-Key), if there is a usable
+// one in the secret store. A key that can't be read or that a header can't
+// carry is left out with one warning, and 1Click answers as for a keyless
+// client: checkouts keep working instead of every quote failing.
+const warned = new Set<string>();
+function warnOnce(id: string, message: string) {
+  if (warned.has(id)) return;
+  warned.add(id);
+  console.error(`[1click] ${message}`);
+}
+export async function oneClickKey(
+  get: (ref: string) => Promise<string> = (ref) => secretManager.get(ref),
+): Promise<string | undefined> {
   const ref = process.env.ONECLICK_API_KEY_REF;
-  const key = ref ? await secretManager.get(ref) : undefined;
-  return { "User-Agent": "PayRouta/0.1 (+https://payrouta.com)", ...(key ? { "X-API-Key": key } : {}) };
+  if (!ref) return undefined;
+  try {
+    const key = (await get(ref)).trim();
+    if (/^[\x21-\x7e]{1,4000}$/.test(key)) return key;
+    warnOnce(`malformed:${ref}`, "ONECLICK_API_KEY_REF holds characters an HTTP header can't carry. Using the keyless API.");
+  } catch (e) {
+    warnOnce(`unreadable:${ref}`, `ONECLICK_API_KEY_REF can't be read (${e instanceof Error ? e.message : String(e)}). Using the keyless API.`);
+  }
+  return undefined;
+}
+
+// Every 1Click request goes through here, with the partner key when there is
+// one. If 1Click refuses the key (401: revoked or expired), the request is
+// sent again without it, so checkouts carry on with the keyless terms.
+export async function oneClickRequest(
+  http: Http,
+  options: Omit<ProviderHttpOptions, "headers">,
+  getKey: () => Promise<string | undefined> = () => oneClickKey(),
+) {
+  const base = { "User-Agent": "PayRouta/0.1 (+https://payrouta.com)" };
+  const key = await getKey();
+  if (key) {
+    const response = await http(oneClickBase, { ...options, headers: { ...base, "X-API-Key": key } });
+    if (response.status !== 401) return response;
+    warnOnce("refused", "1Click refused the partner key (401: revoked or expired). Using the keyless API until it is replaced.");
+  }
+  return http(oneClickBase, { ...options, headers: base });
 }
 
 function parse<T>(schema: z.ZodType<T>, response: Response, code: string) {
@@ -150,7 +187,7 @@ function parse<T>(schema: z.ZodType<T>, response: Response, code: string) {
 let cached: { at: number; tokens: OneClickToken[] } | null = null;
 export async function tokens(http: Http = providerRequest, now = Date.now()) {
   if (cached && now - cached.at < 600000) return cached.tokens;
-  const response = await http(oneClickBase, { method: "GET", path: "/v0/tokens", headers: await headers(), timeoutMs: 8000, maxResponseBytes: 1048576 });
+  const response = await oneClickRequest(http, { method: "GET", path: "/v0/tokens", timeoutMs: 8000, maxResponseBytes: 1048576 });
   const list = parse(z.array(token).max(2000), response, "CROSS_CHAIN_UNAVAILABLE");
   cached = { at: now, tokens: list };
   return list;
@@ -208,10 +245,9 @@ function quoteBody(input: QuoteInput, dry: boolean) {
 }
 
 export async function quote(input: QuoteInput, http: Http = providerRequest) {
-  const response = await http(oneClickBase, {
+  const response = await oneClickRequest(http, {
     method: "POST",
     path: "/v0/quote",
-    headers: await headers(),
     body: JSON.stringify(quoteBody(input, false)),
     timeoutMs: 12000,
     maxResponseBytes: 262144,
@@ -237,10 +273,9 @@ const dryQuoteResponse = z
   })
   .passthrough();
 export async function dryQuote(input: QuoteInput, http: Http = providerRequest) {
-  const response = await http(oneClickBase, {
+  const response = await oneClickRequest(http, {
     method: "POST",
     path: "/v0/quote",
-    headers: await headers(),
     body: JSON.stringify(quoteBody(input, true)),
     timeoutMs: 12000,
     maxResponseBytes: 262144,
@@ -250,10 +285,9 @@ export async function dryQuote(input: QuoteInput, http: Http = providerRequest) 
 
 export async function status(depositAddress: string, depositMemo: string | null, http: Http = providerRequest) {
   const query = new URLSearchParams({ depositAddress, ...(depositMemo ? { depositMemo } : {}) });
-  const response = await http(oneClickBase, {
+  const response = await oneClickRequest(http, {
     method: "GET",
     path: `/v0/status?${query}`,
-    headers: await headers(),
     timeoutMs: 8000,
     maxResponseBytes: 262144,
   });
@@ -289,10 +323,9 @@ const generated = z
 export type GeneratedIntent = z.infer<typeof generated>["intent"];
 
 export async function generateIntent(input: { depositAddress: string; signerId: string; standard: "erc191" | "nep413" | "raw_ed25519" }, http: Http = providerRequest) {
-  const response = await http(oneClickBase, {
+  const response = await oneClickRequest(http, {
     method: "POST",
     path: "/v0/generate-intent",
-    headers: await headers(),
     body: JSON.stringify({ type: "swap_transfer", ...input }),
     timeoutMs: 12000,
     maxResponseBytes: 65536,
@@ -301,10 +334,9 @@ export async function generateIntent(input: { depositAddress: string; signerId: 
 }
 
 export async function submitIntent(signedData: unknown, http: Http = providerRequest) {
-  const response = await http(oneClickBase, {
+  const response = await oneClickRequest(http, {
     method: "POST",
     path: "/v0/submit-intent",
-    headers: await headers(),
     body: JSON.stringify({ type: "swap_transfer", signedData }),
     timeoutMs: 15000,
     maxResponseBytes: 65536,

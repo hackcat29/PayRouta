@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { tokenAsset } from "../lib/blockchain/assets";
-import { destinationFor, destinations, quote, resetTokenCache, status, tokens, type Http } from "../lib/intents/oneclick";
+import { destinationFor, destinations, oneClickKey, oneClickRequest, quote, resetTokenCache, status, tokens, type Http } from "../lib/intents/oneclick";
 
 const ok = (body: unknown) => ({ status: 200, headers: {}, body: JSON.stringify(body), bytes: 0 });
 
@@ -92,4 +92,46 @@ test("1Click answers quotes with 201 Created, and that is a success", async () =
   assert.equal(r.quote.amountOut, "24625000");
   const failed: Http = async () => ({ status: 502, headers: {}, body: "{}", bytes: 0 });
   await assert.rejects(quote({ originAsset: "nep141:arb.omft.near", destinationAsset: destinations[0].assetId, amountOut: "1", recipient: "0x" + "a".repeat(40), refundTo: "0x" + "c".repeat(40), deadline: new Date() }, failed), /CROSS_CHAIN_UNAVAILABLE/);
+});
+
+test("1Click partner key: sent as X-API-Key when stored, left out when missing, malformed or unreadable", async () => {
+  const old = process.env.ONECLICK_API_KEY_REF;
+  const quiet = console.error;
+  console.error = () => {};
+  try {
+    delete process.env.ONECLICK_API_KEY_REF;
+    assert.equal(await oneClickKey(async () => assert.fail("not read")), undefined);
+    process.env.ONECLICK_API_KEY_REF = "00000000-0000-0000-0000-0000000000a1";
+    assert.equal(await oneClickKey(async () => "  header.payload.signature\n"), "header.payload.signature");
+    assert.equal(await oneClickKey(async () => "header.payload\nsecond-line"), undefined);
+    assert.equal(await oneClickKey(async () => { throw new Error("Secret is unavailable or revoked"); }), undefined);
+  } finally {
+    console.error = quiet;
+    if (old === undefined) delete process.env.ONECLICK_API_KEY_REF;
+    else process.env.ONECLICK_API_KEY_REF = old;
+  }
+});
+
+test("1Click requests carry the partner key, and a refused key (401) is retried without it", async () => {
+  const sent: (string | undefined)[] = [];
+  const answer = (status: number): Http => async (_base, o) => {
+    sent.push((o.headers as Record<string, string> | undefined)?.["X-API-Key"]);
+    return { status: sent.length === 1 ? status : 201, headers: {}, body: "{}", bytes: 0 };
+  };
+  const quiet = console.error;
+  console.error = () => {};
+  try {
+    let r = await oneClickRequest(answer(201), { method: "POST", path: "/v0/quote", body: "{}" }, async () => "jwt");
+    assert.equal(r.status, 201);
+    assert.deepEqual(sent, ["jwt"], "one request, with the key");
+    sent.length = 0;
+    r = await oneClickRequest(answer(401), { method: "POST", path: "/v0/quote", body: "{}" }, async () => "revoked-jwt");
+    assert.equal(r.status, 201);
+    assert.deepEqual(sent, ["revoked-jwt", undefined], "refused with the key, then answered without it");
+    sent.length = 0;
+    await oneClickRequest(answer(201), { method: "GET", path: "/v0/tokens" }, async () => undefined);
+    assert.deepEqual(sent, [undefined], "no key, no header");
+  } finally {
+    console.error = quiet;
+  }
 });
