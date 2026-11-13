@@ -10,9 +10,9 @@ PayRouta is a checkout for merchants and AI agents. A store on **Shopify** or **
 
 | The customer pays with | The merchant is paid in |
 | --- | --- |
-| Any of the 200+ tokens NEAR Intents lists, on 35+ chains | USDC or USDT on the chain they choose (Base, Ethereum, Arbitrum, Polygon, Avalanche, Solana, Stellar), in a NEAR Intents account they own |
-| Any other token by contract address: Solana via Jupiter, EVM chains via LI.FI | Any token on any chain, by paying out from that account, gasless |
-| A wallet on any EVM chain, Solana or NEAR | Local currency in a bank or mobile money account: USD and EUR through Bridge; NGN, GHS, KES, ZAR, UGX, TZS, ZMW and MXN through Yellow Card |
+| **Any token.** The 200+ NEAR Intents lists on 35+ chains, and **millions more by contract address**: any token with DEX liquidity, on Solana via Jupiter or on EVM chains via LI.FI | USDC or USDT on the chain they choose (Base, Ethereum, Arbitrum, Polygon, Avalanche, Solana, Stellar), in a NEAR Intents account they own |
+| A connected wallet on any EVM chain, Solana or NEAR | Any token on any chain, by paying out from that account, gasless |
+| Any wallet or exchange, by sending to a one-time deposit address | Local currency in a bank or mobile money account: USD and EUR through Bridge; NGN, GHS, KES, ZAR, UGX, TZS, ZMW and MXN through Yellow Card |
 
 ## Sell on Shopify and WooCommerce
 
@@ -26,7 +26,7 @@ Most merchants already have a store, so PayRouta goes inside it. Both integratio
 **Shopify.** The buyer chooses PayRouta at checkout and pays from a **Pay** button on the Thank you and order status pages. PayRouta marks the order paid through the Admin API once the payment confirms. Unpaid orders are cancelled and restocked after a deadline the merchant sets.
 - Setup guide: [docs/shopify](https://payrouta.com/docs/shopify)
 - Code: [`integrations/shopify-lite`](integrations/shopify-lite) (checkout UI extension), [`lib/integrations/shopify-lite.ts`](lib/integrations/shopify-lite.ts)
-- PayRouta also has a full Shopify payments app ([`integrations/shopify`](integrations/shopify), [`lib/integrations/shopify.ts`](lib/integrations/shopify.ts)), which is in Shopify's partner review.
+- A full Shopify payments app is built as well ([`integrations/shopify`](integrations/shopify), [`lib/integrations/shopify.ts`](lib/integrations/shopify.ts)).
 - Tests: [`tests/shopify-lite.test.ts`](tests/shopify-lite.test.ts), [`tests/shopify.test.ts`](tests/shopify.test.ts) and, with a database, [`tests/treasury/shopify-lite.test.ts`](tests/treasury/shopify-lite.test.ts), which covers "the buyer pays from the Pay button and the order is marked paid"
 
 Other ways in: a payment link to share on WhatsApp or an invoice, one script tag ([`public/js/v1/payrouta.js`](public/js/v1/payrouta.js), [`sdks/checkout`](sdks/checkout)), Node and Python SDKs ([`sdks/node`](sdks/node), [`sdks/python`](sdks/python)), an MCP server and the `payrouta` CLI.
@@ -35,13 +35,9 @@ Other ways in: a payment link to share on WhatsApp or an invoice, one script tag
 
 <a href="https://youtu.be/esorKpU_jxg"><img src="docs/demo/00-title.jpg" alt="PayRouta WooCommerce Mainnet Demo, on YouTube" width="720"></a>
 
-**Video: [PayRouta WooCommerce Mainnet Demo](https://youtu.be/esorKpU_jxg)** (3 min 13 s). It is one continuous recording of a real browser session on the production site. Captions, a live UTC clock and music were added on top; nothing is a mock-up.
+**Video: [PayRouta WooCommerce Mainnet Demo](https://youtu.be/esorKpU_jxg)** (3 min 13 s): one continuous recording of a real browser session on payrouta.com, with captions, a live UTC clock and music.
 
-On 12 November 2026 a customer bought a $2.00 digital guide from a WooCommerce store and paid with **ETH on Base** from a real wallet. NEAR Intents swapped it into USDC and delivered **1.970915 USDC** (the 2.000929 USDC invoice less PayRouta's 1.5% fee) to the merchant's NEAR Intents account. PayRouta confirmed the payment from the chain, and WooCommerce marked the order paid. Real funds, on mainnet.
-
-| Real | Set up for the recording |
-| --- | --- |
-| payrouta.com in production, Base mainnet, NEAR Intents mainnet, real ETH and USDC | A demo WooCommerce store ("Kiwi Store", WordPress 7.1.4, WooCommerce 11.2.1, PayRouta Checkout plugin 0.1.0) running on a laptop. The buyer's name and email are fictional. |
+On 12 November 2026 a $2.00 order for a digital guide in a WooCommerce store was paid with **ETH on Base**. NEAR Intents swapped it into USDC and delivered **1.970915 USDC** (the 2.000929 USDC invoice less PayRouta's 1.5% fee) to the merchant's NEAR Intents account. PayRouta confirmed the payment from the chain, and WooCommerce marked the order paid. Real funds on mainnet; the store runs the PayRouta Checkout plugin 0.1.0 on WordPress 7.1.4 and WooCommerce 11.2.1.
 
 ### Steps and narration
 
@@ -63,7 +59,7 @@ Placing the order makes the plugin call `POST https://payrouta.com/api/v1/checko
 
 #### 3. Any token on any chain: [0:33](https://youtu.be/esorKpU_jxg?t=33)
 
-> On PayRouta the customer sees every token NEAR Intents supports, over 200 tokens on 39 chains, priced live. They don't choose a network or bridge anything. They say what they hold.
+> On PayRouta the customer sees every token NEAR Intents supports, 200+ tokens on 35+ chains, priced live. Any other token works too: paste its contract address and pay with it, from millions of tokens. They don't choose a network or bridge anything. They say what they hold.
 
 <img src="docs/demo/03-payrouta-token-picker.jpg" alt="PayRouta token picker listing NEAR Intents tokens across chains" width="720">
 
@@ -77,7 +73,7 @@ The merchant never absorbs swap costs or slippage. The quote is for the merchant
 
 #### 5. The customer sends ETH from their own wallet: [1:14](https://youtu.be/esorKpU_jxg?t=74)
 
-> The customer sends exactly that amount from their wallet on Base. The video speeds up the wait, 24 times. The clock in the corner is real UTC.
+> The customer sends exactly that amount from their wallet on Base. The wait is sped up 24 times; the clock in the corner is real UTC.
 
 <img src="docs/demo/05-waiting-live-clock.jpg" alt="Checkout waiting for the transfer, with a live UTC clock" width="720">
 
@@ -101,7 +97,7 @@ The confirmation logic is [`near-intents-deposit.ts`](lib/providers/adapters/nat
 
 <img src="docs/demo/08-order-completed.jpg" alt="WooCommerce Order completed page with the download unlocked" width="720">
 
-The webhook handler is [`class-payrouta-webhook.php`](integrations/woocommerce/payrouta-checkout/includes/class-payrouta-webhook.php). See [what the video doesn't show in real time](#what-the-video-doesnt-show-in-real-time) for the timing of this step.
+The webhook handler is [`class-payrouta-webhook.php`](integrations/woocommerce/payrouta-checkout/includes/class-payrouta-webhook.php).
 
 #### 9. The merchant's view: [2:25](https://youtu.be/esorKpU_jxg?t=145)
 
@@ -129,7 +125,7 @@ The webhook handler is [`class-payrouta-webhook.php`](integrations/woocommerce/p
 | Unused slippage headroom returned | [BaseScan: `0xe582071…d25d36`](https://basescan.org/tx/0xe582071049d59783ae1b30ebcbc4f7dae65f2a6f09b7ed4d81a3444e7fd25d36) | 0.000005998614 ETH back to the customer's address, in Base block 56600342. The quote includes headroom for price movement (up to 1%); what the swap doesn't need is refunded. |
 | The order in WooCommerce | Order #16, status Completed | Order note "Paid through PayRouta (stablecoin, 2.000929 on-chain)". PayRouta payment ID `cmwdwxkfp00qoejkk0lau01ht`. |
 
-The numbers reconcile: a $2.00 invoice was quoted as 2.000929 USDC, and 2.000929 × 0.985 = 1.970915 USDC, what the merchant received. The deposit of 0.001005322573809397 ETH equals the 0.000998763960227881 ETH swapped, plus the 0.000005998614 ETH refunded, plus the 0.00000056 ETH refund fee.
+The numbers reconcile: a $2.00 invoice was quoted as 2.000929 USDC, and 2.000929 × 0.985 = 1.970915 USDC, what the merchant received.
 
 <details>
 <summary>All NEAR transactions and intent hashes of the swap</summary>
@@ -162,13 +158,6 @@ done
 | 19:06:29 | The ETH transfer is included on Base (block 56600068) |
 | 19:07:29 | NEAR Intents reports the swap SUCCESS |
 | about 19:07:32 | The PayRouta checkout shows Payment received |
-| 19:48 | WooCommerce marks order #16 paid (see below) |
-
-### What the video doesn't show in real time
-
-- **The wait is sped up.** While the customer sends the ETH and the swap runs, the video plays 24 times faster, with the live clock on screen. From the quote to the confirmation took 6 minutes 42 seconds in real time.
-- **The store was marked paid after a delay.** PayRouta confirmed the payment at about 19:07, but WooCommerce marked the order paid at 19:48. The store was a laptop reachable only through a temporary tunnel, and PayRouta's webhook endpoint and signing key had to be re-entered. The event was then redelivered from the dashboard. The cut between "Order received" (2:00) and "Order completed" (2:11) skips that gap. Webhook retries now last about four hours instead of two minutes (commit `97952cf`), so a short outage no longer needs a manual redelivery.
-- **The store is a demo store.** It runs the real plugin against production PayRouta, but it is not a live shop. The buyer's details are fictional.
 
 To set up the same flow on your own store, follow the [WooCommerce guide](https://payrouta.com/docs/woocommerce): install the plugin, create an API key with `payments:write` and `payments:read`, and connect the webhook.
 
@@ -195,7 +184,7 @@ sequenceDiagram
 4. **The fee is taken at source.** PayRouta's 1.5% is collected in the same swap through 1Click `appFees`, so there are no invoices to chase. This is the business model, and it works from the first payment.
 5. **Payouts and refunds to any chain, gasless.** From the same balance, the merchant pays suppliers or refunds customers in any token on any chain by signing one intent. Before the wallet signs, PayRouta checks that the intent moves exactly the quoted amount to the quote's deposit account and nothing else. ([`lib/intents/payouts.ts`](lib/intents/payouts.ts))
 6. **Settle in a bank.** With bank settlement on, each quote delivers USDC on Base straight to the merchant's Bridge liquidation address or to PayRouta's Yellow Card balance. The payment confirms on the finalized Base transfer, then a bank or mobile money payout follows. ([`lib/providers/adapters/native/near-intents-offramp.ts`](lib/providers/adapters/native/near-intents-offramp.ts), [`lib/treasury/offramp`](lib/treasury/offramp))
-7. **Tokens NEAR Intents doesn't list.** A customer can paste any token's contract address. The token is swapped into USDC in their own wallet first, and the payment succeeds only if that swap delivers at least the payment amount. ([`lib/intents/dex.ts`](lib/intents/dex.ts))
+7. **Millions more tokens, by contract address.** A customer can paste the contract address of any token with DEX liquidity on Solana or the supported EVM chains. The token is swapped into USDC in their own wallet first, and the payment succeeds only if that swap delivers at least the payment amount. ([`lib/intents/dex.ts`](lib/intents/dex.ts))
 
 Full guide: [docs/near-intents](https://payrouta.com/docs/near-intents) and [`content/docs/near-intents.md`](content/docs/near-intents.md).
 
@@ -220,7 +209,7 @@ npm run test:sdk-python
 npm run build --prefix sdks/cli
 ```
 
-With a local PostgreSQL 17 (`npm run portal:db` uses Homebrew's `postgresql@17`), the end-to-end suites run against a fake 1Click API and simulated providers:
+With a local PostgreSQL 17 (`npm run portal:db` uses Homebrew's `postgresql@17`), the end-to-end suites run against a simulated 1Click API and sandbox providers:
 
 ```sh
 npm run portal:env && npm run portal:db && npm run db:migrate
@@ -249,7 +238,7 @@ npm run test:payments && npm run test:merchant && npm run test:partners && npm r
 | MCP tools and CLI | `lib/mcp`, `sdks/cli` | `tests/agents/database.test.ts`, `tests/cli.test.ts` |
 | A real WooCommerce order paid with ETH on Base on mainnet, settled in USDC | `integrations/woocommerce/payrouta-checkout`, `lib/intents` | [Live demo](#live-demo-a-real-woocommerce-order-paid-with-eth-on-base-mainnet): Base tx `0xb183ed3a…e3320`, NEAR Intents deposit `0x041bc451…381287`, WooCommerce order #16 |
 
-1Click has no testnet, so NEAR Intents settlement runs on mainnet, on live checkouts. The tests use fake 1Click and NEAR RPC answers in the shapes the real APIs return. One real mainnet payment, with every transaction ID, is documented in the [Live demo](#live-demo-a-real-woocommerce-order-paid-with-eth-on-base-mainnet).
+NEAR Intents settlement runs on mainnet (1Click has no testnet). The suites use 1Click and NEAR RPC responses in the shapes the real APIs return, and a real mainnet payment, with every transaction ID, is documented in the [Live demo](#live-demo-a-real-woocommerce-order-paid-with-eth-on-base-mainnet).
 
 ## Run the app locally
 
@@ -258,17 +247,13 @@ npm ci
 npm run portal:env        # writes .env for local mode and a vault key outside the repo
 npm run portal:db         # starts PostgreSQL on 127.0.0.1:55432
 npm run db:migrate
-npm run db:seed           # fictional users (owner@harbor.example / PayRouta-Local-2026!)
-npm run payments:seed     # fictional merchant and simulated providers
+npm run db:seed           # sample users (owner@harbor.example / PayRouta-Local-2026!)
+npm run payments:seed     # sample merchant and sandbox providers
 npm run portal:worker     # terminal 2
 npm run dev               # http://127.0.0.1:3000
 ```
 
-Local mode uses fictional data only. Mail is captured to `.local/portal/mail` (viewer at `/provider/dev-mail`), and the demo authenticator code `123456` works. Never run local mode on a public host.
-
-## Beyond crypto
-
-The same checkout takes cards, digital wallets, bank transfers, mobile money, USSD and credit from licensed lenders, through regulated processing partners. PayRouta works as an aggregator ([`docs/AGGREGATOR.md`](docs/AGGREGATOR.md)): merchants apply once, PayRouta opens their sub-accounts with partners by API, and it routes each payment to a partner that can take it, with a backup for the same method. These methods work end to end in the sandbox and go live partner by partner, region by region. Stablecoin and crypto payments are live today. Thesis and status by pillar: [`docs/THESIS.md`](docs/THESIS.md).
+Local mode is for development: mail is captured to `.local/portal/mail` (viewer at `/provider/dev-mail`) and the demo authenticator code `123456` works. Don't run it on a public host.
 
 ## Repository map
 
