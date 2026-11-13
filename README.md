@@ -10,7 +10,7 @@ NEAR Intents does the conversion under the button. The customer pays from what t
 
 | The customer pays with | The merchant is paid in |
 | --- | --- |
-| **Any token.** The 200+ NEAR Intents lists on 35+ chains, and **millions more by contract address**: any token with DEX liquidity, on Solana via Jupiter or on EVM chains via LI.FI | USDC or USDT on the chain they choose (Base, Ethereum, Arbitrum, Polygon, Avalanche, Solana, Stellar), in a NEAR Intents account they own |
+| **Millions of tokens across 35+ chains, all settled through NEAR Intents.** The 200+ it lists natively, and any other token by its contract address, swapped to USDC in the customer's wallet via Jupiter or LI.FI on the way in | USDC or USDT on the chain they choose (Base, Ethereum, Arbitrum, Polygon, Avalanche, Solana, Stellar), in a NEAR Intents account they own |
 | A connected wallet on any EVM chain, Solana or NEAR | Any token on any chain, by paying out from that account, gasless |
 | Any wallet or exchange, by sending to a one-time deposit address | Local currency in a bank or mobile money account: USD and EUR through Bridge; NGN, GHS, KES, ZAR, UGX, TZS, ZMW and MXN through Yellow Card |
 
@@ -59,7 +59,7 @@ Placing the order makes the plugin call `POST https://payrouta.com/api/v1/checko
 
 #### 3. Any token on any chain: [0:33](https://youtu.be/esorKpU_jxg?t=33)
 
-> On PayRouta the customer sees every token NEAR Intents supports, 200+ tokens on 35+ chains, priced live. Any other token works too: paste its contract address and pay with it, from millions of tokens. They don't choose a network or bridge anything. They say what they hold.
+> On PayRouta the customer can pay with millions of tokens across 35+ chains, all settled through NEAR Intents: the 200+ it lists, priced live, and any other token by its contract address. They don't choose a network or bridge anything. They say what they hold.
 
 <img src="docs/demo/03-payrouta-token-picker.jpg" alt="PayRouta token picker listing NEAR Intents tokens across chains" width="720">
 
@@ -184,7 +184,7 @@ sequenceDiagram
 4. **The fee is taken at source.** PayRouta's 1.5% is collected in the same swap through 1Click `appFees`, so there are no invoices to chase. This is the business model, and it works from the first payment.
 5. **Payouts and refunds to any chain, gasless.** From the same balance, the merchant pays suppliers or refunds customers in any token on any chain by signing one intent. Before the wallet signs, PayRouta checks that the intent moves exactly the quoted amount to the quote's deposit account and nothing else. ([`lib/intents/payouts.ts`](lib/intents/payouts.ts))
 6. **Settle in a bank.** With bank settlement on, each quote delivers USDC on Base straight to the merchant's Bridge liquidation address or to PayRouta's Yellow Card balance. The payment confirms on the finalized Base transfer, then a bank or mobile money payout follows. ([`lib/providers/adapters/native/near-intents-offramp.ts`](lib/providers/adapters/native/near-intents-offramp.ts), [`lib/treasury/offramp`](lib/treasury/offramp))
-7. **Millions more tokens, by contract address.** A customer can paste the contract address of any token with DEX liquidity on Solana or the supported EVM chains. The token is swapped into USDC in their own wallet first, and the payment succeeds only if that swap delivers at least the payment amount. ([`lib/intents/dex.ts`](lib/intents/dex.ts))
+7. **Millions of tokens by contract address, still through NEAR Intents.** A customer can paste the contract address of any token with DEX liquidity on Solana or the supported EVM chains. Their wallet swaps it into USDC via Jupiter or LI.FI, and NEAR Intents takes that USDC into the merchant's settlement stablecoin. The payment goes ahead only if the first swap delivers at least the payment amount. ([`lib/intents/dex.ts`](lib/intents/dex.ts))
 
 Full guide: [docs/near-intents](https://payrouta.com/docs/near-intents) and [`content/docs/near-intents.md`](content/docs/near-intents.md).
 
