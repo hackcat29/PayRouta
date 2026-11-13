@@ -1,8 +1,8 @@
 # PayRouta
 
-**Customers pay with any token on any chain. Merchants are paid in the stablecoin, token or local currency they choose. NEAR Intents does the conversion in between.**
+**A universal checkout widget: any merchant, app, agent or store adds one checkout button, and their customers pay with intents from whatever wallet, blockchain or token they have.**
 
-PayRouta is a checkout for merchants and AI agents. A store on **Shopify** or **WooCommerce**, a payment link, a button on any site, an SDK call, an MCP tool or a CLI command creates the checkout. The customer pays from whatever they hold: USDT on Tron, ETH on Arbitrum, SOL, NEAR, or a memecoin by its contract address. The merchant receives the exact invoice amount where they chose to be paid, whatever the customer used.
+NEAR Intents does the conversion under the button. The customer pays from what they hold: USDT on Tron, ETH on Arbitrum, SOL, NEAR, or any token by its contract address. The merchant is paid the exact invoice amount in the stablecoin, token or local currency they choose, whatever the customer used. The button goes in anywhere: Shopify and WooCommerce stores, any website or app with one script tag, payment links, the Node and Python SDKs, and, for AI agents, an HTTP API, an MCP server and a CLI.
 
 - Live site: [payrouta.com](https://payrouta.com) · Docs: [docs.payrouta.com](https://docs.payrouta.com) · Checkout demo: [payrouta.com/checkout/demo](https://payrouta.com/checkout/demo)
 - **Demo video:** [PayRouta WooCommerce Mainnet Demo](https://youtu.be/esorKpU_jxg) (3 min): a real WooCommerce order paid with ETH on Base, settled in USDC through NEAR Intents. Narration, steps and on-chain proof: [Live demo](#live-demo-a-real-woocommerce-order-paid-with-eth-on-base-mainnet)
