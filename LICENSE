@@ -1,0 +1,31 @@
+PayRouta Source-Available License
+
+Copyright (c) 2026 PayRouta. All rights reserved.
+
+The source code in this repository is published so that it can be reviewed
+and evaluated, including by the organizers and judges of NEAR HACKATHON.
+
+You may view the code, and clone, build and run it locally, to review and
+evaluate it.
+
+You may not, without prior written permission from PayRouta:
+
+  - use the code, or any part of it, in production or to provide a service
+    to others;
+  - copy, modify, merge, publish, distribute, sublicense or sell copies of
+    the code, or of works based on it;
+  - use the code to build a competing product or service.
+
+Exception: the WooCommerce plugin in integrations/woocommerce/payrouta-checkout
+is licensed under the GNU General Public License, version 2 or later
+(GPL-2.0-or-later), as stated in its own header and readme.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+For any other use, contact PayRouta through https://payrouta.com.

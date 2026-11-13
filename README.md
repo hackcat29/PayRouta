@@ -7,13 +7,62 @@ NEAR Intents does the conversion under the button. The customer pays from what t
 - Live site: [payrouta.com](https://payrouta.com) · Docs: [docs.payrouta.com](https://docs.payrouta.com) · Checkout demo: [payrouta.com/checkout/demo](https://payrouta.com/checkout/demo)
 - **Demo video:** [PayRouta WooCommerce Mainnet Demo](https://youtu.be/esorKpU_jxg) (3 min): a real WooCommerce order paid with ETH on Base, settled in USDC through NEAR Intents. Narration, steps and on-chain proof: [Live demo](#live-demo-a-real-woocommerce-order-paid-with-eth-on-base-mainnet)
 - **Launch post on X:** [x.com/payrouta/status/2121060309397877117](https://x.com/payrouta/status/2121060309397877117)
-- NEAR HACKATHON tracks: **08 Real-World Money** (primary), **07 Agent Economy**, **04 Autonomous Business**
+- NEAR HACKATHON tracks: **08 Real-World Money** (primary), **07 Agent Economy**, **04 Autonomous Business**, **06 AI Security & Defense**, **01 Unstoppable DeFi**, **13 Open Innovation**
+- What was built during the hackathon, and the diff against the pre-hackathon code: [Built during NEAR HACKATHON](#built-during-near-hackathon)
 
 | The customer pays with | The merchant is paid in |
 | --- | --- |
 | **Millions of tokens across 35+ chains, all settled through NEAR Intents.** The 200+ it lists natively, and any other token by its contract address, swapped to USDC in the customer's wallet via Jupiter or LI.FI on the way in | USDC or USDT on the chain they choose (Base, Ethereum, Arbitrum, Polygon, Avalanche, Solana, Stellar), in a NEAR Intents account they own |
 | A connected wallet on any EVM chain, Solana or NEAR | Any token on any chain, by paying out from that account, gasless |
 | Any wallet or exchange, by sending to a one-time deposit address | Local currency in a bank or mobile money account: USD and EUR through Bridge; NGN, GHS, KES, ZAR, UGX, TZS, ZMW and MXN through Yellow Card |
+
+## The problem
+
+Customers hold thousands of tokens across dozens of chains, and merchants want to be paid in one currency. Paying a store with a token it doesn't accept means bridging, swapping and switching apps, so most crypto never reaches a checkout. A merchant, app or AI agent that wants to accept it faces the reverse: integrating every chain and token, and carrying the price risk. PayRouta puts that conversion behind one checkout button, and NEAR Intents settles every payment.
+
+## Try it
+
+| Do | See |
+| --- | --- |
+| Open [payrouta.com/checkout/demo](https://payrouta.com/checkout/demo) | A $25.00 demo order, and a token picker with the live NEAR Intents list (230 tokens on 39 chains on 13 November 2026) |
+| Pick ETH on Arbitrum, or any token, and choose **Continue** | A real NEAR Intents quote for this order: the exact ETH to send, 24.625 USDC to the merchant and PayRouta's 0.375 USDC fee. The demo asks for the quote with `dry: true`, so no deposit address is created |
+| Choose **Simulate the payment** | Transfer seen, processing and payment confirmed, then the receipt |
+| Open the token picker and paste `DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263` | Bonk on Solana, found by its contract address and payable through NEAR Intents |
+| Choose **Pay with card, digital wallet, bank transfer, mobile money or credit instead** | The same order's card, wallet, bank and credit checkout |
+| Run the two commands under [On-chain proof](#on-chain-proof) | The mainnet WooCommerce payment: swap status `SUCCESS`, 1.970915 USDC delivered, and both Base transactions |
+| Clone the repo and run `npm ci && npm test` | 770 unit tests pass, with no database or API keys |
+
+## Built during NEAR HACKATHON
+
+PayRouta existed before the hackathon. Only the work since the [19 October 2026 announcement](https://x.com/nearprotocol/status/2112257967818997891) is in scope, and two tags separate it from the earlier code:
+
+- [`pre-hackathon`](https://github.com/hackcat29/PayRouta/tree/pre-hackathon): commit `fa3d82a` (9 October 2026), the last commit before the announcement.
+- [`hackathon-submission`](https://github.com/hackcat29/PayRouta/tree/hackathon-submission): the submitted commit.
+- Everything built during the hackathon: [compare `pre-hackathon...hackathon-submission`](https://github.com/hackcat29/PayRouta/compare/pre-hackathon...hackathon-submission).
+
+**Before the hackathon (baseline):** the payments core (payment intents, routing, execution and reconciliation), the merchant workspace and merchant API, the provider portal and operations console, hosted checkout pages, stablecoin receive addresses on EVM chains, the Node and Python SDKs and the marketing site.
+
+**Built during the hackathon:**
+
+| Area | Code |
+| --- | --- |
+| NEAR Intents settlement: any-token cross-chain checkout through 1Click, merchant-owned NEAR Intents accounts, exact-output quotes, confirmation from the chain, the fee at source, and gasless payouts and refunds | [`lib/intents`](lib/intents), `lib/providers/adapters/native/near-intents-*.ts` |
+| Any token by contract address, swapped to USDC with Jupiter or LI.FI and settled through NEAR Intents | [`lib/intents/dex.ts`](lib/intents/dex.ts) |
+| Settling to a bank or mobile money account through NEAR Intents (Bridge, Yellow Card) | [`near-intents-offramp.ts`](lib/providers/adapters/native/near-intents-offramp.ts), [`lib/treasury/offramp`](lib/treasury/offramp) |
+| The universal checkout, the checkout button and its SDK, payment links and the demo checkout | [`lib/payments/universal.ts`](lib/payments/universal.ts), [`public/js/v1/payrouta.js`](public/js/v1/payrouta.js), [`sdks/checkout`](sdks/checkout), [`lib/payments/demo-checkout.ts`](lib/payments/demo-checkout.ts) |
+| The WooCommerce plugin and the Shopify apps | [`integrations`](integrations), [`lib/integrations`](lib/integrations) |
+| Agent payments (402 terms, agent keys with limits), the MCP server and the CLI | [`app/api/agent`](app/api/agent), [`lib/agents`](lib/agents), [`lib/mcp`](lib/mcp), [`sdks/cli`](sdks/cli) |
+| Subscriptions | [`lib/subscriptions`](lib/subscriptions) |
+| A mainnet WooCommerce payment through NEAR Intents | [Live demo](#live-demo-a-real-woocommerce-order-paid-with-eth-on-base-mainnet) |
+
+**Libraries, services and tools:**
+
+- Framework and data: Next.js 16, React, Prisma 7 with PostgreSQL, Better Auth (passkeys, SSO), Zod, React Hook Form, Tailwind CSS, three.js, React Three Fiber and TypeGPU.
+- Chains and wallets: `@hot-labs/near-connect`, Privy, `@solana/kit`, `@solana/web3.js` and the `@solana-program` packages, `@stellar/stellar-sdk` and Freighter, `@noble/curves`, `@noble/hashes` and `bs58`.
+- Services: the NEAR Intents 1Click API and NEAR RPC, Jupiter, LI.FI, CoinGecko, Bridge, Yellow Card, Resend and Amazon S3.
+- Testing: Node's test runner with `tsx`, and Playwright with axe-core.
+- AI coding assistants: Claude Code and OpenAI Codex.
+- The team's own pre-hackathon code is the baseline above.
 
 ## Sell on Shopify and WooCommerce
 
@@ -203,7 +252,7 @@ Node 24. These need no database and no API keys:
 
 ```sh
 npm ci                      # also generates the Prisma client
-npm test                    # 759 unit tests: NEAR Intents, 1Click, signatures, Shopify, agents, MCP, CLI, fees
+npm test                    # 770 unit tests: NEAR Intents, 1Click, signatures, Shopify, agents, MCP, CLI, fees
 npm run typecheck
 npm run lint
 npm run test:sdk-python
@@ -280,3 +329,7 @@ Local mode is for development: mail is captured to `.local/portal/mail` (viewer 
 - Shopify and WooCommerce: [`content/docs/shopify.md`](content/docs/shopify.md), [`content/docs/woocommerce.md`](content/docs/woocommerce.md)
 - Agents, MCP, CLI: [`content/docs/agents.md`](content/docs/agents.md), [`content/docs/mcp.md`](content/docs/mcp.md), [`content/docs/cli.md`](content/docs/cli.md)
 - Production runbook: [`docs/PRODUCTION.md`](docs/PRODUCTION.md); payments internals: [`docs/PAYMENTS.md`](docs/PAYMENTS.md); fees: [`docs/PLATFORM-BILLING.md`](docs/PLATFORM-BILLING.md)
+
+## License
+
+Source-available for review and evaluation: see [`LICENSE`](LICENSE). The WooCommerce plugin is GPL-2.0-or-later.
