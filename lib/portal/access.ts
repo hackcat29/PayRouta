@@ -65,10 +65,12 @@ export async function rateLimit(key: string, max = 30) {
   if (record.count > max)
     throw new PortalError("Too many attempts. Try again in a minute.", 429);
 }
+// The site's public origin. Behind the reverse proxy, request.url is the
+// app's own address (http://localhost:3051), not the one browsers use.
+export function publicOrigin(request: Request) {
+  return new URL(process.env.BETTER_AUTH_URL || request.url).origin;
+}
 export function csrf(request: Request) {
-  if (
-    request.headers.get("origin") !==
-    new URL(process.env.BETTER_AUTH_URL || request.url).origin
-  )
+  if (request.headers.get("origin") !== publicOrigin(request))
     throw new PortalError("Request origin rejected", 403);
 }

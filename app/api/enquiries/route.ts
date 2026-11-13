@@ -1,6 +1,7 @@
 import { enquirySchema } from "@/lib/enquiries/schema";
 import { deliver } from "@/lib/enquiries/delivery";
 import { verifyTurnstile } from "@/lib/turnstile";
+import { publicOrigin } from "@/lib/portal/access";
 export const runtime = "nodejs";
 const MAX_BYTES = 16000;
 async function boundedBody(request: Request) {
@@ -49,7 +50,7 @@ export async function POST(request: Request) {
   if (Number(request.headers.get("content-length") || 0) > MAX_BYTES)
     return json({ ok: false, message: "Enquiry is too large." }, 413);
   const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin)
+  if (origin && origin !== publicOrigin(request))
     return json({ ok: false, message: "Request origin is not allowed." }, 403);
   if (!(await verifyTurnstile(request)))
     return json(

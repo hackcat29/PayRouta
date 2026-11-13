@@ -93,6 +93,21 @@ test("endpoint enforces content type, byte limits, schema and unconfigured state
     ).status,
     403,
   );
+  // Behind the proxy the app sees http://localhost:3051; the browser sends
+  // the public origin, which is allowed.
+  const site = process.env.BETTER_AUTH_URL;
+  process.env.BETTER_AUTH_URL = "https://payrouta.example";
+  try {
+    const proxied = new Request("http://localhost:3051/api/enquiries", {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "https://payrouta.example" },
+      body: "{}",
+    });
+    assert.equal((await POST(proxied)).status, 400, "past the origin check, to validation");
+  } finally {
+    if (site === undefined) delete process.env.BETTER_AUTH_URL;
+    else process.env.BETTER_AUTH_URL = site;
+  }
   const previous = process.env.CONTACT_WEBHOOK_URL;
   delete process.env.CONTACT_WEBHOOK_URL;
   try {

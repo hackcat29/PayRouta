@@ -6,7 +6,7 @@ import { authenticate } from "@/lib/merchant/access";
 import { handleMcp } from "@/lib/mcp/server";
 import { PortalError } from "@/lib/portal/domain";
 import { agentKeyFrom } from "@/lib/agents/keys";
-import { rateLimit } from "@/lib/portal/access";
+import { publicOrigin, rateLimit } from "@/lib/portal/access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     : undefined;
   const response = await handleMcp(body, {
     authorize,
-    origin: new URL(request.url).origin,
+    origin: publicOrigin(request),
     agent,
     visitor: { ip, country: headers.get("cf-ipcountry") || headers.get("x-vercel-ip-country") },
   });
