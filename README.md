@@ -5,6 +5,7 @@
 PayRouta is a checkout for merchants and AI agents. A store on **Shopify** or **WooCommerce**, a payment link, a button on any site, an SDK call, an MCP tool or a CLI command creates the checkout. The customer pays from whatever they hold: USDT on Tron, ETH on Arbitrum, SOL, NEAR, or a memecoin by its contract address. The merchant receives the exact invoice amount where they chose to be paid, whatever the customer used.
 
 - Live site: [payrouta.com](https://payrouta.com) · Docs: [docs.payrouta.com](https://docs.payrouta.com) · Checkout demo: [payrouta.com/checkout/demo](https://payrouta.com/checkout/demo)
+- **Demo video:** [PayRouta WooCommerce Mainnet Demo](https://youtu.be/esorKpU_jxg) (3 min): a real WooCommerce order paid with ETH on Base, settled in USDC through NEAR Intents. Narration, steps and on-chain proof: [Live demo](#live-demo-a-real-woocommerce-order-paid-with-eth-on-base-mainnet)
 - NEAR HACKATHON tracks: **08 Real-World Money** (primary), **07 Agent Economy**, **04 Autonomous Business**
 
 | The customer pays with | The merchant is paid in |
@@ -20,7 +21,7 @@ Most merchants already have a store, so PayRouta goes inside it. Both integratio
 **WooCommerce.** The PayRouta Checkout plugin adds PayRouta as a payment method in the block and classic checkouts, with High-Performance Order Storage support. The customer pays on PayRouta, and a signed webhook marks the WooCommerce order paid.
 - Download: [payrouta.com/downloads/payrouta-checkout.zip](https://payrouta.com/downloads/payrouta-checkout.zip). Setup guide: [docs/woocommerce](https://payrouta.com/docs/woocommerce)
 - Code: [`integrations/woocommerce/payrouta-checkout`](integrations/woocommerce/payrouta-checkout): gateway, Blocks support, API client, webhook handler
-- Verified end to end on WordPress 7.1.4 with WooCommerce 11.2.1
+- Verified end to end on WordPress 7.1.4 with WooCommerce 11.2.1, and with a real mainnet payment: [Live demo](#live-demo-a-real-woocommerce-order-paid-with-eth-on-base-mainnet)
 
 **Shopify.** The buyer chooses PayRouta at checkout and pays from a **Pay** button on the Thank you and order status pages. PayRouta marks the order paid through the Admin API once the payment confirms. Unpaid orders are cancelled and restocked after a deadline the merchant sets.
 - Setup guide: [docs/shopify](https://payrouta.com/docs/shopify)
@@ -29,6 +30,147 @@ Most merchants already have a store, so PayRouta goes inside it. Both integratio
 - Tests: [`tests/shopify-lite.test.ts`](tests/shopify-lite.test.ts), [`tests/shopify.test.ts`](tests/shopify.test.ts) and, with a database, [`tests/treasury/shopify-lite.test.ts`](tests/treasury/shopify-lite.test.ts), which covers "the buyer pays from the Pay button and the order is marked paid"
 
 Other ways in: a payment link to share on WhatsApp or an invoice, one script tag ([`public/js/v1/payrouta.js`](public/js/v1/payrouta.js), [`sdks/checkout`](sdks/checkout)), Node and Python SDKs ([`sdks/node`](sdks/node), [`sdks/python`](sdks/python)), an MCP server and the `payrouta` CLI.
+
+## Live demo: a real WooCommerce order paid with ETH on Base mainnet
+
+<a href="https://youtu.be/esorKpU_jxg"><img src="docs/demo/00-title.jpg" alt="PayRouta WooCommerce Mainnet Demo, on YouTube" width="720"></a>
+
+**Video: [PayRouta WooCommerce Mainnet Demo](https://youtu.be/esorKpU_jxg)** (3 min 13 s). It is one continuous recording of a real browser session on the production site. Captions, a live UTC clock and music were added on top; nothing is a mock-up.
+
+On 12 November 2026 a customer bought a $2.00 digital guide from a WooCommerce store and paid with **ETH on Base** from a real wallet. NEAR Intents swapped it into USDC and delivered **1.970915 USDC** (the 2.000929 USDC invoice less PayRouta's 1.5% fee) to the merchant's NEAR Intents account. PayRouta confirmed the payment from the chain, and WooCommerce marked the order paid. Real funds, on mainnet.
+
+| Real | Set up for the recording |
+| --- | --- |
+| payrouta.com in production, Base mainnet, NEAR Intents mainnet, real ETH and USDC | A demo WooCommerce store ("Kiwi Store", WordPress 7.1.4, WooCommerce 11.2.1, PayRouta Checkout plugin 0.1.0) running on a laptop. The buyer's name and email are fictional. |
+
+### Steps and narration
+
+Each step links to its moment in the video.
+
+#### 1. The store: [0:08](https://youtu.be/esorKpU_jxg?t=8)
+
+> Kiwi Store is an ordinary WooCommerce shop selling a $2 digital city guide. The only addition is the PayRouta Checkout plugin.
+
+<img src="docs/demo/01-store-product.jpg" alt="Kiwi Store product page: Lagos Weekend Field Guide, $2.00" width="720">
+
+#### 2. Checkout with PayRouta: [0:14](https://youtu.be/esorKpU_jxg?t=14)
+
+> The customer adds the guide to the cart and checks out as a guest. PayRouta is a payment option at WooCommerce checkout.
+
+<img src="docs/demo/02-store-checkout.jpg" alt="WooCommerce checkout with Pay with PayRouta selected" width="720">
+
+Placing the order makes the plugin call `POST https://payrouta.com/api/v1/checkouts` with the order total, currency, return URL and a stable idempotency key, then send the buyer to the PayRouta checkout ([`class-wc-gateway-payrouta.php`](integrations/woocommerce/payrouta-checkout/includes/class-wc-gateway-payrouta.php)).
+
+#### 3. Any token on any chain: [0:33](https://youtu.be/esorKpU_jxg?t=33)
+
+> On PayRouta the customer sees every token NEAR Intents supports, over 200 tokens on 39 chains, priced live. They don't choose a network or bridge anything. They say what they hold.
+
+<img src="docs/demo/03-payrouta-token-picker.jpg" alt="PayRouta token picker listing NEAR Intents tokens across chains" width="720">
+
+#### 4. The NEAR Intents quote: [0:44](https://youtu.be/esorKpU_jxg?t=44) and [1:04](https://youtu.be/esorKpU_jxg?t=64)
+
+> The customer picks ETH on Base, a token the merchant doesn't want, and gives the address a failed swap would be refunded to. PayRouta asks NEAR Intents for an exact-output quote: deliver exactly the invoice amount to the merchant's account. The checkout shows a one-time deposit address and the exact ETH to send: 0.001005322573809397.
+
+<img src="docs/demo/04-near-intents-quote.jpg" alt="PayRouta checkout showing the one-time deposit address, QR code and exact ETH amount" width="720">
+
+The merchant never absorbs swap costs or slippage. The quote is for the merchant's net amount, so they receive the invoice less PayRouta's fee, taken at source ([`lib/intents/checkout.ts`](lib/intents/checkout.ts)).
+
+#### 5. The customer sends ETH from their own wallet: [1:14](https://youtu.be/esorKpU_jxg?t=74)
+
+> The customer sends exactly that amount from their wallet on Base. The video speeds up the wait, 24 times. The clock in the corner is real UTC.
+
+<img src="docs/demo/05-waiting-live-clock.jpg" alt="Checkout waiting for the transfer, with a live UTC clock" width="720">
+
+#### 6. NEAR Intents swaps it: [1:34](https://youtu.be/esorKpU_jxg?t=94)
+
+> NEAR Intents sees the deposit and swaps the ETH into USDC.
+
+<img src="docs/demo/06-transfer-seen.jpg" alt="Checkout showing transfer sent, processing, payment confirmed steps" width="720">
+
+#### 7. PayRouta confirms from the chain: [1:49](https://youtu.be/esorKpU_jxg?t=109)
+
+> PayRouta doesn't take the swap's own status on trust. It reads the swap's transfers back from NEAR and confirms the payment only when the exact amount has landed in the merchant's account, made by this swap's own intents.
+
+<img src="docs/demo/07-payment-received.jpg" alt="PayRouta checkout: Payment received, paid with ETH on Base" width="720">
+
+The confirmation logic is [`near-intents-deposit.ts`](lib/providers/adapters/native/near-intents-deposit.ts), covered by `tests/near-intents.test.ts`.
+
+#### 8. The store marks the order paid: [1:55](https://youtu.be/esorKpU_jxg?t=115) and [2:11](https://youtu.be/esorKpU_jxg?t=131)
+
+> The customer returns to the store. PayRouta signs a webhook to WooCommerce. The plugin verifies the signature, fetches the payment from the PayRouta API to check that it is Confirmed, and only then marks the order paid and unlocks the download.
+
+<img src="docs/demo/08-order-completed.jpg" alt="WooCommerce Order completed page with the download unlocked" width="720">
+
+The webhook handler is [`class-payrouta-webhook.php`](integrations/woocommerce/payrouta-checkout/includes/class-payrouta-webhook.php). See [what the video doesn't show in real time](#what-the-video-doesnt-show-in-real-time) for the timing of this step.
+
+#### 9. The merchant's view: [2:25](https://youtu.be/esorKpU_jxg?t=145)
+
+> In WooCommerce admin, order #16 is Completed, with the note "Paid through PayRouta (stablecoin, 2.000929 on-chain)".
+
+<img src="docs/demo/09-woocommerce-admin-paid.jpg" alt="WooCommerce admin: order #16 paid, with the PayRouta order note" width="720">
+
+#### 10. On-chain proof: [2:37](https://youtu.be/esorKpU_jxg?t=157) and [2:51](https://youtu.be/esorKpU_jxg?t=171)
+
+> Here is the customer's transfer on BaseScan, and the swap on the NEAR Intents explorer: deposit, swap, and 1.970915 USDC delivered to the merchant.
+
+<img src="docs/demo/10-basescan-deposit.jpg" alt="BaseScan: the ETH transfer to the deposit address, status Success" width="720">
+
+<img src="docs/demo/11-near-intents-explorer.jpg" alt="NEAR Intents explorer: Created, Deposit Completed, Processed, Withdrawn" width="720">
+
+<img src="docs/demo/12-near-intents-from-to.jpg" alt="NEAR Intents explorer: from 0.000998763 ETH on Base to 1.970915 USDC, with transaction hashes" width="720">
+
+### On-chain proof
+
+| Evidence | Check it | What it shows |
+| --- | --- | --- |
+| The customer's ETH transfer | [BaseScan: `0xb183ed3a…e3320`](https://basescan.org/tx/0xb183ed3a979bb4cebdcc51d0a2c8f1bbbfa368427aeee0fb6b8539f5a10e3320) | 0.001005322573809397 ETH from `0x59ee649f1D4437374B42Dbe3897AB894937F2744` to the one-time deposit address `0x041bc4514C6FE3D2Da21F1EC025cf4e764381287`. Base block 56600068, 2026-11-12 19:06:29 UTC, status Success. |
+| The swap | [NEAR Intents explorer](https://explorer.near-intents.org/transactions/0x041bc4514C6FE3D2Da21F1EC025cf4e764381287) | Status SUCCESS. 0.000998763960227881 ETH swapped into **1.970915 USDC**, delivered to the merchant's NEAR Intents account (`0x3fa0…a130bc` on the explorer). |
+| Delivery on NEAR | [NEAR tx `Ef1FdMpB…vuwpw`](https://nearblocks.io/txns/Ef1FdMpB6Wac1nNCwNbNcLJBWvgrV62pTFFHYsbvuwpw) | The swap's withdrawal into the merchant's account. The other NEAR transactions and the three intent hashes are listed below. |
+| Unused slippage headroom returned | [BaseScan: `0xe582071…d25d36`](https://basescan.org/tx/0xe582071049d59783ae1b30ebcbc4f7dae65f2a6f09b7ed4d81a3444e7fd25d36) | 0.000005998614 ETH back to the customer's address, in Base block 56600342. The quote includes headroom for price movement (up to 1%); what the swap doesn't need is refunded. |
+| The order in WooCommerce | Order #16, status Completed | Order note "Paid through PayRouta (stablecoin, 2.000929 on-chain)". PayRouta payment ID `cmwdwxkfp00qoejkk0lau01ht`. |
+
+The numbers reconcile: a $2.00 invoice was quoted as 2.000929 USDC, and 2.000929 × 0.985 = 1.970915 USDC, what the merchant received. The deposit of 0.001005322573809397 ETH equals the 0.000998763960227881 ETH swapped, plus the 0.000005998614 ETH refunded, plus the 0.00000056 ETH refund fee.
+
+<details>
+<summary>All NEAR transactions and intent hashes of the swap</summary>
+
+NEAR transactions: `5qvgmCkiNDYoU5aDQaXRrgimPwSjDN9qVFkaFQ2oEB7i`, `A7czay4RtzU97MtWbHCDu1tsnkdggkbAtgeDdHKe3UfQ`, `4YKDhjfUU2p2HGiai4oi5jY8Ut6eRxDBmLMo5otYXkX7`, `Ef1FdMpB6Wac1nNCwNbNcLJBWvgrV62pTFFHYsbvuwpw`, `sQPFs2owDKaJpydWT7c7SMderUMFSKKzTFhftzNvi5k`
+
+Intent hashes: `5ft6xg4o4L1b2TQms75XGsiZ8tPGSAMNuCPKrPrdMgSv`, `HekiymAzexh3UQKHWF9kFJbu9mYbKMgPaqT2ztGcR3Gi`, `Hk7pFQN4oXgoeEcNUip8bjr9fpQCQva8UfTPAjPSVjeT`
+
+</details>
+
+**Verify it yourself**, with no keys:
+
+```sh
+# The swap's status, from NEAR Intents' public API
+curl -s "https://1click.chaindefuser.com/v0/status?depositAddress=0x041bc4514C6FE3D2Da21F1EC025cf4e764381287"
+
+# The deposit and the refund, from a public Base RPC
+for tx in 0xb183ed3a979bb4cebdcc51d0a2c8f1bbbfa368427aeee0fb6b8539f5a10e3320 \
+          0xe582071049d59783ae1b30ebcbc4f7dae65f2a6f09b7ed4d81a3444e7fd25d36; do
+  curl -s https://mainnet.base.org -H 'content-type: application/json' \
+    -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"eth_getTransactionByHash\",\"params\":[\"$tx\"]}"
+done
+```
+
+### Timeline (UTC, 12 November 2026)
+
+| Time | Event |
+| --- | --- |
+| 19:00:50 | PayRouta issues the quote and the one-time deposit address |
+| 19:06:29 | The ETH transfer is included on Base (block 56600068) |
+| 19:07:29 | NEAR Intents reports the swap SUCCESS |
+| about 19:07:32 | The PayRouta checkout shows Payment received |
+| 19:48 | WooCommerce marks order #16 paid (see below) |
+
+### What the video doesn't show in real time
+
+- **The wait is sped up.** While the customer sends the ETH and the swap runs, the video plays 24 times faster, with the live clock on screen. From the quote to the confirmation took 6 minutes 42 seconds in real time.
+- **The store was marked paid after a delay.** PayRouta confirmed the payment at about 19:07, but WooCommerce marked the order paid at 19:48. The store was a laptop reachable only through a temporary tunnel, and PayRouta's webhook endpoint and signing key had to be re-entered. The event was then redelivered from the dashboard. The cut between "Order received" (2:00) and "Order completed" (2:11) skips that gap. Webhook retries now last about four hours instead of two minutes (commit `97952cf`), so a short outage no longer needs a manual redelivery.
+- **The store is a demo store.** It runs the real plugin against production PayRouta, but it is not a live shop. The buyer's details are fictional.
+
+To set up the same flow on your own store, follow the [WooCommerce guide](https://payrouta.com/docs/woocommerce): install the plugin, create an API key with `payments:write` and `payments:read`, and connect the webhook.
 
 ## How a payment settles through NEAR Intents
 
@@ -105,8 +247,9 @@ npm run test:payments && npm run test:merchant && npm run test:partners && npm r
 | Agents get 402 terms and are held to their key's budget | `app/api/agent/v1`, `lib/agents` | `tests/agents/database.test.ts`, `tests/agents.test.ts` |
 | An agent pays from its NEAR Intents balance by signing one transfer | `lib/intents` | `tests/intents/database.test.ts`: "near intents: an agent pays from its intents balance…" |
 | MCP tools and CLI | `lib/mcp`, `sdks/cli` | `tests/agents/database.test.ts`, `tests/cli.test.ts` |
+| A real WooCommerce order paid with ETH on Base on mainnet, settled in USDC | `integrations/woocommerce/payrouta-checkout`, `lib/intents` | [Live demo](#live-demo-a-real-woocommerce-order-paid-with-eth-on-base-mainnet): Base tx `0xb183ed3a…e3320`, NEAR Intents deposit `0x041bc451…381287`, WooCommerce order #16 |
 
-1Click has no testnet, so NEAR Intents settlement runs on mainnet, on live checkouts. The tests use fake 1Click and NEAR RPC answers in the shapes the real APIs return.
+1Click has no testnet, so NEAR Intents settlement runs on mainnet, on live checkouts. The tests use fake 1Click and NEAR RPC answers in the shapes the real APIs return. One real mainnet payment, with every transaction ID, is documented in the [Live demo](#live-demo-a-real-woocommerce-order-paid-with-eth-on-base-mainnet).
 
 ## Run the app locally
 
