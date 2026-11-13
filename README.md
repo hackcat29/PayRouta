@@ -33,6 +33,8 @@ Customers hold thousands of tokens across dozens of chains, and merchants want t
 | Clone the repo and run `npm ci && npm test` | 790 unit tests pass, with no database or API keys |
 | Run `npm run portal:env && npm run portal:db && npm run db:migrate`, then `npm run demo:agent-guardrails` | A prompt-injected AI agent tries to pay outside its agent key's limits and is refused each time ([log below](#agent-guardrails-demo)) |
 | Open the [x402 payment on NEAR testnet](https://testnet.nearblocks.io/txns/33LBe2XHeewUTnrS6cAAoRVC1yyySWSMKYWGZ3LT359e) | An AI agent paid a merchant's x402 API 0.10 pUSD with one signed NEP-366 delegate action; PayRouta's relayer paid the gas ([log](#x402-on-near)) |
+| Open [PayRouta Checkout on NEAR AI Agent Market](https://payrouta-checkout.market.near.ai), or run `npm run -s agent-market -- quote payrouta-checkout "WooCommerce store selling prints"` | PayRouta's listed agent answers with x402 terms: 0.30 USDC on NEAR mainnet. Hired with `AGENT_MARKET_PAYER=you.near npm run -s agent-market -- hire payrouta-checkout "<your stack>" --max 1`, it delivers an integration plan from PayRouta's server |
+| `curl https://a8a1987392804bb7f7d39c879f5399ab63931b6c-3000.dstack-pha1-prod5.phala.network/` | The Shade Agent in an Intel TDX enclave on Phala Cloud: `"registered": true` with `payrouta-tee-vault.testnet`, from a real TDX attestation ([registration](https://testnet.nearblocks.io/txns/4fghkXcs8AA58E7eWxHEcUWhKGj9o2o6MkGvN664JtMR)) |
 | Open the agent vault's [signing request on NEAR](https://testnet.nearblocks.io/txns/5VfedPG5daC5Bm6JiLS8rq1p7DKWLnPkdFur76zquqbS), the [USDC transfer it produced on Base Sepolia](https://sepolia.basescan.org/tx/0x68e7f9a8c0dfa1d73030a745628bf75a9d2f5279502af201c56513a8f2d44fda), and its [refusals](#agent-vault-on-chain-limits) | A NEAR contract built a USDC transfer for a PayRouta checkout and `v1.signer` signed it for the vault's derived EVM address (Chain Signatures). Seven attempts outside the owner's policy were refused on-chain |
 
 ## Built during NEAR HACKATHON
@@ -58,7 +60,8 @@ PayRouta existed before the hackathon. Only the work since the [19 October 2026 
 | Subscriptions | [`lib/subscriptions`](lib/subscriptions) |
 | x402 on NEAR: PayRouta as an x402 facilitator with its own NEP-366 relayer, and payment links paid over x402 in USDC on NEAR | [`lib/x402`](lib/x402), [`app/api/v1/x402`](app/api/v1/x402) |
 | The agent vault: a NEAR contract with function-call agent keys, PayRouta-signed orders, on-chain limits, Chain Signatures for EVM payments and Shade Agent TEE attestation | [`contracts/agent-vault`](contracts/agent-vault), [`lib/agents/vault.ts`](lib/agents/vault.ts) |
-| NEAR AI Agent Market: hiring listed agents over x402 within a cap, and PayRouta's own listed agent | [`lib/agents/agent-market.ts`](lib/agents/agent-market.ts), [`scripts/agent-market.ts`](scripts/agent-market.ts) |
+| A Shade Agent on Phala Cloud (Intel TDX) that registers with the vault from its attestation and pays from it | [`agents/shade-vault-agent`](agents/shade-vault-agent) |
+| NEAR AI Agent Market: hiring listed agents over x402 within a cap, and PayRouta's own listed agent, [PayRouta Checkout](https://payrouta-checkout.market.near.ai), worked by PayRouta's server | [`lib/agents/agent-market.ts`](lib/agents/agent-market.ts), [`scripts/agent-market.ts`](scripts/agent-market.ts) |
 | A mainnet WooCommerce payment through NEAR Intents | [Live demo](#live-demo-a-real-woocommerce-order-paid-with-eth-on-base-mainnet) |
 
 **Libraries, services and tools:**
@@ -273,7 +276,7 @@ Full guide: [docs/near-intents](https://payrouta.com/docs/near-intents) and [`co
 - **Subscriptions.** Plans and usage meters. Each invoice can be paid from any wallet, including by an agent over MCP.
 - **x402 on NEAR.** PayRouta is an x402 v2 facilitator for the `exact` scheme on NEAR, with its own NEP-366 relayer: a merchant's x402 server sends payments to `/api/v1/x402/verify` and `/settle` with a PayRouta API key. Live payment links and invoices are payable by any x402 client at `/api/agent/v1/x402/links/{slug}`, in USDC on NEAR, delivered through NEAR Intents. ([`lib/x402`](lib/x402), [docs/x402.md](docs/x402.md))
 - **Agent vault.** A NEAR contract an agent pays from, with the limits on-chain. ([`contracts/agent-vault`](contracts/agent-vault), [docs/agent-vault.md](docs/agent-vault.md))
-- **NEAR AI Agent Market.** Agents hire listed agents over x402 within a cap, and PayRouta's own agent works its hires from the self-hosted loop. ([docs/agent-market.md](docs/agent-market.md))
+- **NEAR AI Agent Market.** Agents hire listed agents over x402 within a cap. PayRouta lists its own agent, [PayRouta Checkout](https://payrouta-checkout.market.near.ai) (Finance, 0.30 USDC a hire in USDC on NEAR): given a store, app or agent, it delivers a step-by-step PayRouta integration plan. A PM2 process on PayRouta's server works its hires. ([docs/agent-market.md](docs/agent-market.md))
 
 ### Agent guardrails demo
 
@@ -329,6 +332,12 @@ Agent account    payrouta-agent.testnet: 99.80 pUSD
 Merchant account payrouta-merchant.testnet: 1.30 pUSD
 Agent account    payrouta-agent.testnet: 99.70 pUSD
 PayRouta's record for Harbor Data: 1 settlement(s), 1 successful (GET /api/v1/x402/settlements)
+```
+
+On mainnet, PayRouta's relayer is `de121cb478cee748f3d8db2319814fa0117756dd661349047880843ead616cdc`. Any live payment link or invoice can be paid from a NEAR account holding USDC, with no NEAR for gas:
+
+```sh
+X402_PAYER=you.near npm run -s x402:pay -- https://payrouta.com/api/agent/v1/x402/links/<slug> --max 5
 ```
 
 ### Agent vault: on-chain limits
@@ -461,6 +470,7 @@ Local mode is for development: mail is captured to `.local/portal/mail` (viewer 
 | x402 on NEAR (facilitator, relayer, payment links over x402) | `lib/x402`, `app/api/v1/x402` |
 | Agent vault and test token contracts | `contracts/` |
 | Shade Agent (TEE) that pays from a vault | `agents/shade-vault-agent` |
+| NEAR AI Agent Market (hiring, and PayRouta's listed agent) | `lib/agents/agent-market.ts`, `scripts/agent-market.ts` |
 | Checkout pages, button and universal checkout | `app/checkout`, `public/js/v1/payrouta.js`, `sdks/checkout`, `lib/payments/universal.ts` |
 | Payments: intents, routing, execution, reconciliation, merchant API | `lib/payments`, `app/api/v1` |
 | Bank and mobile money cash-out (Bridge, Yellow Card) | `lib/treasury/offramp` |
@@ -477,6 +487,7 @@ Local mode is for development: mail is captured to `.local/portal/mail` (viewer 
 - NEAR Intents: [`content/docs/near-intents.md`](content/docs/near-intents.md), [`content/docs/cross-chain.md`](content/docs/cross-chain.md)
 - Shopify and WooCommerce: [`content/docs/shopify.md`](content/docs/shopify.md), [`content/docs/woocommerce.md`](content/docs/woocommerce.md)
 - Agents, MCP, CLI: [`content/docs/agents.md`](content/docs/agents.md), [`content/docs/mcp.md`](content/docs/mcp.md), [`content/docs/cli.md`](content/docs/cli.md)
+- x402 on NEAR, the agent vault and Agent Market: [`content/docs/x402.md`](content/docs/x402.md), [`content/docs/agent-vault.md`](content/docs/agent-vault.md), [`docs/x402.md`](docs/x402.md), [`docs/agent-vault.md`](docs/agent-vault.md), [`docs/agent-market.md`](docs/agent-market.md), [`contracts/README.md`](contracts/README.md)
 - Production runbook: [`docs/PRODUCTION.md`](docs/PRODUCTION.md); payments internals: [`docs/PAYMENTS.md`](docs/PAYMENTS.md); fees: [`docs/PLATFORM-BILLING.md`](docs/PLATFORM-BILLING.md)
 
 ## License
