@@ -200,17 +200,18 @@ jobs:
             echo "==> Installing dependencies..."
             # Same lockfile as the live release: hard-link its node_modules
             # (seconds) instead of installing again (up to 23 minutes here).
-            if [ -n "$PREV" ] && [ -d "$PREV/node_modules" ] && cmp -s "$PREV/package-lock.json" package-lock.json; then
+            # script_stop checks the exit status after every line, an `else`
+            # line included, so the choice is made on one line and no branch
+            # starts after a failed test.
+            REUSE=no; if [ -n "$PREV" ] && [ -d "$PREV/node_modules" ] && cmp -s "$PREV/package-lock.json" package-lock.json; then REUSE=yes; fi
+            if [ "$REUSE" = yes ]; then
               echo "==> Lockfile unchanged: reusing node_modules from $PREV"
               cp -al "$PREV/node_modules" node_modules
-            else
-              echo "==> Disk: $(df -h "$ROOT" | tail -1)"
+            fi
+            if [ "$REUSE" = no ]; then
+              echo "==> Lockfile changed: installing (disk: $(df -h "$ROOT" | tail -1 | awk '{print $4}') free)"
               # npm's own reason, if it fails (stderr isn't always relayed).
-              if ! npm ci --prefer-offline --no-audit --no-fund > "$ROOT/npm-ci.log" 2>&1; then
-                echo "==> npm ci failed:"
-                tail -n 40 "$ROOT/npm-ci.log"
-                exit 1
-              fi
+              npm ci --prefer-offline --no-audit --no-fund > "$ROOT/npm-ci.log" 2>&1 || { echo "==> npm ci failed:"; tail -n 40 "$ROOT/npm-ci.log"; exit 1; }
             fi
             echo "==> Generating Prisma client..."
             npx prisma generate
